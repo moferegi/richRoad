@@ -60,3 +60,20 @@ func HttpRequest(
 	// 返回响应，让调用者处理
 	return resp, nil
 }
+
+func PostForm(
+	urlStr string,
+	data map[string]string) (*http.Response, error) {
+	formData := url.Values{}
+	for k, v := range data {
+		formData.Set(k, v)
+	}
+
+	// 创建请求
+	resp, err := http.PostForm(urlStr, formData)
+	if err != nil {
+		return nil, err
+	}
+	// 返回响应，让调用者处理
+	return resp, nil
+}

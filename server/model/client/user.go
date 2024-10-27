@@ -1,0 +1,29 @@
+// 自动生成模板ClientUser
+package client
+
+import (
+	"github.com/flipped-aurora/gin-vue-admin/server/global"
+	"github.com/gofrs/uuid/v5"
+)
+
+// 客户端用户 结构体  ClientUser
+type ClientUser struct {
+	global.GVA_MODEL
+	UUID      uuid.UUID `json:"uuid" form:"uuid" gorm:"column:uuid;comment:UUID;"`                               //UUID
+	Username  string    `json:"username" form:"username" gorm:"column:username;comment:用户名;" binding:"required"` //用户名
+	Password  string    `json:"password" form:"password" gorm:"column:password;comment:密码;" binding:"required"`  //密码
+	Avatar    string    `json:"avatar" form:"avatar" gorm:"column:avatar;comment:头像;type:text"`                  //头像
+	Nickname  string    `json:"nickname" form:"nickname" gorm:"column:nickname;comment:昵称;"`                     //昵称
+	Gender    string    `json:"gender" form:"gender" gorm:"column:gender;comment:性别;"`                           //性别
+	Phone     string    `json:"phone" form:"phone" gorm:"column:phone;comment:手机号;"`                             //手机号
+	Email     string    `json:"email" form:"email" gorm:"column:email;comment:邮箱;"`                              //邮箱
+	OpenID    string    `json:"openID" form:"openID" gorm:"column:open_id;comment:OpenID;"`                      //OpenID
+	CreatedBy uint      `gorm:"column:created_by;comment:创建者"`
+	UpdatedBy uint      `gorm:"column:updated_by;comment:更新者"`
+	DeletedBy uint      `gorm:"column:deleted_by;comment:删除者"`
+}
+
+// TableName 客户端用户 ClientUser自定义表名 client_user
+func (ClientUser) TableName() string {
+	return "client_user"
+}

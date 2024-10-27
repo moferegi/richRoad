@@ -7,8 +7,8 @@
     />
     <Editor
       v-model="valueHtml"
-      class="overflow-y-hidden mt-0.5"
-      style="height: 18rem;"
+      class="overflow-y-hidden mt-0.5 h-full"
+      style="min-height: 18rem;"
       :default-config="editorConfig"
       mode="default"
       @onCreated="handleCreated"

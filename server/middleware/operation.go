@@ -66,6 +66,7 @@ func OperationRecord() gin.HandlerFunc {
 			}
 			userId = id
 		}
+
 		record := system.SysOperationRecord{
 			Ip:     c.ClientIP(),
 			Method: c.Request.Method,

@@ -26,6 +26,7 @@ const (
 	InitOrderSystem   = 10
 	InitOrderInternal = 1000
 	InitOrderExternal = 100000
+	InitOrderGeo      = 1000000
 )
 
 var (

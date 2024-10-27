@@ -31,8 +31,6 @@ func (fs justFilesFilesystem) Open(name string) (http.File, error) {
 	return f, nil
 }
 
-// 初始化总路由
-
 func Routers() *gin.Engine {
 	Router := gin.New()
 	Router.Use(gin.Recovery())
@@ -58,7 +56,6 @@ func Routers() *gin.Engine {
 	docs.SwaggerInfo.BasePath = global.GVA_CONFIG.System.RouterPrefix
 	Router.GET(global.GVA_CONFIG.System.RouterPrefix+"/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	global.GVA_LOG.Info("register swagger handler")
-	// 方便统一添加路由组前缀 多服务器上线使用
 
 	PublicGroup := Router.Group(global.GVA_CONFIG.System.RouterPrefix)
 	PrivateGroup := Router.Group(global.GVA_CONFIG.System.RouterPrefix)
@@ -66,14 +63,14 @@ func Routers() *gin.Engine {
 	PrivateGroup.Use(middleware.JWTAuth()).Use(middleware.CasbinHandler())
 
 	{
-		// 健康监测
+
 		PublicGroup.GET("/health", func(c *gin.Context) {
 			c.JSON(http.StatusOK, "ok")
 		})
 	}
 	{
-		systemRouter.InitBaseRouter(PublicGroup) // 注册基础功能路由 不做鉴权
-		systemRouter.InitInitRouter(PublicGroup) // 自动初始化相关
+		systemRouter.InitBaseRouter(PublicGroup)
+		systemRouter.InitInitRouter(PublicGroup)
 	}
 
 	{
@@ -94,7 +91,6 @@ func Routers() *gin.Engine {
 		systemRouter.InitSysParamsRouter(PrivateGroup, PublicGroup) // 参数管理
 		exampleRouter.InitCustomerRouter(PrivateGroup)              // 客户路由
 		exampleRouter.InitFileUploadAndDownloadRouter(PrivateGroup) // 文件上传下载功能路由
-
 	}
 
 	//插件路由安装

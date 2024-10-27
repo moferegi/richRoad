@@ -37,10 +37,11 @@ require (
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.3
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.55
-	github.com/unrolled/secure v1.16.0
-	github.com/xuri/excelize/v2 v2.9.0
-	go.mongodb.org/mongo-driver v1.17.1
-	go.uber.org/automaxprocs v1.6.0
+	github.com/unrolled/secure v1.15.0
+	github.com/xuri/excelize/v2 v2.8.1
+	go.mongodb.org/mongo-driver v1.17.0
+	github.com/wechatpay-apiv3/wechatpay-go v0.2.18
+	go.uber.org/automaxprocs v1.5.3
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.28.0
 	golang.org/x/sync v0.8.0

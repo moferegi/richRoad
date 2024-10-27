@@ -98,6 +98,16 @@ func (i *initDictDetail) InitializeData(ctx context.Context) (context.Context, e
 		{Label: "tinyint", Value: "1", Extend: "mysql", Status: &True},
 		{Label: "bool", Value: "2", Extend: "pgsql", Status: &True},
 	}
+
+	dicts[6].SysDictionaryDetails = []sysModel.SysDictionaryDetail{
+		{Label: "待付款", Value: "0", Extend: "", Status: &True},
+		{Label: "待发货", Value: "1", Extend: "", Status: &True},
+		{Label: "待收货", Value: "2", Extend: "", Status: &True},
+		{Label: "已确认收货", Value: "3", Extend: "", Status: &True},
+		{Label: "已评价", Value: "7", Extend: "", Status: &True},
+		{Label: "取消", Value: "4", Extend: "", Status: &True},
+	}
+
 	for _, dict := range dicts {
 		if err := db.Model(&dict).Association("SysDictionaryDetails").
 			Replace(dict.SysDictionaryDetails); err != nil {

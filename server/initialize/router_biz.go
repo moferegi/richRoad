@@ -5,15 +5,30 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// 占位方法，保证文件可以正确加载，避免go空变量检测报错，请勿删除。
 func holder(routers ...*gin.RouterGroup) {
 	_ = routers
 	_ = router.RouterGroupApp
 }
-
 func initBizRouter(routers ...*gin.RouterGroup) {
 	privateGroup := routers[0]
 	publicGroup := routers[1]
-
+	{
+		clientRouter := router.RouterGroupApp.Client
+		clientRouter.InitClientUserRouter(privateGroup, publicGroup)
+		clientRouter.InitAddressRouter(privateGroup, publicGroup)
+		clientRouter.InitCollectRouter(privateGroup, publicGroup)
+	}
+	{
+		shopRouter := router.RouterGroupApp.Shop
+		shopRouter.InitBannerRouter(privateGroup, publicGroup)
+		shopRouter.InitCategoryRouter(privateGroup, publicGroup)
+		shopRouter.InitGoodRouter(privateGroup, publicGroup)
+		shopRouter.InitSkuRouter(privateGroup, publicGroup)
+		shopRouter.InitCartRouter(privateGroup, publicGroup)
+		shopRouter.InitOrderRouter(privateGroup, publicGroup)
+		shopRouter.InitCommentRouter(privateGroup, publicGroup)
+	}
 	holder(publicGroup, privateGroup)
 }
+
+// 占位方法，保证文件可以正确加载，避免go空变量检测报错，请勿删除。

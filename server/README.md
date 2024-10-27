@@ -1,54 +1,104 @@
-## server项目结构
+
+## 项目介绍
+
+本项目为基于Gin-Vue-Admin 和 [GVA-uniapp开发专用基座](https://plugin.gin-vue-admin.com/#/layout/newPluginInfo?id=71)开发的UNIAPP 商城系统
+
+项目购买后联系奇淼加入维护专用仓库
+注：目前暂时无法加入仓库,代码中包含较为敏感的aksk等信息，等剔除完成后会开放仓库加入
+
+## 主要板块为
+
+### uniapp端
+
+- 首页
+- 登录
+- 注册
+- 轮播图
+- 商品列表
+- 商品详情
+- 商品细分选择
+- 购物车
+- 购物车下单
+- 单品下单
+- 付款流程
+- 评价体系
+- 订单管理
+- 物流查看
+- 地址管理
+- 个人中心
+
+### 后端
+
+- 客户端管理
+- 客户端用户管理
+- 商城管理
+- 用户评价管理
+- 订单管理
+- 轮播图管理
+- 商品分类管理
+- 商品管理
+- 商品规格
+- 商品属性
+- sku添加管理
+
+# 安装教程
+
+## 客户端
+所在文件位置 `/uni`
 
 ```shell
-├── api
-│   └── v1
-├── config
-├── core
-├── docs
-├── global
-├── initialize
-│   └── internal
-├── middleware
-├── model
-│   ├── request
-│   └── response
-├── packfile
-├── resource
-│   ├── excel
-│   ├── page
-│   └── template
-├── router
-├── service
-├── source
-└── utils
-    ├── timer
-    └── upload
+# 安装依赖
+npm install
+
+```
+需要使用hbuildx启动项目
+
+## 管理端前端
+所在文件位置 `/web`
+
+```shell
+# 安装依赖
+npm install
+
+# 启动项目
+npm run dev
 ```
 
-| 文件夹       | 说明                    | 描述                        |
-| ------------ | ----------------------- | --------------------------- |
-| `api`        | api层                   | api层 |
-| `--v1`       | v1版本接口              | v1版本接口                  |
-| `config`     | 配置包                  | config.yaml对应的配置结构体 |
-| `core`       | 核心文件                | 核心组件(zap, viper, server)的初始化 |
-| `docs`       | swagger文档目录         | swagger文档目录 |
-| `global`     | 全局对象                | 全局对象 |
-| `initialize` | 初始化 | router,redis,gorm,validator, timer的初始化 |
-| `--internal` | 初始化内部函数 | gorm 的 longger 自定义,在此文件夹的函数只能由 `initialize` 层进行调用 |
-| `middleware` | 中间件层 | 用于存放 `gin` 中间件代码 |
-| `model`      | 模型层                  | 模型对应数据表              |
-| `--request`  | 入参结构体              | 接收前端发送到后端的数据。  |
-| `--response` | 出参结构体              | 返回给前端的数据结构体      |
-| `packfile`   | 静态文件打包            | 静态文件打包 |
-| `resource`   | 静态资源文件夹          | 负责存放静态文件                |
-| `--excel` | excel导入导出默认路径 | excel导入导出默认路径 |
-| `--page` | 表单生成器 | 表单生成器 打包后的dist |
-| `--template` | 模板 | 模板文件夹,存放的是代码生成器的模板 |
-| `router`     | 路由层                  | 路由层 |
-| `service`    | service层               | 存放业务逻辑问题 |
-| `source` | source层 | 存放初始化数据的函数 |
-| `utils`      | 工具包                  | 工具函数封装            |
-| `--timer` | timer | 定时器接口封装 |
-| `--upload`      | oss                  | oss接口封装        |
+## 数据库文件
+
+直接按照gva模式点击初始化即可初始所有数据
+
+## 配置信息
+需要手动填入 config.yaml内的微信支付配置和顺丰(非必须)配置
+微信支付使用本插件 https://plugin.gin-vue-admin.com/#/layout/newPluginInfo?id=22
+```yaml
+wxpay:
+    mch-id: ""  # 商户ID
+    app-id: ""  # 绑定小程序的APPID
+    secret: ""  # 绑定小程序的sk
+    mch-certificate-serial-number: "" # 商户证书序列号
+    mch-api-v3-key: "" # 商户APIv3密钥
+    pem-path: ""  # 证书文件所在地址
+    notify-url: ""  # 支付回调域名
+sf:
+  partner-id: ""
+  check-code: ""
+  sand-check-code: ""
+  is-sandbox: ""
+```
+
+## 后端
+所在文件位置 `/server`
+
+```shell
+# 安装依赖
+go mod tidy
+
+#启动项目
+go run
+```
+
+## 使用展示
+
+
 

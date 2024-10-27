@@ -1,0 +1,170 @@
+package client
+
+import (
+	"github.com/flipped-aurora/gin-vue-admin/server/global"
+	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
+	clientReq "github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
+	"github.com/flipped-aurora/gin-vue-admin/server/service"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+)
+
+type CollectApi struct {
+}
+
+var collectService = service.ServiceGroupApp.ClientServiceGroup.CollectService
+
+// CreateCollect 创建收藏
+// @Tags Collect
+// @Summary 创建收藏
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data body client.Collect true "创建收藏"
+// @Success 200 {string} string "{"success":true,"data":{},"msg":"创建成功"}"
+// @Router /collect/createCollect [post]
+func (collectApi *CollectApi) CreateCollect(c *gin.Context) {
+	var collect client.Collect
+	err := c.ShouldBindJSON(&collect)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	collect.UserID = utils.GetUserID(c)
+	if err := collectService.CreateCollect(&collect); err != nil {
+		global.GVA_LOG.Error("失败!", zap.Error(err))
+		response.FailWithMessage("失败", c)
+	} else {
+		response.OkWithMessage("成功", c)
+	}
+}
+
+// DeleteCollect 删除收藏
+// @Tags Collect
+// @Summary 删除收藏
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data body client.Collect true "删除收藏"
+// @Success 200 {string} string "{"success":true,"data":{},"msg":"删除成功"}"
+// @Router /collect/deleteCollect [delete]
+func (collectApi *CollectApi) DeleteCollect(c *gin.Context) {
+	ID := c.Query("ID")
+	if err := collectService.DeleteCollect(ID); err != nil {
+		global.GVA_LOG.Error("删除失败!", zap.Error(err))
+		response.FailWithMessage("删除失败", c)
+	} else {
+		response.OkWithMessage("删除成功", c)
+	}
+}
+
+// DeleteCollectByIds 批量删除收藏
+// @Tags Collect
+// @Summary 批量删除收藏
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Success 200 {string} string "{"success":true,"data":{},"msg":"批量删除成功"}"
+// @Router /collect/deleteCollectByIds [delete]
+func (collectApi *CollectApi) DeleteCollectByIds(c *gin.Context) {
+	IDs := c.QueryArray("IDs[]")
+	if err := collectService.DeleteCollectByIds(IDs); err != nil {
+		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
+		response.FailWithMessage("批量删除失败", c)
+	} else {
+		response.OkWithMessage("批量删除成功", c)
+	}
+}
+
+// UpdateCollect 更新收藏
+// @Tags Collect
+// @Summary 更新收藏
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data body client.Collect true "更新收藏"
+// @Success 200 {string} string "{"success":true,"data":{},"msg":"更新成功"}"
+// @Router /collect/updateCollect [put]
+func (collectApi *CollectApi) UpdateCollect(c *gin.Context) {
+	var collect client.Collect
+	err := c.ShouldBindJSON(&collect)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+
+	if err := collectService.UpdateCollect(collect); err != nil {
+		global.GVA_LOG.Error("更新失败!", zap.Error(err))
+		response.FailWithMessage("更新失败", c)
+	} else {
+		response.OkWithMessage("更新成功", c)
+	}
+}
+
+// FindCollect 用id查询收藏
+// @Tags Collect
+// @Summary 用id查询收藏
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data query client.Collect true "用id查询收藏"
+// @Success 200 {string} string "{"success":true,"data":{},"msg":"查询成功"}"
+// @Router /collect/findCollect [get]
+func (collectApi *CollectApi) FindCollect(c *gin.Context) {
+	ID := c.Query("goodID")
+	userID := utils.GetUserID(c)
+	if ok, err := collectService.GetCollect(userID, ID); err != nil {
+		global.GVA_LOG.Error("查询失败!", zap.Error(err))
+		response.FailWithMessage("查询失败", c)
+	} else {
+		response.OkWithData(ok, c)
+	}
+}
+
+// GetCollectList 分页获取收藏列表
+// @Tags Collect
+// @Summary 分页获取收藏列表
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data query clientReq.CollectSearch true "分页获取收藏列表"
+// @Success 200 {string} string "{"success":true,"data":{},"msg":"获取成功"}"
+// @Router /collect/getCollectList [get]
+func (collectApi *CollectApi) GetCollectList(c *gin.Context) {
+	var pageInfo clientReq.CollectSearch
+	err := c.ShouldBindQuery(&pageInfo)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	pageInfo.UserID = utils.GetUserID(c)
+	if list, total, err := collectService.GetCollectInfoList(pageInfo); err != nil {
+		global.GVA_LOG.Error("获取失败!", zap.Error(err))
+		response.FailWithMessage("获取失败", c)
+	} else {
+		response.OkWithDetailed(response.PageResult{
+			List:     list,
+			Total:    total,
+			Page:     pageInfo.Page,
+			PageSize: pageInfo.PageSize,
+		}, "获取成功", c)
+	}
+}
+
+// GetCollectPublic 不需要鉴权的收藏接口
+// @Tags Collect
+// @Summary 不需要鉴权的收藏接口
+// @accept application/json
+// @Produce application/json
+// @Param data query clientReq.CollectSearch true "分页获取收藏列表"
+// @Success 200 {string} string "{"success":true,"data":{},"msg":"获取成功"}"
+// @Router /collect/getCollectPublic [get]
+func (collectApi *CollectApi) GetCollectPublic(c *gin.Context) {
+	// 此接口不需要鉴权
+	// 示例为返回了一个固定的消息接口，一般本接口用于C端服务，需要自己实现业务逻辑
+	response.OkWithDetailed(gin.H{
+		"info": "不需要鉴权的收藏接口信息",
+	}, "获取成功", c)
+}

@@ -26,12 +26,17 @@ func Timer() {
 
 		// 其他定时任务定在这里 参考上方使用方法
 
-		//_, err := global.GVA_Timer.AddTaskByFunc("定时任务标识", "corn表达式", func() {
-		//	具体执行内容...
-		//  ......
-		//}, option...)
-		//if err != nil {
-		//	fmt.Println("add timer error:", err)
-		//}
+		_, err = global.GVA_Timer.AddTaskByFunc("ClearOrder", "* * * * * *", func() {
+			if global.GVA_DB == nil {
+				return
+			}
+			e := task.ClearOrder(global.GVA_DB) // 定时任务方法定在task文件包中
+			if e != nil {
+				fmt.Println("订单清理失败:", err)
+			}
+		}, "定时清理已过期订单", option...)
+		if err != nil {
+			fmt.Println("add timer error:", err)
+		}
 	}()
 }

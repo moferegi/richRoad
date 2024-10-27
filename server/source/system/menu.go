@@ -81,6 +81,20 @@ func (i *initMenu) InitializeData(ctx context.Context) (next context.Context, er
 		{MenuLevel: 0, Hidden: false, ParentId: 24, Path: "plugin-email", Name: "plugin-email", Component: "plugin/email/view/index.vue", Sort: 4, Meta: Meta{Title: "邮件插件", Icon: "message"}},
 		{MenuLevel: 0, Hidden: false, ParentId: 15, Path: "exportTemplate", Name: "exportTemplate", Component: "view/systemTools/exportTemplate/exportTemplate.vue", Sort: 5, Meta: Meta{Title: "表格模板", Icon: "reading"}},
 		{MenuLevel: 0, Hidden: false, ParentId: 24, Path: "anInfo", Name: "anInfo", Component: "plugin/announcement/view/info.vue", Sort: 5, Meta: Meta{Title: "公告管理[示例]", Icon: "scaleToOriginal"}},
+
+		{MenuLevel: 0, Hidden: false, ParentId: 0, Path: "client", Name: "client", Component: "view/routerHolder.vue", Sort: 1000, Meta: Meta{Title: "客户端", Icon: "histogram"}},
+		{MenuLevel: 0, Hidden: false, ParentId: 31, Path: "clientUser", Name: "clientUser", Component: "view/client/user/user.vue", Sort: 1, Meta: Meta{Title: "客户端用户", Icon: "user-filled"}},
+		{MenuLevel: 0, Hidden: false, ParentId: 31, Path: "address", Name: "address", Component: "view/client/address/address.vue", Sort: 0, Meta: Meta{Title: "用户地址", Icon: "add-location"}},
+		{MenuLevel: 0, Hidden: false, ParentId: 0, Path: "shop", Name: "shop", Component: "view/routerHolder.vue", Sort: 1000, Meta: Meta{Title: "商城管理", Icon: "shop"}},
+		{MenuLevel: 0, Hidden: false, ParentId: 34, Path: "banner", Name: "banner", Component: "view/shop/banner/banner.vue", Sort: 1, Meta: Meta{Title: "轮播图", Icon: "picture-filled"}},
+		{MenuLevel: 0, Hidden: false, ParentId: 34, Path: "category", Name: "category", Component: "view/shop/category/category.vue", Sort: 2000, Meta: Meta{Title: "商品分类", Icon: "cherry"}},
+		{MenuLevel: 0, Hidden: false, ParentId: 34, Path: "good", Name: "good", Component: "view/shop/good/good.vue", Sort: 1000, Meta: Meta{Title: "商品管理", Icon: "shopping-bag"}},
+		{MenuLevel: 0, Hidden: true, ParentId: 34, Path: "sku", Name: "sku", Component: "view/shop/sku/sku.vue", Sort: 0, Meta: Meta{Title: "sku-${id}", Icon: ""}},
+		{MenuLevel: 0, Hidden: false, ParentId: 34, Path: "order", Name: "order", Component: "view/shop/order/order.vue", Sort: 0, Meta: Meta{Title: "订单管理", Icon: "coordinate"}},
+		{MenuLevel: 0, Hidden: true, ParentId: 0, Path: "cart", Name: "cart", Component: "view/shop/cart/cart.vue", Sort: 0, Meta: Meta{Title: "购物车", Icon: ""}},
+		{MenuLevel: 0, Hidden: false, ParentId: 0, Path: "geoGroup", Name: "geoGroup", Component: "view/routerHolder.vue", Sort: 1000, Meta: Meta{Title: "城市管理", Icon: "school"}},
+		{MenuLevel: 0, Hidden: false, ParentId: 41, Path: "geo", Name: "geo", Component: "plugin/geo/view/index.vue", Sort: 0, Meta: Meta{Title: "城市管理", Icon: "school"}},
+		{MenuLevel: 0, Hidden: false, ParentId: 34, Path: "comment", Name: "comment", Component: "view/shop/comment/comment.vue", Sort: 0, Meta: Meta{Title: "用户评论", Icon: "message"}},
 		{MenuLevel: 0, Hidden: false, ParentId: 3, Path: "sysParams", Name: "sysParams", Component: "view/superAdmin/params/sysParams.vue", Sort: 7, Meta: Meta{Title: "参数管理", Icon: "compass"}},
 	}
 	if err = db.Create(&entities).Error; err != nil {

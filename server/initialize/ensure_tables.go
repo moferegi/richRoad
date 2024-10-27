@@ -3,7 +3,9 @@ package initialize
 import (
 	"context"
 	adapter "github.com/casbin/gorm-adapter/v3"
+	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/example"
+	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	sysModel "github.com/flipped-aurora/gin-vue-admin/server/model/system"
 	"github.com/flipped-aurora/gin-vue-admin/server/service/system"
 	"gorm.io/gorm"
@@ -59,6 +61,14 @@ func (e *ensureTables) MigrateTable(ctx context.Context) (context.Context, error
 		example.ExaCustomer{},
 		example.ExaFileChunk{},
 		example.ExaFileUploadAndDownload{},
+		client.ClientUser{},
+		shop.Banner{},
+		shop.Category{},
+		shop.Good{},
+		shop.Sku{},
+		shop.Cart{},
+		shop.Order{},
+		shop.OrderDetail{},
 	}
 	for _, t := range tables {
 		_ = db.AutoMigrate(&t)
@@ -97,6 +107,14 @@ func (e *ensureTables) TableCreated(ctx context.Context) bool {
 		example.ExaCustomer{},
 		example.ExaFileChunk{},
 		example.ExaFileUploadAndDownload{},
+		client.ClientUser{},
+		shop.Banner{},
+		shop.Category{},
+		shop.Good{},
+		shop.Sku{},
+		shop.Cart{},
+		shop.Order{},
+		shop.OrderDetail{},
 	}
 	yes := true
 	for _, t := range tables {
