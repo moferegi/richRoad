@@ -5,7 +5,7 @@
 				<form class="cl">
 					<view class="t-a">
 						<text class="txt">账号</text>
-						<input type="number" name="phone" placeholder="请输入您的账号" maxlength="11" v-model="form.username" />
+						<input placeholder="请输入您的账号" maxlength="12" v-model="form.username" />
 					</view>
 					<view class="t-a">
 						<text class="txt">密码</text>
