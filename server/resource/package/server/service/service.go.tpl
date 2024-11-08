@@ -23,7 +23,7 @@ if info.Start{{.FieldName}} != nil && info.End{{.FieldName}} != nil {
     db = db.Where("{{.ColumnName}} {{.FieldSearchType}} ? AND ? ",info.Start{{.FieldName}},info.End{{.FieldName}})
 }
     {{- else}}
-if info.{{.FieldName}} != nil {
+if info.{{.FieldName}} != nil{{- if eq .FieldType "string" }} && *info.{{.FieldName}} != ""{{- end }} {
     db = db.Where("{{.ColumnName}} {{.FieldSearchType}} ?",{{if eq .FieldSearchType "LIKE"}}"%"+{{ end }}*info.{{.FieldName}}{{if eq .FieldSearchType "LIKE"}}+"%"{{ end }})
 }
             {{- end }}
@@ -49,7 +49,7 @@ orderMap["{{.ColumnName}}"] = true
 {{- else}}
 {{ $dataDB = printf "global.MustGetGlobalDBByDBName(\"%s\")" $value.DBName }}
 {{- end}}
-{{$dataDB}}.Table("{{$value.Table}}").Select("{{$value.Label}} as label,{{$value.Value}} as value").Scan(&{{$key}})
+{{$dataDB}}.Table("{{$value.Table}}"){{- if $value.HasDeletedAt}}.Where("deleted_at IS NULL"){{ end }}.Select("{{$value.Label}} as label,{{$value.Value}} as value").Scan(&{{$key}})
 res["{{$key}}"] = {{$key}}
 	{{- end }}
 {{- end }}
@@ -158,7 +158,7 @@ func ({{.Abbreviation}}Service *{{.StructName}}Service)Get{{.StructName}}InfoLis
             db = db.Where("{{.ColumnName}} {{.FieldSearchType}} ? AND ? ",info.Start{{.FieldName}},info.End{{.FieldName}})
         }
     {{- else}}
-    if info.{{.FieldName}} != nil {
+    if info.{{.FieldName}} != nil{{- if eq .FieldType "string" }} && *info.{{.FieldName}} != ""{{- end }} {
         db = db.Where("{{.ColumnName}} {{.FieldSearchType}} ?",{{if eq .FieldSearchType "LIKE"}}"%"+{{ end }}*info.{{.FieldName}}{{if eq .FieldSearchType "LIKE"}}+"%"{{ end }})
     }
             {{- end }}
@@ -204,7 +204,7 @@ func ({{.Abbreviation}}Service *{{.StructName}}Service)Get{{.StructName}}DataSou
        {{- else}}
        {{ $dataDB = printf "global.MustGetGlobalDBByDBName(\"%s\")" $value.DBName }}
        {{- end}}
-       {{$dataDB}}.Table("{{$value.Table}}").Select("{{$value.Label}} as label,{{$value.Value}} as value").Scan(&{{$key}})
+       {{$dataDB}}.Table("{{$value.Table}}"){{- if $value.HasDeletedAt}}.Where("deleted_at IS NULL"){{ end }}.Select("{{$value.Label}} as label,{{$value.Value}} as value").Scan(&{{$key}})
 	   res["{{$key}}"] = {{$key}}
 	{{- end }}
 	return
