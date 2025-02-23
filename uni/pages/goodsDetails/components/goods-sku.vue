@@ -83,7 +83,7 @@ const token = userStore.token || ''
 const currentQuantity = ref(1);
 const specsMap = ref({})
 const selectMap = ref({})
-let selectSKU = ref(undefined)
+const selectSKU = ref({})
 
 
 const getSkuInfo = (skus,key) =>{
@@ -163,7 +163,7 @@ watch(()=>selectMap,(newValue)=>{
 		})
 		return allSame
 	})
-	selectSKU = sku
+	selectSKU.value = sku
 },{deep:true})
 
 const submit = async () => {
@@ -172,8 +172,8 @@ const submit = async () => {
     let detail = {
       "detail": [
         {
-          "goodID": selectSKU.goodID,
-          "skuID": selectSKU.ID,
+          "goodID": selectSKU.value.goodID,
+          "skuID": selectSKU.value.ID,
           "quantity": currentQuantity.value
         }
       ]
@@ -199,8 +199,8 @@ const submit = async () => {
 const addToCart = async () => {
   // 找到当前选中的sku的SKUid和goodID
   const params = {
-    goodID: selectSKU.goodID,
-    skuID: selectSKU.ID
+    goodID: selectSKU.value.goodID,
+    skuID: selectSKU.value.ID
   }
   const res = await addCart(params)
   if (res.code === 0) {

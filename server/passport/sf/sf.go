@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils/request"
-	"github.com/gofrs/uuid/v5"
+	"github.com/google/uuid"
 	"io"
 	"strconv"
 	"sync"
@@ -91,7 +91,7 @@ func (sf *sfPassPort) SearchRouters(trackingNumber string) (error, string) {
 	var routerRequest = make(map[string]string)
 
 	routerRequest["partnerID"] = partnerID
-	u, _ := uuid.NewV4()
+	u := uuid.New()
 	routerRequest["requestID"] = u.String()
 	routerRequest["serviceCode"] = SERVER_CODE
 	timestampStr := strconv.Itoa(int(time.Now().Unix()))

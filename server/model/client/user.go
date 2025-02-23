@@ -3,7 +3,7 @@ package client
 
 import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
-	"github.com/gofrs/uuid/v5"
+	"github.com/google/uuid"
 )
 
 // 客户端用户 结构体  ClientUser
