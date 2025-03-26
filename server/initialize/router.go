@@ -31,6 +31,8 @@ func (fs justFilesFilesystem) Open(name string) (http.File, error) {
 	return f, nil
 }
 
+// 初始化总路由
+
 func Routers() *gin.Engine {
 	Router := gin.New()
 	Router.Use(gin.Recovery())
@@ -56,6 +58,7 @@ func Routers() *gin.Engine {
 	docs.SwaggerInfo.BasePath = global.GVA_CONFIG.System.RouterPrefix
 	Router.GET(global.GVA_CONFIG.System.RouterPrefix+"/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	global.GVA_LOG.Info("register swagger handler")
+	// 方便统一添加路由组前缀 多服务器上线使用
 
 	PublicGroup := Router.Group(global.GVA_CONFIG.System.RouterPrefix)
 	PrivateGroup := Router.Group(global.GVA_CONFIG.System.RouterPrefix)
@@ -63,35 +66,35 @@ func Routers() *gin.Engine {
 	PrivateGroup.Use(middleware.JWTAuth()).Use(middleware.CasbinHandler())
 
 	{
-
+		// 健康监测
 		PublicGroup.GET("/health", func(c *gin.Context) {
 			c.JSON(http.StatusOK, "ok")
 		})
 	}
 	{
-		systemRouter.InitBaseRouter(PublicGroup)
-		systemRouter.InitInitRouter(PublicGroup)
+		systemRouter.InitBaseRouter(PublicGroup) // 注册基础功能路由 不做鉴权
+		systemRouter.InitInitRouter(PublicGroup) // 自动初始化相关
 	}
 
 	{
-		systemRouter.InitApiRouter(PrivateGroup, PublicGroup)       // 注册功能api路由
-		systemRouter.InitJwtRouter(PrivateGroup)                    // jwt相关路由
-		systemRouter.InitUserRouter(PrivateGroup)                   // 注册用户路由
-		systemRouter.InitMenuRouter(PrivateGroup)                   // 注册menu路由
-		systemRouter.InitSystemRouter(PrivateGroup)                 // system相关路由
-		systemRouter.InitCasbinRouter(PrivateGroup)                 // 权限相关路由
-		systemRouter.InitAutoCodeRouter(PrivateGroup, PublicGroup)  // 创建自动化代码
-		systemRouter.InitAuthorityRouter(PrivateGroup)              // 注册角色路由
-		systemRouter.InitSysDictionaryRouter(PrivateGroup)          // 字典管理
-		systemRouter.InitAutoCodeHistoryRouter(PrivateGroup)        // 自动化代码历史
-		systemRouter.InitSysOperationRecordRouter(PrivateGroup)     // 操作记录
-		systemRouter.InitSysDictionaryDetailRouter(PrivateGroup)    // 字典详情管理
-		systemRouter.InitAuthorityBtnRouterRouter(PrivateGroup)     // 按钮权限管理
-		systemRouter.InitSysExportTemplateRouter(PrivateGroup)      // 导出模板
-		systemRouter.InitSysParamsRouter(PrivateGroup, PublicGroup) // 参数管理
-		exampleRouter.InitCustomerRouter(PrivateGroup)              // 客户路由
-		exampleRouter.InitFileUploadAndDownloadRouter(PrivateGroup) // 文件上传下载功能路由
-		exampleRouter.InitAttachmentCategoryRouterRouter(PrivateGroup) // 文件上传下载分类
+		systemRouter.InitApiRouter(PrivateGroup, PublicGroup)               // 注册功能api路由
+		systemRouter.InitJwtRouter(PrivateGroup)                            // jwt相关路由
+		systemRouter.InitUserRouter(PrivateGroup)                           // 注册用户路由
+		systemRouter.InitMenuRouter(PrivateGroup)                           // 注册menu路由
+		systemRouter.InitSystemRouter(PrivateGroup)                         // system相关路由
+		systemRouter.InitCasbinRouter(PrivateGroup)                         // 权限相关路由
+		systemRouter.InitAutoCodeRouter(PrivateGroup, PublicGroup)          // 创建自动化代码
+		systemRouter.InitAuthorityRouter(PrivateGroup)                      // 注册角色路由
+		systemRouter.InitSysDictionaryRouter(PrivateGroup)                  // 字典管理
+		systemRouter.InitAutoCodeHistoryRouter(PrivateGroup)                // 自动化代码历史
+		systemRouter.InitSysOperationRecordRouter(PrivateGroup)             // 操作记录
+		systemRouter.InitSysDictionaryDetailRouter(PrivateGroup)            // 字典详情管理
+		systemRouter.InitAuthorityBtnRouterRouter(PrivateGroup)             // 按钮权限管理
+		systemRouter.InitSysExportTemplateRouter(PrivateGroup, PublicGroup) // 导出模板
+		systemRouter.InitSysParamsRouter(PrivateGroup, PublicGroup)         // 参数管理
+		exampleRouter.InitCustomerRouter(PrivateGroup)                      // 客户路由
+		exampleRouter.InitFileUploadAndDownloadRouter(PrivateGroup)         // 文件上传下载功能路由
+		exampleRouter.InitAttachmentCategoryRouterRouter(PrivateGroup)      // 文件上传下载分类
 
 	}
 
