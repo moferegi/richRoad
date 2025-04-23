@@ -205,7 +205,7 @@ import {getUrl} from "@/utils/url.js"
 		z-index: 1;
 		font-size: 24rpx;
 		padding-right: 32rpx;
-
+	}
 
 	.shop_nav_box {
 		width: 100%;
