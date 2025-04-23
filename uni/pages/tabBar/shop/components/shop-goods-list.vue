@@ -16,7 +16,6 @@
           <text class="p_t_16 p_b_40 font_24 color_fe5572" @tap="goTo" >挑选商品</text>
         </template>
       </up-empty>
-			<template>
 					<view class="flex flex-aic p_t_24" v-for="(item, index) in cartList" :key="index">
 						<image class="shop_item_img m_r_16" :src="getUrl(item.sku.picture)" mode="aspectFill"></image>
 						<view class="flex-fitem">
@@ -33,7 +32,6 @@
 							</view>
 						</view>
 					</view>
-			</template>
 		</view>
 	</view>
 	<view class="shop_nav_box pos_f bgc_fff flex-aic flexr-jsb boxs_bb">
@@ -115,14 +113,6 @@ import {getUrl} from "@/utils/url.js"
 
 	// 删除购物车全部内容
 	const clearAllCart = async () => {
-		if (!selectedItemIds.value.length) {
-			uni.showToast({
-				title: '您还没有选择宝贝哦',
-				mask: true,
-				icon: 'none'
-			});
-			return
-		}
 		const res = await clearCart()
 		if (res.code === 0) {
 			uni.showToast({
@@ -215,14 +205,14 @@ import {getUrl} from "@/utils/url.js"
 		z-index: 1;
 		font-size: 24rpx;
 		padding-right: 32rpx;
-	}
+
 
 	.shop_nav_box {
 		width: 100%;
 		height: 100rpx;
 		box-shadow: 0rpx -2rpx 6rpx 0rpx rgba(215, 215, 215, 0.5);
 		left: 0;
-		bottom: 0;
+		bottom: 0rpx;
 		z-index: 1;
 		padding: 0 32rpx 0 16rpx;
 	}

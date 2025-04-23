@@ -16,7 +16,6 @@
 
         </view>
       </view>
-      <up-divider text="分割线" :dot="true" v-if="isBottom"></up-divider>
   </view>
 </template>
 <script setup>
