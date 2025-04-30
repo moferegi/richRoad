@@ -2,23 +2,12 @@
 	<view class="content">
 		<scroll-view scroll-y="true" class="scroll-Y" @scrolltolower="debouncedLower">
 		<home-swiper :list="list"></home-swiper>
-		<up-tabs
-		    :list="arr"
-		    lineWidth="30"
-		    lineColor="#f56c6c"
-		    @click="changeTabs"
-		    :activeStyle="{
-		        color: '#303133',
-		        fontWeight: 'bold',
-		        transform: 'scale(1.05)'
-		    }"
-		    :inactiveStyle="{
-		        color: '#606266',
-		        transform: 'scale(1)'
-		    }"
-		    itemStyle="padding-left: 15px; padding-right: 15px; height: 34px;"
+		<v-tabs
+        :tabs="tabs"
+        @change="changeTabs"
+        v-model="selectTab"
 		>
-		</up-tabs>
+		</v-tabs>
 		<home-flow :flowData="flowData"></home-flow>
 		<view class="tabs_box">
 			<up-divider :text="isBottom?'没有更多了':'正在加载中...'"></up-divider>
@@ -41,18 +30,18 @@
 		list.value = res.data.list
 	}
 	initBanner()
-	
+
 	// 商品相关属性
 	const params = ref({
 	  page: 1,
 	  pageSize: 10,
 	  categoryID: 0
 	})
-	
+
 	const flowData = ref([])
 	const isBottom = ref(false)
-	
-	
+
+
 	// 获取商品相关业务逻辑
 	const lower = async () => {
 	  if(isBottom.value) {
@@ -69,40 +58,39 @@
 	    }
 	  }
 	}
-	
-	
+
+  const selectTab = ref("全部")
+
 	// 切换tabs
 	const changeTabs = async (index) => {
-	 params.value.categoryID = index.id
+	 params.value.categoryID = tabsMap.value[index]
 	 params.value.page = 0
 	 isBottom.value = false
 	 flowData.value = []
 	 // 拿到index.id作为categoryID去调用/good/getGoodList接口
 	 lower()
 	}
-	
+
 	// 分类tabs相关业务逻辑
 	const gridList = ref([])
-	const arr = ref([])
+	const tabsMap = ref({'全部': 0})
+  const tabs = ref([])
 	const initCategory = async () => {
 	  const res = await getCategoryMobile()
 	  if (res.code === 0 && res.data.length) {
 	    gridList.value = res.data
 	    // 赋值给新数组，新数组清洗数据改变desc为name{ name: '电影' },{ name: '科技' }的格式
-	     arr.value = res.data.map(item => {
-	      return {
-	        name: item.title,
-	        id: item.ID
-	      }
-	    })
-	
-	    arr.value.unshift({name: '全部', id: 0})
-	  }
+      res.data.forEach(item => {
+        tabsMap.value[item.title] = item.id
+        tabs.value.push(item.title)
+      })
+      tabs.value.unshift('全部')
+    }
 	}
 	initCategory()
-	changeTabs({id:0})
-	
-	
+	changeTabs("全部")
+
+
 	// 防抖函数
 	const debounce = (func, delay) => {
 	  let debounceTimer;
@@ -113,11 +101,11 @@
 	    }, delay);
 	  };
 	};
-	
-	
+
+
 	// 防抖包装的 lower 方法
 	const debouncedLower = debounce(lower, 300);
-	
+
 
 </script>
 

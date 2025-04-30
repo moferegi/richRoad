@@ -1,5 +1,11 @@
 {
   "/src/view/about/index.vue": "About",
+  "/src/view/client/address/address.vue": "Address",
+  "/src/view/client/address/addressForm.vue": "AddressForm",
+  "/src/view/client/collect/collect.vue": "Collect",
+  "/src/view/client/collect/collectForm.vue": "CollectForm",
+  "/src/view/client/user/user.vue": "ClientUser",
+  "/src/view/client/user/userForm.vue": "ClientUserForm",
   "/src/view/dashboard/components/banner.vue": "Banner",
   "/src/view/dashboard/components/card.vue": "Card",
   "/src/view/dashboard/components/charts-content-numbers.vue": "ChartsContentNumbers",
@@ -16,6 +22,7 @@
   "/src/view/example/breakpoint/breakpoint.vue": "BreakPoint",
   "/src/view/example/customer/customer.vue": "Customer",
   "/src/view/example/index.vue": "Example",
+  "/src/view/example/upload/scanUpload.vue": "scanUpload",
   "/src/view/example/upload/upload.vue": "Upload",
   "/src/view/init/index.vue": "Init",
   "/src/view/layout/aside/asideComponent/asyncSubmenu.vue": "AsyncSubmenu",
@@ -75,5 +82,6 @@
   "/src/view/systemTools/system/system.vue": "Config",
   "/src/plugin/announcement/form/info.vue": "InfoForm",
   "/src/plugin/announcement/view/info.vue": "Info",
-  "/src/plugin/email/view/index.vue": "Email"
+  "/src/plugin/email/view/index.vue": "Email",
+  "/src/plugin/geo/view/index.vue": "Index"
 }

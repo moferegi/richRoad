@@ -7,7 +7,7 @@ aliyun-oss:
     base-path: yourBasePath
 autocode:
     web: web/src
-    root: D:\gva-shop
+    root: /Users/jiangjizhao/gva-uni-shop
     server: server
     module: github.com/flipped-aurora/gin-vue-admin/server
     ai-path: ""
@@ -82,13 +82,21 @@ hua-wei-obs:
     access-key: you-access-key
     secret-key: you-secret-key
 jwt:
-    signing-key: edeadbf8-f753-459d-a35c-15f78c337d3e
+    signing-key: 63bed2f4-8890-436b-8348-d6765230f711
     expires-time: 7d
     buffer-time: 1d
     issuer: qmPlus
 local:
     path: uploads/file
     store-path: uploads/file
+minio:
+    endpoint: ""
+    access-key-id: ""
+    access-key-secret: ""
+    bucket-name: ""
+    use-ssl: false
+    base-path: ""
+    bucket-url: ""
 mongo:
     coll: ""
     options: ""
@@ -120,14 +128,14 @@ mssql:
     log-zap: false
 mysql:
     prefix: ""
-    port: ""
-    config: ""
-    db-name: ""
-    username: ""
-    password: ""
-    path: ""
+    port: "3306"
+    config: charset=utf8mb4&parseTime=True&loc=Local
+    db-name: gva_shop_uni_new
+    username: root
+    password: Aa@6447985
+    path: 127.0.0.1
     engine: ""
-    log-mode: ""
+    log-mode: error
     max-idle-conns: 10
     max-open-conns: 100
     singular: false
@@ -183,7 +191,7 @@ sf:
     partner-id: ""
     check-code: ""
     sand-check-code: ""
-    is-sandbox: ""
+    is-sandbox: false
 sqlite:
     prefix: ""
     port: ""
