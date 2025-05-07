@@ -1,34 +1,38 @@
 <template>
   <view class="content">
-    <!-- 顶部搜索栏 -->
-    <view class="search-bar">
-      <view class="search-box" @click="goToSearch">
-        <uni-icons type="search" size="18" color="#999"></uni-icons>
-        <text class="placeholder">搜索商品</text>
+    <!-- 顶部搜索栏 - 修改刘海屏适配 -->
+    <view class="status-bar-placeholder"></view>
+    <view class="status-bar">
+      <view class="test">
+        <!-- 左侧菜单图标 -->
+        <view class="scan-icon">
+          <uni-icons type="bars" size="22" color="#fff"></uni-icons>
+        </view>
+
+        <!-- 中间搜索框 -->
+        <view class="search-bar" @click="goToSearch">
+          <view class="search-icon">
+            <uni-icons type="search" size="18" color="#999"></uni-icons>
+          </view>
+          <text class="search-placeholder">请输入地址 如：大钟寺</text>
+        </view>
+
+        <!-- 右侧消息 -->
+        <view class="message-icon">
+          <uni-icons type="chat" size="22" color="#fff"></uni-icons>
+        </view>
       </view>
     </view>
-
     <scroll-view scroll-y="true" class="scroll-Y" @scrolltolower="debouncedLower" refresher-enabled @refresherrefresh="onRefresh" :refresher-triggered="isRefreshing">
+
       <!-- 轮播图区域 -->
-      <view class="swiper-section">
-        <home-swiper :list="list"></home-swiper>
-      </view>
+      <swpiers></swpiers>
 
       <!-- 分类导航 -->
-      <view class="category-section">
-        <v-tabs
-            :tabs="tabs"
-            @change="changeTabs"
-            v-model="selectTab"
-            activeColor="#FF6A6A"
-            lineHeight="4"
-            lineWidth="20"
-            itemWidth="120rpx"
-            bold
-        >
-        </v-tabs>
-      </view>
+      <categories :categoriesData="categoriesData"></categories>
 
+      <!-- 限时秒杀区域 -->
+      <seckilling :productData="products"></seckilling>
       <!-- 商品展示区 -->
       <view class="goods-section">
         <noPaginRowGoodList></noPaginRowGoodList>
@@ -47,15 +51,14 @@
     </scroll-view>
   </view>
 </template>
-
 <script setup>
 import { ref } from 'vue';
-import homeSwiper from './components/home-swiper.vue'
-import homeFlow from './components/home-flow.vue'
 import { getCategoryMobile, getGoodList } from '@/api/homePage.js'
 import { getBannerList } from '@/api/homePage.js'
-import VTabs from "@/components/v-tabs/v-tabs.vue";
 import noPaginRowGoodList from '@/components/good-list/no-pagin-row-good-list.vue'
+import swpiers from './components/swiper.vue'
+import categories from './components/categories.vue'
+import seckilling from './components/seckilling.vue';
 
 // 轮播图相关业务逻辑
 const list = ref([])
@@ -65,6 +68,19 @@ const initBanner = async () => {
 }
 initBanner()
 
+const categoriesData = ref([
+  { title: '环球美食', color: '#FFA500' },
+  { title: '个护美妆', color: '#FF6B81' },
+  { title: '营养保健', color: '#B39DDB' },
+  { title: '家居厨卫', color: '#AED581' },
+  { title: '速食生鲜', color: '#FF6B81' }
+])
+ const products = ref ([
+  { title: '巧谷2019...', price: '108.8' },
+  { title: '私寓连衣裙', price: '265' },
+  { title: '娇诗妮 ulz...', price: '422' },
+  { title: '古景妃 短...', price: '179' }
+])
 // 商品相关属性
 const params = ref({
   page: 1,
@@ -173,102 +189,159 @@ const debouncedLower = debounce(()=>lower(false), 300);
 </script>
 
 <style lang="scss">
+page {
+  background-color: #f8f8f8;
+}
+
 .content {
   width: 100%;
-  background-color: #f8f8f8;
-  position: relative;
-
-  .search-bar {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    padding: 20rpx 30rpx;
-    background-color: #ffffff;
-    box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
-
-    .search-box {
-      display: flex;
-      align-items: center;
-      height: 70rpx;
-      background-color: #f5f5f5;
-      border-radius: 35rpx;
-      padding: 0 30rpx;
-
-      .placeholder {
-        margin-left: 10rpx;
-        font-size: 28rpx;
-        color: #999;
-      }
-    }
-  }
-
-  .swiper-section {
-    margin: 20rpx 0;
-    border-radius: 20rpx;
-    overflow: hidden;
-    box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
-  }
-
-  .category-section {
-    background-color: #ffffff;
-    padding: 20rpx 0;
-    margin-bottom: 20rpx;
-    border-radius: 16rpx;
-    box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
-  }
-
-  .goods-section {
-    padding: 10rpx 0;
-  }
-
-  .loading-status {
-    text-align: center;
-    padding: 30rpx 0;
-    color: #999;
-    font-size: 24rpx;
-
-    .no-more {
-      color: #999;
-    }
-
-    .loading {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      .loading-icon {
-        width: 30rpx;
-        height: 30rpx;
-        border: 4rpx solid #f3f3f3;
-        border-top: 4rpx solid #FF6A6A;
-        border-radius: 50%;
-        margin-right: 10rpx;
-        animation: spin 1s linear infinite;
-      }
-    }
-  }
-
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 100rpx 0;
-    color: #999;
-
-    text {
-      margin-top: 20rpx;
-      font-size: 28rpx;
-    }
-  }
-}
-
-.scroll-Y {
+  display: flex;
+  flex-direction: column;
   height: 100vh;
+  background-color: #f8f8f8;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+// 刘海屏适配
+.status-bar-placeholder {
+  width: 100%;
+  height: var(--status-bar-height);
+  background-color: #E74C3C; // 修改为红色背景
+}
+.test {
+  display: flex;
+  margin-top: 2rem; // 待修改
+  width: 100%;
+}
+// 顶部状态栏
+.status-bar {
+  background-color: #E74C3C; // 修改为红色背景
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  z-index: 99;
+  width: 100%;
+}
+
+.scan-icon, .message-icon {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-bar {
+  flex: 1;
+  background-color: #fff; // 修改为白色背景
+  height: 36px;
+  border-radius: 18px;
+  margin: 0 10px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+}
+
+.search-icon {
+  margin-right: 6px;
+}
+
+.search-placeholder {
+  color: #999;
+  font-size: 14px;
+}
+
+// 促销横幅
+.promo-right {
+  background-color: #FFD700; // 金色
+}
+// 胶囊形状的促销横幅
+.promo-banner {
+  padding: 12px;
+  background-color: #fff;
+}
+
+.promo-left {
+  background: linear-gradient(90deg, #FF8C69, #FFD700);
+  border-radius: 40px; // 设置非常大的圆角，使两端呈现半圆形
+  height: 70px;
+  padding: 0 20px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.promo-content{
+  display: flex;
+  flex-direction: column;
+}
+
+.promo-text {
+  font-size: 18px;
+  font-weight: bold;
+  color: white;
+}
+
+.promo-subtitle {
+  font-size: 12px;
+  color: rgba(255,255,255,0.8);
+  margin-top: 2px;
+}
+
+.promo-tag {
+  position: absolute;
+  left: 120px;
+  top: 18px;
+  background-color: #ff4a4a;
+  color: white;
+  font-size: 10px;
+  padding: 0 6px;
+  border-radius: 10px;
+}
+
+// 右侧图片容器
+.promo-image-container {
+  position: absolute;
+  right: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.promo-text {
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.promo-tag {
+  display: inline-block;
+  background-color: #ff4a4a;
+  color: white;
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+// 底部加载及空状态
+.loading-status {
+  padding: 20px 0;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.empty-state text {
+  font-size: 14px;
+  color: #999;
+  margin-top: 12px;
 }
 </style>
