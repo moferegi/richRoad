@@ -65,7 +65,7 @@ const tapClick = (item) => {
 </script>
 <style lang="scss" scoped>
 .flow_box {
-  padding: 0 24rpx 100rpx;
+  padding: 0 12rpx 30rpx;
   min-height: 40vh;
 }
 
@@ -121,7 +121,7 @@ const tapClick = (item) => {
     color: white;
     font-size: 28rpx;
     padding: 10rpx 60rpx;
-    border-radius: 40rpx;
+    border-radius: 6rpx;
   }
 }
 
@@ -133,7 +133,7 @@ const tapClick = (item) => {
 
   .grid-item {
     position: relative;
-    border-radius: 16rpx;
+    border-radius: 6rpx;
     overflow: hidden;
     transition: transform 0.2s;
     box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
@@ -144,13 +144,13 @@ const tapClick = (item) => {
 
     .gird-item-card {
       background-color: #fff;
-      border-radius: 16rpx;
+      border-radius: 6rpx;
       overflow: hidden;
 
       .img {
         width: 100%;
         height: 340rpx;
-        border-radius: 16rpx 16rpx 0 0;
+        border-radius: 6rpx 6rpx 0 0;
         transition: transform 0.3s;
 
         &:hover {

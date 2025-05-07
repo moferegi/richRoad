@@ -244,11 +244,11 @@
 <style lang="scss" scoped>
 	.shop_list_view {
 		padding: 12rpx 12rpx;
-    margin-bottom: 120rpx;
+    margin-bottom: 12rpx;
 	}
 
 	.shop_list_box {
-		padding: 20rpx;
+		padding: 12rpx;
 		border-radius: 6rpx;
     box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
 	}
@@ -430,7 +430,7 @@
       color: #FF4141;
       font-weight: bold;
       display: flex;
-      flex-direction: column;
+      align-items: center;
       .total_money_label{
         font-size: 24rpx;
         color: #999;
@@ -454,7 +454,7 @@
 		box-shadow: 0rpx -2rpx 8rpx 0rpx rgba(0, 0, 0, 0.08);
 		left: 0;
 		z-index: 10;
-		padding: 0 32rpx;
+		padding: 0 12rpx;
       /* #ifdef H5 */
       bottom: 90rpx;
       /* #endif */
