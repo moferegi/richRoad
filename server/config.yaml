@@ -7,10 +7,10 @@ aliyun-oss:
     base-path: yourBasePath
 autocode:
     web: web/src
-    root: /Users/jiangjizhao/gva-uni-shop
+    root: /Users/jiangjizhao/gva-uni-shop-plus
     server: server
     module: github.com/flipped-aurora/gin-vue-admin/server
-    ai-path: ""
+    ai-path: https://ai.gin-vue-admin.com/{FUNC}/qimiao/76f4b07c-5d44-48f2-b92e-905b71a57051
 aws-s3:
     bucket: xxxxx-10005608
     region: ap-shanghai

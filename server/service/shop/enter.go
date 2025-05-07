@@ -8,4 +8,5 @@ type ServiceGroup struct {
 	CartService
 	OrderService
 	CommentService
+	TagService
 }

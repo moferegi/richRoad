@@ -291,6 +291,25 @@
           />
         </el-form-item>
         <el-form-item
+          label="商品标签:"
+          prop="tags"
+        >
+          <el-select
+            v-model="formData.tags"
+            placeholder="请选择商品标签"
+            multiple
+            clearable
+            value-key="ID"
+          >
+            <el-option
+              v-for="item in tags"
+              :key="item.ID"
+              :label="item.name"
+              :value="item"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item
           label="商品描述:"
           prop="description"
         >
@@ -482,6 +501,10 @@ import {
 } from '@/api/shop/good'
 
 import {
+  getTagList
+} from '@/api/shop/tag'
+
+import {
   getCategoryList
 } from '@/api/shop/category'
 import { getUrl } from '@/utils/image'
@@ -503,6 +526,17 @@ const router = useRouter()
 const setSKU = (row) => {
   router.push({ name: 'sku', query: { id: row.ID }})
 }
+
+const tags = ref([])
+
+const getTags = async() => {
+  const res = await getTagList()
+  if (res.code === 0) {
+    tags.value = res.data.list
+  }
+}
+
+getTags()
 
 // 自动化生成的字典（可能为空）以及字段
 const formData = ref({

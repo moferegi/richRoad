@@ -10,6 +10,10 @@ type RouterGroup struct {
 	CartRouter
 	OrderRouter
 	CommentRouter
+	TagRouter
 }
 
-var commentApi = api.ApiGroupApp.ShopApiGroup.CommentApi
+var (
+	commentApi = api.ApiGroupApp.ShopApiGroup.CommentApi
+	tagApi     = api.ApiGroupApp.ShopApiGroup.TagApi
+)

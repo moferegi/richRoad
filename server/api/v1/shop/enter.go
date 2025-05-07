@@ -10,6 +10,10 @@ type ApiGroup struct {
 	CartApi
 	OrderApi
 	CommentApi
+	TagApi
 }
 
-var commentService = service.ServiceGroupApp.ShopServiceGroup.CommentService
+var (
+	commentService = service.ServiceGroupApp.ShopServiceGroup.CommentService
+	tagService     = service.ServiceGroupApp.ShopServiceGroup.TagService
+)

@@ -10,6 +10,7 @@ import (
 type Good struct {
 	global.GVA_MODEL
 	Description string         `json:"description" form:"description" gorm:"column:description;comment:商品描述;"`        //商品描述
+	Tags        datatypes.JSON `json:"tags" form:"tags" gorm:"column:tags;comment:商品标签;"`                             //商品标签
 	Specs       datatypes.JSON `json:"specs" form:"specs" gorm:"column:specs;comment:商品规格;"`                          //商品规格
 	Attrs       datatypes.JSON `json:"attrs" form:"attrs" gorm:"column:attrs;comment:商品属性;"`                          //商品属性
 	ImageUrl    string         `json:"imageUrl" form:"imageUrl" gorm:"column:image_url;comment:商品图片URL;"`             //商品图片URL
