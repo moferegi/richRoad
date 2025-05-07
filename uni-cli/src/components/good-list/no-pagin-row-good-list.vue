@@ -29,191 +29,192 @@
         </view>
 </template>
 
-<script>
-export default {
-    name: 'NoPaginrowGoodList',
-    
-    data() {
-        return {
-            goodsList:[
-                {
-                    name: '2023新款时尚运动鞋男女同款透气网面跑步鞋减震耐磨休闲运动鞋',
-                    image: 'https://picsum.photos/300/300?random=1',
-                    originalPrice: 399,
-                    discountPrice: 299,
-                    discount: 7.5,
-                    rating: 4.8,
-                    ratingCount: 2531,
-                    monthSales: 1688,
-                    tags: ['正品保证', '极速发货', '七天退换'],
-                    isSelfOperated: true,
-                    hasQualityAssurance: true,
-                    isPlusDelivery: true,
-                    shop: {
-                        name: '运动户外专营店',
-                        avatar: 'https://picsum.photos/64/64?random=1',
-                        rating: 4.8,
-                        isOfficial: true
-                    }
-                },
-                {
-                    name: '苹果14代 iPhone14 Pro Max 5G手机 暗紫色 256GB全网通',
-                    image: 'https://picsum.photos/300/300?random=2',
-                    originalPrice: 9999,
-                    discountPrice: 9299,
-                    discount: 9.3,
-                    rating: 4.9,
-                    ratingCount: 12420,
-                    monthSales: 3562,
-                    tags: ['官方授权', '全国联保', '24期免息'],
-                    isSelfOperated: true,
-                    hasQualityAssurance: true,
-                    isPlusDelivery: true,
-                    shop: {
-                        name: 'Apple官方旗舰店',
-                        avatar: 'https://picsum.photos/64/64?random=2',
-                        rating: 4.9,
-                        isOfficial: true
-                    }
-                },
-                {
-                    name: '科沃斯扫地机器人T10 Pro家用扫拖一体机智能全自动吸尘器',
-                    image: 'https://picsum.photos/300/300?random=3',
-                    originalPrice: 4999,
-                    discountPrice: 3999,
-                    discount: 8.0,
-                    rating: 4.7,
-                    ratingCount: 8526,
-                    monthSales: 2156,
-                    tags: ['新品上市', '智能家电', '以旧换新'],
-                    isSelfOperated: false,
-                    hasQualityAssurance: true,
-                    isPlusDelivery: true,
-                    shop: {
-                        name: '科沃斯官方店',
-                        avatar: 'https://picsum.photos/64/64?random=3',
-                        rating: 4.8,
-                        isOfficial: true
-                    }
-                },
-                {
-                    name: '华为智慧屏V65 2022款65英寸4K超高清智能电视机',
-                    image: 'https://picsum.photos/300/300?random=4',
-                    originalPrice: 5999,
-                    discountPrice: 4999,
-                    discount: 8.3,
-                    rating: 4.8,
-                    ratingCount: 3654,
-                    monthSales: 986,
-                    tags: ['超清画质', '智能语音', '大屏影音'],
-                    isSelfOperated: true,
-                    hasQualityAssurance: true,
-                    isPlusDelivery: false,
-                    shop: {
-                        name: '华为官方旗舰店',
-                        avatar: 'https://picsum.photos/64/64?random=4',
-                        rating: 4.9,
-                        isOfficial: true
-                    }
-                },
-                {
-                    name: '蒙牛特仑苏纯牛奶250ml*12盒整箱装',
-                    image: 'https://picsum.photos/300/300?random=5',
-                    originalPrice: 69.9,
-                    discountPrice: 59.9,
-                    discount: 8.5,
-                    rating: 4.6,
-                    ratingCount: 15689,
-                    monthSales: 8562,
-                    tags: ['新鲜直达', '冷链配送', '营养早餐'],
-                    isSelfOperated: true,
-                    hasQualityAssurance: true,
-                    isPlusDelivery: true,
-                    shop: {
-                        name: '蒙牛乳业官方店',
-                        avatar: 'https://picsum.photos/64/64?random=5',
-                        rating: 4.7,
-                        isOfficial: true
-                    }
-                },
-                {
-                    name: '荣耀手环7 NFC版 血氧心率监测智能运动手环',
-                    image: 'https://picsum.photos/300/300?random=6',
-                    originalPrice: 299,
-                    discountPrice: 249,
-                    discount: 8.3,
-                    rating: 4.5,
-                    ratingCount: 6523,
-                    monthSales: 2365,
-                    tags: ['续航持久', '健康监测', '运动计步'],
-                    isSelfOperated: false,
-                    hasQualityAssurance: true,
-                    isPlusDelivery: true,
-                    shop: {
-                        name: '荣耀智能专卖店',
-                        avatar: 'https://picsum.photos/64/64?random=6',
-                        rating: 4.6,
-                        isOfficial: false
-                    }
-                }
-            ]
+<script setup>
+import { ref } from 'vue'
+const goodsList = ref([
+    {
+        name: '2023新款时尚运动鞋男女同款透气网面跑步鞋减震耐磨休闲运动鞋',
+        image: 'https://picsum.photos/300/300?random=1',
+        originalPrice: 399,
+        discountPrice: 299,
+        discount: 7.5,
+        discountEmoji: '🔥',
+        rating: 4.8,
+        ratingCount: 2531,
+        monthSales: 1688,
+        tags: ['正品保证', '极速发货', '七天退换'],
+        isSelfOperated: true,
+        hasQualityAssurance: true,
+        isPlusDelivery: true,
+        shop: {
+            name: '运动户外专营店',
+            avatar: 'https://picsum.photos/64/64?random=1',
+            rating: 4.8,
+            isOfficial: true
         }
     },
-
-    methods: {
-        getDiscountText(discount) {
-            if (discount >= 9.5) return '小降'
-            if (discount >= 9.0) return '优惠'
-            if (discount >= 8.0) return '特惠'
-            if (discount >= 7.0) return '好价'
-            if (discount >= 6.0) return '低价'
-            if (discount >= 5.0) return '特价'
-            return '折扣'
-        },
-
-        enterShop(shop) {
-            uni.showToast({
-                title: '进入店铺：' + shop.name,
-                icon: 'none'
-            })
-        },
-
-        async queryList(pageNo, pageSize) {
-            try {
-                await new Promise(resolve => setTimeout(resolve, 1500))
-                const start = (pageNo - 1) * pageSize
-                const totalItems = this.mockData.length
-                const pageData = []
-                
-                if (pageNo <= 3) {
-                    for (let i = 0; i < pageSize && start + i < totalItems; i++) {
-                        const index = start + i
-                        pageData.push({
-                            ...this.mockData[index % totalItems],
-                            name: `${this.mockData[index % totalItems].name} - ${pageNo}-${i + 1}`,
-                            image: `${this.mockData[index % totalItems].image}&page=${pageNo}&item=${i}`
-                        })
-                    }
-                    this.$refs.paging.complete(pageData)
-                } else {
-                    this.$refs.paging.complete([])
-                }
-            } catch (error) {
-                this.$refs.paging.complete([])
-                uni.showToast({
-                    title: '加载失败',
-                    icon: 'none'
-                })
-            }
-        },
-
-        handleGoodsClick(item) {
-            uni.showToast({
-                title: '点击商品：' + item.name,
-                icon: 'none'
-            })
+    {
+        name: '新款时尚帆布双肩包大容量学生书包防水耐磨电脑包户外旅行背包',
+        image: 'https://picsum.photos/300/300?random=2',
+        originalPrice: 199,
+        discountPrice: 139,
+        discount: 7.0,
+        discountEmoji: '⚡',
+        rating: 4.6,
+        ratingCount: 1234,
+        monthSales: 966,
+        tags: ['品牌精选', '免邮费'],
+        isSelfOperated: true,
+        hasQualityAssurance: true,
+        isPlusDelivery: false,
+        shop: {
+            name: '时尚箱包旗舰店',
+            avatar: 'https://picsum.photos/64/64?random=2',
+            rating: 4.7,
+            isOfficial: true
+        }
+    },
+    {
+        name: '智能手表多功能运动计步心率血压监测防水触屏蓝牙通话智能手环',
+        image: 'https://picsum.photos/300/300?random=3',
+        originalPrice: 899,
+        discountPrice: 699,
+        discount: 7.8,
+        discountEmoji: '💥',
+        rating: 4.7,
+        ratingCount: 1876,
+        monthSales: 1245,
+        tags: ['智能手表', '防水'],
+        isSelfOperated: true,
+        hasQualityAssurance: true,
+        isPlusDelivery: true,
+        shop: {
+            name: '智能设备旗舰店',
+            avatar: 'https://picsum.photos/64/64?random=3',
+            rating: 4.7,
+            isOfficial: true
+        }
+    },
+    {
+        name: '真无线蓝牙耳机主动降噪双耳入耳式运动防水高音质长续航通话耳机',
+        image: 'https://picsum.photos/300/300?random=4',
+        originalPrice: 299,
+        discountPrice: 199,
+        discount: 6.6,
+        discountEmoji: '🎉',
+        rating: 4.5,
+        ratingCount: 1023,
+        monthSales: 789,
+        tags: ['无线耳机', '降噪'],
+        isSelfOperated: true,
+        hasQualityAssurance: true,
+        isPlusDelivery: false,
+        shop: {
+            name: '音频设备旗舰店',
+            avatar: 'https://picsum.photos/64/64?random=4',
+            rating: 4.5,
+            isOfficial: true
+        }
+    },
+    {
+        name: '智能手环心率血压监测运动计步器防水彩屏信息提醒健康管理手环',
+        image: 'https://picsum.photos/300/300?random=5',
+        originalPrice: 199,
+        discountPrice: 149,
+        discount: 7.5,
+        discountEmoji: '🎯',
+        rating: 4.3,
+        ratingCount: 852,
+        monthSales: 654,
+        tags: ['智能手环', '健康监测'],
+        isSelfOperated: true,
+        hasQualityAssurance: true,
+        isPlusDelivery: true,
+        shop: {
+            name: '健康监测旗舰店',
+            avatar: 'https://picsum.photos/64/64?random=5',
+            rating: 4.3,
+            isOfficial: true
+        }
+    },
+    {
+        name: '便携式蓝牙音箱无线重低音炮户外防水迷你小音响手机电脑通用音箱',
+        image: 'https://picsum.photos/300/300?random=6',
+        originalPrice: 299,
+        discountPrice: 239,
+        discount: 8.0,
+        discountEmoji: '⚡',
+        rating: 4.9,
+        ratingCount: 3000,
+        monthSales: 2000,
+        tags: ['蓝牙音箱', '无线连接'],
+        isSelfOperated: true,
+        hasQualityAssurance: true,
+        isPlusDelivery: true,
+        shop: {
+            name: '智能家居旗舰店',
+            avatar: 'https://picsum.photos/64/64?random=6',
+            rating: 4.9,
+            isOfficial: true
+        }
+    },
+    {
+        name: '大容量商务电脑包防盗防水15.6寸笔记本双肩包男女休闲旅行背包',
+        image: 'https://picsum.photos/300/300?random=7',
+        originalPrice: 259,
+        discountPrice: 189,
+        discount: 7.3,
+        discountEmoji: '💫',
+        rating: 4.2,
+        ratingCount: 1500,
+        monthSales: 1000,
+        tags: ['电脑背包', '防水'],
+        isSelfOperated: true,
+        hasQualityAssurance: true,
+        isPlusDelivery: false,
+        shop: {
+            name: '电脑配件旗舰店',
+            avatar: 'https://picsum.photos/64/64?random=7',
+            rating: 4.2,
+            isOfficial: true
+        }
+    },
+    {
+        name: '机械键盘青轴黑轴茶轴红轴游戏办公专用有线无线蓝牙双模RGB背光',
+        image: 'https://picsum.photos/300/300?random=8',
+        originalPrice: 499,
+        discountPrice: 399,
+        discount: 8.0,
+        discountEmoji: '🌟',
+        rating: 4.7,
+        ratingCount: 2200,
+        monthSales: 1500,
+        tags: ['机械键盘', '背光'],
+        isSelfOperated: true,
+        hasQualityAssurance: true,
+        isPlusDelivery: true,
+        shop: {
+            name: '电子配件旗舰店',
+            avatar: 'https://picsum.photos/64/64?random=8',
+            rating: 4.7,
+            isOfficial: true
         }
     }
+])
+
+const getDiscountText = (discount) => {
+    if (discount >= 9.5) return '小降'
+    if (discount >= 9.0) return '优惠'
+    if (discount >= 8.0) return '特惠'
+    if (discount >= 7.0) return '好价'
+    if (discount >= 6.0) return '低价'
+    if (discount >= 5.0) return '特价'
+    return '折扣'
+}
+const queryList = async (pageNo, pageSize) => {
+       
+// 加载数据方法
+
 }
 </script>
 
