@@ -14,7 +14,8 @@ type CartSearch struct {
 }
 
 type CartCreate struct {
-	UserID uint `json:"userID" form:"userID"`
-	GoodID uint `json:"goodID" form:"goodID" binding:"required"`
-	SKUID  uint `json:"skuID" form:"skuID" binding:"required"`
+	UserID   uint `json:"userID" form:"userID"`
+	GoodID   uint `json:"goodID" form:"goodID" binding:"required"`
+	SKUID    uint `json:"skuID" form:"skuID" binding:"required"`
+	Quantity uint `json:"quantity" form:"quantity"`
 }

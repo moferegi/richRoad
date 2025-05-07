@@ -62,11 +62,12 @@ const skuChange = (sku) =>{
 const skuConfirm = (select) =>{
   if(props.isCart){
     addToCart(select.num)
+    return
   }
   submit(select.num)
 }
 
-const submit = async (num) => {
+const submit = async (quantity) => {
   if (token) {
     skuShow.value = false
     let detail = {
@@ -74,7 +75,7 @@ const submit = async (num) => {
         {
           "goodID": props.good.ID,
           "skuID": selectSKU.value.id,
-          "quantity": num
+          "quantity": quantity
         }
       ]
     };
@@ -96,12 +97,12 @@ const submit = async (num) => {
   }
 }
 
-const addToCart = async () => {
+const addToCart = async (quantity) => {
   // 找到当前选中的sku的SKUid和goodID
   const params = {
     goodID: props.good.ID,
-    skuID: selectSKU.value.ID,
-    num: 1
+    skuID: selectSKU.value.id,
+    quantity: quantity,
   }
   const res = await addCart(params)
   if (res.code === 0) {
@@ -110,6 +111,7 @@ const addToCart = async () => {
       mask: true,
       icon: 'none'
     });
+    closeSku()
   } else {
     uni.showToast({
       title: '添加失败，请稍后重试',

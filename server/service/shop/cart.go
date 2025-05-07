@@ -82,16 +82,20 @@ func (cartService *CartService) GetSelfCart(userID uint) (list []shop.Cart, err 
 
 func (cartService *CartService) AddCart(cartReq *shopReq.CartCreate) (err error) {
 	var cart shop.Cart
+	if cartReq.Quantity == 0 {
+		cartReq.Quantity = 1
+	}
 	ferr := global.GVA_DB.First(&cart, "user_id = ? AND good_id = ? AND sku_id = ?", cartReq.UserID, cartReq.GoodID, cartReq.SKUID).Error
 	if ferr != nil {
-		cart.Quantity = 1
+		cart.Quantity = cartReq.Quantity
 		cart.UserID = cartReq.UserID
 		cart.GoodID = cartReq.GoodID
 		cart.SKUID = cartReq.SKUID
 		err = global.GVA_DB.Create(&cart).Error
 		return
 	}
-	quantity := cart.Quantity + 1
+
+	quantity := cart.Quantity + cartReq.Quantity
 	err = global.GVA_DB.Model(&cart).Update("quantity", quantity).Error
 	return
 }

@@ -1,10 +1,4 @@
 <template>
-	<view class="shop_tool_view">
-		<view class="shop_tool_box flex-aic flexr-jfe boxs_bb pos_f bgc_fff">
-			<text v-if="isEdit" @tap="manage" class="manage-btn">管理</text>
-			<text v-if="!isEdit" @tap="finishEdit" class="manage-btn">退出管理</text>
-		</view>
-	</view>
 	<view class="shop_list_view">
 		<view class="bgc_fff shop_list_box">
       <!-- 自定义空购物车提示，替换原来的up-empty组件 -->
@@ -17,43 +11,55 @@
 			<view class="cart-item" v-for="(item, index) in cartList" :key="index">
 				<image class="shop_item_img" :src="getUrl(item.sku.picture)" mode="aspectFill"></image>
 				<view class="cart-item-info">
-					<view class="title">{{item.sku.name}}</view>
-					<view class="desc">
-						<view class="desc-text">{{item.sku.description}}</view>
-					</view>
+					<view>
+            <view class="title">
+              <text>{{item.sku.name}}</text>
+            </view>
+            <view class="desc">
+              <view class="desc-text">{{item.sku.description}}</view>
+            </view>
+          </view>
+        
 					<view class="price-action">
 						<view class="price">
 							<text class="price-symbol">¥</text>
-							<text class="price-value">{{item.sku.price/100}}</text>
+							<text class="price-value">{{item.sku.price /100}}</text>
 						</view>
-						<text v-if="!isEdit" class="delete-btn" @tap="deleteItem(item)">删除</text>
+						<view class="quantity-control">
+							<view v-if="!isDeleteAll" class="number-box-container">
+								<wu-number-box :asyncChange="true" :min="0" @change="(e)=>onChange(item,e)" integer v-model="item.quantity"></wu-number-box>
+							</view>
+							<view v-else class="delete-btn" @tap="deleteItem(item)">删除</view>
+						</view>
 					</view>
 				</view>
 			</view>
 		</view>
 	</view>
 	<view class="shop_nav_box pos_f bgc_fff flex-aic flexr-jsb boxs_bb" v-if="cartList.length > 0">
-		<view class="flex-fitem flex-aic flexr-jfe m_r_16"></view>
+		<view class="total_money" v-if="!isDeleteAll">
+      <text class="total_money_label">合计</text>￥{{cartList.reduce((total, item) => total + item.sku.price * item.quantity, 0) / 100}}
+    </view>
+    <view class="edit-mode" v-else @tap="toggleDeleteMode">完成</view>
     <view class="btns_box">
+      <button class="edit-btn" v-if="!isDeleteAll" @tap="toggleDeleteMode">编辑</button>
       <button class="checkout-btn" v-if="!isDeleteAll" @tap="toSettlement">去结算</button>
-      <button class="delete-all-btn" v-if="isDeleteAll" @tap="clearAllCart">删除所选</button>
+      <button class="delete-all-btn" v-if="isDeleteAll" @tap="clearAllCart">清空购物车</button>
     </view>
 	</view>
 </template>
 
 <script setup>
 	import { ref } from 'vue'
-	import { getSelfCart, cutCart, clearCart } from "@/api/cart.js"
+	import { getSelfCart, cutCart, addCart, clearCart } from "@/api/cart.js"
 	import { onShow } from '@dcloudio/uni-app'
 	import { useUserStore } from "@/pinia/modules/user";
   import { placeOrderByCart } from '@/api/order.js'
   import {getUrl} from "@/utils/url.js"
 
 	const cartList = ref([])
-  const isEdit = ref(true)
 
 	const initPage = async () => {
-    isEdit.value = true
 		const userStore = useUserStore()
 		const token = userStore.token || ''
 
@@ -86,57 +92,117 @@
     })
   }
 
-	// 删除购物车某项
-	const deleteItem = async (params) => {
-		const temp = {
-			goodID: params.goodID,
-			skuID: params.skuID
-		}
-		const res = await cutCart(temp)
-		if (res.code === 0) {
-			uni.showToast({
-				title: '删除成功',
-				mask: true,
-				icon: 'none'
-			});
-			initPage()
-		} else {
-			uni.showToast({
-				title: '删除失败，请稍后重试',
-				mask: true,
-				icon: 'none'
-			});
-		}
+	const onChange = async (item,e) => {
+    console.log(item)
+    uni.showLoading({
+					title: '加载中',
+					mask: true
+				})
+    let res 
+    if(item.quantity > e.value) {
+       res = await cutCart({
+        goodID: item.goodID,
+        skuID: item.skuID,
+        quantity:1,
+      })
+    }else{
+      res = await addCart({
+        goodID: item.goodID,
+        skuID: item.skuID,
+        quantity:1,
+      })
+    }
+    uni.hideLoading();
+    if (res.code !== 0) {
+      uni.showToast({
+        title: '调整失败',
+        mask: true,
+        icon: 'none'
+      })
+      return
+    }
+    item.quantity = e.value
+    if(e.value == 0) {
+      cartList.value = cartList.value.filter(i => i.ID !== item.ID)
+    }
+	}
+
+	// 切换删除模式
+	const toggleDeleteMode = () => {
+		isDeleteAll.value = !isDeleteAll.value
+	}
+
+	// 删除单个商品
+	const deleteItem = async (item) => {
+		uni.showModal({
+			title: '提示',
+			content: '确定要删除这个商品吗？',
+			success: async function (res) {
+				if (res.confirm) {
+					uni.showLoading({
+						title: '删除中',
+						mask: true
+					})
+					const result = await cutCart({
+						goodID: item.goodID,
+						skuID: item.skuID,
+						quantity: item.quantity,
+					})
+					uni.hideLoading()
+					if (result.code === 0) {
+						cartList.value = cartList.value.filter(i => i.ID !== item.ID)
+						uni.showToast({
+							title: '删除成功',
+							mask: true,
+							icon: 'success'
+						})
+						// 如果购物车为空，自动退出删除模式
+						if (cartList.value.length === 0) {
+							isDeleteAll.value = false
+						}
+					} else {
+						uni.showToast({
+							title: '删除失败，请稍后重试',
+							mask: true,
+							icon: 'none'
+						})
+					}
+				}
+			}
+		})
 	}
 
 	// 删除购物车全部内容
 	const clearAllCart = async () => {
-		const res = await clearCart()
-		if (res.code === 0) {
-			uni.showToast({
-				title: '删除成功',
-				mask: true,
-				icon: 'none'
-			});
-		} else {
-			uni.showToast({
-				title: '删除失败，请稍后重试',
-				mask: true,
-				icon: 'none'
-			});
-		}
-	}
-
-	//购物车编辑
-	const manage = () => {
-		isEdit.value = false
-		// 购物车为正在编辑状态时,如已全选则展示删除按钮
-		isDeleteAll.value = true
-	}
-	// 购物车编辑提交
-	const finishEdit = () => {
-		isEdit.value = true
-		isDeleteAll.value = false
+		uni.showModal({
+			title: '提示',
+			content: '确定要清空购物车吗？',
+			success: async function (res) {
+				if (res.confirm) {
+					uni.showLoading({
+						title: '清空中',
+						mask: true
+					})
+					const result = await clearCart()
+					uni.hideLoading()
+					if (result.code === 0) {
+						cartList.value = []
+						isDeleteAll.value = false
+						uni.showToast({
+							title: '清空成功',
+							mask: true,
+							icon: 'success'
+						})
+					} else {
+						uni.showToast({
+							title: '清空失败，请稍后重试',
+							mask: true,
+							icon: 'none'
+						})
+					}
+				}
+			}
+		})
 	}
 
 	// 结算
@@ -177,13 +243,13 @@
 
 <style lang="scss" scoped>
 	.shop_list_view {
-		padding: 24rpx 32rpx;
+		padding: 12rpx 12rpx;
     margin-bottom: 120rpx;
 	}
 
 	.shop_list_box {
 		padding: 20rpx;
-		border-radius: 16rpx;
+		border-radius: 6rpx;
     box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
 	}
 
@@ -219,20 +285,42 @@
   // 购物车项目样式优化
   .cart-item {
     display: flex;
-    padding: 24rpx 0;
     border-bottom: 1px solid #f5f5f5;
+    align-items: center;
 
     &:last-child {
       border-bottom: none;
     }
   }
+  
+  
+  .select-circle {
+    width: 40rpx;
+    height: 40rpx;
+    border-radius: 50%;
+    border: 2rpx solid #FE5572;
+    background-color: #FE5572;
+    position: relative;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20rpx;
+      height: 20rpx;
+      border-radius: 50%;
+      background-color: #fff;
+    }
+  }
 
 	.shop_item_img {
-		width: 160rpx;
-		height: 160rpx;
-		border-radius: 12rpx;
+		width: 220rpx;
+		height: 220rpx;
+		border-radius: 6rpx;
     margin-right: 24rpx;
-    box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.05);
 	}
 
   .cart-item-info {
@@ -240,23 +328,23 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    height: 220rpx;
   }
 
   .title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     font-size: 28rpx;
     color: #333;
     font-weight: 500;
     margin-bottom: 12rpx;
     overflow: hidden;
     text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    line-clamp: 1;
-    -webkit-box-orient: vertical;
   }
 
   .desc {
-    margin-bottom: 12rpx;
+    margin-bottom: 24rpx;
 
     &-text {
       font-size: 24rpx;
@@ -275,6 +363,46 @@
     justify-content: space-between;
     align-items: center;
   }
+  
+  .delete-btn {
+    padding: 8rpx 20rpx;
+    background-color: #FE5572;
+    color: #fff;
+    border-radius: 30rpx;
+    font-size: 24rpx;
+  }
+  
+  .quantity-control {
+    display: flex;
+    align-items: center;
+  }
+  
+  .number-box-container {
+    display: flex;
+    align-items: center;
+    
+    :deep(.wu-numberbox) {
+      border: none;
+      background-color: #f5f5f5;
+      border-radius: 4rpx;
+      
+      .wu-numberbox__minus,
+      .wu-numberbox__plus {
+        width: 60rpx;
+        background-color: #f5f5f5;
+        color: #333;
+        border: none;
+      }
+      
+      .wu-numberbox__value {
+        width: 80rpx;
+        background-color: #fff;
+        color: #333;
+        margin: 0 2rpx;
+        font-size: 28rpx;
+      }
+    }
+  }
 
   .price {
     color: #FF4141;
@@ -289,58 +417,83 @@
     }
   }
 
-  .delete-btn {
-    font-size: 24rpx;
-    color: #FE5572;
-    background-color: #fff;
-    padding: 6rpx 20rpx;
-    border-radius: 24rpx;
-    border: 1px solid #FE5572;
+  .shop-title {
+    font-size: 36rpx;
+    font-weight: bold;
+    text-align: center;
+    padding: 20rpx 0;
+    margin-bottom: 10rpx;
   }
 
-	.shop_tool_view {
-		width: 100%;
-		height: 88rpx;
-	}
-
-	.shop_tool_box {
-		height: 88rpx;
-		left: 0;
-		right: 0;
-		z-index: 1;
-		padding-right: 32rpx;
-    border-bottom: 1px solid #f5f5f5;
-    border-top: 1px solid #f5f5f5;
-	}
-
-  .manage-btn {
-    font-size: 26rpx;
-    color: #666;
-    padding: 8rpx 24rpx;
+  .total_money{
+      font-size: 32rpx;
+      color: #FF4141;
+      font-weight: bold;
+      display: flex;
+      flex-direction: column;
+      .total_money_label{
+        font-size: 24rpx;
+        color: #999;
+        margin-right: 8rpx;
+      }
+      .discount-text {
+        font-size: 22rpx;
+        color: #999;
+        font-weight: normal;
+        margin-top: 4rpx;
+      }
   }
 
 	.shop_nav_box {
+		position: fixed;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
 		width: 100%;
 		height: 100rpx;
 		box-shadow: 0rpx -2rpx 8rpx 0rpx rgba(0, 0, 0, 0.08);
 		left: 0;
-		bottom: 0rpx;
 		z-index: 10;
 		padding: 0 32rpx;
+      /* #ifdef H5 */
+      bottom: 90rpx;
+      /* #endif */
+      /* #ifdef MP */
+      bottom: 0rpx; /* 或者你需要的小程序特定值 */
+      /* #endif */
 	}
 
   .btns_box {
     display: flex;
     align-items: center;
+    gap: 20rpx;
+  }
+  
+  .edit-mode {
+    font-size: 28rpx;
+    color: #333;
+    font-weight: 500;
   }
 
   .checkout-btn {
     width: 200rpx;
     height: 80rpx;
     line-height: 80rpx;
-    background: linear-gradient(to right, #FF7000, #FF4141);
+    background: linear-gradient(to right, #FF5B8D, #FE5572);
     color: #fff;
     font-size: 30rpx;
+    border-radius: 40rpx;
+    text-align: center;
+    border: none;
+  }
+  
+  .edit-btn {
+    width: 120rpx;
+    height: 80rpx;
+    line-height: 80rpx;
+    background-color: rgba(254, 85, 114, 0.1);
+    color: #FE5572;
+    font-size: 28rpx;
     border-radius: 40rpx;
     text-align: center;
     border: none;
@@ -356,6 +509,18 @@
     border-radius: 40rpx;
     text-align: center;
     border: none;
+  }
+  
+  // 空购物车样式优化
+  .empty-cart {
+    &-icon {
+      width: 240rpx;
+      height: 240rpx;
+    }
+    
+    &-btn {
+      background: linear-gradient(to right, #FF5B8D, #FE5572);
+    }
   }
 </style>
 
