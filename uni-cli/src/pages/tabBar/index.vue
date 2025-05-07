@@ -31,16 +31,12 @@
 
       <!-- 商品展示区 -->
       <view class="goods-section">
-        <home-flow :flowData="flowData"></home-flow>
+        <noPaginRowGoodList></noPaginRowGoodList>
       </view>
 
       <!-- 底部加载状态 -->
       <view class="loading-status" v-if="flowData.length > 0">
-        <view v-if="isBottom" class="no-more">—— 已经到底啦 ——</view>
-        <view v-else class="loading">
-          <view class="loading-icon"></view>
-          <text>加载中...</text>
-        </view>
+        <gva-divider :text="isBottom?'已经到底啦':'加载中...'"></gva-divider>
       </view>
 
       <!-- 空状态 -->
@@ -59,6 +55,7 @@ import homeFlow from './components/home-flow.vue'
 import { getCategoryMobile, getGoodList } from '@/api/homePage.js'
 import { getBannerList } from '@/api/homePage.js'
 import VTabs from "@/components/v-tabs/v-tabs.vue";
+import noPaginRowGoodList from '@/components/good-list/no-pagin-row-good-list.vue'
 
 // 轮播图相关业务逻辑
 const list = ref([])

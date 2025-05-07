@@ -3,7 +3,15 @@
 		{
 			"path": "pages/tabBar/index",
 			"style": {
-				"navigationBarTitleText": "好趣多商城",
+				"navigationBarTitleText": "极光商城",
+				"navigationStyle": "custom",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/tabBar/category/category",
+			"style": {
+				"navigationBarTitleText": "商品分类",
 				"navigationStyle": "custom",
 				"navigationBarTextStyle": "white"
 			}
@@ -154,6 +162,12 @@
 			"text": "首页",
 				"iconPath": "static/images/tabBar/index.png",
 				"selectedIconPath": "static/images/tabBar/indexs.png"
+			},
+			{
+				"pagePath": "pages/tabBar/category/category",
+				"text": "分类",
+				"iconPath": "static/images/tabBar/category.png",
+				"selectedIconPath": "static/images/tabBar/categorys.png"
 			},
 			{
 				"pagePath": "pages/tabBar/shop/shop",

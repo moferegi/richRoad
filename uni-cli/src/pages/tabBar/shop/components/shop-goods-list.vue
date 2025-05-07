@@ -248,9 +248,7 @@
 	}
 
 	.shop_list_box {
-		padding: 12rpx;
 		border-radius: 6rpx;
-    box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
 	}
 
   // 自定义的空购物车组件样式
@@ -316,8 +314,8 @@
   }
 
 	.shop_item_img {
-		width: 220rpx;
-		height: 220rpx;
+		width: 240rpx;
+		height: 240rpx;
 		border-radius: 6rpx;
     margin-right: 24rpx;
     box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.05);
@@ -329,6 +327,7 @@
     flex-direction: column;
     justify-content: space-between;
     height: 220rpx;
+    padding: 12rpx;
   }
 
   .title {
