@@ -96,6 +96,7 @@ func (i *initMenu) InitializeData(ctx context.Context) (next context.Context, er
 		{MenuLevel: 0, Hidden: false, ParentId: 41, Path: "geo", Name: "geo", Component: "plugin/geo/view/index.vue", Sort: 0, Meta: Meta{Title: "城市管理", Icon: "school"}},
 		{MenuLevel: 0, Hidden: false, ParentId: 34, Path: "comment", Name: "comment", Component: "view/shop/comment/comment.vue", Sort: 0, Meta: Meta{Title: "用户评论", Icon: "message"}},
 		{MenuLevel: 0, Hidden: false, ParentId: 3, Path: "sysParams", Name: "sysParams", Component: "view/superAdmin/params/sysParams.vue", Sort: 7, Meta: Meta{Title: "参数管理", Icon: "compass"}},
+		{MenuLevel: 0, Hidden: false, ParentId: 15, Path: "picture", Name: "picture", Component: "view/systemTools/autoCode/picture.vue", Sort: 6, Meta: Meta{Title: "AI页面绘制", Icon: "picture-filled"}},
 	}
 	if err = db.Create(&entities).Error; err != nil {
 		return ctx, errors.Wrap(err, SysBaseMenu{}.TableName()+"表数据初始化失败!")
