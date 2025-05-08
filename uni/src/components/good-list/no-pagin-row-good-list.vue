@@ -212,9 +212,16 @@ const getDiscountText = (discount) => {
     return '折扣'
 }
 const queryList = async (pageNo, pageSize) => {
-       
+
 // 加载数据方法
 
+}
+
+// 跳转到商品详情页
+const handleGoodsClick = (item) => {
+  uni.navigateTo({
+    url: '/pages/goodsDetails/goodsDetails?goodID=' + item.name
+  })
 }
 </script>
 
@@ -377,4 +384,4 @@ page {
         margin-bottom: 4rpx;
     }
 }
-</style> 
+</style>
