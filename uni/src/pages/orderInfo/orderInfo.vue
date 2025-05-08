@@ -1,108 +1,175 @@
 <template>
-	<view>
-		<view @tap="toAddress" class="flex-aic flexr-jsb bgc_fff address_box m_t_24 m_b_24">
-			<image class="location_icon m_r_16"  src="./../../static/images/dizhis-icons.png" mode="">
-
-			</image>
-			<view class="flex-fitem">
-				<text class="color_333 font_28 m_b_4">{{data.name || "**"}} {{data.phone || "**"}}</text>
+	<view class="container">
+		<!-- 收货地址信息 -->
+		<view @tap="toAddress" class="flex-aic flexr-jsb bgc_fff address_box">
+			<image class="location_icon m_r_16" src="./../../static/images/dizhis-icons.png" mode=""></image>
+			<view class="flex-fitem" v-if="hasAddress">
+				<text class="color_333 font_28 m_b_4">{{data.name}} {{data.phone}}</text>
 				<view class="text_nowrap color_999 font_24" style="max-width: 500rpx;">
-				{{data.province || "**"}} - {{data.city || "**"}} - {{data.area || "**"}} - {{data.street || "**"}}
+					{{data.province}}{{data.city}}{{data.area}} {{data.street}}
 				</view>
 			</view>
-		</view>
-		<view class="order_goods_box bgc_fff">
-			<view class="flex p_b_16" v-for="(item, index) in data.detail" :key="index">
-				<image class="item_goods_img m_r_16" :src="getUrl(item.sku.picture)" mode=""></image>
-				<view class="flex-fitem">
-					<view class="m_b_8 flex-aic flexr-jsb">
-						<text class="color_333 font_28">￥{{item.sku.price/100}}</text>
-					</view>
-					<view class="color_999 font_24 m_b_4 text_nowrap" style="max-width: 560rpx;"
-						v-for="(e, i) in item.sku.attrs">{{e.label}}：{{e.value}}</view>
+			<view class="flex-fitem address-placeholder" v-else>
+				<text class="color_333 font_28 m_b_4">请选择收货地址</text>
+				<view class="text_nowrap color_999 font_24" style="max-width: 500rpx;">
+					添加收货人信息及地址
 				</view>
 			</view>
+			<text class="forward-icon">›</text>
 		</view>
-		<view class="order_info_box bgc_fff color_333">
-			<view class="b_t_2 flex-aic flexr-jsb order_info_item_p24">
-				<text class="font_28">运费</text>
-				<text class="font_28 font_bold">快递 免邮</text>
-			</view>
-			<view class="b_t_2 order_info_item_p24 tar ">
-				<text class="font_28">金额：¥</text>
-				<text class="font_40">{{totalPrice/100}}</text>
-			</view>
-		</view>
-		<view class="bgc_fff m_t_24 wx_pay_box m_b_24">
-			<view class="color_333 font_28" style="margin-bottom: 32rpx;">支付方式</view>
-			<view class="flex-aic flexr-jsb">
-				<image class="wx_icon m_r_16" src="http://www.liwanying.top/applate-icon/weixinzhifu.png" mode="">
-				</image>
-				<text class="color_333 font_28 flex-fitem">微信支付</text>
-				<image class="wx_select_icon" src="http://www.liwanying.top/applate-icon/xuanzhong.png" mode=""></image>
-			</view>
-		</view>
-    <view class="tac">
-      <button class="confirm" @tap="tapPay">确认支付</button>
-    </view>
 
+		<!-- 分割线 -->
+		<view class="dashed-line"></view>
+
+		<!-- 商品列表 -->
+		<view class="order_goods_box bgc_fff">
+
+			<!-- 商品1 -->
+			<view class="flex p_b_16" v-for="d in data.detail">
+				<image class="item_goods_img m_r_16" :src="d.sku.picture" mode="cover"	></image>
+				<view class="flex-fitem">
+					<view class="goods-name">{{d.sku.name}}</view>
+					<view class="goods-desc">{{d.good.description}}</view>
+					<view class="goods-attrs">{{d.sku.specs.map(i=>i.value).join(" ")}}</view>
+					<view class="goods-price-row">
+						<text class="goods-price">¥{{d.sku.price / 100}}</text>
+						<text class="goods-count">×{{d.quantity}}</text>
+					</view>
+				</view>
+			</view>
+		</view>
+
+		<!-- 优惠券和备注 -->
+		<view class="order-options">
+			<view class="option-item">
+				<view class="option-label red-icon">优惠券</view>
+				<view class="option-value">
+					<text class="discount-text">-¥35</text>
+					<text class="forward-icon">›</text>
+				</view>
+			</view>
+			<view class="option-item">
+				<view class="option-label yellow-icon">商家留言</view>
+				<view class="option-value">
+					<text class="message-placeholder">请无需注明信息</text>
+					<text class="forward-icon">›</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 订单金额信息 -->
+		<view class="price-summary">
+			<view class="price-row">
+				<text>商品金额</text>
+				<text>¥179.88</text>
+			</view>
+			<view class="price-row discount">
+				<text>优惠金额</text>
+				<text>-¥35</text>
+			</view>
+			<view class="price-row">
+				<text>运费</text>
+				<text>免运费</text>
+			</view>
+		</view>
+
+		<!-- 底部支付栏 -->
+		<view class="footer">
+			<view class="total-container">
+				<text class="total-label">实付款</text>
+				<text class="total-price">¥{{totalPrice / 100}}</text>
+			</view>
+			<view class="pay-btn" @tap="tapPay">
+				<text>提交订单</text>
+			</view>
+		</view>
 	</view>
 </template>
 
 <script setup>
-	import {
-		ref
-	} from 'vue'
+	import { ref } from 'vue'
 	import { onLoad } from '@dcloudio/uni-app'
 	import { selfOrder } from '@/api/order.js'
 	import { getPayParams, getOrderById } from '@/api/base.js'
-import {getUrl} from "@/utils/url.js"
+	import { getUrl } from "@/utils/url.js"
+	
 	const toAddress = () => {
-    uni.navigateTo({
-      url: `/pages/address/address?ID=${data.value.ID}`,
-      })
+		uni.navigateTo({
+			url: `/pages/address/address?ID=${data.value.ID}`,
+		})
 	}
 
-	const totalPrice = ref(0)
-	const data = ref({})
+	const totalPrice = ref(475)
+	const hasAddress = ref(false)
+	const data = ref({
+		name: '许小贤',
+		phone: '13685395563',
+		province: '山东省',
+		city: '济南市',
+		area: '历城区',
+		street: '149号',
+		detail: [
+			{
+				sku: {
+					name: '西域小洛镇',
+					description: '古瓷妃 短袖t恤女夏装2019新款',
+					price: 1780,
+					picture: 'http://www.liwanying.top/applate-icon/product-img1.png',
+					attrs: [{ label: '颜色', value: '粉紫色' }, { label: '尺码', value: 'L' }]
+				}
+			},
+			{
+				sku: {
+					name: '西域小洛镇',
+					description: '韩版子是网络鞋 夏季清凉防滑简约百搭',
+					price: 1780,
+					picture: 'http://www.liwanying.top/applate-icon/product-img2.png',
+					attrs: [{ label: '颜色', value: '粉紫色' }, { label: '尺码', value: 'L' }]
+				}
+			}
+		]
+	})
 	const orderID = ref("")
+	
 	onLoad((options) => {
-    orderID.value = options.orderID
-    initSingleOrder(orderID.value)
+		orderID.value = options.orderID
+		initSingleOrder()
 	})
 
-  const initSingleOrder = async (orderID) => {
-    const order = await selfOrder(orderID)
-    if(order.code === 0) {
-      data.value = order.data
-      totalPrice.value = order.data.totalPrice
-    }
-  }
-
+	const initSingleOrder = async () => {
+		const order = await selfOrder(orderID.value)
+		if (order.code === 0) {
+			data.value = order.data
+			totalPrice.value = order.data.totalPrice
+			if (order.data.city) {
+				hasAddress.value = true
+			}
+		}
+	}
 
 	let timer = null
-	const clreatTimer = () =>{
+	const clreatTimer = () => {
 		clearInterval(timer)
 		timer = null
 	}
+	
 	const checkOrder = () => {
-		timer = setInterval(async ()=>{
-		 const res = await getOrderById(orderID.value)
-			if(res.data.TradeState === "SUCCESS"){
+		timer = setInterval(async () => {
+			const res = await getOrderById(orderID.value)
+			if (res.data.TradeState === "SUCCESS") {
 				uni.showToast({
 					title: "支付成功",
 					icon: "none"
 				});
 				clreatTimer()
 				// 这里要重新获取当前订单信息改变状态
-        await selfOrder(orderID.value)
-        // 更新成功后跳转到订单页
-        uni.navigateTo({
-          url: `/pages/order/order?orderID=${orderID.value}`,
-        })
-
-      }
-		},1000)
+				await selfOrder(orderID.value)
+				// 更新成功后跳转到订单页
+				uni.navigateTo({
+					url: `/pages/order/order?orderID=${orderID.value}`,
+				})
+			}
+		}, 1000)
 	}
 
 	const tapPay = async () => {
@@ -145,75 +212,261 @@ import {getUrl} from "@/utils/url.js"
 <style lang="scss">
 	page {
 		background-color: #f8f8f8;
+		color: #333;
+		font-size: 28rpx;
+	}
+
+	.container {
+		padding-bottom: 120rpx;
+	}
+
+	.header {
+		display: flex;
+		align-items: center;
+		padding: 20rpx 32rpx;
+		background-color: #fff;
+	}
+
+	.back-icon {
+		font-size: 40rpx;
+		margin-right: 20rpx;
+	}
+
+	.header-title {
+		font-size: 32rpx;
+		font-weight: bold;
 	}
 
 	.address_box {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
 		padding: 28rpx 32rpx;
+		background-color: #fff;
+		margin-top: 20rpx;
 	}
 
 	.location_icon {
 		width: 40rpx;
 		height: 40rpx;
+		margin-right: 16rpx;
 	}
 
-	.wx_icon {
-		width: 46rpx;
-		height: 40rpx;
+	.forward-icon {
+		font-size: 36rpx;
+		color: #ccc;
 	}
 
-	.wx_select_icon {
-		width: 32rpx;
-		height: 32rpx;
+	.dashed-line {
+		height: 2rpx;
+		background-image: linear-gradient(to right, #ddd 50%, transparent 50%);
+		background-size: 10rpx 1rpx;
+		background-repeat: repeat-x;
+		margin: 0 32rpx;
 	}
 
-	.address_icon {
-		width: 12rpx;
-		height: 24rpx;
+	.flex-aic {
+		display: flex;
+		align-items: center;
 	}
 
-	.order_info_box {
-		padding: 0 32rpx;
+	.flexr-jsb {
+		justify-content: space-between;
 	}
 
-	.order_info_item_p24 {
-		padding: 24rpx 0;
+	.flex-fitem {
+		flex: 1;
 	}
 
-	.wx_pay_box {
-		padding: 20rpx 32rpx;
+	.color_333 {
+		color: #333;
 	}
 
-	.order_info_nav_view {
-		height: 100rpx;
-		width: 100%;
-		padding-bottom: constant(safe-area-inset-bottom);
-		padding-bottom: env(safe-area-inset-bottom);
+	.color_999 {
+		color: #999;
 	}
 
-	.order_info_nav_box {
-		bottom: 0;
-		left: 0;
-		right: 0;
-		height: 100rpx;
-		width: 100%;
-		padding-bottom: constant(safe-area-inset-bottom);
-		padding-bottom: env(safe-area-inset-bottom);
+	.font_28 {
+		font-size: 28rpx;
 	}
 
-	.item_goods_img {
-		width: 108rpx;
-		height: 108rpx;
-		border-radius: 2rpx;
+	.font_24 {
+		font-size: 24rpx;
+	}
+
+	.m_r_16 {
+		margin-right: 16rpx;
+	}
+
+	.m_b_4 {
+		margin-bottom: 4rpx;
+	}
+
+	.text_nowrap {
+		white-space: nowrap;
+		text-overflow: ellipsis;
 		overflow: hidden;
 	}
 
 	.order_goods_box {
 		padding: 24rpx 32rpx;
+		background-color: #fff;
 	}
-  .confirm{
-    width: 60%;
-    border-color: #fe5572;
-    background-color: #fe5572;
-    color: white;
-  }
+
+	.flex {
+		display: flex;
+	}
+
+	.p_b_16 {
+		padding-bottom: 16rpx;
+	}
+
+	.item_goods_img {
+		min-width: 168rpx;
+		max-width: 168rpx;
+		height: 168rpx;
+		border-radius: 8rpx;
+		margin-right: 16rpx;
+	}
+
+	.goods-name {
+		font-size: 24rpx;
+		color: #999;
+		margin-bottom: 4rpx;
+	}
+
+	.goods-desc {
+		font-size: 28rpx;
+		color: #333;
+		margin-bottom: 8rpx;
+	}
+
+	.goods-attrs {
+		font-size: 24rpx;
+		color: #999;
+		margin-bottom: 8rpx;
+	}
+
+	.goods-price-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.goods-price {
+		font-size: 28rpx;
+		color: #333;
+	}
+
+	.goods-count {
+		font-size: 24rpx;
+		color: #999;
+	}
+
+	.order-options {
+		margin-top: 20rpx;
+		background-color: #fff;
+	}
+
+	.option-item {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 24rpx 32rpx;
+		border-bottom: 1rpx solid #f5f5f5;
+	}
+
+	.option-label {
+		display: flex;
+		align-items: center;
+	}
+
+	.option-label::before {
+		content: "";
+		display: inline-block;
+		width: 30rpx;
+		height: 30rpx;
+		margin-right: 10rpx;
+		border-radius: 6rpx;
+	}
+
+	.red-icon::before {
+		background-color: #ff6b6b;
+	}
+
+	.yellow-icon::before {
+		background-color: #ffb73b;
+	}
+
+	.option-value {
+		display: flex;
+		align-items: center;
+	}
+
+	.discount-text {
+		color: #ff5572;
+		margin-right: 10rpx;
+	}
+
+	.message-placeholder {
+		color: #999;
+		margin-right: 10rpx;
+	}
+
+	.price-summary {
+		margin-top: 20rpx;
+		background-color: #fff;
+		padding: 0 32rpx;
+	}
+
+	.price-row {
+		display: flex;
+		justify-content: space-between;
+		padding: 20rpx 0;
+		border-bottom: 1rpx solid #f5f5f5;
+	}
+
+	.discount {
+		color: #ff5572;
+	}
+
+	.footer {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		height: 100rpx;
+		display: flex;
+		background-color: #fff;
+		box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
+	}
+
+	.total-container {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		padding-left: 32rpx;
+	}
+
+	.total-label {
+		font-size: 28rpx;
+		margin-right: 8rpx;
+	}
+
+	.total-price {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #ff5572;
+	}
+
+	.pay-btn {
+		width: 240rpx;
+		height: 100%;
+		background-color: #ff5572;
+		color: #fff;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		font-size: 32rpx;
+	}
 </style>

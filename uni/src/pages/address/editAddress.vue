@@ -264,6 +264,9 @@
 </script>
 
 <style lang="scss" scoped>
+ 	page{
+		background:#fff;
+	}
 	.form_item {
 		padding: 28rpx 0;
 	}

@@ -1,5 +1,5 @@
 <template>
-	<view style="padding: 0 32rpx;">
+	<view style="padding: 0 32rpx">
 		<view class="form_item flexr-jsb b_b_2 flex-aic">
 			<view class="font_28 color_333" style="width: 132rpx;">收件人</view>
 			<view class="flex-fitem">
@@ -237,6 +237,9 @@
 </script>
 
 <style lang="scss" scoped>
+	page{
+		background:#fff;
+	}
 	.form_item {
 		padding: 28rpx 0;
 	}
