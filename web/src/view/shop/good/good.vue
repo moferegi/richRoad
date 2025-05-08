@@ -145,6 +145,16 @@
           prop="discount"
           width="120"
         />
+
+        <el-table-column
+          align="left"
+          label="推荐"
+          prop="recommend"
+          width="120"
+        >
+          <template #default="scope">{{ formatBoolean(scope.row.recommend) }}</template>
+        </el-table-column>
+
         <el-table-column
           align="left"
           label="启用"
@@ -153,6 +163,7 @@
         >
           <template #default="scope">{{ formatBoolean(scope.row.status) }}</template>
         </el-table-column>
+ 
         <el-table-column
           align="left"
           label="操作"
@@ -223,7 +234,7 @@
         label-width="80px"
       >
         <el-row :gutter="12">
-          <el-col :span="8">
+          <el-col :span="6">
             <el-form-item
               label="商品名称:"
               prop="title"
@@ -235,7 +246,7 @@
               />
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+          <el-col :span="6">
             <el-form-item
               label="商品类型:"
               prop="categoryID"
@@ -254,7 +265,7 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+          <el-col :span="6">
             <el-form-item
               label="状态:"
               prop="status"
@@ -269,6 +280,22 @@
               />
             </el-form-item>
           </el-col>
+          <el-col :span="6">
+            <el-form-item
+              label="推荐:"
+              prop="recommend"
+            >
+              <el-switch
+                v-model="formData.recommend"
+                active-color="#13ce66"
+                inactive-color="#ff4949"
+                active-text="是"
+                inactive-text="否"
+                clearable
+              />
+            </el-form-item>
+          </el-col>
+          
         </el-row>
         <el-form-item
           label="商品图片URL:"
@@ -549,6 +576,7 @@ const formData = ref({
   title: '',
   categoryID: undefined,
   status: false,
+  recommend: false,
   postage: 0,
   discount: 0,
   specs: [],
@@ -609,6 +637,9 @@ const onSubmit = () => {
     pageSize.value = 10
     if (searchInfo.value.status === '') {
       searchInfo.value.status = null
+    }
+    if (searchInfo.value.recommend === '') {
+      searchInfo.value.recommend = null
     }
     getTableData()
   })
@@ -756,6 +787,7 @@ const closeDialog = () => {
     title: '',
     categoryID: undefined,
     status: false,
+    recommend: false,
     postage: 0,
     specs: [],
     attrs: [],

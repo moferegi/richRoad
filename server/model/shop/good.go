@@ -28,6 +28,7 @@ type Good struct {
 	Detail      string         `json:"detail" form:"detail" gorm:"column:detail;comment:商品详情;type:text"`              //商品详情
 	CollectNum  int            `json:"collect_num" form:"collect_num" gorm:"column:collect_num;comment:收藏数量;"`        //收藏数量
 	SaleNum     uint           `json:"saleNum" form:"saleNum" gorm:"column:sale_num;comment:销量;"`                     //销量
+	Recommend   *bool          `json:"recommend" form:"recommend" gorm:"column:recommend;comment:是否推荐;"`              //是否推荐
 }
 
 // TableName 商品 Good自定义表名 shop_good

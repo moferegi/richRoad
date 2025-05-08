@@ -56,12 +56,18 @@ func (goodService *GoodService) GetGoodInfoList(info shopReq.GoodSearch) (list [
 	if info.StartCreatedAt != nil && info.EndCreatedAt != nil {
 		db = db.Where("created_at BETWEEN ? AND ?", info.StartCreatedAt, info.EndCreatedAt)
 	}
+
 	if info.Title != "" {
 		db = db.Where("title LIKE ?", "%"+info.Title+"%")
 	}
 	if info.CategoryID != 0 {
 		db = db.Where("category_id = ?", info.CategoryID)
 	}
+
+	if info.Recommend != nil {
+		db = db.Where("recommend = ?", info.Recommend)
+	}
+
 	err = db.Count(&total).Error
 	if err != nil {
 		return

@@ -10,5 +10,6 @@ type GoodSearch struct {
 	EndCreatedAt   *time.Time `json:"endCreatedAt" form:"endCreatedAt"`
 	Title          string     `json:"title" form:"title"`
 	CategoryID     int        `json:"categoryID" form:"categoryID"`
+	Recommend      *bool      `json:"recommend" form:"recommend"`
 	request.PageInfo
 }
