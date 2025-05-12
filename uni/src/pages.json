@@ -39,7 +39,7 @@
 
 		},
 		{
-			"path": "pages/order/order",
+			"path": "pages/order/order-confirm",
 			"style": {
 				"navigationBarTitleText": "订单",
 				"enablePullDownRefresh": false
@@ -165,9 +165,7 @@
 			},
 			{
 				"pagePath": "pages/tabBar/category/category",
-				"text": "分类",
-				"iconPath": "static/images/tabBar/category.png",
-				"selectedIconPath": "static/images/tabBar/categorys.png"
+				"text": "分类"
 			},
 			{
 				"pagePath": "pages/tabBar/shop/shop",

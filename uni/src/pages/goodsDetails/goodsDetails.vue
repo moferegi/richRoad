@@ -18,7 +18,10 @@
     </view>
 
     <!-- 规格选择区域 -->
-    <goodsChoose></goodsChoose>
+    <goods-choose
+        :selected-sku="selectedSku"
+        @open-sku="openSkuPopup"
+    ></goods-choose>
 
     <!-- 优惠券区域 -->
     <goodsCoupon></goodsCoupon>
@@ -52,10 +55,19 @@
         </view>
       </view>
       <view class="bottom-right">
-        <button class="add-cart-btn">加入购物车</button>
-        <button class="buy-now-btn">立即购买</button>
+        <button class="add-cart-btn" @click="openSkuPopup">加入购物车</button>
+        <button class="buy-now-btn" @click="buyNow">立即购买</button>
       </view>
+
     </view>
+
+    <!-- SKU选择组件 -->
+    <goods-sku
+        v-model="skuShow"
+        :sku-data="skuData"
+        :action-type="actionType"
+        @sku-confirm="handleSkuConfirm"
+    ></goods-sku>
   </view>
 </template>
 
@@ -69,6 +81,7 @@ import goodsPromotion from './components/goods-promotion.vue'
 import goodsService from './components/goods-service.vue'
 import goodsComment from './components/goods-comment.vue'
 import goodsDiscribe from './components/goods-describe.vue'
+import goodsSku from './components/goods-SKU.vue'
 
 
 // 商品信息
@@ -92,12 +105,69 @@ const goodsInfo = ref({
     }
   ]
 });
+
+// SKU弹窗显示控制
+const skuShow = ref(false);
+// 操作类型：buy-立即购买，cart-加入购物车
+const actionType = ref('');
+// 已选择的SKU信息
+const selectedSku = ref(null);
+
+// Mock数据 - 实际项目中通过API获取
+const skuData = ref({
+  skus: [
+    {
+      id: 1,
+      price: 7000,
+      stock: 30,
+      sku_attrs: {
+        '机身颜色': {
+          name: '深空黑色',
+          img: 'https://example.com/black.jpg',
+        },
+        '储存容量': '128G',
+        '套装': '快充套装'
+      }
+    },
+    // ... 其他SKU数据
+  ]
+});
+
+// 打开SKU选择弹窗
+const openSkuPopup = (type = 'buy') => {
+  console.log('打开SKU弹窗，类型:', type);
+  actionType.value = type;
+  skuShow.value = true;
+};
+
+const buyNow = () => {
+  // 立即购买逻辑
+  uni.navigateTo({
+    url: '/pages/order/order-confirm'
+  });
+};
+
+
+// 处理SKU确认
+const handleSkuConfirm = (sku) => {
+  selectedSku.value = sku;
+
+  if (actionType.value === 'cart') {
+    // 处理加入购物车逻辑
+    console.log('加入购物车', sku);
+  } else {
+    // 处理立即购买逻辑
+    console.log('立即购买', sku);
+  }
+
+  skuShow.value = false;
+};
 </script>
 
 <style lang="scss">
 page {
   background-color: #f8f8f8;
-  padding-bottom: 100px;
+  padding-bottom: 200rpx;
 }
 
 .container {
@@ -107,40 +177,41 @@ page {
 /* 分享和返红包区域 */
 .share-section {
   background-color: #fff;
-  margin-top: 1px;
+  margin-top: 2rpx;
 }
 
 .red-packet {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 14px;
+  font-size: 28rpx;
   background: #FAEDF6;
-  padding: 10px 15px;
+  padding: 20rpx 30rpx;
   color: #3B4144;
 }
-.red-share{
+
+.red-share {
 }
 
 .detail-btn {
   color: #C71585;
-  padding-right: 6px;
+  padding-right: 12rpx;
 }
 
 /* 通用卡片样式 */
 .section-card {
   background-color: #fff;
-  padding: 15px;
+  padding: 30rpx;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .section-title {
-  font-size: 14px;
+  font-size: 28rpx;
   color: #666;
-  margin-right: 10px;
-  min-width: 40px;
+  margin-right: 20rpx;
+  min-width: 80rpx;
 }
 
 .section-content {
@@ -148,48 +219,50 @@ page {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 14px;
+  font-size: 28rpx;
   color: #333;
 }
+
 .detail-section {
   background-color: #fff;
-  margin-top: 10px;
-  padding-bottom: 20px;
+  margin-top: 20rpx;
+  padding-bottom: 40rpx;
 }
 
 .detail-title {
   text-align: center;
-  font-size: 16px;
+  font-size: 32rpx;
   color: #333;
-  padding: 15px 0;
+  padding: 30rpx 0;
   position: relative;
 }
 
-.detail-title::before, .detail-title::after {
+.detail-title::before,
+.detail-title::after {
   content: '';
   position: absolute;
   top: 50%;
-  width: 60px;
-  height: 1px;
+  width: 120rpx;
+  height: 2rpx;
   background-color: #ddd;
 }
 
 .detail-title::before {
-  left: 50px;
+  left: 100rpx;
 }
 
 .detail-title::after {
-  right: 50px;
+  right: 100rpx;
 }
 
 .detail-content {
-  padding: 0 15px;
+  padding: 0 30rpx;
 }
 
 .detail-image {
   width: 100%;
-  margin-bottom: 10px;
-  border-radius: 4px;
+  margin-bottom: 20rpx;
+  border-radius: 8rpx;
 }
 
 /* 底部操作栏 */
@@ -198,10 +271,10 @@ page {
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 50px;
+  height: 100rpx;
   background-color: #fff;
   display: flex;
-  border-top: 1px solid #eee;
+  border-top: 2rpx solid #eee;
   z-index: 99;
 }
 
@@ -216,7 +289,7 @@ page {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 20rpx;
   color: #666;
 }
 
@@ -225,13 +298,14 @@ page {
   width: 60%;
 }
 
-.add-cart-btn, .buy-now-btn {
+.add-cart-btn,
+.buy-now-btn {
   flex: 1;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 28rpx;
   border-radius: 0;
 }
 
@@ -245,3 +319,4 @@ page {
   color: #fff;
 }
 </style>
+

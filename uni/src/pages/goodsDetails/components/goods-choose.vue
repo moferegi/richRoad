@@ -2,18 +2,38 @@
   <view class="spec-section section-card" @click="openPopup">
     <text class="section-title">规格</text>
     <view class="section-content">
-      <text>请选择规格</text>
+      <text>{{ selectedText }}</text>
       <uni-icons type="right" size="16" color="#999"></uni-icons>
     </view>
   </view>
 </template>
 
 <script setup>
+import { computed } from 'vue';
+const props = defineProps({
+  selectedSku: {
+    type: Object,
+    default: null
+  }
+});
+
+// 修正这里的emit定义，使用正确的事件名称
+const emit = defineEmits(['open-sku']);
+
+// 计算显示文本
+const selectedText = computed(() => {
+  if (!props.selectedSku) return '请选择规格';
+
+  const attrs = props.selectedSku.sku_attrs;
+  return Object.entries(attrs)
+      .map(([key, value]) => `${key}:${typeof value === 'object' ? value.name : value}`)
+      .join(' ');
+});
+
+// 打开SKU选择弹窗
 const openPopup = () => {
-  // 这里可以调用父组件的方法来打开弹窗
-  // 例如: emit('openPopup')
-  console.log('打开规格选择弹窗');
-}
+  emit('open-sku');
+};
 </script>
 
 <style scoped lang="scss">
