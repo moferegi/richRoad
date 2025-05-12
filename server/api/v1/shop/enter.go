@@ -11,9 +11,13 @@ type ApiGroup struct {
 	OrderApi
 	CommentApi
 	TagApi
+	CouponApi
+	CouponOrderUserApi
 }
 
 var (
 	commentService = service.ServiceGroupApp.ShopServiceGroup.CommentService
 	tagService     = service.ServiceGroupApp.ShopServiceGroup.TagService
+	couponService  = service.ServiceGroupApp.ShopServiceGroup.CouponService
+	couService     = service.ServiceGroupApp.ShopServiceGroup.CouponOrderUserService
 )

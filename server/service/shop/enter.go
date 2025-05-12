@@ -9,4 +9,6 @@ type ServiceGroup struct {
 	OrderService
 	CommentService
 	TagService
+	CouponService
+	CouponOrderUserService
 }
