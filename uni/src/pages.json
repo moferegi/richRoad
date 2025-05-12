@@ -104,11 +104,9 @@
 
 		},
 		{
-			"path": "pages/tabBar/my/my",
+			"path": "pages/tabBar/my/index",
 			"style": {
-				"navigationBarTitleText": "我的",
-				"navigationBarTextStyle": "white",
-				"navigationBarBackgroundColor": "#fe5572",
+				"navigationStyle": "custom",
 				"enablePullDownRefresh": false
 			}
 
@@ -179,7 +177,7 @@
 				"selectedIconPath": "static/images/tabBar/carts.png"
 			},
 			{
-				"pagePath": "pages/tabBar/my/my",
+				"pagePath": "pages/tabBar/my/index",
 				"text": "我的",
 				"iconPath": "static/images/tabBar/my.png",
 				"selectedIconPath": "static/images/tabBar/mys.png"
