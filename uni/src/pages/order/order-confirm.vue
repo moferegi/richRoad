@@ -187,7 +187,11 @@ const chooseCoupon = () => {
 
 // 提交订单
 const submitOrder = () => {
-  console.log('提交订单');
+  uni.navigateTo({
+    url: '/pages/pay/index',
+    success: () => console.log('跳转成功'),
+    fail: (err) => console.error('跳转失败', err)
+  });
 };
 </script>
 

@@ -44,7 +44,12 @@
 				"navigationBarTitleText": "订单",
 				"enablePullDownRefresh": false
 			}
-
+		},{
+			"path": "pages/pay/index",
+			"style": {
+				"navigationBarTitleText": "支付",
+				"enablePullDownRefresh": false
+			}
 		},
 		{
 			"path": "pages/logistics/logistics",

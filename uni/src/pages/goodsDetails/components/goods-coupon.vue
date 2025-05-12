@@ -26,5 +26,29 @@
   border-radius: 8rpx;
 }
 
+/* 通用卡片样式 */
+.section-card {
+  background-color: #fff;
+  padding: 30rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-title {
+  font-size: 28rpx;
+  color: #666;
+  margin-right: 20rpx;
+  min-width: 80rpx;
+}
+
+.section-content {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 28rpx;
+  color: #333;
+}
 
 </style>
