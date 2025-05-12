@@ -14,7 +14,7 @@
 /* 商品轮播图 */
 .goods-swiper {
   width: 100%;
-  height: 26rem;
+  height: 832rpx; // 原 26rem
 }
 
 .swiper-item {

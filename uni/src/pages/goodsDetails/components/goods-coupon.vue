@@ -14,16 +14,16 @@
 
 <style scoped lang="scss">
 /* 优惠券区域 */
-.coupon-section{
-  border-bottom: 1px solid #F5F5F5;
-
+.coupon-section {
+  border-bottom: 1px solid #F5F5F5; // 保留 1px 边框线
 }
+
 .coupon-tag {
-  font-size: 12px;
+  font-size: 24rpx;
   color: #ff4757;
-  border: 1px solid #ff4757;
-  padding: 2px 6px;
-  border-radius: 4px;
+  border: 1px solid #ff4757; // 同样保留为细线描边
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
 }
 
 

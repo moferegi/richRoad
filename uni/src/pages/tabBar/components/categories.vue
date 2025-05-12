@@ -35,7 +35,7 @@ const props = defineProps({
 .category-section {
   display: flex;
   justify-content: space-around;
-  padding: 18px;
+  padding: 36rpx;
   background-color: #fff;
 }
 
@@ -47,15 +47,15 @@ const props = defineProps({
 }
 
 .category-icon {
-  width: 44px;
-  height: 44px;
+  width: 88rpx;
+  height: 88rpx;
   border-radius: 50%;
-  margin-bottom: 8px;
+  margin-bottom: 16rpx;
 }
 
 .category-title {
-  font-size: 12px;
+  font-size: 24rpx;
   color: #333;
 }
-
 </style>
+

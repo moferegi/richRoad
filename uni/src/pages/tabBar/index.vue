@@ -205,19 +205,21 @@ page {
 .status-bar-placeholder {
   width: 100%;
   height: var(--status-bar-height);
-  background-color: #E74C3C; // 修改为红色背景
+  background-color: #E74C3C;
 }
+
 .test {
   display: flex;
-  margin-top: 2rem; // 待修改
+  margin-top: 64rpx; // 原 2rem ≈ 64rpx
   width: 100%;
 }
+
 // 顶部状态栏
 .status-bar {
-  background-color: #E74C3C; // 修改为红色背景
+  background-color: #E74C3C;
   display: flex;
   align-items: center;
-  padding: 8px 12px;
+  padding: 16rpx 24rpx;
   box-sizing: border-box;
   position: sticky;
   top: 0;
@@ -225,9 +227,10 @@ page {
   width: 100%;
 }
 
-.scan-icon, .message-icon {
-  width: 30px;
-  height: 30px;
+.scan-icon,
+.message-icon {
+  width: 60rpx;
+  height: 60rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -235,84 +238,85 @@ page {
 
 .search-bar {
   flex: 1;
-  background-color: #fff; // 修改为白色背景
-  height: 36px;
-  border-radius: 18px;
-  margin: 0 10px;
+  background-color: #fff;
+  height: 72rpx;
+  border-radius: 36rpx;
+  margin: 0 20rpx;
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  padding: 0 24rpx;
 }
 
 .search-icon {
-  margin-right: 6px;
+  margin-right: 12rpx;
 }
 
 .search-placeholder {
   color: #999;
-  font-size: 14px;
+  font-size: 28rpx;
 }
 
 // 促销横幅
 .promo-right {
-  background-color: #FFD700; // 金色
+  background-color: #FFD700;
 }
+
 // 胶囊形状的促销横幅
 .promo-banner {
-  padding: 12px;
+  padding: 24rpx;
   background-color: #fff;
 }
 
 .promo-left {
   background: linear-gradient(90deg, #FF8C69, #FFD700);
-  border-radius: 40px; // 设置非常大的圆角，使两端呈现半圆形
-  height: 70px;
-  padding: 0 20px;
+  border-radius: 80rpx;
+  height: 140rpx;
+  padding: 0 40rpx;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.promo-content{
+.promo-content {
   display: flex;
   flex-direction: column;
 }
 
 .promo-text {
-  font-size: 18px;
+  font-size: 36rpx;
   font-weight: bold;
   color: white;
 }
 
 .promo-subtitle {
-  font-size: 12px;
-  color: rgba(255,255,255,0.8);
-  margin-top: 2px;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 4rpx;
 }
 
 .promo-tag {
   position: absolute;
-  left: 120px;
-  top: 18px;
+  left: 240rpx;
+  top: 36rpx;
   background-color: #ff4a4a;
   color: white;
-  font-size: 10px;
-  padding: 0 6px;
-  border-radius: 10px;
+  font-size: 20rpx;
+  padding: 0 12rpx;
+  border-radius: 20rpx;
 }
 
 // 右侧图片容器
 .promo-image-container {
   position: absolute;
-  right: 20px;
+  right: 40rpx;
   display: flex;
   align-items: center;
 }
 
 .promo-text {
   color: white;
-  font-size: 14px;
+  font-size: 28rpx;
   font-weight: bold;
 }
 
@@ -320,15 +324,15 @@ page {
   display: inline-block;
   background-color: #ff4a4a;
   color: white;
-  font-size: 10px;
-  padding: 1px 4px;
-  border-radius: 4px;
-  margin-top: 4px;
+  font-size: 20rpx;
+  padding: 2rpx 8rpx;
+  border-radius: 8rpx;
+  margin-top: 8rpx;
 }
 
 // 底部加载及空状态
 .loading-status {
-  padding: 20px 0;
+  padding: 40rpx 0;
 }
 
 .empty-state {
@@ -336,12 +340,13 @@ page {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 0;
+  padding: 80rpx 0;
 }
 
 .empty-state text {
-  font-size: 14px;
+  font-size: 28rpx;
   color: #999;
-  margin-top: 12px;
+  margin-top: 24rpx;
 }
 </style>
+

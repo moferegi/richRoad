@@ -29,55 +29,56 @@ const props = defineProps({
 /* 商品信息区域 */
 .goods-info {
   background-color: #fff;
-  padding: 15px;
+  padding: 30rpx;
 }
 
 .price-section {
   display: flex;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 20rpx;
 }
 
 .price {
-  font-size: 24px;
+  font-size: 48rpx;
   color: #ff4757;
   font-weight: bold;
 }
 
 .original-price {
-  font-size: 14px;
+  font-size: 28rpx;
   color: #999;
   text-decoration: line-through;
-  margin-left: 10px;
+  margin-left: 20rpx;
 }
 
 .discount {
-  font-size: 12px;
+  font-size: 24rpx;
   color: #fff;
   background-color: #ff4757;
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-left: 10px;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  margin-left: 20rpx;
 }
 
 .title-section {
-  margin-bottom: 10px;
+  margin-bottom: 20rpx;
 }
 
 .goods-title {
-  font-size: 16px;
+  font-size: 32rpx;
   color: #333;
   line-height: 1.4;
 }
 
 .sales-info {
   display: flex;
-  font-size: 12px;
+  font-size: 24rpx;
   color: #999;
 }
 
-.sales, .stock {
-  margin-right: 15px;
+.sales,
+.stock {
+  margin-right: 30rpx;
 }
-
 </style>
+

@@ -12,13 +12,14 @@
 </template>
 
 <style scoped lang="scss">
-.service-section{
-  border-bottom: 1px solid #F5F5F5;
+.service-section {
+  border-bottom: 1px solid #F5F5F5; // ✅ 保留为 1px 实线（视觉线）
 }
+
 /* 服务区域 */
 .service-content {
   flex: 1;
-  font-size: 12px;
+  font-size: 24rpx;
   color: #666;
 }
 </style>

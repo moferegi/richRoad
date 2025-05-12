@@ -28,66 +28,67 @@ const props = defineProps({
 <style scoped lang="scss">
 // 限时秒杀区域
 .flash-sale {
-  margin: 12px;
+  margin: 24rpx;
   background-color: #fff;
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 24rpx;
+  padding: 24rpx;
 }
 
 .flash-header {
   display: flex;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 24rpx;
 }
 
 .flash-title {
-  font-size: 16px;
+  font-size: 32rpx;
   font-weight: bold;
-  color: #FF4500; // 猩红色，像原型图
+  color: #FF4500;
   margin-right: auto;
 }
 
 .flash-countdown {
-  font-size: 12px;
+  font-size: 24rpx;
   color: #666;
-  margin-right: 4px;
+  margin-right: 8rpx;
 }
 
 .product-list {
   display: flex;
   overflow-x: auto;
-  padding-bottom: 8px;
+  padding-bottom: 16rpx;
   &::-webkit-scrollbar {
     display: none;
   }
 }
 
 .product-item {
-  width: 120px;
-  margin-right: 12px;
+  width: 240rpx;
+  margin-right: 24rpx;
   flex-shrink: 0;
 }
 
 .product-image {
-  width: 120px;
-  height: 150px;
+  width: 240rpx;
+  height: 300rpx;
   background-color: #f5f5f5;
-  border-radius: 8px;
-  margin-bottom: 6px;
+  border-radius: 16rpx;
+  margin-bottom: 12rpx;
 }
 
 .product-title {
-  font-size: 12px;
+  font-size: 24rpx;
   color: #333;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: 4px;
+  margin-bottom: 8rpx;
 }
 
 .product-price {
-  font-size: 14px;
+  font-size: 28rpx;
   color: #FF4500;
   font-weight: bold;
 }
 </style>
+

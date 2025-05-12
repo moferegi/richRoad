@@ -49,13 +49,13 @@ const props = defineProps({
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  margin-bottom: 30rpx;
 }
 
 .comment-rate {
   display: flex;
   align-items: center;
-  font-size: 12px;
+  font-size: 24rpx;
   color: #666;
 }
 
@@ -66,51 +66,52 @@ const props = defineProps({
 .comment-user {
   display: flex;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 20rpx;
 }
 
 .user-avatar {
-  width: 30px;
-  height: 30px;
+  width: 60rpx;
+  height: 60rpx;
   border-radius: 50%;
-  margin-right: 8px;
+  margin-right: 16rpx;
 }
 
 .user-name {
-  font-size: 14px;
+  font-size: 28rpx;
   color: #333;
 }
 
 .comment-content {
-  padding-left: 38px;
+  padding-left: 76rpx;
 }
 
 .comment-text {
-  font-size: 14px;
+  font-size: 28rpx;
   color: #333;
   line-height: 1.4;
-  margin-bottom: 10px;
+  margin-bottom: 20rpx;
 }
 
 .comment-images {
   display: flex;
-  margin-bottom: 10px;
+  margin-bottom: 20rpx;
 }
 
 .comment-image {
-  width: 80px;
-  height: 80px;
-  margin-right: 8px;
-  border-radius: 4px;
+  width: 160rpx;
+  height: 160rpx;
+  margin-right: 16rpx;
+  border-radius: 8rpx;
 }
 
 .comment-info {
   display: flex;
-  font-size: 12px;
+  font-size: 24rpx;
   color: #999;
 }
 
 .comment-spec {
-  margin-right: 15px;
+  margin-right: 30rpx;
 }
 </style>
+

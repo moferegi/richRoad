@@ -31,31 +31,32 @@
 .promotion-section {
   flex-direction: column;
   align-items: flex-start;
-  border-bottom: 1px solid #F5F5F5;
+  border-bottom: 1px solid #F5F5F5; // 保留为 1px 精细线
 }
 
 .promotion-list {
   width: 100%;
-  margin-top: 10px;
+  margin-top: 20rpx;
 }
 
 .promotion-item {
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 16rpx;
 }
 
 .promotion-tag {
-  font-size: 12px;
+  font-size: 24rpx;
   color: #fff;
   background-color: #ff4757;
-  padding: 1px 4px;
-  border-radius: 2px;
-  margin-right: 8px;
+  padding: 2rpx 8rpx;
+  border-radius: 4rpx;
+  margin-right: 16rpx;
 }
 
 .promotion-text {
-  font-size: 12px;
+  font-size: 24rpx;
   color: #333;
 }
 </style>
+
