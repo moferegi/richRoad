@@ -39,7 +39,7 @@
 
 		},
 		{
-			"path": "pages/order/order-confirm",
+			"path": "pages/order/order",
 			"style": {
 				"navigationBarTitleText": "订单",
 				"enablePullDownRefresh": false

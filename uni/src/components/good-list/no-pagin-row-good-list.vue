@@ -220,7 +220,7 @@ const queryList = async (pageNo, pageSize) => {
 // 跳转到商品详情页
 const handleGoodsClick = (item) => {
   uni.navigateTo({
-    url: '/pages/goodsDetails/goodsDetails?goodID=' + item.name
+    url: '/pages/goodsDetails/goodsDetails?id=' + item.ID
   })
 }
 </script>

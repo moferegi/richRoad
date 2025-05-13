@@ -24,7 +24,6 @@
       </view>
     </view>
     <scroll-view scroll-y="true" class="scroll-Y" @scrolltolower="debouncedLower" refresher-enabled @refresherrefresh="onRefresh" :refresher-triggered="isRefreshing">
-
       <!-- 轮播图区域 -->
       <swpiers></swpiers>
 
