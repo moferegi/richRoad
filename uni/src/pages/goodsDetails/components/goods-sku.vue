@@ -82,7 +82,7 @@ const submit = async (quantity) => {
     const res = await placeOrder(detail);
     if (res.code === 0) {
       uni.navigateTo({
-        url: `/pages/orderInfo/orderInfo?orderID=${res.data.orderID}&type='single'`
+        url: `/pages/orderInfo/orderInfo?orderID=${res.data.orderID}`
       })
     }
   } else {
