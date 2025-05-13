@@ -130,10 +130,10 @@ mysql:
     prefix: ""
     port: "3306"
     config: charset=utf8mb4&parseTime=True&loc=Local
-    db-name: gva_shop_uni_new
-    username: root
+    db-name: gva_uni_shop_dev
+    username: gva_uni_shop_dev
     password: Aa@6447985
-    path: 127.0.0.1
+    path: 101.226.8.201
     engine: ""
     log-mode: error
     max-idle-conns: 10
