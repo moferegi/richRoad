@@ -95,9 +95,9 @@ getDataSourceFunc()
   <div>
   {{- if not .IsTree }}
     <div class="gva-search-box">
-      <el-form ref="elSearchFormRef" :inline="true" :model="searchInfo" class="demo-form-inline" :rules="searchRule" @keyup.enter="onSubmit">
+      <el-form ref="elSearchFormRef" :inline="true" :model="searchInfo" class="demo-form-inline" @keyup.enter="onSubmit">
       {{- if .GvaModel }}
-      <el-form-item label="创建日期" prop="CreatedAt">
+      <el-form-item label="创建日期" prop="createdAtRange">
       <template #label>
         <span>
           创建日期
@@ -106,10 +106,15 @@ getDataSourceFunc()
           </el-tooltip>
         </span>
       </template>
-      <el-date-picker v-model="searchInfo.startCreatedAt" type="datetime" placeholder="开始日期" :disabled-date="time=> searchInfo.endCreatedAt ? time.getTime() > searchInfo.endCreatedAt.getTime() : false"></el-date-picker>
-       —
-      <el-date-picker v-model="searchInfo.endCreatedAt" type="datetime" placeholder="结束日期" :disabled-date="time=> searchInfo.startCreatedAt ? time.getTime() < searchInfo.startCreatedAt.getTime() : false"></el-date-picker>
-      </el-form-item>
+         <el-date-picker
+                  v-model="searchInfo.createdAtRange"
+                  class="w-[380px]"
+                  type="datetimerange"
+                  range-separator="至"
+                  start-placeholder="开始时间"
+                  end-placeholder="结束时间"
+                />
+       </el-form-item>
       {{ end -}}
            {{- range .Fields}} {{- if .FieldSearchType}} {{- if not .FieldSearchHide }}
             {{ GenerateSearchFormItem .}}
@@ -367,39 +372,6 @@ const rule = reactive({
             {{- end }}
         {{- end }}
     {{- end }}
-})
-
-const searchRule = reactive({
-  CreatedAt: [
-    { validator: (rule, value, callback) => {
-      if (searchInfo.value.startCreatedAt && !searchInfo.value.endCreatedAt) {
-        callback(new Error('请填写结束日期'))
-      } else if (!searchInfo.value.startCreatedAt && searchInfo.value.endCreatedAt) {
-        callback(new Error('请填写开始日期'))
-      } else if (searchInfo.value.startCreatedAt && searchInfo.value.endCreatedAt && (searchInfo.value.startCreatedAt.getTime() === searchInfo.value.endCreatedAt.getTime() || searchInfo.value.startCreatedAt.getTime() > searchInfo.value.endCreatedAt.getTime())) {
-        callback(new Error('开始日期应当早于结束日期'))
-      } else {
-        callback()
-      }
-    }, trigger: 'change' }
-  ],
-  {{- range .Fields }}
-    {{- if .FieldSearchType}}
-      {{- if eq .FieldType "time.Time" }}
-        {{.FieldJson }} : [{ validator: (rule, value, callback) => {
-        if (searchInfo.value.start{{.FieldName}} && !searchInfo.value.end{{.FieldName}}) {
-          callback(new Error('请填写结束日期'))
-        } else if (!searchInfo.value.start{{.FieldName}} && searchInfo.value.end{{.FieldName}}) {
-          callback(new Error('请填写开始日期'))
-        } else if (searchInfo.value.start{{.FieldName}} && searchInfo.value.end{{.FieldName}} && (searchInfo.value.start{{.FieldName}}.getTime() === searchInfo.value.end{{.FieldName}}.getTime() || searchInfo.value.start{{.FieldName}}.getTime() > searchInfo.value.end{{.FieldName}}.getTime())) {
-          callback(new Error('开始日期应当早于结束日期'))
-        } else {
-          callback()
-        }
-      }, trigger: 'change' }],
-      {{- end }}
-    {{- end }}
-  {{- end }}
 })
 
 const elFormRef = ref()

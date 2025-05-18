@@ -207,3 +207,29 @@ export const initAPI = (data) => {
     data
   })
 }
+
+export const mcp = (data) => {
+  return service({
+    url: '/autoCode/mcp',
+    method: 'post',
+    data
+  })
+}
+
+
+export const mcpList = (data) => {
+  return service({
+    url: '/autoCode/mcpList',
+    method: 'post',
+    data
+  })
+}
+
+
+export const mcpTest = (data) => {
+  return service({
+    url: '/autoCode/mcpTest',
+    method: 'post',
+    data
+  })
+}

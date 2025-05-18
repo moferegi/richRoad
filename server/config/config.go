@@ -35,6 +35,9 @@ type Server struct {
 	// 跨域配置
 	Cors CORS `mapstructure:"cors" json:"cors" yaml:"cors"`
 
+	// MCP配置
+	MCP MCP `mapstructure:"mcp" json:"mcp" yaml:"mcp"`
+
 	Wxpay Wxpay `mapstructure:"wxpay" json:"wxpay" yaml:"wxpay"`
 
 	Sf Sf `mapstructure:"sf" json:"sf" yaml:"sf"`

@@ -101,7 +101,7 @@ Gin-vue-admin 的成长离不开大家的支持，如果你愿意为 gin-vue-adm
 ## 2. 使用说明
 
 ```
-- node版本 > v16.8.3
+- node版本 > v18.16.0
 - golang版本 >= v1.22
 - IDE推荐：Goland
 ```
@@ -369,9 +369,9 @@ fmt.Println(decodeBytes, err)
 
 感谢您对gin-vue-admin的贡献!
 
-<a href="https://github.com/flipped-aurora/gin-vue-admin/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=flipped-aurora/gin-vue-admin" />
-</a>
+<a href="https://openomy.app/github/flipped-aurora/gin-vue-admin" target="_blank" style="display: block; width: 100%;" align="center">
+  <img src="https://openomy.app/svg?repo=flipped-aurora/gin-vue-admin&chart=bubble&latestMonth=3" target="_blank" alt="Contribution Leaderboard" style="display: block; width: 100%;" />
+ </a>
 
 ## 9. 捐赠
 
