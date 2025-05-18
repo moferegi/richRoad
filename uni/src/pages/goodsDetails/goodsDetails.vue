@@ -128,7 +128,7 @@
     <view class="fixed-bottom-nav">
       <view class="nav-action-buttons">
         <view class="nav-button" @tap="goTo()">
-          <image class="nav-icon" src="./../../static/images/tabBar/index.png"></image>
+          <image class="nav-icon" src="./../../static/images/tabBar/home.png"></image>
           <text class="nav-text">首页</text>
         </view>
         <view class="nav-button" @tap="goTo('cart')">

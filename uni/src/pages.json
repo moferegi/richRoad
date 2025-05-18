@@ -163,12 +163,14 @@
 			"onPageScroll": true,
 
 			"text": "首页",
-				"iconPath": "static/images/tabBar/index.png",
-				"selectedIconPath": "static/images/tabBar/indexs.png"
+				"iconPath": "static/images/tabBar/home.png",
+				"selectedIconPath": "static/images/tabBar/homes.png"
 			},
 			{
 				"pagePath": "pages/tabBar/category/category",
-				"text": "分类"
+				"text": "分类",
+				"iconPath": "static/images/tabBar/category.png",
+				"selectedIconPath": "static/images/tabBar/categorys.png"
 			},
 			{
 				"pagePath": "pages/tabBar/shop/shop",
