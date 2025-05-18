@@ -23,7 +23,7 @@
         </view>
       </view>
     </view>
-    <scroll-view scroll-y="true" class="scroll-Y" @scrolltolower="debouncedLower" refresher-enabled @refresherrefresh="onRefresh" :refresher-triggered="isRefreshing">
+    <scroll-view scroll-y="true" class="scroll-Y" @scrolltolower="debouncedLower" @refresherrefresh="onRefresh" >
       <!-- 轮播图区域 -->
       <swpiers></swpiers>
 
@@ -90,25 +90,12 @@ const params = ref({
 const flowData = ref([])
 const isBottom = ref(false)
 const isLoading = ref(true)
-const isRefreshing = ref(false)
 
 // 跳转到搜索页面
 const goToSearch = () => {
   uni.navigateTo({
     url: '/pages/search/index'
   })
-}
-
-// 下拉刷新处理
-const onRefresh = async () => {
-  isRefreshing.value = true
-  params.value.page = 1
-  flowData.value = []
-  isBottom.value = false
-  await lower(true)
-  setTimeout(() => {
-    isRefreshing.value = false
-  }, 800)
 }
 
 // 获取商品相关业务逻辑
