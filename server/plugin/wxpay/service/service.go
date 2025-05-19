@@ -12,12 +12,15 @@ import (
 	wx_global "github.com/flipped-aurora/gin-vue-admin/server/plugin/wxpay/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/wxpay/model"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/wxpay/utils"
+	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	utils2 "github.com/wechatpay-apiv3/wechatpay-go/utils"
 	"gorm.io/gorm"
 	"log"
 	"math"
 	"strconv"
 )
+
+var shopService = service.ServiceGroupApp.ShopServiceGroup.OrderService
 
 type WxpayService struct{}
 
@@ -182,7 +185,15 @@ func (e *WxpayService) GetOrderById(orderID string) (error, model.Order) {
 
 func queryOrderByOutTradeNo(ctx context.Context, client *payment.Payment, orderID string) (err error, order model.Order) {
 
-	result, err := client.Order.QueryByOutTradeNumber(ctx, orderID)
+	var o shop.Order
+
+	err = global.GVA_DB.First(&o, "id = ?", orderID).Error
+
+	if err != nil {
+		return err, model.Order{}
+	}
+
+	result, err := client.Order.QueryByOutTradeNumber(ctx, o.PayOrderID)
 	if err != nil {
 		// 错误处理
 		log.Printf("call QueryOrderByOutTradeNo err:%s", err)
@@ -197,6 +208,25 @@ func queryOrderByOutTradeNo(ctx context.Context, client *payment.Payment, orderI
 		//REVOKED：已撤销（仅付款码支付会返回）
 		//USERPAYING：用户支付中（仅付款码支付会返回）
 		//PAYERROR：支付失败（仅付款码支付会返回）
+
+		order.TradeState = result.TradeState
+		if order.TradeState == "SUCCESS" {
+			var payOrder model.Order
+			poe := global.GVA_DB.First(&payOrder, "out_trade_no = ?", result.OutTradeNo).Update("trade_state", "SUCCESS").Error
+			if poe != nil {
+				return poe, order
+			}
+			soe := shopService.UpdateOrderStatus(nil, orderID, "1")
+			if soe != nil {
+				return soe, order
+			}
+		}
+
+		// 处理错误
+		// 可以根据订单返回的结果做一些业务逻辑
+
+		log.Printf("status=%d resp=%s", result.TradeState, result)
+		return err, order
 
 		// 处理错误
 		// 可以根据订单返回的结果做一些业务逻辑
@@ -213,8 +243,44 @@ func (e *WxpayService) PayAction(pay model.PayAction) error {
 		return err
 	}
 	var payOrder model.PayOrder
-
+	if err != nil {
+		global.GVA_LOG.Info(p)
+		global.GVA_LOG.Info(err.Error())
+		return err
+	}
 	err = json.Unmarshal([]byte(p), &payOrder)
 	// payOrder 为回调信息 请自行根据回调信息做业务逻辑
+	if err != nil {
+		global.GVA_LOG.Info(p)
+		global.GVA_LOG.Info(err.Error())
+		return err
+	}
+
+	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		err = tx.First(&model.Order{}, "out_trade_no = ?", payOrder.OutTradeNo).
+			Update("trade_state", payOrder.TradeState).
+			Update("trade_state_desc", payOrder.TradeStateDesc).
+			Update("transaction_id", payOrder.TransactionId).
+			Update("trade_type", payOrder.TradeType).
+			Update("bank_type", payOrder.BankType).
+			Update("attach", payOrder.Attach).
+			Update("success_time", payOrder.SuccessTime).
+			Error
+		if err != nil {
+			return err
+		}
+		if payOrder.TradeState == "SUCCESS" {
+			var shopOrder shop.Order
+			err = tx.First(&shopOrder, "pay_order_id = ?", payOrder.OutTradeNo).Error
+			if err != nil {
+				return err
+			}
+			err = shopService.UpdateOrderStatus(tx, strconv.Itoa(int(shopOrder.ID)), "1")
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 	return err
 }
