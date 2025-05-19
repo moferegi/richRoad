@@ -5,45 +5,93 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ArtisanCloud/PowerWeChat/v3/src/payment"
+	"github.com/ArtisanCloud/PowerWeChat/v3/src/payment/order/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	wx_global "github.com/flipped-aurora/gin-vue-admin/server/plugin/wxpay/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/wxpay/model"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/wxpay/utils"
-	service "github.com/flipped-aurora/gin-vue-admin/server/service"
-	"github.com/wechatpay-apiv3/wechatpay-go/core"
-	"github.com/wechatpay-apiv3/wechatpay-go/services/payments/jsapi"
-	"github.com/wechatpay-apiv3/wechatpay-go/services/payments/native"
 	utils2 "github.com/wechatpay-apiv3/wechatpay-go/utils"
 	"gorm.io/gorm"
 	"log"
+	"math"
 	"strconv"
-	"time"
 )
 
 type WxpayService struct{}
 
-var shopService = service.ServiceGroupApp.ShopServiceGroup.OrderService
+func (e *WxpayService) GetPayCode(order model.Order) (err error, CodeUrl string, orderID string) {
+	err, ctx, client := utils.CreateClientAndCtx()
+	if err != nil {
+		return err, "", ""
+	}
+	err, codeUrl, orderID := payOne(ctx, client, order)
+	return err, codeUrl, orderID
+}
 
-// GetPayParams
 func (e *WxpayService) GetPayParams(order model.Order) (err error, payParams string) {
-	err, ctx, wxClient := utils.CreateClientAndCtx()
+	err, ctx, client := utils.CreateClientAndCtx()
 	if err != nil {
 		return err, ""
 	}
-	err, payParams = payOneParams(ctx, wxClient, order)
+	err, payParams = payOneParams(ctx, client, order)
 	return err, payParams
 }
 
-func payOneParams(ctx context.Context, wxClient *core.Client, order model.Order) (err error, payParams string) {
+func payOne(ctx context.Context, client *payment.Payment, order model.Order) (err error, codeUrl string, orderID string) {
 	// 下单用户ID
 	// 下单单号（总ID 用6位（100000）开始记录）
 	// 下单产品名(Description)
 	// 下单价格(Total)分
 	// 得到prepay_id，以及调起支付所需的参数和签名
+
+	//rs, err := client.Security.GetCertificates(ctx)
+	//fmt.Println(rs.Data)
+	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+
+		//先创建一个空的订单
+		//然后 订单一定要记录好订单上面关联的产品ID 包含产品的介绍 名字 金额等
+		snowflakeID := utils.GenerateSnowflakeID() // 获取雪花id
+		no := fmt.Sprintf("%d", snowflakeID)       // 转为字符串
+		b := int(math.Floor(1))                    // 产品价格  分
+		Name := "GVA插件"                            // 订单产品产品名称
+
+		options := &request.RequestNativePrepay{
+			Amount: &request.NativeAmount{
+				Total:    b,
+				Currency: "CNY",
+			},
+			Attach:      "自定义数据说明",
+			Description: Name,
+			OutTradeNo:  no,
+		}
+
+		response, err := client.Order.TransactionNative(ctx, options)
+
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		orderID = no
+		codeUrl = response.CodeURL
+		return err
+	})
+	return err, codeUrl, orderID
+}
+
+func payOneParams(ctx context.Context, client *payment.Payment, order model.Order) (err error, payParams string) {
+	// 下单用户ID
+	// 下单单号（总ID 用6位（100000）开始记录）
+	// 下单产品名(Description)
+	// 下单价格(Total)分
+	// 得到prepay_id，以及调起支付所需的参数和签名
+
+	//rs, err := client.Security.GetCertificates(ctx)
+	//fmt.Println(rs.Data)
 	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
 		var o shop.Order
-		fe := tx.First(&o, "id = ?", order.OrderID).Error
+		fe := tx.First(&o, "id = ?", order.ID).Error
 		if fe != nil {
 			return fe
 		}
@@ -52,50 +100,38 @@ func payOneParams(ctx context.Context, wxClient *core.Client, order model.Order)
 		}
 		//先创建一个空的订单
 		//然后 订单一定要记录好订单上面关联的产品ID 包含产品的介绍 名字 金额等
-		preKey := "test_wxshop"
-		no := strconv.Itoa(int(order.OrderID))
-		b := o.TotalPrice // 产品价格  分
-		timestamp := strconv.Itoa(int(time.Now().Unix()))
+		snowflakeID := utils.GenerateSnowflakeID() // 获取雪花id
+		b := o.TotalPrice                          // 产品价格  分
 		Name := "订单支付"
-		payOrderID := fmt.Sprintf("%s_%s_%s", preKey, no, timestamp)
-		ctx = context.WithValue(ctx, "no", payOrderID)
-		svc := jsapi.JsapiApiService{Client: wxClient}
-		resp, result, err := svc.Prepay(ctx,
-			jsapi.PrepayRequest{
-				Appid:         core.String(wx_global.GlobalConfig.AppID),
-				Mchid:         core.String(wx_global.GlobalConfig.MchID),
-				Payer:         &jsapi.Payer{Openid: core.String(order.Openid)},
-				Description:   core.String(Name),       // 产品名字
-				OutTradeNo:    core.String(payOrderID), // 预下单的那个ID 必须大于6位 建议 ID自增从 100000开始
-				TimeExpire:    core.Time(time.Now()),
-				Attach:        core.String("自定义数据说明"),                        //可以不写
-				NotifyUrl:     core.String(wx_global.GlobalConfig.NotifyUrl), // 回调url
-				SupportFapiao: core.Bool(false),                              // 开不开发票
-				Amount: &jsapi.Amount{
-					Currency: core.String("CNY"),
-					//Total:    core.Int64(commodity.Place), //商品价格(分)
-					Total: core.Int64(int64(b)),
-				},
+		payOrderID := fmt.Sprintf("%d", snowflakeID)
+
+		options := &request.RequestJSAPIPrepay{
+			Amount: &request.JSAPIAmount{
+				Total:    int(b),
+				Currency: "CNY",
 			},
-		)
-		fmt.Println(result)
-		if err != nil {
-			log.Println(err)
-			return err
+			Attach:      "自定义数据说明",
+			Description: Name,
+			OutTradeNo:  payOrderID,
+			Payer: &request.JSAPIPayer{
+				OpenID: order.Openid, // 用户的openid， 记得也是动态的。
+			},
 		}
+
+		response, err := client.Order.JSAPITransaction(ctx, options)
+
 		var shopOrder shop.Order
-		sfe := tx.First(&shopOrder, "id = ?", order.OrderID).Update("pay_order_id", payOrderID).Error
+		sfe := tx.First(&shopOrder, "id = ?", order.ID).Update("pay_order_id", payOrderID).Error
 		if sfe != nil {
 			return sfe
 		}
-		payParams = *resp.PrepayId
+		payParams = response.PrepayID
 
 		var payOrder model.Order
 		payOrder.Appid = wx_global.GlobalConfig.AppID
 		payOrder.Mchid = wx_global.GlobalConfig.MchID
 		payOrder.OutTradeNo = payOrderID
 		payOrder.CustomerID = order.CustomerID
-		payOrder.OrderID = order.OrderID
 		payOrder.TradeState = "NOTPAY"
 		payOrder.Openid = order.Openid
 		payOrder.Total = int(b)
@@ -121,28 +157,16 @@ func (e *WxpayService) ClosePayCode(order model.Order) (err error) {
 	return err
 }
 
-func closeOrder(ctx context.Context, client *core.Client, order model.Order) error {
-	svc := native.NativeApiService{Client: client}
-
-	var shopOrder shop.Order
-	sfe := global.GVA_DB.First(&shopOrder, "id = ?", order.OrderID).Error
-	if sfe != nil {
-		return sfe
-	}
-
-	result, err := svc.CloseOrder(ctx,
-		native.CloseOrderRequest{
-			OutTradeNo: core.String(shopOrder.PayOrderID),
-			Mchid:      core.String(wx_global.GlobalConfig.MchID),
-		},
-	)
+func closeOrder(ctx context.Context, client *payment.Payment, order model.Order) error {
+	no := strconv.Itoa(int(order.ID))
+	result, err := client.Order.Close(ctx, no)
 	if err != nil {
 		// 处理错误
 		log.Printf("call CloseOrder err:%s", err)
 		return err
 	} else {
 		// 处理返回结果
-		log.Printf("status=%d", result.Response.StatusCode)
+		global.GVA_LOG.Info(fmt.Sprintf("status = %d", result.ResultCode))
 		return nil
 	}
 }
@@ -156,53 +180,29 @@ func (e *WxpayService) GetOrderById(orderID string) (error, model.Order) {
 	return queryOrderByOutTradeNo(ctx, client, orderID)
 }
 
-func queryOrderByOutTradeNo(ctx context.Context, client *core.Client, orderID string) (err error, order model.Order) {
-	svc := native.NativeApiService{Client: client}
+func queryOrderByOutTradeNo(ctx context.Context, client *payment.Payment, orderID string) (err error, order model.Order) {
 
-	var shopOrder shop.Order
-	sfe := global.GVA_DB.First(&shopOrder, "id = ?", orderID).Error
-	if sfe != nil {
-		return sfe, model.Order{}
-	}
-
-	resp, result, err := svc.QueryOrderByOutTradeNo(ctx,
-		native.QueryOrderByOutTradeNoRequest{
-			OutTradeNo: core.String(shopOrder.PayOrderID),
-			Mchid:      core.String(wx_global.GlobalConfig.MchID),
-		},
-	)
+	result, err := client.Order.QueryByOutTradeNumber(ctx, orderID)
 	if err != nil {
 		// 错误处理
 		log.Printf("call QueryOrderByOutTradeNo err:%s", err)
 		return err, order
+	} else {
+
+		// TradeState
+		//SUCCESS：支付成功
+		//REFUND：转入退款
+		//NOTPAY：未支付
+		//CLOSED：已关闭
+		//REVOKED：已撤销（仅付款码支付会返回）
+		//USERPAYING：用户支付中（仅付款码支付会返回）
+		//PAYERROR：支付失败（仅付款码支付会返回）
+
+		// 处理错误
+		// 可以根据订单返回的结果做一些业务逻辑
+		log.Printf("status=%d", result.TradeState)
+		return err, order
 	}
-
-	// TradeState
-	//SUCCESS：支付成功
-	//REFUND：转入退款
-	//NOTPAY：未支付
-	//CLOSED：已关闭
-	//REVOKED：已撤销（仅付款码支付会返回）
-	//USERPAYING：用户支付中（仅付款码支付会返回）
-	//PAYERROR：支付失败（仅付款码支付会返回）
-	order.TradeState = *resp.TradeState
-	if order.TradeState == "SUCCESS" {
-		var payOrder model.Order
-		poe := global.GVA_DB.First(&payOrder, "out_trade_no = ?", *resp.OutTradeNo).Update("trade_state", "SUCCESS").Error
-		if poe != nil {
-			return poe, order
-		}
-		soe := shopService.UpdateOrderStatus(nil, orderID, "1")
-		if soe != nil {
-			return soe, order
-		}
-	}
-
-	// 处理错误
-	// 可以根据订单返回的结果做一些业务逻辑
-
-	log.Printf("status=%d resp=%s", result.Response.StatusCode, resp)
-	return err, order
 }
 
 func (e *WxpayService) PayAction(pay model.PayAction) error {
@@ -213,44 +213,8 @@ func (e *WxpayService) PayAction(pay model.PayAction) error {
 		return err
 	}
 	var payOrder model.PayOrder
-	if err != nil {
-		global.GVA_LOG.Info(p)
-		global.GVA_LOG.Info(err.Error())
-		return err
-	}
+
 	err = json.Unmarshal([]byte(p), &payOrder)
 	// payOrder 为回调信息 请自行根据回调信息做业务逻辑
-	if err != nil {
-		global.GVA_LOG.Info(p)
-		global.GVA_LOG.Info(err.Error())
-		return err
-	}
-
-	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
-		err = tx.First(&model.Order{}, "out_trade_no = ?", payOrder.OutTradeNo).
-			Update("trade_state", payOrder.TradeState).
-			Update("trade_state_desc", payOrder.TradeStateDesc).
-			Update("transaction_id", payOrder.TransactionId).
-			Update("trade_type", payOrder.TradeType).
-			Update("bank_type", payOrder.BankType).
-			Update("attach", payOrder.Attach).
-			Update("success_time", payOrder.SuccessTime).
-			Error
-		if err != nil {
-			return err
-		}
-		if payOrder.TradeState == "SUCCESS" {
-			var shopOrder shop.Order
-			err = tx.First(&shopOrder, "pay_order_id = ?", payOrder.OutTradeNo).Error
-			if err != nil {
-				return err
-			}
-			err = shopService.UpdateOrderStatus(tx, strconv.Itoa(int(shopOrder.ID)), "1")
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
 	return err
 }

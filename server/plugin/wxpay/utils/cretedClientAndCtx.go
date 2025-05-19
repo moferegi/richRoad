@@ -10,39 +10,36 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	global2 "github.com/flipped-aurora/gin-vue-admin/server/global"
+	"github.com/ArtisanCloud/PowerWeChat/v3/src/payment"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/wxpay/global"
-	"github.com/wechatpay-apiv3/wechatpay-go/core"
-	"github.com/wechatpay-apiv3/wechatpay-go/core/option"
-	"github.com/wechatpay-apiv3/wechatpay-go/utils"
-	"log"
 	"os"
 	"strings"
 )
 
-func CreateClientAndCtx() (error, context.Context, *core.Client) {
-	var (
-		mchID                      string = global.GlobalConfig.MchID                      // 商户号
-		mchCertificateSerialNumber string = global.GlobalConfig.MchCertificateSerialNumber // 商户证书序列号
-		mchAPIv3Key                string = global.GlobalConfig.MchAPIv3Key                // 商户APIv3密钥
-	)
-	// 使用 utils 提供的函数从本地文件中加载商户私钥，商户私钥会用来生成请求的签名
-	mchPrivateKey, err := utils.LoadPrivateKeyWithPath(global.GlobalConfig.PemPath)
-	if err != nil {
-		log.Fatal("load merchant private key error")
-	}
-	ctx := context.Background()
-	// 使用商户私钥等初始化 client，并使它具有自动定时获取微信支付平台证书的能力
-	opts := []core.ClientOption{
-		option.WithWechatPayAutoAuthCipher(mchID, mchCertificateSerialNumber, mchPrivateKey, mchAPIv3Key),
-	}
-	client, err := core.NewClient(ctx, opts...)
-	if err != nil {
-		e := err.Error()
-		global2.GVA_LOG.Error("new wechat pay client err:" + e)
-		return err, ctx, client
-	}
-	return err, ctx, client
+func CreateClientAndCtx() (error, context.Context, *payment.Payment) {
+	PaymentService, err := payment.NewPayment(&payment.UserConfig{
+		AppID:       global.GlobalConfig.AppID,                      // 小程序、公众号或者企业微信的appid
+		MchID:       global.GlobalConfig.MchID,                      // 商户号 appID
+		MchApiV3Key: global.GlobalConfig.MchAPIv3Key,                // 微信V3接口调用必填
+		Key:         global.GlobalConfig.MchAPIv2Key,                // 微信V2接口调用必填
+		CertPath:    global.GlobalConfig.CertPath,                   // 商户后台支付的Cert证书路径
+		KeyPath:     global.GlobalConfig.KeyPath,                    // 商户后台支付的Key证书路径
+		SerialNo:    global.GlobalConfig.MchCertificateSerialNumber, // 商户支付证书序列号
+		NotifyURL:   global.GlobalConfig.NotifyUrl,
+		HttpDebug:   false, // 订单模式不支持debug 请勿打开
+		Log: payment.Log{
+			Level: "debug",
+			// 可以重定向到你的目录下，如果设置File和Error，默认会在当前目录下的wechat文件夹下生成日志
+			File:   "info.log",
+			Error:  "error.log",
+			Stdout: false, //  是否打印在终端
+		},
+		Http: payment.Http{
+			Timeout: 30.0,
+			BaseURI: "https://api.mch.weixin.qq.com",
+		},
+	})
+	return err, context.Background(), PaymentService
 }
 
 func GeneratePaySign(privateKeyPem string, appId, timeStamp, nonceStr, packageValue string) (string, error) {

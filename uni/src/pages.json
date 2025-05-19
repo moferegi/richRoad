@@ -36,7 +36,13 @@
 				"navigationBarTitleText": "商品详情",
 				"enablePullDownRefresh": false
 			}
-
+		},
+		{
+			"path": "pages/coupon/index",
+			"style": {
+				"navigationBarTitleText": "优惠券",
+				"enablePullDownRefresh": false
+			}
 		},
 		{
 			"path": "pages/order/order",

@@ -45,6 +45,7 @@
 type Order struct {
     global.GVA_MODEL
     CustomerID  uint // 下单用户ID
+    CommodityID uint // 商品ID用于查询商品价格
     // Transaction
     TradeState     string // 订单状态
     TradeStateDesc string // 订单状态详情

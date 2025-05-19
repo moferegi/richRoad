@@ -6,5 +6,7 @@ type Wxpay struct {
 	NotifyUrl                  string // 支付回调域名
 	MchCertificateSerialNumber string // 商户证书序列号
 	MchAPIv3Key                string // 商户APIv3密钥
-	PemPath                    string // 证书文件所在地址
+	MchAPIv2Key                string // 商户APIv2密钥
+	CertPath                   string // Cert证书文件所在地址
+	KeyPath                    string // Key证书文件所在地址
 }

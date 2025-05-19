@@ -7,8 +7,8 @@ import (
 
 type Order struct {
 	global.GVA_MODEL
-	CustomerID uint // 下单用户ID
-	OrderID    uint // 商品ID用于查询商品价格
+	CustomerID  uint // 下单用户ID
+	CommodityID uint // 商品ID用于查询商品价格
 	// Transaction
 	TradeState     string // 订单状态
 	TradeStateDesc string // 订单状态详情
@@ -32,7 +32,7 @@ type Order struct {
 }
 
 func (*Order) TableName() string {
-	return "pay_order"
+	return "shop_order"
 }
 
 // 微信回调的结构体
@@ -72,4 +72,8 @@ type PayOrder struct {
 		Currency      string `json:"currency"`
 		PayerCurrency string `json:"payer_currency"`
 	} `json:"amount"`
+}
+
+func (*PayOrder) TableName() string {
+	return "shop_order"
 }
