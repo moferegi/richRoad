@@ -1,52 +1,105 @@
 <template>
-  <view style="padding-bottom: 100rpx;">
-    <view class="order_nav_view">
-      <view class="bgc_fff order_nav_box pos_f">
-        <view class="flexr-jsa flex-aic font_28 color_333 p_t_16">
-          <view v-for="(item,index) in tabColumns" @tap="tapBtn(item)">
-            <text class="font_bold" :class="[item.id === activeSataus?'color: color_fe5572': 'color: #000']">{{ item.title }}</text>
-            <view class="line_box line_active"></view>
+  <view class="order-container">
+    <!-- 顶部导航栏 -->
+    <view class="order-tabs">
+      <scroll-view scroll-x class="nav-scroll" show-scrollbar="false">
+        <view class="tab-container">
+          <view
+              v-for="(item, index) in tabColumns"
+              :key="index"
+              class="tab-item"
+              :class="{ active: item.id === activeSataus }"
+              @tap="tapBtn(item)"
+          >
+            {{ item.title }}
+            <view class="tab-line" v-if="item.id === activeSataus"></view>
           </view>
         </view>
-      </view>
+      </scroll-view>
     </view>
-    <view v-for="(item, index) in orderList" :key="index" class="order_goods_card">
-      <view class="bgc_fff order_goods_card_item">
-        <view class="color_fe5572 font_28 m_b_24">
-			<span>{{ tabColumns.find(tab=>tab.id === item.status)?.title}}</span>
-        </view>
-        <view v-for="detail in item.detail">
-          <view class="flex m_b_24 m_t_16">
-            <image :src="getUrl(detail.sku.picture)"
-                   class="order_goods_card_img m_r_24"
-                   mode="aspectFill"></image>
-            <view class="flex-fitem">
-              <view class="color_333 font_32 text_nowrap" style="max-width: 420rpx;">{{ detail.sku.name }}</view>
-              <view class="font_24 color_999 m_b_24">
-                <view class="color_b7bed0 m_t_24 flex">
-                  <text v-for="(sku, index) in detail.sku.attrs" :key="index"
-                        class="text_nowrap color_b7bed0 m_b_16 texts">{{ sku.label }}:{{ sku.value }}
-                  </text>
-                </view>
-                <view class="flex flex-aic" style="justify-content: space-between;">
-                  <text class="font_28">x{{ detail.quantity }}</text>
-                  <view class="font_40 color_ff0003">
-                    <span class="font_28">¥</span>
-                    {{ detail.quantity * detail.price / 100 }}</view>
-                </view>
-              </view>
-              <view class="btn-box">
-                <button v-if="(item.status==='3'||item.status==='7')&& !detail.isComment" class="comment-box redBtn" @tap="goComment(item, detail)">评价</button>
-                <button v-if="(item.status==='3'||item.status==='7')&& detail.isComment" class="comment-box grayBtn" @tap="goComment(item, detail)">查看评价</button>
-			  </view>
-            </view>
+
+    <!-- 空状态展示 -->
+    <view class="empty-state" v-if="orderList.length === 0">
+      <view class="empty-image-container">
+          <image class="empty-image-placeholder" src="./../../static/emptyStatus.png"></image>
+      </view>
+      <view class="empty-text">暂无订单数据</view>
+    </view>
+
+    <!-- 订单列表 -->
+    <view class="order-list" v-else>
+      <view
+          v-for="(item, index) in orderList"
+          :key="index"
+          class="order-card"
+      >
+        <!-- 订单时间和状态 -->
+        <view class="order-header">
+          <view class="order-time">2019-04-06 11:37</view>
+          <view class="order-status" :class="{'status-pending': item.status === '0', 'status-closed': item.status === '4'}">
+            {{ tabColumns.find(tab=>tab.id === item.status)?.title }}
           </view>
         </view>
-        <view class="btn-box">
-          <button v-if="item.status==='0'" class="grayBtn" @tap="cancelOrder(item)">取消订单</button>
-          <button v-if="item.status==='2'" class="grayBtn" @tap="trackLogistics(item)">查看物流</button>
-          <button v-if="item.status==='2'" class="redBtn" @tap="confirm(item)">确认收货</button>
-          <button v-if="item.status==='0'" class="redBtn" @tap="payOff(item.ID)">支付订单</button>
+
+        <!-- 商品图片滑动区域 -->
+        <scroll-view
+            scroll-x
+            class="goods-images-scroll"
+            show-scrollbar="false"
+            v-if="item.detail && item.detail.length > 0"
+        >
+          <view class="goods-images-container">
+            <image
+                v-for="(detail, detailIndex) in item.detail"
+                :key="detailIndex"
+                :src="getUrl(detail.sku.picture)"
+                class="goods-thumbnail"
+                mode="aspectFill"
+            ></image>
+          </view>
+        </scroll-view>
+
+        <!-- 订单商品统计信息 -->
+        <view class="order-summary">
+          <view class="total-count">共 {{ item.detail ? item.detail.length : 0 }} 件商品 实付款</view>
+          <view class="total-price">¥ {{
+              item.detail ? item.detail.reduce((total, curr) => total + (curr.quantity * curr.price / 100), 0).toFixed(1) : 0
+            }}</view>
+        </view>
+
+        <!-- 订单操作按钮 -->
+        <view class="order-actions">
+          <view class="left-actions">
+            <button
+                v-if="item.status==='4'"
+                class="action-btn delete-btn"
+            >
+              <text class="btn-icon">×</text>
+              删除订单
+            </button>
+          </view>
+          <view class="right-actions">
+            <button
+                v-if="item.status==='0'"
+                class="action-btn cancel-btn"
+                @tap="cancelOrder(item)"
+            >取消订单</button>
+            <button
+                v-if="item.status==='0'"
+                class="action-btn pay-btn"
+                @tap="payOff(item.ID)"
+            >立即支付</button>
+            <button
+                v-if="item.status==='2'"
+                class="action-btn track-btn"
+                @tap="trackLogistics(item)"
+            >查看物流</button>
+            <button
+                v-if="item.status==='2'"
+                class="action-btn confirm-btn"
+                @tap="confirm(item)"
+            >确认收货</button>
+          </view>
         </view>
       </view>
     </view>
@@ -88,12 +141,12 @@ const init = async (params) => {
   activeSataus.value = params || ''
   const res = await SelfOrderList(activeSataus.value)
   if (res.code === 0) {
-    orderList.value = res.data.list
+    orderList.value = res.data.list || []
   }
 }
 
 onLoad((options) => {
-    init(options.status)
+  init(options.status)
 })
 
 const cancelOrder = (item) => {
@@ -161,7 +214,7 @@ const tapBtn = async (item) => {
   activeSataus.value = item.id
   const res = await SelfOrderList(item.id)
   if (res.code === 0) {
-    orderList.value = res.data.list
+    orderList.value = res.data.list || []
   }
 }
 
@@ -169,79 +222,207 @@ const tapBtn = async (item) => {
 
 <style lang="scss">
 page {
-  background-color: #f8f8f8;
+  background-color: #f7f7f7;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, sans-serif;
 }
 
-.order_nav_view {
-  width: 100%;
-  height: 80rpx;
-}
-
-.order_nav_box {
-  width: 100%;
-  height: 80rpx;
+/* 导航栏样式 */
+.order-tabs {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  z-index: 100;
   /* #ifdef H5 */
   top: var(--window-top);
   /* #endif */
-  /* #ifndef H5 */
-  top: 0;
-  /* #endif */
-  z-index: 1;
-  left: 0;
-  right: 0;
 }
 
-.order_goods_card {
-  padding: 24rpx 32rpx 0;
-}
-
-.order_goods_card_item {
-  padding: 24rpx;
-  border-radius: 12rpx;
-}
-
-.order_goods_card_img {
-  width: 151rpx;
-  height: 152rpx;
-  border-radius: 12rpx;
-  overflow: hidden;
-}
-
-.comment-box{
-  width: 200rpx;
-  height: 56rpx;
-  line-height: 56rpx;
-  font-size: 28rpx;
-  margin-left: 10rpx;
-}
-.btn-box {
+.nav-scroll {
+  white-space: nowrap;
   width: 100%;
+}
+
+.tab-container {
+  display: flex;
+  background-color: #fff;
+}
+
+.tab-item {
+  position: relative;
+  font-size: 28rpx;
+  color: #666;
+  padding: 20rpx 30rpx;
+  display: inline-block;
+}
+
+.tab-item.active {
+  color: #fe5572;
+  font-weight: normal;
+}
+
+.tab-line {
+  position: absolute;
+  bottom: 0;
+  left: 20rpx;
+  right: 20rpx;
+  height: 4rpx;
+  background-color: #fe5572;
+}
+
+/* 空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: calc(100vh - 88rpx);
+  /* #ifdef H5 */
+  height: calc(100vh - 88rpx - var(--window-top));
+  /* #endif */
+}
+
+.empty-image-container {
+  margin-bottom: 30rpx;
+}
+
+.empty-image-placeholder {
+  width: 280rpx;
+  height: 280rpx;
+  border-radius: 8rpx;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #999;
+}
+
+/* 订单列表样式 */
+.order-list {
+  padding: 16rpx;
+}
+
+.order-card {
+  background-color: #fff;
+  margin-bottom: 20rpx;
+}
+
+/* 订单头部 */
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 20rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.order-time {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.order-status {
+  font-size: 24rpx;
+  color: #fe5572;
+}
+
+.status-closed {
+  color: #999;
+}
+
+/* 商品图片滑动区域 */
+.goods-images-scroll {
+  padding: 20rpx;
+  white-space: nowrap;
+}
+
+.goods-images-container {
+  display: inline-flex;
+}
+
+.goods-thumbnail {
+  width: 140rpx;
+  height: 140rpx;
+  margin-right: 16rpx;
+}
+
+/* 订单商品统计 */
+.order-summary {
   display: flex;
   justify-content: flex-end;
-  margin-top: 24rpx;
-  .grayBtn, .redBtn {
-    width: 200rpx;
-    border-color: #ddd;
-    background-color: #fff;
-    height: 56rpx;
-    line-height: 56rpx;
-    color: #333;
-    font-size: 28rpx;
-	margin-right: 0;
-	margin-left: 10rpx;
-  }
-
-  .redBtn {
-    background-color: #fe5572 !important;
-    border-color: #fe5572;
-    color: #fff;
-  }
-}
-
-.texts {
-  max-width: 340rpx;
+  padding: 20rpx;
   font-size: 24rpx;
-  padding-right: 18rpx;
+  align-items: center;
+  border-bottom: 1rpx solid #f0f0f0;
 }
 
+.total-count {
+  color: #666;
+  margin-right: 10rpx;
+}
+
+.total-price {
+  color: #fe5572;
+  font-weight: bold;
+}
+
+/* 订单操作按钮 */
+.order-actions {
+  display: flex;
+  justify-content: space-between;
+  padding: 20rpx;
+}
+
+.right-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.action-btn {
+  height: 60rpx;
+  line-height: 58rpx;
+  font-size: 26rpx;
+  padding: 0 24rpx;
+  border-radius: 30rpx;
+  margin-left: 16rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.btn-icon {
+  margin-right: 4rpx;
+  font-size: 28rpx;
+}
+
+.delete-btn {
+  border: 1rpx solid #ccc;
+  color: #666;
+  background-color: #fff;
+}
+
+.cancel-btn {
+  border: 1rpx solid #ccc;
+  color: #666;
+  background-color: #fff;
+}
+
+.pay-btn {
+  border: 1rpx solid #fe5572;
+  background-color: #fe5572;
+  color: #fff;
+}
+
+.track-btn {
+  border: 1rpx solid #ccc;
+  color: #666;
+  background-color: #fff;
+}
+
+.confirm-btn {
+  border: 1rpx solid #fe5572;
+  background-color: #fe5572;
+  color: #fff;
+}
 </style>

@@ -22,8 +22,11 @@
 		</uni-swipe-action>
     </scroll-view>
 	</view>
-  <view v-if="!collectList.length" class="non-collect flexr-jsc">
-    <div>空数据</div>
+  <view v-if="!collectList.length" class="empty-state">
+      <view class="empty-image-container">
+        <image class="empty-image-placeholder" src="./../../static/emptyStatus.png"></image>
+      </view>
+      <view class="empty-text">暂无订单数据</view>
   </view>
 </template>
 
@@ -144,6 +147,34 @@
 		width: 100%;
 		height: 124rpx;
 	}
+
+  /* 空状态样式 */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: calc(100vh - 88rpx);
+    /* #ifdef H5 */
+    height: calc(100vh - 88rpx - var(--window-top));
+    /* #endif */
+  }
+
+  .empty-image-container {
+    margin-bottom: 30rpx;
+  }
+
+  .empty-image-placeholder {
+    width: 280rpx;
+    height: 280rpx;
+    border-radius: 8rpx;
+  }
+
+  .empty-text {
+    font-size: 28rpx;
+    color: #999;
+  }
+
   .scroll-Y {
     height: 100vh;
   }
