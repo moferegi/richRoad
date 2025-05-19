@@ -227,11 +227,6 @@ func queryOrderByOutTradeNo(ctx context.Context, client *payment.Payment, orderI
 
 		log.Printf("status=%d resp=%s", result.TradeState, result)
 		return err, order
-
-		// 处理错误
-		// 可以根据订单返回的结果做一些业务逻辑
-		log.Printf("status=%d", result.TradeState)
-		return err, order
 	}
 }
 
