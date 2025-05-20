@@ -2,51 +2,56 @@
 	<view style="padding: 0 32rpx;">
 		<view class="form_item flexr-jsb b_b_2 flex-aic">
 			<view class="font_28 color_333" style="width: 132rpx;">收件人</view>
-			<view class="flex-fitem">
-				<input class="color_333 font_28 tar" v-model="formData.name" :maxlength="30" placeholder="请输入收件人" />
-			</view>
+      <wu-input
+          placeholder="请输入收件人姓名"
+          border="surround"
+          v-model="formData.name"
+      ></wu-input>
 		</view>
 		<view class="form_item flexr-jsb b_b_2 flex-aic">
-			<view class="font_28 color_333" style="width: 132rpx;">手机号码</view>
-			<view class="flex-fitem">
-				<input class="color_333 font_28 tar" v-model="formData.phone" type="number" :maxlength="11"
-					placeholder="请输入手机号码" />
-			</view>
+			<view class="font_28 color_333" style="width: 132rpx;">手机号</view>
+      <wu-input
+          placeholder="请输入手机号码"
+          border="surround"
+          :maxlength="11"
+          v-model="formData.phone"
+      ></wu-input>
 		</view>
-		<view class="form_item flexr-jsb b_b_2 flex-aic">
-			<view class="font_28 color_333" style="width: 132rpx;">选择地区</view>
-			<view style="width: 280rpx;">
-				<view>
-					<uni-data-select class="selects" v-model="formData.provinceSelect" placeholder="请选择收件地址"
-						:localdata="areaProvince" @change="changeProvince" :clear="false"></uni-data-select>
-
-				</view>
-			</view>
-		</view>
-		<view v-if="isCity" class="form_item flexr-jsb b_b_2 flex-aic">
-			<view class="font_28 color_333" style="width: 132rpx;">选择城市</view>
-			<view style="width: 360rpx;">
-				<view>
-					<uni-data-select class="selects" v-model="formData.citySelect" placeholder="请选择收件城市"
-						:localdata="areaCity" @change="changeCity" :clear="false"></uni-data-select>
-				</view>
-			</view>
-		</view>
-		<view v-if="isCounty" class="form_item flexr-jsb b_b_2 flex-aic">
-			<view class="font_28 color_333" style="width: 132rpx;">选择区县</view>
-			<view style="width: 360rpx;">
-				<view>
-					<uni-data-select class="selects" v-model="formData.countySelect" placeholder="请选择收件区县"
-						:localdata="areaCounty" @change="changeCounty" :clear="false"></uni-data-select>
-				</view>
-			</view>
-		</view>
-		<view class="form_item flexr-jsb b_b_2 flex-aic">
-			<view class="font_28 color_333" style="width: 132rpx;">详细地址</view>
-			<view class="flex-fitem">
-				<input class="color_333 font_28 tar" v-model="formData.street" placeholder="请输入详细地址" />
-			</view>
-		</view>
+    <view class="form_item b_b_2 flex flex-aic">
+      <view class="font_28 color_333" style="width: 132rpx;">地区</view>
+      <view style="width: 80%;">
+        <view>
+          <uni-data-select class="selects" v-model="formData.provinceSelect" placeholder="请选择收件地址"
+                           :localdata="areaProvince" @change="changeProvince" :clear="false"></uni-data-select>
+        </view>
+      </view>
+    </view>
+    <view v-if="isCity" class="form_item flexr-jsb b_b_2 flex-aic">
+      <view class="font_28 color_333" style="width: 132rpx;">城市</view>
+      <view style="width: 80%;">
+        <view>
+          <uni-data-select class="selects" v-model="formData.citySelect" placeholder="请选择收件城市" :localdata="areaCity"
+                           @change="changeCity" :clear="false"></uni-data-select>
+        </view>
+      </view>
+    </view>
+    <view v-if="isCounty" class="form_item flexr-jsb b_b_2 flex-aic">
+      <view class="font_28 color_333" style="width: 132rpx;">区县</view>
+      <view style="width: 80%;">
+        <view>
+          <uni-data-select class="selects" v-model="formData.countySelect" placeholder="请选择收件区县"
+                           :localdata="areaCounty" @change="changeCounty"  :clear="false"></uni-data-select>
+        </view>
+      </view>
+    </view>
+    <view class="form_item flexr-jsb b_b_2 flex-aic">
+      <view class="font_28 color_333" style="width: 132rpx;">详细地址</view>
+      <wu-input
+          placeholder="请输入详细地址"
+          border="surround"
+          v-model="formData.street"
+      ></wu-input>
+    </view>
 		<view class="form_item flexr-jsb b_b_2 flex-aic">
 			<view class="font_28 color_333" style="width: 172rpx;">设为默认地址</view>
 			<switch @change="switchChange" :checked="formData.checked" color="#fe5572" style="transform:scale(0.7)" />
@@ -279,7 +284,7 @@
 	}
 
 	.address_nav_box {
-		bottom: 0;
+    bottom: 30rpx;
 		left: 0;
 		right: 0;
 		height: 100rpx;
@@ -289,9 +294,7 @@
 	}
 
 	::v-deep .uni-select {
-		border: none !important;
-		border-bottom: 2rpx solid #c0c0c0 !important;
-		// width: 60% !important;
+    width: 100%;
 	}
 
 	.text-ellipsis {
