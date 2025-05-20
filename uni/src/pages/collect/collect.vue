@@ -1,26 +1,33 @@
 <template>
 	<view v-if="collectList.length">
-    <scroll-view scroll-y="true" class="scroll-Y"
-                 @scrolltolower="debouncedLower">
-		<uni-swipe-action autoClose>
-			<uni-swipe-action-item @click="cancelCollect(item.ID)" v-for="(item, index) in collectList" :right-options="options" :key="index">
-          <view class="collect_goods flex" @tap="goTo(item)">
-            <image class="collect_goods_img m_r_24" :src="getUrl(item.imageUrl)" mode="aspectFill"></image>
-            <view class="flex-fitem flexc-jsb">
-              <view class="color_333 font_30 m_b_4 text_nowrap_2">{{ item.title }}</view>
-              <view class="flex flex-aife color_ff0003">
-                <text class="font_28">¥</text>
-                <text class="font_40">{{item.price/100}}</text>
-              </view>
-              <view class="desc">
-                <p class="color_b5b5b5 font_24">已售：{{item.saleNum}}</p>
-              </view>
+
+    <view class="goods-list">
+      <view class="goods-item" v-for="(item, index) in collectList" :key="index" @tap="goTo(item)">
+        <image class="goods-image" :src="getUrl(item.imageUrl)" mode="aspectFill" />
+        <view class="goods-info">
+          <text class="goods-name">{{ item.title }}</text>
+          <view class="merchant-tags">
+            <text class="merchant-tag self-operated">自营</text>
+            <text class="merchant-tag quality-assured">放心购</text>
+            <text class="merchant-tag plus-delivery">Plus免邮</text>
+          </view>
+          <view class="price-container">
+            <text class="discount-price">¥{{ item.price/100 }}</text>
+            <text class="discount-tag">{{ getDiscountText(item.discount) }}</text>
+          </view>
+          <view class="goods-extra">
+            <view class="rating">
+              <text class="rating-score">{{ item.rating }}</text>
+              <text class="rating-stars">★★★★★</text>
+              <text class="rating-count">({{ item.ratingCount || 0 }})</text>
+            </view>
+            <view class="sales">
+              <text>已售 {{ item.saleNum }}</text>
             </view>
           </view>
-        <div>------</div>
-			</uni-swipe-action-item>
-		</uni-swipe-action>
-    </scroll-view>
+        </view>
+      </view>
+    </view>
 	</view>
   <view v-if="!collectList.length" class="empty-state">
       <view class="empty-image-container">
@@ -139,7 +146,15 @@
     })
   }
 
-
+  const getDiscountText = (discount) => {
+    if (discount >= 9.5) return '小降'
+    if (discount >= 9.0) return '优惠'
+    if (discount >= 8.0) return '特惠'
+    if (discount >= 7.0) return '好价'
+    if (discount >= 6.0) return '低价'
+    if (discount >= 5.0) return '特价'
+    return '折扣'
+  }
 </script>
 
 <style lang="scss" scoped>
@@ -227,5 +242,164 @@
   .desc{
     width: 100%;
     margin-top: 20rpx;
+  }
+
+  page {
+    background: #f5f7fa;
+  }
+
+  .goods-list {
+    padding: 12rpx;
+    background: #f5f7fa;
+  }
+
+  .goods-item {
+    display: flex;
+    background: #ffffff;
+    margin-bottom: 12rpx;
+    border-radius: 12rpx;
+    padding: 12rpx;
+    box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+
+    &:active {
+      transform: scale(0.98);
+    }
+
+    .goods-image {
+      width: 240rpx;
+      height: 240rpx;
+      border-radius: 8rpx;
+      margin-right: 16rpx;
+    }
+  }
+
+  .goods-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
+    .goods-name {
+      font-size: 28rpx;
+      color: #333;
+      line-height: 1.4;
+      margin-bottom: 8rpx;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+  }
+
+  .merchant-tags {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 4rpx 0;
+
+    .merchant-tag {
+      font-size: 18rpx;
+      padding: 0 6rpx;
+      border-radius: 4rpx;
+      height: 26rpx;
+      line-height: 26rpx;
+      margin-right: 4rpx;
+      margin-bottom: 4rpx;
+
+      &.self-operated {
+        color: #ff6b6b;
+        background: rgba(255, 107, 107, 0.1);
+        border: 1px solid rgba(255, 107, 107, 0.2);
+      }
+
+      &.quality-assured {
+        color: #2196f3;
+        background: rgba(33, 150, 243, 0.1);
+        border: 1px solid rgba(33, 150, 243, 0.2);
+      }
+
+      &.plus-delivery {
+        color: #4caf50;
+        background: rgba(76, 175, 80, 0.1);
+        border: 1px solid rgba(76, 175, 80, 0.2);
+      }
+    }
+  }
+
+  .price-container {
+    display: flex;
+    align-items: center;
+    margin: 8rpx 0;
+
+    .discount-price {
+      font-size: 32rpx;
+      color: #ff4444;
+      font-weight: bold;
+      margin-right: 8rpx;
+    }
+
+    .original-price {
+      font-size: 22rpx;
+      color: #999;
+      text-decoration: line-through;
+      margin-right: 8rpx;
+    }
+
+    .discount-tag {
+      font-size: 24rpx;
+      color: #fff;
+      background: #ff4444;
+      padding: 2rpx 8rpx;
+      border-radius: 4rpx;
+    }
+  }
+
+  .goods-extra {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 24rpx;
+    color: #666;
+    margin-top: 8px;
+    .rating {
+      display: flex;
+      align-items: center;
+
+      .rating-score {
+        color: #ff4444;
+        font-weight: bold;
+        margin-right: 2rpx;
+      }
+
+      .rating-stars {
+        color: #ffd700;
+        font-size: 18rpx;
+        margin-right: 2rpx;
+      }
+
+      .rating-count {
+        color: #999;
+      }
+    }
+
+    .sales {
+      color: #999;
+    }
+  }
+
+  .goods-tags {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 4rpx 0;
+
+    .tag {
+      font-size: 18rpx;
+      color: #666;
+      background: #f7f7f7;
+      padding: 0 6rpx;
+      border-radius: 2rpx;
+      margin-right: 4rpx;
+      margin-bottom: 4rpx;
+    }
   }
 </style>
