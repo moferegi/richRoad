@@ -49,7 +49,7 @@
       <wu-input
           placeholder="请输入详细地址"
           border="surround"
-          v-model="formData.Street"
+          v-model="formData.street"
       ></wu-input>
 		</view>
 		<view class="form_item flexr-jsb b_b_2 flex-aic">
@@ -82,7 +82,7 @@
 	const formData = reactive({
 		phone: '',
 		name: '',
-    Street: '',
+    street: '',
 		province: '',
 		provinceSelect: '',
 		citySelect: '',
@@ -203,7 +203,7 @@
 				title: '请选择地区'
 			})
 			return
-		} else if (formData.address.trim() == '') {
+		} else if (formData.street.trim() == '') {
 			uni.showToast({
 				icon: "none",
 				title: '请输入详细地址'
@@ -221,7 +221,7 @@
 			CityStr: formData.city,
 			Area: Number(formData.countySelect),
 			AreaStr: formData.county,
-			Street: formData.Street,
+			street: formData.street,
 			Active: formData.checked,
 		}
 		const res = await createAddress (data)

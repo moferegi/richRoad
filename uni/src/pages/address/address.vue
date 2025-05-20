@@ -18,30 +18,32 @@
               {{item.provinceTrans}}{{item.cityTrans}}{{item.areaTrans}}{{item.street}}
             </view>
           </view>
-        </view>
-        <!-- 每个地址下面的编辑删除操作栏 -->
-        <view class="address-actions" v-for="(item, index) in addressList" :key="'action-'+index">
-          <view class="action-divider"></view>
-          <view class="action-buttons">
-            <view class="action-btn edit-btn" @tap="editAddress(item)">
-              <text>编辑</text>
-            </view>
-            <view class="action-divider-vertical"></view>
-            <view class="action-btn delete-btn" @tap="delAddress(item)">
-              <text>删除</text>
+
+          <!-- 每个地址下面的编辑删除操作栏 -->
+          <view class="address-actions" >
+            <view class="action-divider"></view>
+            <view class="action-buttons">
+              <view class="action-btn edit-btn" @tap="editAddress(item)">
+                <text>编辑</text>
+              </view>
+              <view class="action-divider-vertical"></view>
+              <view class="action-btn delete-btn" @tap="delAddress(item)">
+                <text>删除</text>
+              </view>
             </view>
           </view>
         </view>
+
         <view class="bottom-text" v-if="isBottom">已经到底了</view>
       </block>
-      
+
       <!-- 空地址状态 -->
       <view class="empty-address" v-if="addressList.length === 0">
         <image class="empty-icon" src="/static/images/empty-address.png"></image>
         <text class="empty-text">暂无收货地址，请添加</text>
       </view>
     </scroll-view>
-    
+
     <!-- 底部添加按钮 -->
     <view class="add-address-btn-wrapper">
       <button class="add-address-btn" @tap="toAddress">新增地址</button>
@@ -130,7 +132,7 @@ const getAddress = async (params) => {
         addressList.value.push(...res.data.list)
         isBottom.value = false
       }
-      
+
       // 处理地址翻译
       for (const item of addressList.value) {
         const province = await formatt(item.province, 'province')
@@ -178,6 +180,27 @@ const lower = async () => {
 // 防抖包装的 lower 方法
 const debouncedLower = debounce(lower, 300)
 
+const delAddress = (item) => {
+  uni.showModal({
+    title: '收货地址',
+    content: '确定删除收货地址吗？',
+    success: async function  (res) {
+      if (res.confirm) {
+        const del = await deleteAddress(item.ID)
+        if(del.code === 0){
+          uni.showToast({
+            title: "删除成功",
+            icon: "none"
+          })
+          getAddress()
+        }
+      } else if (res.cancel) {
+        console.log('用户点击取消');
+      }
+    }
+  });
+}
+
 const editAddress = (item) => {
   // 携带当前地址ID或者其他参数跳转到编辑页面反填
   uni.redirectTo({
@@ -206,7 +229,7 @@ const selectAddr = async (item) => {
       Street: item.street,
       active: item.active
     }
-    
+
     const res = await updateOrder(req)
     if(res.code === 0){
       // 返回订单详情页并刷新，并携带orderID
@@ -240,8 +263,7 @@ page {
   border-radius: 12rpx;
   padding: 30rpx;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
 }
 
 .address-content {
@@ -293,10 +315,8 @@ page {
 
 .address-actions {
   background-color: #fff;
-  margin: 0 20rpx 20rpx;
   border-radius: 0 0 12rpx 12rpx;
-  margin-top: -20rpx;
-  padding: 0 30rpx;
+  margin-top: 40rpx;
 }
 
 .action-divider {
