@@ -1,29 +1,32 @@
 <template>
         <view class="goods-list">
-            <view class="goods-item" v-for="(item, index) in goodsList" :key="index" @click="handleGoodsClick(item)">
-                <image class="goods-image" :src="item.image" mode="aspectFill" />
+            <view class="goods-item" v-for="(item, index) in props.goodsList" :key="index" @click="handleGoodsClick(item)">
+              <image class="goods-image" :src="getUrl(item.imageUrl)" mode="aspectFill"></image>
                 <view class="goods-info">
-                    <text class="goods-name">{{ item.name }}</text>
+                    <text class="goods-name">{{ item.title }}</text>
                     <view class="merchant-tags">
-                        <text v-if="item.isSelfOperated" class="merchant-tag self-operated">自营</text>
+<!--                        <text v-if="item.isSelfOperated" class="merchant-tag self-operated">自营</text>
                         <text v-if="item.hasQualityAssurance" class="merchant-tag quality-assured">放心购</text>
-                        <text v-if="item.isPlusDelivery" class="merchant-tag plus-delivery">Plus免邮</text>
+                        <text v-if="item.isPlusDelivery" class="merchant-tag plus-delivery">Plus免邮</text>-->
+                      <text class="merchant-tag self-operated">自营</text>
+                        <text class="merchant-tag quality-assured">放心购</text>
+                        <text class="merchant-tag plus-delivery">Plus免邮</text>
                     </view>
                     <view class="price-container">
-                        <text class="discount-price">¥{{ item.discountPrice }}</text>
+                        <text class="discount-price">¥{{ item.price/100 }}</text>
                         <text class="original-price">¥{{ item.originalPrice }}</text>
                         <text class="discount-tag">{{ getDiscountText(item.discount) }}</text>
                     </view>
-                    <view class="goods-extra">
-                            <view class="rating">
-                                <text class="rating-score">{{ item.rating }}</text>
-                                <text class="rating-stars">★★★★★</text>
-                                <text class="rating-count">({{ item.ratingCount }})</text>
-                            </view>
-                            <view class="sales">
-                                <text>月销 {{ item.monthSales }}</text>
-                            </view>
-                        </view>
+                  <view class="goods-extra">
+                    <view class="rating">
+                      <text class="rating-score">{{ item.rating }}</text>
+                      <text class="rating-stars">{{ getRatingStars(item.rating) }}</text>
+                      <text class="rating-count">({{ item.ratingCount || 0 }})</text>
+                    </view>
+                    <view class="sales">
+                      <text>售出 {{ item.saleNum }} 件</text>
+                    </view>
+                  </view>
                 </view>
             </view>
         </view>
@@ -31,6 +34,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import {getUrl} from "@/utils/url.js"
 const goodsList = ref([
     {
         name: '2023新款时尚运动鞋男女同款透气网面跑步鞋减震耐磨休闲运动鞋',
@@ -201,7 +205,12 @@ const goodsList = ref([
         }
     }
 ])
-
+const props = defineProps({
+  goodsList: {
+        type: Array,
+        default: () => []
+    }
+})
 const getDiscountText = (discount) => {
     if (discount >= 9.5) return '小降'
     if (discount >= 9.0) return '优惠'
@@ -215,6 +224,20 @@ const queryList = async (pageNo, pageSize) => {
 
 // 加载数据方法
 
+}
+
+// 根据评分生成星星
+const getRatingStars = (rating) => {
+  // 如果评分为0，返回1颗星
+  if (rating === 0) return '★☆☆☆☆';
+
+  // 计算实心星星数量（最大5颗）
+  const fullStars = Math.min(Math.floor(rating), 5);
+  // 计算空心星星数量
+  const emptyStars = 5 - fullStars;
+
+  // 返回对应数量的星星
+  return '★'.repeat(fullStars) + '☆'.repeat(emptyStars);
 }
 
 // 跳转到商品详情页

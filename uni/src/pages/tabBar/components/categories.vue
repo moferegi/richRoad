@@ -1,7 +1,9 @@
 <template>
   <view class="category-section">
     <view class="category-item" v-for="(item, index) in categoriesData" :key="index">
-      <view class="category-icon" :style="{ backgroundColor: item.color }"></view>
+      <view class="">
+        <image class="category-icon" :src="getUrl(item.icons)" mode="aspectFill"></image>
+      </view>
       <text class="category-title">{{ item.title }}</text>
     </view>
   </view>
@@ -22,6 +24,8 @@
 </template>
 
 <script setup>
+import {getUrl} from "@/utils/url";
+
 const props = defineProps({
   categoriesData: {
     type: Array,

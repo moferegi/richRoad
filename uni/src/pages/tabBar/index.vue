@@ -25,16 +25,16 @@
     </view>
     <scroll-view scroll-y="true" class="scroll-Y" @scrolltolower="debouncedLower" @refresherrefresh="onRefresh" >
       <!-- 轮播图区域 -->
-      <swpiers></swpiers>
+      <swpiers :lists="list"></swpiers>
 
       <!-- 分类导航 -->
-      <categories :categoriesData="categoriesData"></categories>
+      <categories :categoriesData="gridList"></categories>
 
       <!-- 限时秒杀区域 -->
       <seckilling :productData="products"></seckilling>
       <!-- 商品展示区 -->
       <view class="goods-section">
-        <noPaginRowGoodList></noPaginRowGoodList>
+        <noPaginRowGoodList :goodsList="flowData"></noPaginRowGoodList>
       </view>
 
       <!-- 底部加载状态 -->
