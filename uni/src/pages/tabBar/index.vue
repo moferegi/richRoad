@@ -67,13 +67,6 @@ const initBanner = async () => {
 }
 initBanner()
 
-const categoriesData = ref([
-  { title: '环球美食', color: '#FFA500' },
-  { title: '个护美妆', color: '#FF6B81' },
-  { title: '营养保健', color: '#B39DDB' },
-  { title: '家居厨卫', color: '#AED581' },
-  { title: '速食生鲜', color: '#FF6B81' }
-])
  const products = ref ([
   { title: '巧谷2019...', price: '108.8' },
   { title: '私寓连衣裙', price: '265' },
