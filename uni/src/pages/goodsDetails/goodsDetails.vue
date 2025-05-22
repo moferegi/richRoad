@@ -23,14 +23,6 @@
         <text class="view-count">浏览量: {{ data.viewCount || 768 }}</text>
       </view>
 
-      <!-- 优惠信息卡片 -->
-      <view class="promotion-card">
-        <view class="share-promotion">
-<!--          <image class="promo-icon" src="./../../static/promo-icon.png"></image>-->
-          <text class="promo-text">该商品分享可领49减10红包</text>
-          <view class="share-now">立即分享 ></view>
-        </view>
-      </view>
     </view>
 
     <!-- 优惠券 -->
@@ -373,35 +365,6 @@ page {
 
   text {
     margin-right: 24rpx;
-  }
-}
-
-/* 分享优惠卡片 */
-.promotion-card {
-  background-color: #fff8f8;
-  border-radius: 8rpx;
-  padding: 16rpx;
-
-  .share-promotion {
-    display: flex;
-    align-items: center;
-
-    .promo-icon {
-      width: 32rpx;
-      height: 32rpx;
-      margin-right: 8rpx;
-    }
-
-    .promo-text {
-      flex: 1;
-      font-size: 24rpx;
-      color: #e4393c;
-    }
-
-    .share-now {
-      font-size: 24rpx;
-      color: #e4393c;
-    }
   }
 }
 

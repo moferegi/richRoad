@@ -28,8 +28,9 @@ func initBizRouter(routers ...*gin.RouterGroup) {
 		shopRouter.InitOrderRouter(privateGroup, publicGroup)
 		shopRouter.InitCommentRouter(privateGroup, publicGroup)
 		shopRouter.InitTagRouter(privateGroup, publicGroup)
-		shopRouter.InitCouponRouter(privateGroup, publicGroup) // 占位方法，保证文件可以正确加载，避免go空变量检测报错，请勿删除。
-		shopRouter.InitCouponOrderUserRouter(privateGroup, publicGroup)
+		shopRouter.InitCouponRouter(privateGroup, publicGroup)
+		shopRouter.InitCouponOrderUserRouter(privateGroup, publicGroup) // 占位方法，保证文件可以正确加载，避免go空变量检测报错，请勿删除。
+		shopRouter.InitPromotionRouter(privateGroup, publicGroup)
 	}
 	holder(publicGroup, privateGroup)
 }

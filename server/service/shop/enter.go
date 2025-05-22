@@ -11,4 +11,5 @@ type ServiceGroup struct {
 	TagService
 	CouponService
 	CouponOrderUserService
+	PromotionService
 }
