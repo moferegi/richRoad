@@ -26,3 +26,10 @@ export const getGoodList = (params) => {
     })
 }
 
+// 获取促销信息
+export const getPromotionPublic = () => {
+    return request({
+        url:'/Promo/getPromotionPublic',
+        method: 'get'
+    })
+}

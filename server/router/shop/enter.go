@@ -13,6 +13,7 @@ type RouterGroup struct {
 	TagRouter
 	CouponRouter
 	CouponOrderUserRouter
+	PromotionRouter
 }
 
 var (
@@ -20,4 +21,5 @@ var (
 	tagApi     = api.ApiGroupApp.ShopApiGroup.TagApi
 	CouApi     = api.ApiGroupApp.ShopApiGroup.CouponApi
 	couApi     = api.ApiGroupApp.ShopApiGroup.CouponOrderUserApi
+	PromoApi   = api.ApiGroupApp.ShopApiGroup.PromotionApi
 )

@@ -13,6 +13,7 @@ type ApiGroup struct {
 	TagApi
 	CouponApi
 	CouponOrderUserApi
+	PromotionApi
 }
 
 var (
@@ -20,4 +21,5 @@ var (
 	tagService     = service.ServiceGroupApp.ShopServiceGroup.TagService
 	couponService  = service.ServiceGroupApp.ShopServiceGroup.CouponService
 	couService     = service.ServiceGroupApp.ShopServiceGroup.CouponOrderUserService
+	PromoService   = service.ServiceGroupApp.ShopServiceGroup.PromotionService
 )
