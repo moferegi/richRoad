@@ -10,7 +10,7 @@
           <text class="price-symbol">¥</text>
           <text class="price-num">{{ data.price && data.price / 100 }}</text>
         </view>
-        <view class="original-price">¥{{ (data.price && data.price / 100 * 1.3).toFixed(1) }}</view>
+        <view class="original-price">¥{{ (data.price && data.price / 100 * 1.3)?.toFixed(1) }}</view>
         <view class="discount-tag">{{ 7 }}折</view>
       </view>
       <view class="title-section">
@@ -33,19 +33,10 @@
       </view>
     </view>
 
-    <!-- 规格选择 -->
-    <view class="specs-section" @tap="goodsSkuRef.showSku()">
-      <text class="specs-label">购买类型</text>
-      <view class="specs-value">
-        <text>XS 白色</text>
-        <uni-icons color="#cccccc" size="16" type="right"></uni-icons>
-      </view>
-    </view>
-
     <!-- 优惠券 -->
     <view class="coupon-section">
       <text class="coupon-label">优惠券</text>
-      <view class="coupon-value" @tap="showCoupons">
+      <view class="coupon-value" @tap="opencoupon">
         <text>领取优惠券</text>
         <uni-icons color="#cccccc" size="16" type="right"></uni-icons>
       </view>
@@ -145,6 +136,16 @@
         <view class="buy-now-btn" @tap="goodsTapPay('pay')">立即购买</view>
       </view>
     </view>
+
+        <!-- 选择优惠券弹出层 -->
+		<view class="mask" catchtouchmove="preventTouchMove" v-if="couponshow == true" @tap="hidecoupon"></view>
+		<view class="coupon" :style="'bottom:' + (couponshow == true ? '0px':'')">
+			<scroll-view class="scrolls" scroll-y>
+				<!-- colors:按钮颜色 couponList:优惠卷列表数据  @onReceive：领取或立即使用按钮事件 -->
+				<cc-defineCoupon v-if="couponshow" :goodIds="[data.ID]" colors="#fa436a" @onReceive="onReceive"></cc-defineCoupon>
+			</scroll-view>
+		</view>
+
   </view>
 </template>
 
@@ -272,6 +273,21 @@ const addCollect = async () => {
   }
 
 }
+
+const couponshow = ref(false)
+
+const opencoupon = () => {
+				couponshow.value = true
+			}
+			// 关闭优惠券弹框 
+    const hidecoupon = () => {
+				couponshow.value = false
+			}
+			//领取优惠券 立即使用事件
+			const onReceive = (item, index) => {
+				console.log(item, index)
+			}
+
 </script>
 
 <style lang="scss">
@@ -701,4 +717,35 @@ page {
     background-color: #ff5000;
   }
 }
+
+
+.mask {
+		width: 100%;
+		height: 100vh;
+		position: fixed;
+		top: 0;
+		left: 0;
+		background: #000;
+		z-index: 900;
+		opacity: 0.7;
+	}
+
+	/* 优惠券 */
+	.coupon {
+		background-color: #fff;
+		border-radius: 10upx 10upx 0 0;
+		position: fixed;
+		left: 0;
+		bottom: -1000upx;
+		z-index: 999;
+		transition: all 0.3s;
+	}
+
+	.scrolls {
+		width: 100vw;
+		height: 60vh;
+		padding-top: 10upx;
+		z-index: 500;
+	}
+
 </style>

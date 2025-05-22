@@ -201,6 +201,39 @@ func (couApi *CouponOrderUserApi) GetCouponOrderUserPublic(c *gin.Context) {
 	// ... existing code ...
 }
 
+// GetAllClaimCoupon 获取用户可领取的优惠券列表
+// @Tags CouponOrderUser
+// @Summary 获取用户可领取的优惠券列表
+// @Security ApiKeyAuth
+// @Accept application/json
+// @Produce application/json
+// @Param data body shopReq.GetClaimCouponRequest true "商品ID列表"
+// @Success 200 {object} response.Response{data=[]map[string]interface{},msg=string} "获取成功"
+// @Router /cou/getAllClaimCoupon [post]
+func (couApi *CouponOrderUserApi) GetAllClaimCoupon(c *gin.Context) {
+	ctx := c.Request.Context()
+	var req shopReq.GetClaimCouponRequest
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+
+	userID := utils.GetUserID(c)
+	if userID == 0 {
+		response.FailWithMessage("用户未登录", c)
+		return
+	}
+
+	coupons, err := couService.GetAllClaimCoupon(ctx, userID, req.GoodIds)
+	if err != nil {
+		global.GVA_LOG.Error("获取优惠券列表失败!", zap.Error(err), zap.Uint("userID", userID))
+		response.FailWithMessage("获取失败: "+err.Error(), c)
+		return
+	}
+	response.OkWithData(coupons, c)
+}
+
 // ClaimCouponByUser 用户领取优惠券
 // @Tags CouponOrderUser
 // @Summary 用户领取优惠券

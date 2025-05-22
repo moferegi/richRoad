@@ -90,7 +90,7 @@
 		<view class="coupon" :style="'bottom:' + (couponshow == true ? '0px':'')">
 			<scroll-view class="scrolls" scroll-y>
 				<!-- colors:按钮颜色 couponList:优惠卷列表数据  @onReceive：领取或立即使用按钮事件 -->
-				<cc-defineCoupon colors="#fa436a" :couponList="couponList" @onReceive="onReceive"></cc-defineCoupon>
+				<cc-defineCoupon v-if="couponshow" colors="#fa436a" @onReceive="onReceive"></cc-defineCoupon>
 			</scroll-view>
 		</view>
 
@@ -143,44 +143,6 @@ const data = ref({
 const orderID = ref("")
 
 const couponshow = ref(false)
-const couponList = ref([
-        {
-						money: 100,
-						reduce: 10,
-						date: '2023-05-09 2023-10-02',
-						id: 1,
-						status: 0,
-						condition: ['新人专享', '通用卷']
-					}, {
-						money: 100,
-						reduce: 20,
-						date: '2023-02-09 2023-10-02',
-						id: 2,
-						status: 0,
-						condition: ['会员专享', '通用卷']
-					}, {
-						money: 100,
-						reduce: 30,
-						date: '2023-02-09 2023-10-02',
-						id: 3,
-						status: 0,
-						condition: ['数码产品可用', '不可与其他产品共享']
-					}, {
-						money: 100,
-						reduce: 40,
-						date: '2023-02-09 2023-10-02',
-						id: 4,
-						status: 0,
-						condition: ['新人专享', '可与其他产品共享']
-					}, {
-						money: 100,
-						reduce: 50,
-						date: '2023-02-09 2023-10-02',
-						id: 5,
-						status: 0,
-						condition: ['新人专享', '仅在支付时使用']
-					}
-])
 
 const opencoupon = () => {
 				couponshow.value = true

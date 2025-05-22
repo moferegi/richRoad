@@ -27,6 +27,7 @@ func (s *CouponOrderUserRouter) InitCouponOrderUserRouter(Router *gin.RouterGrou
 		couRouterWithoutAuth.GET("getCouponOrderUserPublic", couApi.GetCouponOrderUserPublic)         // 优惠券开放接口
 	}
 	{
+		couRouter.POST("getAllClaimCoupon", couApi.GetAllClaimCoupon)         // 用户查询可领可用优惠券
 		couRouter.POST("claimCouponByUser", couApi.ClaimCouponByUser)         // 用户领取优惠券
 		couRouter.POST("adminIssueCouponToAll", couApi.AdminIssueCouponToAll) // 管理员向所有用户发放优惠券 (需要管理员权限中间件)
 	}

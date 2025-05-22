@@ -1,58 +1,71 @@
 <template>
-	<view>
-		<view v-for="(item, index) in couponList" :key="index" class="coupon_box">
+	<view class="coupon_body">
+		<view v-for="(item, index) in couponList" :key="index" class="coupon_box" :class="{'disabled-coupon': item.canUse === 0}">
 			<view class="left">
 				<view class="left_top">
 					<text class="hui">券</text>
-					<text class="hui_name">满{{item.money}}减{{item.reduce}}</text>
+					<text class="coupon_name">{{item.name}}</text>
+					<text class="hui_name">{{item.minSpend > 0 ? '满'+item.minSpend+'减'+item.discount : '无门槛优惠券'}}</text>
 				</view>
 				<view class="left_bottom">
-					<text>有效日期：{{item.date}}</text>
+					<text>有效日期：{{item.startTime}} - {{item.endTime}}</text>
 				</view>
 				<image src="./ylq.png" v-if="item.status == 1" class="ylq"></image>
 			</view>
 			<view class="right">
-				<view class="money">￥{{item.reduce}}</view>
-				<text>满{{item.money}}可用</text>
+				<view class="money">￥{{item.discount}}</view>
+				<text>{{item.minSpend > 0 ? '满'+item.minSpend+'可用' : '无门槛'}}</text>
 			</view>
 
 			<view class="bottom">
-				<view v-for="(row, indexs) in item.condition" :key="indexs">
-					{{indexs+1}}.{{row}}
+				<view class="unavailable-tip" v-if="item.canUse === 0">
+					此商品不支持使用该优惠券
 				</view>
-
-				<view class="receiveBtn" :style="{background:item.status!=1 ? colors:'#fbbd08'}"
-					@tap="onreceive(item, index)">{{item.status!=1 ? '领取':'立即使用'}}</view>
+				<view class="receiveBtn" :style="{background: item.canUse === 0 ? '#cccccc' : (item.couponNum == 0 ? colors:'#fbbd08')}"
+					@tap="item.canUse !== 0 && onreceive(item, index)">{{item.couponNum == 0 ? '领取':'立即使用'}}</view>
 			</view>
 		</view>
 	</view>
 </template>
 
-<script>
-	export default {
-		data() {
-			return {
+<script setup>
+import { defineProps, defineEmits, ref } from 'vue';
+import { getAllClaimCoupon } from "@/api/coupon";
 
-			};
-		},
+// 定义props
+const props = defineProps({
+	colors: {
+		type: String,
+		default: ''
+	},
+	goodIds: {
+		type: Array,
+		default: []
+	}
+});
 
-		components: {},
-		props: {
-			colors: {
-				type: String
-			},
-			couponList: {
-				type: Array
-			}
-		},
-		methods: {
-			onreceive(item, index) { //领取优惠券
-				this.$emit('onReceive', item, index)
-			}
+// 定义事件
+const emit = defineEmits(['onReceive']);
 
-		}
-	};
+// 定义数据
+const couponList = ref([]);
+
+
+const getCouponList = async () => {
+	const res = await getAllClaimCoupon({goodIds:props.goodIds});
+	if (res.code == 0) {
+		couponList.value = res.data;
+	}
+};
+
+getCouponList()
+
+// 定义方法
+const onreceive = (item, index) => {
+	emit('onReceive', item, index);
+};
 </script>
+
 <style lang="scss" scoped>
 	.coupon_box {
 		margin: 20upx;
@@ -103,12 +116,23 @@
 
 	}
 
+	.left_top .coupon_name {
+		line-height: 60upx;
+		height: 60upx;
+		margin-left: 20upx;
+		display: inline-block;
+		font-size: 30upx;
+		font-weight: bold;
+		color: #333;
+	}
+
 	.left_top .hui_name {
 		line-height: 60upx;
 		height: 60upx;
 		margin-left: 20upx;
 		display: inline-block;
 		font-size: 28upx;
+		color: #666;
 	}
 
 	.left_bottom {
@@ -167,5 +191,18 @@
 		text-align: center;
 		margin-top: 2px;
 
+	}
+	
+	.disabled-coupon {
+		opacity: 0.6;
+	}
+	
+	.disabled-coupon .receiveBtn {
+		cursor: not-allowed;
+	}
+
+	// 在样式部分新增样式规则
+	.unavailable-tip {
+	  color: #e4393c;
 	}
 </style>

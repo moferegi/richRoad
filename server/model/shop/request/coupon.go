@@ -26,3 +26,7 @@ type AdminIssueCouponRequest struct {
 type ClaimCouponRequest struct {
 	CouponID int `json:"couponID" form:"couponID" binding:"required"` // 优惠券ID
 }
+
+type GetClaimCouponRequest struct {
+	GoodIds []int `json:"goodIds" form:"goodIds"`
+}

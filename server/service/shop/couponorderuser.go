@@ -3,15 +3,40 @@ package shop
 import (
 	"context"
 	"errors"
+	"github.com/bwmarrin/snowflake"
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/system" // 假设用户模型
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"sync"
 )
 
 type CouponOrderUserService struct{}
+
+// 雪花算法节点，用于生成唯一ID
+var (
+	snowflakeNode *snowflake.Node
+	nodeOnce      sync.Once
+	nodeErr       error
+)
+
+// generateSnowflakeID 生成雪花算法ID
+func generateSnowflakeID() (int64, error) {
+	nodeOnce.Do(func() {
+		// 创建一个节点，节点ID为1
+		snowflakeNode, nodeErr = snowflake.NewNode(1)
+	})
+
+	if nodeErr != nil {
+		return 0, nodeErr
+	}
+
+	// 生成ID
+	id := snowflakeNode.Generate()
+	return id.Int64(), nil
+}
 
 // CreateCouponOrderUser 创建优惠券记录
 // Author [yourname](https://github.com/yourname)
@@ -97,6 +122,75 @@ func (couService *CouponOrderUserService) GetCouponOrderUserPublic(ctx context.C
 	// 请自行实现
 }
 
+func (couService *CouponOrderUserService) GetAllClaimCoupon(ctx context.Context, userID uint, goodIds []int) (coupons []map[string]interface{}, err error) {
+	// 初始化返回结果切片
+	coupons = make([]map[string]interface{}, 0)
+
+	// 1. 查询所有可用的优惠券
+	var availableCoupons []shop.Coupon
+	db := global.GVA_DB.Model(&shop.Coupon{})
+
+	// 查询条件：优惠券有效且在有效期内
+	db = db.Where("status = ? AND start_time <= NOW() AND end_time >= NOW()", true)
+
+	// 执行查询
+	if err = db.Find(&availableCoupons).Error; err != nil {
+		return nil, errors.New("查询优惠券失败: " + err.Error())
+	}
+
+	// 2. 遍历优惠券，查询用户是否已领取
+	for _, coupon := range availableCoupons {
+		// 创建返回数据结构
+		couponData := map[string]interface{}{
+			"couponNum": 0, // 默认为0，表示未领取
+			"couponID":  coupon.ID,
+			"name":      *coupon.Name,
+			"minSpend":  *coupon.MinSpend,
+			"discount":  *coupon.Discount,
+			"productID": 0,
+			"startTime": coupon.StartTime.Format("2006-01-02"),
+			"endTime":   coupon.EndTime.Format("2006-01-02"),
+			"status":    0, // 默认为0，表示未使用
+			"canUse":    0,
+		}
+
+		// 如果有关联商品，设置productID
+		if coupon.ProductID != nil {
+			couponData["productID"] = *coupon.ProductID
+		}
+
+		if len(goodIds) > 0 {
+			// 检查商品ID是否在goodIds中
+			for _, goodID := range goodIds {
+				if coupon.ProductID == nil || *coupon.ProductID == goodID {
+					couponData["canUse"] = 1 // 可使用
+					break
+				}
+			}
+		} else {
+			couponData["canUse"] = 1 // 没有商品限制，默认可用
+		}
+
+		// 查询用户是否已领取此优惠券
+		var userCoupon shop.CouponOrderUser
+		shopUserID := int(userID)
+		result := global.GVA_DB.Where("coupon_id = ? AND shop_user_id = ?", coupon.ID, shopUserID).First(&userCoupon)
+
+		// 如果用户已领取，设置券码和使用状态
+		if result.Error == nil {
+			couponData["couponNum"] = userCoupon.CouponNum
+			if userCoupon.Status != nil && *userCoupon.Status {
+				couponData["status"] = 1 // 已使用
+			}
+		}
+
+		// 添加到结果集
+		coupons = append(coupons, couponData)
+	}
+
+	return coupons, nil
+}
+
 // ClaimCouponByUser 用户领取优惠券
 func (couService *CouponOrderUserService) ClaimCouponByUser(ctx context.Context, userID uint, couponID int) (err error) {
 	// 1. 检查优惠券是否存在、有效、库存充足
@@ -132,8 +226,16 @@ func (couService *CouponOrderUserService) ClaimCouponByUser(ctx context.Context,
 		return err
 	}
 
+	// 生成雪花ID作为券码
+	snowflakeID, err := generateSnowflakeID()
+	if err != nil {
+		tx.Rollback()
+		return errors.New("生成券码失败: " + err.Error())
+	}
+
 	status := false // false 表示未使用
 	couponOrderUser := shop.CouponOrderUser{
+		CouponNum:  int(snowflakeID), // 使用雪花ID作为券码
 		CouponID:   &couponID,
 		ShopUserID: &shopUserID,
 		Status:     &status,
@@ -222,7 +324,15 @@ func (couService *CouponOrderUserService) IssueCouponToAllUsers(ctx context.Cont
 			return errors.New("检查用户领取状态失败: " + findErr.Error())
 		}
 
+		// 生成雪花ID作为券码
+		snowflakeID, err := generateSnowflakeID()
+		if err != nil {
+			tx.Rollback()
+			return errors.New("生成券码失败: " + err.Error())
+		}
+
 		couponOrderUser := shop.CouponOrderUser{
+			CouponNum:  int(snowflakeID), // 使用雪花ID作为券码
 			CouponID:   &couponID,
 			ShopUserID: &shopUserID,
 			Status:     &status,
