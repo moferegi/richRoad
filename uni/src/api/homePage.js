@@ -29,7 +29,7 @@ export const getGoodList = (params) => {
 // 获取促销信息
 export const getPromotionPublic = () => {
     return request({
-        url:'/Promo/getPromotionPublic',
+        url:'/promo/getPromotionPublic',
         method: 'get'
     })
 }

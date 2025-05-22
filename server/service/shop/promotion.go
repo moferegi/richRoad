@@ -11,42 +11,42 @@ type PromotionService struct{}
 
 // CreatePromotion 创建促销信息记录
 // Author [yourname](https://github.com/yourname)
-func (PromoService *PromotionService) CreatePromotion(ctx context.Context, Promo *shop.Promotion) (err error) {
+func (promoService *PromotionService) CreatePromotion(ctx context.Context, Promo *shop.Promotion) (err error) {
 	err = global.GVA_DB.Create(Promo).Error
 	return err
 }
 
 // DeletePromotion 删除促销信息记录
 // Author [yourname](https://github.com/yourname)
-func (PromoService *PromotionService) DeletePromotion(ctx context.Context, ID string) (err error) {
+func (promoService *PromotionService) DeletePromotion(ctx context.Context, ID string) (err error) {
 	err = global.GVA_DB.Delete(&shop.Promotion{}, "id = ?", ID).Error
 	return err
 }
 
 // DeletePromotionByIds 批量删除促销信息记录
 // Author [yourname](https://github.com/yourname)
-func (PromoService *PromotionService) DeletePromotionByIds(ctx context.Context, IDs []string) (err error) {
+func (promoService *PromotionService) DeletePromotionByIds(ctx context.Context, IDs []string) (err error) {
 	err = global.GVA_DB.Delete(&[]shop.Promotion{}, "id in ?", IDs).Error
 	return err
 }
 
 // UpdatePromotion 更新促销信息记录
 // Author [yourname](https://github.com/yourname)
-func (PromoService *PromotionService) UpdatePromotion(ctx context.Context, Promo shop.Promotion) (err error) {
+func (promoService *PromotionService) UpdatePromotion(ctx context.Context, Promo shop.Promotion) (err error) {
 	err = global.GVA_DB.Model(&shop.Promotion{}).Where("id = ?", Promo.ID).Updates(&Promo).Error
 	return err
 }
 
 // GetPromotion 根据ID获取促销信息记录
 // Author [yourname](https://github.com/yourname)
-func (PromoService *PromotionService) GetPromotion(ctx context.Context, ID string) (Promo shop.Promotion, err error) {
+func (promoService *PromotionService) GetPromotion(ctx context.Context, ID string) (Promo shop.Promotion, err error) {
 	err = global.GVA_DB.Where("id = ?", ID).First(&Promo).Error
 	return
 }
 
 // GetPromotionInfoList 分页获取促销信息记录
 // Author [yourname](https://github.com/yourname)
-func (PromoService *PromotionService) GetPromotionInfoList(ctx context.Context, info shopReq.PromotionSearch) (list []shop.Promotion, total int64, err error) {
+func (promoService *PromotionService) GetPromotionInfoList(ctx context.Context, info shopReq.PromotionSearch) (list []shop.Promotion, total int64, err error) {
 	limit := info.PageSize
 	offset := info.PageSize * (info.Page - 1)
 	// 创建db
@@ -88,7 +88,7 @@ func (PromoService *PromotionService) GetPromotionInfoList(ctx context.Context, 
 	return Promos, total, err
 }
 
-func (PromoService *PromotionService) GetPromotionPublic(ctx context.Context) (promotion shop.Promotion, err error) {
+func (promoService *PromotionService) GetPromotionPublic(ctx context.Context) (promotion shop.Promotion, err error) {
 	// 查询第一个启用状态(IsAction=true)的促销记录
 	err = global.GVA_DB.WithContext(ctx).
 		Where("is_action = ?", true). // 查询启用状态的记录
