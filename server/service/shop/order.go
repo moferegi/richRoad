@@ -65,10 +65,6 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 				}
 			}
 			order.TotalPrice -= coupon.Discount
-			err = tx.Model(&shop.CouponOrderUser{}).Where("coupon_num = ?", order.CouponNum).Update("order_id", order.ID).Error
-			if err != nil {
-				return err
-			}
 		}
 		order.Status = "0"
 
@@ -87,6 +83,10 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 			return err
 		}
 		OrderID = order.ID
+		err = tx.Model(&shop.CouponOrderUser{}).Where("coupon_num = ?", order.CouponNum).Update("order_id", order.ID).Error
+		if err != nil {
+			return err
+		}
 		return nil
 	})
 	return
