@@ -15,6 +15,12 @@
 				"navigationStyle": "custom",
 				"navigationBarTextStyle": "white"
 			}
+		},{
+			"path": "pages/tabBar/components/category-page",
+			"style": {
+				"navigationBarTitleText": "商品分类详情页",
+				"enablePullDownRefresh": false
+			}
 		},
 		{
 			"path": "pages/evaluate/evaluate",

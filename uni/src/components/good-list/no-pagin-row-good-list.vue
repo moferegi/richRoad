@@ -1,6 +1,6 @@
 <template>
   <view class="goods-list">
-    <view v-for="(item, index) in props.goodsList" :key="index" class="goods-item" @click="handleGoodsClick(item)">
+    <view v-for="(item, index) in props.goodsList" :key="index" class="goods-item" @tap="handleGoodsClick(item)">
       <image :src="getUrl(item.imageUrl)" class="goods-image" mode="aspectFill"></image>
       <view class="goods-info">
         <text class="goods-name">{{ item.title }}</text>
