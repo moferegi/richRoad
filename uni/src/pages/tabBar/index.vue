@@ -184,7 +184,7 @@ page {
 .status-bar-placeholder {
   width: 100%;
   height: var(--status-bar-height);
-  background-color: #E74C3C;
+  background-color: #fea94a;
 }
 
 .test {
@@ -195,7 +195,7 @@ page {
 
 // 顶部状态栏
 .status-bar {
-  background-color: #E74C3C;
+  background-color: #fea94a;
   display: flex;
   align-items: center;
   padding: 16rpx 24rpx;
