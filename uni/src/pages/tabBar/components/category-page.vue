@@ -70,31 +70,27 @@ const initCategory = async () => {
 
   // 如果有传入的分类ID，则加载对应的商品数据
   if (currentCategoryID.value) {
-    await loadGoodsList(currentCategoryID.value, true)
-  } else if (gridList.value.length > 0) {
-    // 如果没有传入ID，默认加载第一个分类的商品
-    currentCategoryID.value = gridList.value[0].ID
-    await loadGoodsList(currentCategoryID.value, true)
+    await loadGoodsList(currentCategoryID.value)
   }
 }
 
 // 加载商品列表
-const loadGoodsList = async (categoryID, isInit = false) => {
+const loadGoodsList = async (categoryID) => {
   if (loading.value) return
 
   loading.value = true
 
+  // flowData.value.length为空则是初始，有值则是翻页
   try {
     const params = {
-      page: isInit ? 1 : currentPage.value,
+      page: !flowData.value.length ? 1 : currentPage.value,
       pageSize: pageSize.value,
       categoryID: categoryID
     }
 
     const res = await getGoodList(params)
-
     if (res.code === 0) {
-      if (isInit) {
+      if (!flowData.value.length) {
         // 初始化时重置数据
         flowData.value = res.data || []
         currentPage.value = 1
@@ -180,12 +176,12 @@ initCategory()
 }
 
 .category-item.active .category-icon {
-  border: 4rpx solid #007aff; /* 选中时图标边框 */
+  border: 4rpx solid #ffffff; /* 选中时图标边框 */
   box-shadow: 0 4rpx 12rpx rgba(0, 122, 255, 0.3); /* 添加阴影 */
 }
 
 .category-item.active .category-title {
-  color: #007aff; /* 选中时文字颜色 */
+  color: #ffffff; /* 选中时文字颜色 */
   font-weight: bold; /* 选中时文字加粗 */
 }
 
