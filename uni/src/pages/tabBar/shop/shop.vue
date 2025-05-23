@@ -2,13 +2,13 @@
   <view class="shop-container">
     <shop-goods-list></shop-goods-list>
     <gva-divider text="猜你喜欢"></gva-divider>
-    <noPaginRowGoodList v-if="flowData" :goodsList="flowData"></noPaginRowGoodList>
+    <noPaginGridGoodList v-if="flowData" :goodsList="flowData"></noPaginGridGoodList>
     <view style="height: 80rpx;"></view>
   </view>
 </template>
 
 <script setup>
-import noPaginRowGoodList from '@/components/good-list/no-pagin-row-good-list.vue'
+import noPaginGridGoodList from '@/components/good-list/no-pagin-grid-good-list.vue'
 import shopGoodsList from './components/shop-goods-list.vue'
 import {ref} from "vue";
 import {getGoodList} from '@/api/homePage.js'
