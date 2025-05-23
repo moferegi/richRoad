@@ -5,24 +5,27 @@
 				<view class="left_top">
 					<text class="hui">券</text>
 					<text class="coupon_name">{{item.name}}</text>
-					<text class="hui_name">{{item.minSpend > 0 ? '满'+item.minSpend+'减'+item.discount : '无门槛优惠券'}}</text>
+					<text class="hui_name">{{item.minSpend > 0 ? '满'+item.minSpend/100+'减'+item.discount/100 : '无门槛优惠券'}}</text>
 				</view>
 				<view class="left_bottom">
 					<text>有效日期：{{item.startTime}} - {{item.endTime}}</text>
 				</view>
-				<image src="./ylq.png" v-if="item.status == 1" class="ylq"></image>
 			</view>
 			<view class="right">
-				<view class="money">￥{{item.discount}}</view>
-				<text>{{item.minSpend > 0 ? '满'+item.minSpend+'可用' : '无门槛'}}</text>
+				<view class="money">￥{{item.discount/100}}</view>
+				<text>{{item.minSpend > 0 ? '满'+item.minSpend/100+'可用' : '无门槛'}}</text>
 			</view>
 
 			<view class="bottom">
 				<view class="unavailable-tip" v-if="item.canUse === 0">
 					此商品不支持使用该优惠券
 				</view>
-				<view class="receiveBtn" :style="{background: item.canUse === 0 ? '#cccccc' : (item.couponNum == 0 ? colors:'#fbbd08')}"
-					@tap="item.canUse !== 0 && onreceive(item, index)">{{item.couponNum == 0 ? '领取':'立即使用'}}</view>
+				<view v-if="item.status !== 1" class="receiveBtn" :style="{background: item.canUse === 0 ? '#cccccc' : (item.couponNum == 0 ? colors:'#fbbd08')}"
+					@tap="item.canUse !== 0 && onreceive(item, index)">{{item.couponNum == 0 ? '领取':'立即使用'}}
+				</view>
+				<view v-else class="receiveBtn" style="background-color: #ccc;">
+					使用中
+				</view>
 			</view>
 		</view>
 	</view>

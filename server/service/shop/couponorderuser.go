@@ -23,19 +23,19 @@ var (
 )
 
 // generateSnowflakeID 生成雪花算法ID
-func generateSnowflakeID() (int64, error) {
+func generateSnowflakeID() (string, error) {
 	nodeOnce.Do(func() {
 		// 创建一个节点，节点ID为1
 		snowflakeNode, nodeErr = snowflake.NewNode(1)
 	})
 
 	if nodeErr != nil {
-		return 0, nodeErr
+		return "", nodeErr
 	}
 
 	// 生成ID
 	id := snowflakeNode.Generate()
-	return id.Int64(), nil
+	return id.String(), nil
 }
 
 // CreateCouponOrderUser 创建优惠券记录
@@ -145,8 +145,8 @@ func (couService *CouponOrderUserService) GetAllClaimCoupon(ctx context.Context,
 			"couponNum": 0, // 默认为0，表示未领取
 			"couponID":  coupon.ID,
 			"name":      *coupon.Name,
-			"minSpend":  *coupon.MinSpend,
-			"discount":  *coupon.Discount,
+			"minSpend":  coupon.MinSpend,
+			"discount":  coupon.Discount,
 			"productID": 0,
 			"startTime": coupon.StartTime.Format("2006-01-02"),
 			"endTime":   coupon.EndTime.Format("2006-01-02"),
@@ -179,8 +179,8 @@ func (couService *CouponOrderUserService) GetAllClaimCoupon(ctx context.Context,
 		// 如果用户已领取，设置券码和使用状态
 		if result.Error == nil {
 			couponData["couponNum"] = userCoupon.CouponNum
-			if userCoupon.Status != nil && *userCoupon.Status {
-				couponData["status"] = 1 // 已使用
+			if userCoupon.OrderID != nil {
+				couponData["status"] = 1 // 占用状态 不能领取 不能使用
 			}
 		}
 
@@ -192,15 +192,15 @@ func (couService *CouponOrderUserService) GetAllClaimCoupon(ctx context.Context,
 }
 
 // ClaimCouponByUser 用户领取优惠券
-func (couService *CouponOrderUserService) ClaimCouponByUser(ctx context.Context, userID uint, couponID int) (err error) {
+func (couService *CouponOrderUserService) ClaimCouponByUser(ctx context.Context, userID uint, couponID int) (couponNum string, err error) {
 	// 1. 检查优惠券是否存在、有效、库存充足
 	var coupon shop.Coupon
 	err = global.GVA_DB.Where("id = ? AND status = ? AND start_time <= NOW() AND end_time >= NOW() AND quantity > claimed", couponID, true).First(&coupon).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return errors.New("优惠券无效或已领完")
+			return "", errors.New("优惠券无效或已领完")
 		}
-		return errors.New("查询优惠券失败: " + err.Error())
+		return "", errors.New("查询优惠券失败: " + err.Error())
 	}
 
 	// 2. 检查用户是否已领取该优惠券
@@ -208,10 +208,10 @@ func (couService *CouponOrderUserService) ClaimCouponByUser(ctx context.Context,
 	shopUserID := int(userID) // Convert uint to int for ShopUserID
 	err = global.GVA_DB.Where("coupon_id = ? AND shop_user_id = ?", couponID, shopUserID).First(&existingClaim).Error
 	if err == nil {
-		return errors.New("您已领取过该优惠券")
+		return "", errors.New("您已领取过该优惠券")
 	}
 	if err != gorm.ErrRecordNotFound {
-		return errors.New("检查领取状态失败: " + err.Error())
+		return "", errors.New("检查领取状态失败: " + err.Error())
 	}
 
 	// 3. 创建优惠券领取记录并更新优惠券已领取数量 (使用事务保证原子性)
@@ -223,26 +223,26 @@ func (couService *CouponOrderUserService) ClaimCouponByUser(ctx context.Context,
 	}()
 
 	if err = tx.Error; err != nil {
-		return err
+		return "", err
 	}
 
 	// 生成雪花ID作为券码
 	snowflakeID, err := generateSnowflakeID()
 	if err != nil {
 		tx.Rollback()
-		return errors.New("生成券码失败: " + err.Error())
+		return "", errors.New("生成券码失败: " + err.Error())
 	}
 
 	status := false // false 表示未使用
 	couponOrderUser := shop.CouponOrderUser{
-		CouponNum:  int(snowflakeID), // 使用雪花ID作为券码
+		CouponNum:  snowflakeID, // 使用雪花ID作为券码
 		CouponID:   &couponID,
 		ShopUserID: &shopUserID,
 		Status:     &status,
 	}
 	if err = tx.Create(&couponOrderUser).Error; err != nil {
 		tx.Rollback()
-		return errors.New("领取优惠券失败: " + err.Error())
+		return "", errors.New("领取优惠券失败: " + err.Error())
 	}
 
 	// 4. 更新优惠券已领取数量 (使用 GORM 的表达式来增加 claimed 字段，并添加乐观锁或行锁避免并发问题)
@@ -251,14 +251,14 @@ func (couService *CouponOrderUserService) ClaimCouponByUser(ctx context.Context,
 	result := tx.Model(&coupon).Where("id = ?", couponID).Update("claimed", gorm.Expr("claimed + 1"))
 	if result.Error != nil {
 		tx.Rollback()
-		return errors.New("更新优惠券数量失败: " + result.Error.Error())
+		return "", errors.New("更新优惠券数量失败: " + result.Error.Error())
 	}
 	if result.RowsAffected == 0 {
 		tx.Rollback()
-		return errors.New("优惠券已领完或更新失败")
+		return "", errors.New("优惠券已领完或更新失败")
 	}
 
-	return tx.Commit().Error
+	return snowflakeID, tx.Commit().Error
 }
 
 // IssueCouponToAllUsers 管理员向所有用户发放优惠券
@@ -332,7 +332,7 @@ func (couService *CouponOrderUserService) IssueCouponToAllUsers(ctx context.Cont
 		}
 
 		couponOrderUser := shop.CouponOrderUser{
-			CouponNum:  int(snowflakeID), // 使用雪花ID作为券码
+			CouponNum:  snowflakeID, // 使用雪花ID作为券码
 			CouponID:   &couponID,
 			ShopUserID: &shopUserID,
 			Status:     &status,

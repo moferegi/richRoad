@@ -28,7 +28,12 @@
     <!-- 优惠券 -->
     <view class="coupon-section">
       <text class="coupon-label">优惠券</text>
-      <view class="coupon-value" @tap="opencoupon">
+ 
+      <view class="coupon-value" @tap="opencoupon" v-if="selectedCoupon.couponNum">
+        <text>{{selectedCoupon.minSpend > 0 ? '满'+selectedCoupon.minSpend/100+'减'+selectedCoupon.discount/100 : '无门槛减￥'+selectedCoupon.discount/100}}</text>
+        <uni-icons color="#cccccc" size="16" type="right"></uni-icons>
+      </view>
+      <view class="coupon-value" @tap="opencoupon" v-else>
         <text>领取优惠券</text>
         <uni-icons color="#cccccc" size="16" type="right"></uni-icons>
       </view>
@@ -105,7 +110,7 @@
     <rich-text style="width: 100%;"/>
 
     <!-- SKU选择器 (隐藏状态) -->
-    <goods-sku v-if="data.skus" ref="goodsSkuRef" :isCart="isCart" :good="data" @toOrder="toOrder"></goods-sku>
+    <goods-sku v-if="data.skus" ref="goodsSkuRef" :isCart="isCart" :good="data" @toOrder="toOrder" :selectedCoupon="selectedCoupon"></goods-sku>
 
     <!-- 底部固定导航栏 -->
     <view class="fixed-bottom-nav">
@@ -150,6 +155,7 @@ import {onLoad} from '@dcloudio/uni-app'
 import {findGood} from '@/api/product.js'
 import {myRouter} from '@/utils/permission';
 import {findCollect, createCollect} from '@/api/collect.js'
+import {claimCouponByUser} from '@/api/coupon.js'
 import {useUserStore} from "@/pinia/modules/user";
 import {findComment} from "@/api/comment.js"
 import {formatTimeToStr} from "@/utils/date.js"
@@ -266,6 +272,8 @@ const addCollect = async () => {
 
 }
 
+const selectedCoupon = ref({}) 
+
 const couponshow = ref(false)
 
 const opencoupon = () => {
@@ -276,8 +284,39 @@ const opencoupon = () => {
 				couponshow.value = false
 			}
 			//领取优惠券 立即使用事件
-			const onReceive = (item, index) => {
-				console.log(item, index)
+			const onReceive = async (item, index) => {
+        // 添加loading遮罩防止多次点击
+        uni.showLoading({
+          title: item.couponNum == 0 ? '领取中...' : '选择中...',
+          mask: true
+        })
+        
+        try {
+          if (item.couponNum == 0) {
+            const res = await claimCouponByUser({
+              couponID: item.couponID,
+            })
+            item.couponNum = res.data
+            // 领取成功提示
+            uni.showToast({
+              title: '领取成功',
+              icon: 'success',
+              duration: 1500
+            })
+          }
+          selectedCoupon.value = item
+          // 关闭优惠券弹窗
+          setTimeout(() => {
+            hidecoupon()
+          }, 500)
+        } catch (error) {
+          uni.showToast({
+            title: '操作失败，请重试',
+            icon: 'none'
+          })
+        } finally {
+          uni.hideLoading()
+        }
 			}
 
 </script>

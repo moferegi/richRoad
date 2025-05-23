@@ -258,13 +258,13 @@ func (couApi *CouponOrderUserApi) ClaimCouponByUser(c *gin.Context) {
 		return
 	}
 
-	err = couService.ClaimCouponByUser(ctx, userID, req.CouponID)
+	couponNum, err := couService.ClaimCouponByUser(ctx, userID, req.CouponID)
 	if err != nil {
 		global.GVA_LOG.Error("用户领取优惠券失败!", zap.Error(err), zap.Uint("userID", userID), zap.Int("couponID", req.CouponID))
 		response.FailWithMessage("领取失败: "+err.Error(), c)
 		return
 	}
-	response.OkWithMessage("领取成功", c)
+	response.OkWithData(couponNum, c)
 }
 
 // AdminIssueCouponToAll 管理员向所有用户发放优惠券

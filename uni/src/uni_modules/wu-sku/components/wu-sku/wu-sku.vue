@@ -14,7 +14,7 @@
 						<view class="price">
 							<text class="uity" :style="{color: themeRGB}">￥</text>
 							<text class="value" :style="{color: themeRGB}">
-								{{selectSku.id !== undefined ? selectSku.price : `${showAreaPrice[0]}-${showAreaPrice[1]}`}}
+								{{selectSku.id !== undefined ? selectSku.price/100 : `${showAreaPrice[0]/100}-${showAreaPrice[1]/100}`}}
 							</text>
 						</view>
 						<text class="stock" v-if="showStockNum">

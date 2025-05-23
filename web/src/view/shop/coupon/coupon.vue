@@ -51,9 +51,9 @@
 
         <el-table-column sortable align="left" label="名称" prop="name" width="120" />
 
-        <el-table-column align="left" label="最低消费（0为无门槛）" prop="minSpend" width="120" />
+        <el-table-column align="left" label="最低消费/分（0为无门槛）" prop="minSpend" width="120" />
 
-        <el-table-column align="left" label="折扣" prop="discount" width="120" />
+        <el-table-column align="left" label="折扣/分" prop="discount" width="120" />
 
         <el-table-column align="left" label="商品ID（不填则不限商品）" prop="productID" width="120">
           <template #default="scope">
@@ -108,11 +108,11 @@
         <el-form-item label="描述:" prop="description">
           <el-input v-model="formData.description" :clearable="false" placeholder="请输入描述" />
         </el-form-item>
-        <el-form-item label="最低消费（0为无门槛）:" prop="minSpend">
-          <el-input-number v-model="formData.minSpend" style="width:100%" :precision="2" :clearable="false" />
+        <el-form-item label="最低消费/分（0为无门槛）:" prop="minSpend">
+          <el-input-number v-model="formData.minSpend" style="width:100%" :precision="0" :clearable="false" />
         </el-form-item>
-        <el-form-item label="折扣:" prop="discount">
-          <el-input-number v-model="formData.discount" style="width:100%" :precision="2" :clearable="false" />
+        <el-form-item label="折扣/分:" prop="discount">
+          <el-input-number v-model="formData.discount" style="width:100%" :precision="0" :clearable="false" />
         </el-form-item>
         <el-form-item label="商品ID（不填则不限商品）:" prop="productID">
           <el-select v-model="formData.productID" placeholder="请选择商品ID" filterable style="width:100%"
@@ -148,10 +148,10 @@
         <el-descriptions-item label="描述">
           {{ detailFrom.description }}
         </el-descriptions-item>
-        <el-descriptions-item label="折扣">
+        <el-descriptions-item label="折扣/分">
           {{ detailFrom.discount }}
         </el-descriptions-item>
-        <el-descriptions-item label="最低消费">
+        <el-descriptions-item label="最低消费/分">
           {{ detailFrom.minSpend }}
         </el-descriptions-item>
         <el-descriptions-item label="商品ID">

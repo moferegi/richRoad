@@ -8,3 +8,13 @@ export const getAllClaimCoupon  = (data) => {
 		data: data
     })
 }
+
+// 领取优惠券
+export const claimCouponByUser  = (data) => {
+  return request({ 
+  url:'/cou/claimCouponByUser',
+      method: 'post',
+  data: data
+  })
+}
+

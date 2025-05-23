@@ -26,6 +26,10 @@ let props = defineProps({
     type: Object,
     default: {}
   },
+  selectedCoupon:{
+    type: Object,
+    default: {}
+  }
 })
 
 const skuShow = ref(false)
@@ -71,6 +75,7 @@ const submit = async (quantity) => {
   if (token) {
     skuShow.value = false
     let detail = {
+      "couponNum": props.selectedCoupon.couponNum,
       "detail": [
         {
           "goodID": props.good.ID,
@@ -224,3 +229,4 @@ defineExpose({
 	}
 }
 </style>
+

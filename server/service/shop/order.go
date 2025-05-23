@@ -41,6 +41,35 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 			order.TotalPrice += order.Detail[i].Quantity * order.Detail[i].Price
 			// 减扣库存
 		}
+		if order.CouponNum != "" {
+			var couponOrderUser shop.CouponOrderUser
+			err = tx.Where("coupon_num = ? and order_id IS NULL", order.CouponNum).First(&couponOrderUser).Error
+			if err != nil {
+				return err
+			}
+			var coupon shop.Coupon
+			err = tx.Where("id = ?", couponOrderUser.CouponID).First(&coupon).Error
+			if err != nil {
+				return err
+			}
+			if coupon.ProductID != nil {
+				hasGoods := false
+				for _, detail := range order.Detail {
+					if int(detail.ID) == *coupon.ProductID {
+						hasGoods = true
+						break
+					}
+				}
+				if !hasGoods {
+					return errors.New("当前订单不可使用此券")
+				}
+			}
+			order.TotalPrice -= coupon.Discount
+			err = tx.Model(&shop.CouponOrderUser{}).Where("coupon_num = ?", order.CouponNum).Update("order_id", order.ID).Error
+			if err != nil {
+				return err
+			}
+		}
 		order.Status = "0"
 
 		if addr, err := orderService.GetDefaultAddress(order.UserID); err == nil {
