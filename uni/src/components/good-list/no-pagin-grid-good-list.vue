@@ -1,7 +1,7 @@
 <template>
   <view class="goods-list">
-    <view class="goods-row"  v-if="props.goodsList.list.length">
-      <view v-for="(item, index) in props.goodsList.list" :key="index" class="goods-item" @tap="handleGoodsClick(item)">
+    <view class="goods-row"  v-if="props.goodsList.length">
+      <view v-for="(item, index) in props.goodsList" :key="index" class="goods-item" @tap="handleGoodsClick(item)">
         <image :src="getUrl(item.imageUrl)" class="goods-image" mode="aspectFill"></image>
         <view class="goods-info">
           <text class="goods-name">{{ item.title }}</text>
@@ -38,7 +38,7 @@
 
       </view>
     </view>
-    <view v-if="!props.goodsList.list.length" class="empty-state">
+    <view v-if="!props.goodsList.length" class="empty-state">
       <view class="empty-image-container">
         <image class="empty-image-placeholder" src="./../../static/emptyStatus.png"></image>
       </view>
@@ -248,13 +248,13 @@ page {
 
     .rating-count {
       color: #999;
-      font-size: 20rpx;
+      font-size: 28rpx;
     }
   }
 
   .sales {
     color: #999;
-    font-size: 20rpx;
+    font-size: 28rpx;
   }
 }
 

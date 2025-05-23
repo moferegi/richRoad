@@ -92,7 +92,7 @@ const loadGoodsList = async (categoryID) => {
     if (res.code === 0) {
       if (!flowData.value.length) {
         // 初始化时重置数据
-        flowData.value = res.data || []
+        flowData.value = res.data.list || []
         currentPage.value = 1
         noMore.value = false
       } else {
