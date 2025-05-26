@@ -70,42 +70,56 @@ const initCategory = async () => {
 
   // 如果有传入的分类ID，则加载对应的商品数据
   if (currentCategoryID.value) {
-    await loadGoodsList(currentCategoryID.value)
+    await loadGoodsList(currentCategoryID.value, true)
   }
 }
 
+
 // 加载商品列表
-const loadGoodsList = async (categoryID) => {
+const loadGoodsList = async (categoryID, isReset = false) => {
   if (loading.value) return
 
   loading.value = true
 
-  // flowData.value.length为空则是初始，有值则是翻页
   try {
+    // 如果是重置（切换分类），则重置分页状态
+    if (isReset) {
+      currentPage.value = 1
+      flowData.value = []
+      noMore.value = false
+    }
+
     const params = {
-      page: !flowData.value.length ? 1 : currentPage.value,
+      page: currentPage.value,
       pageSize: pageSize.value,
       categoryID: categoryID
     }
 
     const res = await getGoodList(params)
     if (res.code === 0) {
-      if (!flowData.value.length) {
-        // 初始化时重置数据
-        flowData.value = res.data.list || []
-        currentPage.value = 1
-        noMore.value = false
+      // 获取商品列表数据
+      const newGoodsList = res.data?.list || []
+
+      if (isReset || currentPage.value === 1) {
+        // 初始化或重置时直接赋值
+        flowData.value = newGoodsList
       } else {
         // 翻页时追加数据
-        flowData.value = [...flowData.value, ...(res.data || [])]
+        flowData.value = [...flowData.value, ...newGoodsList]
       }
 
       // 判断是否还有更多数据
-      if (!res.data || res.data.length < pageSize.value) {
+      if (newGoodsList.length < pageSize.value) {
         noMore.value = true
       } else {
         currentPage.value += 1
       }
+    } else {
+      // API返回非0状态码时的处理
+      uni.showToast({
+        title: res.msg || '加载失败，请重试',
+        icon: 'none'
+      })
     }
   } catch (error) {
     console.error('加载商品列表失败:', error)
@@ -117,6 +131,7 @@ const loadGoodsList = async (categoryID) => {
     loading.value = false
   }
 }
+
 
 // 加载更多商品（由子组件触发）
 const loadMoreGoods = () => {

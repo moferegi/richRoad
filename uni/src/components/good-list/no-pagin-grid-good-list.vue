@@ -48,7 +48,7 @@
 </template>
 
 <script setup>
-import {ref} from 'vue'
+import {ref, onMounted, onUnmounted} from 'vue'
 import {getUrl} from "@/utils/url";
 
 const props = defineProps({
@@ -66,6 +66,8 @@ const props = defineProps({
   }
 })
 const emit = defineEmits(['loadMore'])
+// 节流标识
+const isThrottling = ref(false)
 
 const getDiscountText = (discount) => {
   if (discount >= 9.5) return '小降'
@@ -99,7 +101,93 @@ const handleGoodsClick = (item) => {
   })
 }
 
-emit('loadMore')
+// 滚动事件处理
+const handleScroll = () => {
+  // 如果正在加载、没有更多数据、或者正在节流，则不处理
+  if (props.loading || props.noMore || isThrottling.value) {
+    return
+  }
+
+  // H5环境下直接使用window对象
+  // #ifdef H5
+  const scrollTop = document.documentElement.scrollTop || document.body.scrollTop
+  const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight
+  const windowHeight = window.innerHeight
+
+  console.log('H5滚动检测:', { scrollTop, scrollHeight, windowHeight })
+
+  // 距离底部还有100px时开始加载
+  if (scrollTop + windowHeight >= scrollHeight - 100) {
+    console.log('触发加载更多')
+    // 开启节流
+    isThrottling.value = true
+
+    // 触发加载更多
+    emit('loadMore')
+
+    // 500ms后关闭节流
+    setTimeout(() => {
+      isThrottling.value = false
+    }, 500)
+  }
+  // #endif
+
+  // 小程序等其他平台使用uni API
+  // #ifndef H5
+  uni.createSelectorQuery().selectViewport().scrollOffset((res) => {
+    const scrollTop = res.scrollTop
+    const scrollHeight = res.scrollHeight
+    const windowHeight = uni.getSystemInfoSync().windowHeight
+
+    console.log('小程序滚动检测:', { scrollTop, scrollHeight, windowHeight })
+
+    // 距离底部还有100px时开始加载
+    if (scrollTop + windowHeight >= scrollHeight - 100) {
+      console.log('触发加载更多')
+      // 开启节流
+      isThrottling.value = true
+
+      // 触发加载更多
+      emit('loadMore')
+
+      // 500ms后关闭节流
+      setTimeout(() => {
+        isThrottling.value = false
+      }, 500)
+    }
+  }).exec()
+  // #endif
+}
+
+
+// 监听页面滚动
+// 监听页面滚动
+onMounted(() => {
+  // H5环境下监听window滚动
+  // #ifdef H5
+  window.addEventListener('scroll', handleScroll, { passive: true })
+  console.log('H5滚动监听已添加')
+  // #endif
+
+  // 其他平台使用uni API
+  // #ifndef H5
+  uni.onPageScroll(handleScroll)
+  console.log('uni滚动监听已添加')
+  // #endif
+})
+
+// 清理监听
+onUnmounted(() => {
+  // #ifdef H5
+  window.removeEventListener('scroll', handleScroll)
+  console.log('H5滚动监听已移除')
+  // #endif
+
+  // #ifndef H5
+  uni.offPageScroll(handleScroll)
+  console.log('uni滚动监听已移除')
+  // #endif
+})
 
 </script>
 
