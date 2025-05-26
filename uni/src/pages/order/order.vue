@@ -35,7 +35,7 @@
       >
         <!-- 订单时间和状态 -->
         <view class="order-header">
-          <view class="order-time">2019-04-06 11:37</view>
+          <view class="order-time">{{ item.CreatedAt.split('T')[0] }}</view>
           <view class="order-status" :class="{'status-pending': item.status === '0', 'status-closed': item.status === '4'}">
             {{ tabColumns.find(tab=>tab.id === item.status)?.title }}
           </view>
@@ -46,7 +46,7 @@
             scroll-x
             class="goods-images-scroll"
             show-scrollbar="false"
-            v-if="item.detail && item.detail.length > 0"
+            v-if="item.detail && item.detail.length > 1"
         >
           <view class="goods-images-container">
             <image
@@ -58,6 +58,19 @@
             ></image>
           </view>
         </scroll-view>
+        <view v-if="item.detail && item.detail.length === 1">
+          <view class="goods-images-container good-only">
+            <image
+                :src="getUrl(item.detail[0].sku.picture)"
+                class="goods-thumbnail"
+                mode="aspectFill"
+            ></image>
+            <view class="good-name">
+              <span class="good-name-title"> {{ item.detail[0].sku.name }} </span>
+              <span class="good-name-desc"> {{ item.detail[0].sku.description }} </span>
+            </view>
+          </view>
+        </view>
 
         <!-- 订单商品统计信息 -->
         <view class="order-summary">
@@ -74,8 +87,7 @@
                 v-if="item.status==='4'"
                 class="action-btn delete-btn"
             >
-              <text class="btn-icon">×</text>
-              删除订单
+              已取消
             </button>
           </view>
           <view class="right-actions">
@@ -344,6 +356,23 @@ page {
   width: 140rpx;
   height: 140rpx;
   margin-right: 16rpx;
+}
+.good-only{
+  display: flex;
+  padding: 40rpx 20rpx 20rpx 20rpx;
+}
+
+.good-name{
+  display: flex;
+  flex-direction: column;
+  .good-name-title{
+    font-size: 36rpx;
+    color: #3B4144;
+  }
+  .good-name-desc{
+    padding-top: 30rpx;
+    color: #3B4144;
+  }
 }
 
 /* 订单商品统计 */
