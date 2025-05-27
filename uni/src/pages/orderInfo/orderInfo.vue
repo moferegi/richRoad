@@ -44,14 +44,7 @@
       <view class="option-item" @click="opencoupon">
         <view class="option-label red-icon">优惠券</view>
         <view class="option-value">
-          <text class="discount-text">-¥35</text>
-          <text class=""><wu-icon name="arrow-right"></wu-icon></text>
-        </view>
-      </view>
-      <view class="option-item">
-        <view class="option-label yellow-icon">商家留言</view>
-        <view class="option-value">
-          <text class="message-placeholder">请无需注明信息</text>
+          <text class="discount-text">¥35</text>
           <text class=""><wu-icon name="arrow-right"></wu-icon></text>
         </view>
       </view>

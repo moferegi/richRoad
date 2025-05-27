@@ -28,7 +28,7 @@
     <!-- 优惠券 -->
     <view class="coupon-section">
       <text class="coupon-label">优惠券</text>
- 
+
       <view class="coupon-value" @tap="opencoupon" v-if="selectedCoupon.couponNum">
         <text>{{selectedCoupon.minSpend > 0 ? '满'+selectedCoupon.minSpend/100+'减'+selectedCoupon.discount/100 : '无门槛减￥'+selectedCoupon.discount/100}}</text>
         <uni-icons color="#cccccc" size="16" type="right"></uni-icons>
@@ -110,7 +110,7 @@
     <rich-text style="width: 100%;"/>
 
     <!-- SKU选择器 (隐藏状态) -->
-    <goods-sku v-if="data.skus" ref="goodsSkuRef" :isCart="isCart" :good="data" @toOrder="toOrder" :selectedCoupon="selectedCoupon"></goods-sku>
+    <goods-sku style="z-index:999;" v-if="data.skus" ref="goodsSkuRef" :isCart="isCart" :good="data" @toOrder="toOrder" :selectedCoupon="selectedCoupon"></goods-sku>
 
     <!-- 底部固定导航栏 -->
     <view class="fixed-bottom-nav">
@@ -272,14 +272,14 @@ const addCollect = async () => {
 
 }
 
-const selectedCoupon = ref({}) 
+const selectedCoupon = ref({})
 
 const couponshow = ref(false)
 
 const opencoupon = () => {
 				couponshow.value = true
 			}
-			// 关闭优惠券弹框 
+			// 关闭优惠券弹框
     const hidecoupon = () => {
 				couponshow.value = false
 			}
@@ -290,7 +290,7 @@ const opencoupon = () => {
           title: item.couponNum == 0 ? '领取中...' : '选择中...',
           mask: true
         })
-        
+
         try {
           if (item.couponNum == 0) {
             const res = await claimCouponByUser({
@@ -591,7 +591,7 @@ page {
   display: flex;
   align-items: center;
   box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
-  z-index: 999;
+  z-index: 0;
   padding-bottom: constant(safe-area-inset-bottom);
   padding-bottom: env(safe-area-inset-bottom);
 }

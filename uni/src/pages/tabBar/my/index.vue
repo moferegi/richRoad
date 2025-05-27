@@ -21,10 +21,6 @@
       <!-- 账户信息 -->
       <view class="account-info">
         <view class="account-item">
-          <text class="account-value">128.8</text>
-          <text class="account-label">余额</text>
-        </view>
-        <view class="account-item">
           <text class="account-value">0</text>
           <text class="account-label">优惠券</text>
         </view>
@@ -82,20 +78,6 @@
           </view>
         </view>
       </scroll-view>
-    </view>
-
-    <!-- 我的钱包区域 -->
-    <view class="wallet-section">
-      <view class="section-title">
-        <view class="title-icon">
-          <image src="/static/images/wallet-icon.png" mode="aspectFit"></image>
-        </view>
-        <text>我的钱包</text>
-      </view>
-      <view class="wallet-info">
-        <text>您的会员还有3天过期</text>
-        <uni-icons color="#999999" type="forward" size="14"></uni-icons>
-      </view>
     </view>
 
     <!-- 其他功能区域 -->

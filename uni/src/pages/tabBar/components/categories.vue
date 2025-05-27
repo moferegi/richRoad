@@ -1,7 +1,7 @@
 <template>
   <view class="category-section">
     <view class="category-item" v-for="(item, index) in categoriesData" :key="index">
-      <view class="">
+      <view class="" @tap="goto(item)">
         <image class="category-icon" :src="getUrl(item.icons)" mode="aspectFill"></image>
       </view>
       <text class="category-title">{{ item.title }}</text>
@@ -53,22 +53,51 @@ const props = defineProps({
     default: () => [] // 修改为函数返回空数组
   }
 })
+
+const goto = (item) => {
+  if (item.ID) {
+    uni.navigateTo({
+      url: '/pages/tabBar/components/category-page?id=' + item.ID
+    });
+  }
+}
 </script>
 
 <style scoped lang="scss">
-// 分类导航
+/* 分类导航 - 横向滚动版本 */
 .category-section {
   display: flex;
-  justify-content: space-around;
-  padding: 36rpx;
+  padding: 36rpx 0;
   background-color: #fff;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  /* 隐藏滚动条但保持滚动功能 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+
+/* 隐藏 Webkit 内核浏览器的滚动条 */
+.category-section::-webkit-scrollbar {
+  display: none;
 }
 
 .category-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 20%;
+  flex-shrink: 0; /* 防止项目被压缩 */
+  min-width: 120rpx; /* 设置最小宽度确保内容完整显示 */
+  margin: 0 24rpx; /* 左右间距 */
+}
+
+/* 第一个和最后一个项目的特殊间距处理 */
+.category-item:first-child {
+  margin-left: 36rpx;
+}
+
+.category-item:last-child {
+  margin-right: 36rpx;
 }
 
 .category-icon {
@@ -81,6 +110,11 @@ const props = defineProps({
 .category-title {
   font-size: 24rpx;
   color: #333;
+  text-align: center;
+  white-space: nowrap; /* 防止文字换行 */
+  overflow: hidden;
+  text-overflow: ellipsis; /* 文字过长时显示省略号 */
+  max-width: 120rpx; /* 限制文字最大宽度 */
 }
 
 // 胶囊形状的促销横幅
