@@ -63,3 +63,12 @@ export const setClientUserInfo  = (data) => {
 		data,
     })
 }
+
+
+export const checkNeedPay  = (data) => {
+    return request({
+		url:'/wxpay/checkNeedPay',
+        method: 'post',
+        data:data
+    })
+}
