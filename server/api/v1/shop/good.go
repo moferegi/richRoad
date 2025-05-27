@@ -6,6 +6,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -113,11 +114,31 @@ func (goodApi *GoodApi) UpdateGood(c *gin.Context) {
 // @Router /good/findGood [get]
 func (goodApi *GoodApi) FindGood(c *gin.Context) {
 	ID := c.Query("ID")
-	if regood, err := goodService.GetGood(ID); err != nil {
+	userID := utils.GetUserID(c)
+	authorityID := utils.GetUserAuthorityId(c)
+	if regood, err := goodService.GetGood(ID, userID, authorityID); err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
 		response.FailWithMessage("查询失败", c)
 	} else {
 		response.OkWithData(gin.H{"regood": regood}, c)
+	}
+}
+
+// GetGoodHistory 查询用户的商品浏览历史
+// @Tags Good
+// @Summary 查询用户的商品浏览历史
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Success 200 {string} string "{"success":true,"data":{},"msg":"获取历史记录成功"}"
+// @Router /good/getGoodHistory [get]
+func (goodApi *GoodApi) GetGoodHistory(c *gin.Context) {
+	userID := utils.GetUserID(c)
+	if goods, err := goodService.GetGoodHistory(userID); err != nil {
+		global.GVA_LOG.Error("获取历史记录失败!", zap.Error(err))
+		response.FailWithMessage("获取历史记录失败", c)
+	} else {
+		response.OkWithData(goods, c)
 	}
 }
 

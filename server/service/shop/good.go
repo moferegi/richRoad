@@ -1,9 +1,12 @@
 package shop
 
 import (
+	"errors"
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
+	"gorm.io/gorm"
+	"strconv"
 )
 
 type GoodService struct {
@@ -39,9 +42,47 @@ func (goodService *GoodService) UpdateGood(good shop.Good) (err error) {
 
 // GetGood 根据ID获取商品记录
 // Author [piexlmax](https://github.com/piexlmax)
-func (goodService *GoodService) GetGood(ID string) (good shop.Good, err error) {
+func (goodService *GoodService) GetGood(ID string, userID uint, authority uint) (good shop.Good, err error) {
 	err = global.GVA_DB.Where("id = ?", ID).Preload("SKUS").First(&good).Error
+	if userID != 0 && authority != 888 {
+		var history shop.History
+		// 先查一下history表第一条是不是当前访问的这个 如果不是 则创建一条 并且清理掉之前的那条 一个用户最多保留30条历史记录
+		err = global.GVA_DB.Where("good_id = ? AND user_id = ?", ID, userID).First(&history).Error
+		id, _ := strconv.Atoi(ID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				history = shop.History{
+					GoodID: id,
+					UserID: userID,
+				}
+				err = global.GVA_DB.Create(&history).Error
+			} else {
+				return good, err
+			}
+		} else {
+			// 如果存在 则更新一下
+			history.GoodID = id
+			err = global.GVA_DB.Save(&history).Error
+		}
+	}
 	return
+}
+
+func (goodService *GoodService) GetGoodHistory(userID uint) (goods []shop.Good, err error) {
+	var histories []shop.History
+	err = global.GVA_DB.Where("user_id = ?", userID).Order("updated_at DESC").Limit(30).Find(&histories).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, history := range histories {
+		var good shop.Good
+		err = global.GVA_DB.Where("id = ?", history.GoodID).Preload("SKUS").First(&good).Error
+		if err != nil {
+			return nil, err
+		}
+		goods = append(goods, good)
+	}
+	return goods, nil
 }
 
 // GetGoodInfoList 分页获取商品记录
