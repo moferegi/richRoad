@@ -60,6 +60,9 @@ func (orderService *OrderService) ChangeOrderCoupon(userID uint, orderID string,
 			}
 		}
 		order.TotalPrice = order.OriginPrice - coupon.Discount
+		if order.TotalPrice < 0 {
+			order.TotalPrice = 0
+		}
 		order.CouponNum = couponNum
 		order.Discount = coupon.Discount
 		err = tx.Model(&order).
@@ -126,6 +129,9 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 				}
 			}
 			order.TotalPrice = order.OriginPrice - coupon.Discount
+			if order.TotalPrice < 0 {
+				order.TotalPrice = 0
+			}
 			order.Discount = coupon.Discount
 		}
 		order.Status = "0"
