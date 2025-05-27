@@ -75,7 +75,7 @@
               :key="index"
           >
             <view class="history-image" @tap="goto(item)">
-              <img class="history-image-img" :src="item.imageUrl?getUrl(item.imageUrl): ''" alt="">
+              <img class="history-image-img" :src="item && item.imageUrl ? getUrl(item.imageUrl) : ''" alt="">
             </view>
           </view>
         </view>
