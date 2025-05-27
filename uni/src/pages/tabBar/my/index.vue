@@ -74,7 +74,9 @@
               v-for="(item, index) in historyList"
               :key="index"
           >
-            <view class="history-image" :style="{ backgroundColor: '#f5f5f5' }"></view>
+            <view class="history-image" @tap="goto(item)">
+              <img class="history-image-img" :src="item.imageUrl?getUrl(item.imageUrl): ''" alt="">
+            </view>
           </view>
         </view>
       </scroll-view>
@@ -96,12 +98,16 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
+import {getUrl} from "@/utils/url";
 import { myRouter } from "@/utils/permission";
 import { setClientUserInfo } from "@/api/base";
 import {useUserStore} from "@/pinia/modules/user.js"
 import { onShow } from '@dcloudio/uni-app'
+import { getGoodHistory } from '@/api/order.js'
+
 const isShow = ref(false)
-import { ref } from 'vue'
+
 const columns = ref([
   {
     title: '地址管理',
@@ -139,7 +145,34 @@ onShow(() => {
   if(c){
     c.hidden = !isShow.value
   }
+  getHistory()
 })
+
+// 获取浏览历史的方法
+const getHistory = async () => {
+  const res = await getGoodHistory()
+  if (res.code === 0) {
+    historyList.value = res.data
+  } else {
+    uni.showToast({
+      title: res.msg,
+      icon: 'none'
+    })
+  }
+}
+
+// 跳转到商品详情页
+const goto = (item) => {
+  console.log(item);
+  if (!item || !item.ID) {
+    uni.showToast({
+      title: '商品信息不完整',
+      icon: 'none'
+    })
+    return
+  }
+  myRouter(`/pages/goodsDetails/goodsDetails?id=${item.ID}`, true)
+}
 
 const logins = () => {
   uni.redirectTo({
@@ -494,8 +527,13 @@ page {
 
 .history-image {
   width: 200rpx;
-  height: 200rpx;
+  height: 220rpx;
   border-radius: 12rpx;
+  .history-image-img{
+    width: 100%;
+    height: 100%;
+    border-radius: 30rpx;
+  }
 }
 .history-items {
   display: flex;

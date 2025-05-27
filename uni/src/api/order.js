@@ -159,3 +159,11 @@ export const checkRouters = (params) => {
     method: 'get',
   })
 }
+
+// 获取浏览信息
+export const getGoodHistory = (params) => {
+  return request({
+    url: '/good/getGoodHistory',
+    method: 'get',
+  })
+}
