@@ -1,6 +1,6 @@
 <template>
-  <view>
-    <view class="bgc_fff evaluate_goods_box">
+  <view class="bgc_fff">
+    <view class=" evaluate_goods_box">
       <view class="flex m_b_24">
         <image class="item_goods_img m_r_16"
                :src="getUrl(SKU.picture)"
@@ -46,7 +46,7 @@
 <!--      	></up-upload>-->
     </view>
     <view class="evaluate_form_nav_view">
-      <view v-if="!isCheck" class="evaluate_form_nav_box pos_f bgc_fff flex-aic flexr-jsc">
+      <view v-if="!isCheck" class="evaluate_form_nav_box pos_f m_b_20  flex-aic flexr-jsc">
         <button class="subBtn" @tap="submit">提交</button>
       </view>
     </view>

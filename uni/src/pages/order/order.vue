@@ -42,6 +42,7 @@
         </view>
 
         <!-- 商品图片滑动区域 -->
+<!--        多个商品合并下单-->
         <scroll-view
             scroll-x
             class="goods-images-scroll"
@@ -58,6 +59,7 @@
             ></image>
           </view>
         </scroll-view>
+<!--        单个商品-->
         <view v-if="item.detail && item.detail.length === 1">
           <view class="goods-images-container good-only">
             <image
@@ -82,15 +84,13 @@
 
         <!-- 订单操作按钮 -->
         <view class="order-actions">
-          <view class="left-actions">
+          <view class="right-actions">
             <button
                 v-if="item.status==='4'"
                 class="action-btn delete-btn"
             >
               已取消
             </button>
-          </view>
-          <view class="right-actions">
             <button
                 v-if="item.status==='0'"
                 class="action-btn cancel-btn"
@@ -106,6 +106,11 @@
                 class="action-btn track-btn"
                 @tap="trackLogistics(item)"
             >查看物流</button>
+            <view class="btn-box" v-for="(detail, detailIndex) in item.detail"
+                  :key="detailIndex">
+              <button v-if="(item.status==='3'||item.status==='7')&& !detail.isComment" class="action-btn track-btn" @tap="goComment(item, detail)">评价订单</button>
+              <button v-if="(item.status==='3'||item.status==='7')&& detail.isComment" class="action-btn track-btn" @tap="goComment(item, detail)">查看评价</button>
+            </view>
             <button
                 v-if="item.status==='2'"
                 class="action-btn confirm-btn"
@@ -398,7 +403,7 @@ page {
 /* 订单操作按钮 */
 .order-actions {
   display: flex;
-  justify-content: space-between;
+  justify-content: end;
   padding: 20rpx;
 }
 
