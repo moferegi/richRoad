@@ -7,13 +7,13 @@ import (
 
 type Order struct {
 	global.GVA_MODEL
-	CustomerID  uint // 下单用户ID
-	CommodityID uint // 商品ID用于查询商品价格
+	CustomerID uint // 下单用户ID
+	OrderID    uint `json:"orderID" form:"orderID"` // 订单ID
 	// Transaction
 	TradeState     string // 订单状态
 	TradeStateDesc string // 订单状态详情
 	TradeType      string // 订单状态类型
-	TransactionId  string // 订单ID
+	TransactionId  string // 预下单ID
 
 	// 下面为微信的附加信息
 	Mchid       string    `json:"mchid"`
@@ -23,7 +23,7 @@ type Order struct {
 	Attach      string    `json:"attach"`
 	SuccessTime time.Time `json:"success_time"`
 
-	Openid string `json:"openid"`
+	Openid string `json:"openid" form:"openid"`
 
 	Total         int    `json:"total"`
 	PayerTotal    int    `json:"payer_total"`

@@ -18,6 +18,14 @@ export const placeOrderByCart  = (data) => {
     })
 }
 
+// 改变订单购物券
+export const changeOrderCoupon  = (params) => {
+  return request({
+  url:`/order/changeOrderCoupon?orderID=${params.orderID}&couponNum=${params.couponNum}`,
+  method: 'post'
+  })
+}
+
 // @Tags Order
 // @Summary 创建订单
 // @Security ApiKeyAuth

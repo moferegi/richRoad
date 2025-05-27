@@ -28,9 +28,9 @@
       <view class="flex p_b_16" v-for="d in data.detail">
         <image class="item_goods_img m_r_16" :src="d.sku.picture" mode="cover"	></image>
         <view class="flex-fitem">
-          <view class="goods-name">{{d.sku.name}}</view>
-          <view class="goods-desc">{{d.good.description}}</view>
-          <view class="goods-attrs">{{d.sku.specs.map(i=>i.value).join(" ")}}</view>
+          <view class="goods-name">{{d?.sku?.name}}</view>
+          <view class="goods-desc">{{d?.good?.description}}</view>
+          <view class="goods-attrs">{{d?.sku?.specs?.map(i=>i.value).join(" ")}}</view>
           <view class="goods-price-row">
             <text class="goods-price">¥{{d.sku.price / 100}}</text>
             <text class="goods-count">×{{d.quantity}}</text>
@@ -44,7 +44,8 @@
       <view class="option-item" @click="opencoupon">
         <view class="option-label red-icon">优惠券</view>
         <view class="option-value">
-          <text class="discount-text">¥35</text>
+          <text class="discount-text" v-if="data.discount > 0">¥{{data.discount/100}}</text>
+          <text class="discount-text" v-else>选择优惠券</text>
           <text class=""><wu-icon name="arrow-right"></wu-icon></text>
         </view>
       </view>
@@ -54,16 +55,16 @@
     <view class="price-summary">
       <view class="price-row">
         <text>商品金额</text>
-        <text>¥179.88</text>
+        <text>¥{{ data.originPrice / 100 }}</text>
       </view>
       <view class="price-row discount">
         <text>优惠金额</text>
-        <text>-¥35</text>
+        <text>-¥{{ data.discount / 100 }}</text>
       </view>
-      <view class="price-row">
+      <!-- <view class="price-row">
         <text>运费</text>
         <text>免运费</text>
-      </view>
+      </view> -->
     </view>
 
     <!-- 底部支付栏 -->
@@ -93,8 +94,9 @@
 <script setup>
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { selfOrder } from '@/api/order.js'
-import { getPayParams, getOrderById } from '@/api/base.js'
+import { selfOrder,changeOrderCoupon } from '@/api/order.js'
+import { claimCouponByUser } from '@/api/coupon.js'
+import { getPayParams, getOrderById,checkNeedPay } from '@/api/base.js'
 import { getUrl } from "@/utils/url.js"
 
 const toAddress = () => {
@@ -102,6 +104,8 @@ const toAddress = () => {
     url: `/pages/address/address?ID=${data.value.ID}`,
   })
 }
+
+
 
 const totalPrice = ref(475)
 const hasAddress = ref(false)
@@ -145,8 +149,45 @@ const opencoupon = () => {
 				couponshow.value = false
 			}
 			//领取优惠券 立即使用事件
-			const onReceive = (item, index) => {
-				console.log(item, index)
+			//领取优惠券 立即使用事件
+			const onReceive = async (item, index) => {
+        // 添加loading遮罩防止多次点击
+        uni.showLoading({
+          title: item.couponNum == 0 ? '领取中...' : '选择中...',
+          mask: true
+        })
+
+        try {
+          if (item.couponNum == 0) {
+            const res = await claimCouponByUser({
+              couponID: item.couponID,
+            })
+            item.couponNum = res.data
+            // 领取成功提示
+            uni.showToast({
+              title: '领取成功',
+              icon: 'success',
+              duration: 1500
+            })
+          }
+          await changeOrderCoupon({
+            orderID: orderID.value,
+            couponNum: item.couponNum
+          })
+
+          // 关闭优惠券弹窗
+          setTimeout(() => {
+            initSingleOrder()
+            hidecoupon()
+          }, 500)
+        } catch (error) {
+          uni.showToast({
+            title: '操作失败，请重试',
+            icon: 'none'
+          })
+        } finally {
+          uni.hideLoading()
+        }
 			}
 
 onLoad((options) => {
@@ -205,8 +246,21 @@ const tapPay = async () => {
   // 获取参数
   const params = {
     "orderID": Number(orderID.value),
-    "openID": uni.getStorageSync('openid')
+    "openid": uni.getStorageSync('openid')
   }
+
+  const needPayRes = await checkNeedPay(params)
+  if (!needPayRes.data) {
+    uni.showToast({
+      title: '订单已支付！',
+      icon: 'none'
+    })
+    uni.navigateTo({
+        url: `/pages/order/order?orderID=${orderID.value}`,
+      })
+      return
+  }
+
   const res = await getPayParams(params)
   if (res.code === 0){
     uni.requestPayment({

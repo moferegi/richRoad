@@ -20,6 +20,66 @@ func (orderService *OrderService) CreateOrder(order *shop.Order) (err error) {
 	return err
 }
 
+func (orderService *OrderService) ChangeOrderCoupon(userID uint, orderID string, couponNum string) (err error) {
+	var order shop.Order
+	err = global.GVA_DB.Where("id = ? and user_id = ?", orderID, userID).Preload("Detail").First(&order).Error
+	if err != nil {
+		return err
+	}
+
+	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		// 把原来的券解锁
+		if order.CouponNum != "" {
+			// 解锁原来的券
+			err = tx.Model(&shop.CouponOrderUser{}).Where("coupon_num = ?", order.CouponNum).Update("order_id", nil).Error
+			if err != nil {
+				return err
+			}
+		}
+
+		var couponOrderUser shop.CouponOrderUser
+		err = tx.Where("coupon_num = ? and order_id IS NULL", couponNum).First(&couponOrderUser).Error
+		if err != nil {
+			return err
+		}
+		var coupon shop.Coupon
+		err = tx.Where("id = ?", couponOrderUser.CouponID).First(&coupon).Error
+		if err != nil {
+			return err
+		}
+		if coupon.ProductID != nil {
+			hasGoods := false
+			for _, detail := range order.Detail {
+				if int(detail.ID) == *coupon.ProductID {
+					hasGoods = true
+					break
+				}
+			}
+			if !hasGoods {
+				return errors.New("当前订单不可使用此券")
+			}
+		}
+		order.TotalPrice = order.OriginPrice - coupon.Discount
+		order.CouponNum = couponNum
+		order.Discount = coupon.Discount
+		err = tx.Model(&order).
+			Update("total_price", order.TotalPrice).
+			Update("coupon_num", couponNum).
+			Update("discount", coupon.Discount).
+			Error
+		if err != nil {
+			return err
+		}
+		// 使用新的券
+		err = tx.Model(&shop.CouponOrderUser{}).Where("coupon_num = ?", couponNum).Update("order_id", order.ID).Error
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return
+}
+
 func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, err error) {
 	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
 		order.TotalPrice = 0
@@ -41,6 +101,7 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 			order.TotalPrice += order.Detail[i].Quantity * order.Detail[i].Price
 			// 减扣库存
 		}
+		order.OriginPrice = order.TotalPrice
 		if order.CouponNum != "" {
 			var couponOrderUser shop.CouponOrderUser
 			err = tx.Where("coupon_num = ? and order_id IS NULL", order.CouponNum).First(&couponOrderUser).Error
@@ -64,7 +125,8 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 					return errors.New("当前订单不可使用此券")
 				}
 			}
-			order.TotalPrice -= coupon.Discount
+			order.TotalPrice = order.OriginPrice - coupon.Discount
+			order.Discount = coupon.Discount
 		}
 		order.Status = "0"
 
@@ -119,7 +181,7 @@ func (orderService *OrderService) PlaceOrderByCart(userID uint) (OrderID uint, e
 				Price:    carts[i].SKU.Price,
 			})
 			order.TotalPrice += carts[i].Quantity * carts[i].SKU.Price
-
+			order.OriginPrice = order.TotalPrice
 			// 扣减库存 增加销量
 			err = tx.Model(&shop.Sku{}).Where("id = ?", carts[i].SKUID).
 				Update("inventory", gorm.Expr("inventory - ?", carts[i].Quantity)).

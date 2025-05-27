@@ -33,6 +33,22 @@ func (e *WxpayService) GetPayCode(order model.Order) (err error, CodeUrl string,
 	return err, codeUrl, orderID
 }
 
+func (e *WxpayService) CheckNeedPay(order model.Order) (err error, ok bool) {
+	var shopOrder shop.Order
+	err = global.GVA_DB.First(&shopOrder, "id = ? and user_id = ?", order.OrderID, order.CustomerID).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("订单不存在"), true
+		}
+		return err, true
+	}
+	if shopOrder.TotalPrice == 0 {
+		global.GVA_DB.Model(&shopOrder).Update("status", "1")
+		return nil, false
+	}
+	return nil, true
+}
+
 func (e *WxpayService) GetPayParams(order model.Order) (err error, payParams string) {
 	err, ctx, client := utils.CreateClientAndCtx()
 	if err != nil {

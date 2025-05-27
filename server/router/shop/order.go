@@ -24,6 +24,7 @@ func (s *OrderRouter) InitOrderRouter(Router *gin.RouterGroup, PublicRouter *gin
 
 		orderRouter.POST("placeOrder", orderApi.PlaceOrder)               // 下单
 		orderRouter.POST("placeOrderByCart", orderApi.PlaceOrderByCart)   // 购物车下单
+		orderRouter.POST("changeOrderCoupon", orderApi.ChangeOrderCoupon) // 变更订单优惠券
 		orderRouter.POST("updateOrderStatus", orderApi.UpdateOrderStatus) // 更新订单状态
 		orderRouter.GET("selfOrder", orderApi.SelfOrder)                  // 获取单一订单
 		orderRouter.GET("selfOrderList", orderApi.SelfOrderList)          // 获取订单列表

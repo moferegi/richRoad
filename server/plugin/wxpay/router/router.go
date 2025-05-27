@@ -14,6 +14,8 @@ func (s *WxpayRouter) InitWxpayRouter(Router *gin.RouterGroup) {
 	{
 		plugRouter.POST("getPayCode", plugApi.GetPayCode)
 		plugRouter.POST("getPayParams", plugApi.GetPayParams)
+		plugRouter.POST("checkNeedPay", plugApi.CheckNeedPay)
+
 		plugRouter.GET("getOrderById", plugApi.GetOrderById)
 		plugRouter.POST("payAction", plugApi.PayAction)
 	}

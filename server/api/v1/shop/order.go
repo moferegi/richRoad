@@ -91,6 +91,20 @@ func (orderApi *OrderApi) PlaceOrderByCart(c *gin.Context) {
 	}
 }
 
+func (orderApi *OrderApi) ChangeOrderCoupon(c *gin.Context) {
+
+	orderID := c.Query("orderID")
+	couponNum := c.Query("couponNum")
+	userID := utils.GetUserID(c)
+
+	if err := orderService.ChangeOrderCoupon(userID, orderID, couponNum); err != nil {
+		global.GVA_LOG.Error("变更失败!", zap.Error(err))
+		response.FailWithMessage(err.Error(), c)
+	} else {
+		response.Ok(c)
+	}
+}
+
 // UpdateOrderStatus 更新订单状态
 // @Tags Order
 // @Summary 更新订单状态

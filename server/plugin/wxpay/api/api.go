@@ -36,6 +36,21 @@ func (p *WxpayApi) GetPayCode(c *gin.Context) {
 	}
 }
 
+func (p *WxpayApi) CheckNeedPay(c *gin.Context) {
+	var order model.Order
+	c.ShouldBindJSON(&order)
+	order.CustomerID = utils.GetUserID(c)
+
+	err, needPay := service.ServiceGroupApp.CheckNeedPay(order)
+
+	if err != nil {
+		global.GVA_LOG.Error("失败!", zap.Error(err))
+		response.FailWithMessage("检查订单失败:"+err.Error(), c)
+		return
+	}
+	response.OkWithData(needPay, c)
+}
+
 // @Tags Wxpay
 // @Summary 获取微信支付二维码和ID
 // @Produce  application/json
