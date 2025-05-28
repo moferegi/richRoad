@@ -15,7 +15,7 @@
        —
       <el-date-picker v-model="searchInfo.endCreatedAt" type="datetime" placeholder="结束日期" :disabled-date="time=> searchInfo.startCreatedAt ? time.getTime() < searchInfo.startCreatedAt.getTime() : false"></el-date-picker>
       </el-form-item>
-      
+
         <el-form-item label="用户名" prop="username">
          <el-input v-model="searchInfo.username" placeholder="搜索条件" />
 
@@ -44,11 +44,11 @@
         @selection-change="handleSelectionChange"
         >
         <el-table-column type="selection" width="55" />
-        
+
         <el-table-column align="left" label="日期" width="180">
             <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
-        
+
         <el-table-column align="left" label="用户名" prop="username" width="120" />
         <el-table-column align="left" label="密码" prop="password" width="120" />
         <el-table-column align="left" label="昵称" prop="nickname" width="120" />
@@ -158,7 +158,7 @@ import {
 } from '@/api/client/user'
 
 // 全量引入格式化工具 请按需保留
-import { getDictFunc, formatDate, formatBoolean, filterDict, ReturnArrImg, onDownloadFile } from '@/utils/format'
+import { getDictFunc, formatDate, filterDict } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive } from 'vue'
 
