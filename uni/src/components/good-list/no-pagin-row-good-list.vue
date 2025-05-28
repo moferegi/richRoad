@@ -1,5 +1,5 @@
 <template>
-  <view class="goods-list">
+  <view class="goods-list" ref="goodsListRef">
     <view v-for="(item, index) in props.goodsList" :key="index" class="goods-item" @tap="handleGoodsClick(item)">
       <image :src="getUrl(item.imageUrl)" class="goods-image" mode="aspectFill"></image>
       <view class="goods-info">
@@ -35,11 +35,30 @@
         </view>
       </view>
     </view>
+    
+    <!-- 滚动检测触发区域 -->
+    <view 
+      class="scroll-trigger" 
+      ref="scrollTriggerRef"
+      v-if="!isLastPage && goodsList.length > 0"
+    >
+      <!-- 这个区域用于触发滚动检测，当它进入可视区域时自动加载下一页 -->
+    </view>
+    
+    <!-- 加载状态指示器 -->
+    <view class="loading-indicator" v-if="loading && goodsList.length > 0">
+      <text>加载中...</text>
+    </view>
+    
+    <!-- 到底提示 -->
+    <view class="no-more-data" v-if="isLastPage && goodsList.length > 0">
+      <text>已经到底啦~</text>
+    </view>
   </view>
 </template>
 
 <script setup>
-import {ref} from 'vue'
+import {ref, computed, onMounted, onUnmounted, nextTick, watch} from 'vue'
 import {getUrl} from "@/utils/url.js"
 
 const goodsList = ref([
@@ -216,6 +235,27 @@ const props = defineProps({
   goodsList: {
     type: Array,
     default: () => []
+  },
+  currentPage: {
+    type: Number,
+    default: 1
+  },
+  pageSize: {
+    type: Number,
+    default: 10
+  },
+  total: {
+    type: Number,
+    default: 0
+  },
+  loading: {
+    type: Boolean,
+    default: false
+  },
+  // 距离底部多少rpx时触发加载
+  loadOffset: {
+    type: Number,
+    default: 400
   }
 })
 const getDiscountText = (discount) => {
@@ -233,6 +273,20 @@ const queryList = async (pageNo, pageSize) => {
 
 }
 
+const emit = defineEmits(['load-more'])
+// 组件引用
+const goodsListRef = ref(null)
+const scrollTriggerRef = ref(null)
+
+// 滚动检测相关
+const isLoadingMore = ref(false)
+const intersectionObserver = ref(null)
+
+// 计算是否为最后一页
+const isLastPage = computed(() => {
+  if (props.total === 0) return false
+  return props.currentPage * props.pageSize >= props.total
+})
 // 根据评分生成星星
 const getRatingStars = (rating) => {
   // 如果评分为0，返回1颗星
@@ -253,6 +307,66 @@ const handleGoodsClick = (item) => {
     url: '/pages/goodsDetails/goodsDetails?id=' + item.ID
   })
 }
+
+// 初始化滚动检测
+const initScrollDetection = () => {
+  // 使用 IntersectionObserver 检测触发区域是否进入可视区域
+  intersectionObserver.value = uni.createIntersectionObserver()
+  
+  intersectionObserver.value
+    .relativeToViewport({ bottom: props.loadOffset })
+    .observe('.scroll-trigger', (res) => {
+      if (res.intersectionRatio > 0 && !isLoadingMore.value && !props.loading && !isLastPage.value) {
+        handleAutoLoadMore()
+      }
+    })
+}
+
+// 自动加载更多
+const handleAutoLoadMore = async () => {
+  if (isLoadingMore.value || props.loading || isLastPage.value) {
+    return
+  }
+  
+  isLoadingMore.value = true
+  
+  try {
+    // 发送加载更多事件给父组件
+    emit('load-more')
+  } finally {
+    // 延迟重置状态，避免重复触发
+    setTimeout(() => {
+      isLoadingMore.value = false
+    }, 500)
+  }
+}
+
+// 监听商品列表变化，重新初始化滚动检测
+watch(() => props.goodsList.length, async (newLength, oldLength) => {
+  if (newLength > oldLength) {
+    // 新数据加载完成后，重新初始化滚动检测
+    await nextTick()
+    if (intersectionObserver.value) {
+      intersectionObserver.value.disconnect()
+      initScrollDetection()
+    }
+  }
+})
+
+// 组件挂载时初始化
+onMounted(() => {
+  nextTick(() => {
+    initScrollDetection()
+  })
+})
+
+// 组件卸载时清理
+onUnmounted(() => {
+  if (intersectionObserver.value) {
+    intersectionObserver.value.disconnect()
+  }
+})
+
 </script>
 
 <style lang="scss" scoped>
@@ -414,5 +528,25 @@ page {
     margin-right: 4rpx;
     margin-bottom: 4rpx;
   }
+}
+
+.scroll-trigger {
+  height: 1rpx;
+  width: 100%;
+  // 这个区域用于触发滚动检测，不需要可见
+}
+
+.loading-indicator {
+  padding: 30rpx;
+  text-align: center;
+  color: #666;
+  font-size: 28rpx;
+}
+
+.no-more-data {
+  padding: 30rpx;
+  text-align: center;
+  color: #999;
+  font-size: 24rpx;
 }
 </style>

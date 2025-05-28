@@ -26,7 +26,7 @@
 
       <!-- 商品1 -->
       <view class="flex p_b_16" v-for="d in data.detail">
-        <image class="item_goods_img m_r_16" :src="d.sku.picture" mode="cover"	></image>
+        <image class="item_goods_img m_r_16" :src="getUrl(d.sku.picture)" mode="cover"	></image>
         <view class="flex-fitem">
           <view class="goods-name">{{d?.sku?.name}}</view>
           <view class="goods-desc">{{d?.good?.description}}</view>

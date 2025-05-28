@@ -34,7 +34,17 @@
       <seckilling :productData="products"></seckilling>
       <!-- 商品展示区 -->
       <view class="goods-section">
-        <noPaginRowGoodList :goodsList="flowData"></noPaginRowGoodList>
+        <view class="goods-section">
+          <noPaginRowGoodList 
+            :goodsList="flowData"
+            :current-page="params.page"
+            :page-size="params.pageSize"
+            :total="totalCount"
+            :loading="isLoading"
+            :load-offset="200"
+            @load-more="handleAutoLoadMore"
+          ></noPaginRowGoodList>
+        </view>
       </view>
 
       <!-- 底部加载状态 -->
@@ -91,20 +101,25 @@ const goToSearch = () => {
   })
 }
 
-// 获取商品相关业务逻辑
+// 修改 lower 函数，确保正确处理页码
 const lower = async (isRefresh = false) => {
   if(isBottom.value && !isRefresh) {
     return
   } else {
     isLoading.value = true
     if(!isRefresh) {
-      params.value.page += 1
+      params.value.page += 1  // 这里会正确递增页码
     }
 
     try {
       const res = await getGoodList(params.value)
       if (res.code === 0 && res.data.list.length) {
-        flowData.value.push(...res.data.list)
+        if(isRefresh) {
+          flowData.value = res.data.list
+        } else {
+          flowData.value.push(...res.data.list)
+        }
+        totalCount.value = res.data.total || flowData.value.length
         isBottom.value = false
       } else {
         isBottom.value = true
@@ -116,6 +131,16 @@ const lower = async (isRefresh = false) => {
     }
   }
 }
+
+const totalCount = ref(0)
+
+// 处理自动加载更多
+const handleAutoLoadMore = () => {
+  // 直接调用现有的 lower 方法，不需要修改页码
+  // lower 方法内部会自动处理页码递增
+  lower(false)
+}
+
 
 const selectTab = ref("全部")
 
