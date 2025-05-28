@@ -59,9 +59,10 @@ func (orderService *OrderService) ChangeOrderCoupon(userID uint, orderID string,
 				return errors.New("当前订单不可使用此券")
 			}
 		}
-		order.TotalPrice = order.OriginPrice - coupon.Discount
-		if order.TotalPrice < 0 {
-			order.TotalPrice = 0
+		order.TotalPrice = 0
+
+		if order.OriginPrice > coupon.Discount {
+			order.TotalPrice = order.OriginPrice - coupon.Discount
 		}
 		order.CouponNum = couponNum
 		order.Discount = coupon.Discount
@@ -85,7 +86,7 @@ func (orderService *OrderService) ChangeOrderCoupon(userID uint, orderID string,
 
 func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, err error) {
 	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
-		order.TotalPrice = 0
+		order.OriginPrice = 0
 		for i := range order.Detail {
 			// 判断库存
 			var sku shop.Sku
@@ -101,10 +102,9 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 				return err
 			}
 			order.Detail[i].Price = sku.Price
-			order.TotalPrice += order.Detail[i].Quantity * order.Detail[i].Price
+			order.OriginPrice += order.Detail[i].Quantity * order.Detail[i].Price
 			// 减扣库存
 		}
-		order.OriginPrice = order.TotalPrice
 		if order.CouponNum != "" {
 			var couponOrderUser shop.CouponOrderUser
 			err = tx.Where("coupon_num = ? and order_id IS NULL", order.CouponNum).First(&couponOrderUser).Error
@@ -128,10 +128,11 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 					return errors.New("当前订单不可使用此券")
 				}
 			}
-			order.TotalPrice = order.OriginPrice - coupon.Discount
-			if order.TotalPrice < 0 {
-				order.TotalPrice = 0
+			order.TotalPrice = 0
+			if order.OriginPrice > coupon.Discount {
+				order.TotalPrice = order.OriginPrice - coupon.Discount
 			}
+
 			order.Discount = coupon.Discount
 		}
 		order.Status = "0"
@@ -171,7 +172,7 @@ func (orderService *OrderService) PlaceOrderByCart(userID uint) (OrderID uint, e
 			UserID: userID,
 			Status: "0",
 		}
-		order.TotalPrice = 0
+		order.OriginPrice = 0
 		// 从购物车设置订单详情
 		order.Detail = make([]shop.OrderDetail, 0)
 		for i := range carts {
@@ -186,8 +187,7 @@ func (orderService *OrderService) PlaceOrderByCart(userID uint) (OrderID uint, e
 				Quantity: carts[i].Quantity,
 				Price:    carts[i].SKU.Price,
 			})
-			order.TotalPrice += carts[i].Quantity * carts[i].SKU.Price
-			order.OriginPrice = order.TotalPrice
+			order.OriginPrice += carts[i].Quantity * carts[i].SKU.Price
 			// 扣减库存 增加销量
 			err = tx.Model(&shop.Sku{}).Where("id = ?", carts[i].SKUID).
 				Update("inventory", gorm.Expr("inventory - ?", carts[i].Quantity)).
