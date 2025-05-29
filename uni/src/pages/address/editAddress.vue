@@ -245,14 +245,15 @@
 				name: formData.value.name,
 				phone: formData.value.phone,
 				province: Number(formData.value.provinceSelect),
-				provinceStr: formData.value.province,
+				provinceStr: formData.value.provinceStr,
 				city: Number(formData.value.citySelect),
-				cityStr: formData.value.city,
+				cityStr: formData.value.cityStr,
 				area: Number(formData.value.countySelect),
+        areaStr: formData.value.county,
 				street: formData.value.street,
-				areaStr: formData.value.county,
 				active: formData.value.active,
 			}
+      console.log(formData.value);
       console.log(data);
 
       const res = await updateAddress(data)

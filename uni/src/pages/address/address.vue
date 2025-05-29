@@ -121,12 +121,13 @@ const getAddress = async (params) => {
       // 如果是滚动加载且滑到尽头
       if(res.data.list.length === 0) {
         isBottom.value = true
-        if (params.page > 1) {
-          uni.showToast({
-            title: '没有更多地址了',
-            icon: 'none'
-          })
-        }
+        addressList.value = []
+        // if (params.page > 1) {
+        //   uni.showToast({
+        //     title: '没有更多地址了',
+        //     icon: 'none'
+        //   })
+        // }
         return
       } else {
         addressList.value.push(...res.data.list)
@@ -192,7 +193,7 @@ const delAddress = (item) => {
             title: "删除成功",
             icon: "none"
           })
-          getAddress()
+          getAddress(params)
         }
       } else if (res.cancel) {
         console.log('用户点击取消');
