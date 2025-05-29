@@ -25,7 +25,21 @@
 						<text>已购</text>
 					</view>
 					<view class="text_pre_wrap m_b_24 m_t_24 color_333 font_28">{{item.content}}</view>
-					<evaluate-grid-img :imgList="item.feedbackPics&&item.feedbackPics"></evaluate-grid-img>
+          <view class="pics_grid">
+            <view
+                v-for="(pic, index) in item.pics"
+                :key="index"
+                class="pic_item"
+                @tap="previewImage(pic, index, item.pics)"
+            >
+              <image
+                  :src="getUrl(pic)"
+                  class="evaluate_pic_img"
+                  mode="aspectFill"
+                  @error="onImageError(index)"
+              />
+            </view>
+          </view>
 					<view v-if="item.shopReply !== ''" class="shop-reply m_t_24  color_999 font_24 bgc_f8f8f8 evaluate_num boxs_bb">
 						<p >商家回复：{{item.shopReply}}</p>
 					</view>
@@ -77,6 +91,35 @@
 			commentInfo.value = filteredItems;
 		}
 }
+
+  const pics = ref([])
+
+  // 新增图片预览方法
+  const previewImage = (currentPic, index, allPics) => {
+    const urls = allPics.map(pic => getUrl(pic));
+
+    uni.previewImage({
+      current: getUrl(currentPic), // 当前图片
+      urls: urls, // 所有图片
+      fail: (err) => {
+        console.error('图片预览失败:', err)
+        uni.showToast({
+          title: '图片加载失败',
+          icon: 'error'
+        })
+      }
+    })
+  }
+
+  // 图片加载错误处理
+  const onImageError = (index) => {
+    const failedPic = pics.value[index];
+    console.error(`图片加载失败:`, {
+      originalUrl: failedPic.url,
+      processedUrl: getUrl(failedPic.url),
+      index: index
+    });
+  }
 
 </script>
 
@@ -138,4 +181,25 @@
 			margin-top: 40rpx;
 		}
 
+  .pics_grid {
+    display: grid;
+    grid-template-columns: repeat(3, 100rpx); /* 改为100rpx匹配pic_item */
+    gap: 8rpx;
+    justify-content: flex-start;
+    margin-bottom: 16rpx; /* 添加底部间距 */
+  }
+
+  .pic_item {
+    width: 100rpx;
+    height: 100rpx;
+    border-radius: 8rpx;
+    overflow: hidden;
+    background-color: #f5f5f5;
+  }
+
+  .evaluate_pic_img {
+    width: 100%;
+    height: 100%;
+    border-radius: 8rpx;
+  }
 </style>
