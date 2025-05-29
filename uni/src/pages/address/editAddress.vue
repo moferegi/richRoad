@@ -245,24 +245,26 @@
 				name: formData.value.name,
 				phone: formData.value.phone,
 				province: Number(formData.value.provinceSelect),
-				provinceStr: formData.value.provinceStr,
+				provinceStr: formData.value.province,
 				city: Number(formData.value.citySelect),
-				cityStr: formData.value.cityStr,
+				cityStr: formData.value.city,
 				area: Number(formData.value.countySelect),
 				street: formData.value.street,
-				areaStr: formData.value.areaStr,
+				areaStr: formData.value.county,
 				active: formData.value.active,
 			}
-			const res = await updateAddress(data)
-			if (res.code === 0) {
-				uni.showToast({
-					icon: "none",
-					title: '编辑成功！'
-				})
-				uni.navigateTo({
+      console.log(data);
+
+      const res = await updateAddress(data)
+      if (res.code === 0) {
+        uni.showToast({
+          icon: "none",
+          title: '编辑成功！'
+        })
+        uni.navigateTo({
           url: `/pages/address/address?ID=${orderID.value}`
-				})
-			}
+        })
+      }
 		}
 
 	}

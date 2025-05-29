@@ -23,11 +23,11 @@
           <view class="address-actions" >
             <view class="action-divider"></view>
             <view class="action-buttons">
-              <view class="action-btn edit-btn" @tap="editAddress(item)">
+              <view class="action-btn edit-btn" @tap.stop="editAddress(item)">
                 <text>编辑</text>
               </view>
               <view class="action-divider-vertical"></view>
-              <view class="action-btn delete-btn" @tap="delAddress(item)">
+              <view class="action-btn delete-btn" @tap.stop="delAddress(item)">
                 <text>删除</text>
               </view>
             </view>
