@@ -32,6 +32,7 @@
           v-model="pics"
           :auto-upload="false"
           :disabled="isCheck"
+          v-if="!isCheck"
           :source-type="['album', 'camera']"
           limit="9"
           title="最多选择9张图片"
@@ -39,6 +40,26 @@
           @select="afterRead"
       >
       </uni-file-picker>
+
+      <!-- 查看评价时的图片展示 -->
+      <view v-if="isCheck && pics.length > 0" class="evaluate_pics_view">
+        <text class="color_333 font_30 m_b_16">评价图片</text>
+        <view class="pics_grid">
+          <view
+              v-for="(pic, index) in pics"
+              :key="index"
+              class="pic_item"
+              @tap="previewImage(index)"
+          >
+            <image
+                :src="getUrl(pic.url)"
+                class="evaluate_pic_img"
+                mode="aspectFill"
+                @error="onImageError(index)"
+            />
+          </view>
+        </view>
+      </view>
       <!--      <uni-file-picker
                 v-model="pics"
                 file-mediatype="image"
@@ -83,15 +104,28 @@ const rating = ref(0)
 const isCheck = ref(false)
 
 
+// 在init方法中修改图片数据处理
 const init = async () => {
   const res = await selfOrderComment(orderID.value, goodID.value, SKUID.value)
   if (res.code === 0) {
     data.value = res.data
     SKU.value = res.data.detail.sku
+
     if (res.data.comment) {
-      res.data.comment.content != "" ? isCheck.value = true : isCheck.value = false
+      // 判断是否为查看模式
+      isCheck.value = res.data.comment.content !== ""
       rating.value = res.data.comment.rating
       content.value = res.data.comment.content
+
+      // 处理评价图片数据 - 直接使用原始数据，让getUrl处理URL转换
+      if (res.data.comment.pics && Array.isArray(res.data.comment.pics) && res.data.comment.pics.length > 0) {
+        pics.value = res.data.comment.pics.map(pic => ({
+          url: typeof pic === 'string' ? pic : pic.url, // 保持原始URL，交给getUrl处理
+          isUploaded: true // 标记为已上传的图片
+        }))
+      } else {
+        pics.value = [] // 没有图片时清空数组
+      }
     }
   }
 }
@@ -229,52 +263,6 @@ const deletePic = (event) => {
   pics.value.splice(event.index, 1);
 };
 
-/*// 新增图片
-const afterRead = async (event) => {
-  console.log(event);
-
-  // 当设置 mutiple 为 true 时, file 为数组格式，否则为对象格式
-  let lists = event.tempFilePaths.map((path, index) => ({
-    tempFilePath: path, // 保存原始临时路径
-    url: path, // uni-file-picker 需要的 url 字段
-    ...event.tempFiles[index]
-  }));
-
-  console.log(lists);
-
-  let fileListLen = pics.value.length;
-  lists.map((item) => {
-    pics.value.push({
-      ...item,
-      status: 'uploading',
-      message: '上传中',
-    });
-  });
-
-  for (let i = 0; i < lists.length; i++) {
-    try {
-      const result = await uploadFilePromise(lists[i].tempFilePath);
-      // 上传成功，更新图片状态，但保留 tempFilePath
-      let item = pics.value[fileListLen];
-      pics.value.splice(fileListLen, 1, {
-        ...item,
-        status: 'success',
-        message: '',
-        url: result, // 这是上传后的网络 URL
-        uploadedUrl: result, // 明确标识上传后的 URL
-      });
-      fileListLen++;
-    } catch (error) {
-      // 上传失败，移除该图片
-      pics.value.splice(fileListLen, 1);
-      uToastRef.value.show({
-        type: 'default',
-        message: "图片上传失败",
-      });
-      console.error('图片上传失败:', error);
-    }
-  }
-};*/
 // 新增图片 - 仅做预览处理，不上传
 const afterRead = (event) => {
   console.log('选择图片:', event);
@@ -366,34 +354,31 @@ const uploadSingleImage = (tempFilePath, index) => {
   });
 };
 
+// 新增图片预览方法
+const previewImage = (index) => {
+  const urls = pics.value.map(pic => getUrl(pic.url))
+  uni.previewImage({
+    current: index,
+    urls: urls,
+    fail: (err) => {
+      console.error('图片预览失败:', err)
+      uni.showToast({
+        title: '图片加载失败',
+        icon: 'error'
+      })
+    }
+  })
+}
 
-const uploadFilePromise = (url) => {
-  return new Promise((resolve, reject) => {
-    uni.uploadFile({
-      url: baseUrl + '/fileUploadAndDownload/upload?noSave=1',
-      header: {
-        "x-token": uni.getStorageSync('x-token')
-      },
-      filePath: url,
-      name: 'file',
-      success: (res) => {
-        try {
-          const data = JSON.parse(res.data);
-          if (data.code !== 0) {
-            reject(new Error(data.msg || '上传失败'));
-            return;
-          }
-          resolve(data.data.file.url);
-        } catch (parseError) {
-          reject(new Error('响应数据解析失败'));
-        }
-      },
-      fail: (error) => {
-        reject(new Error('网络请求失败: ' + error.errMsg));
-      }
-    });
+// 图片加载错误处理
+const onImageError = (index) => {
+  const failedPic = pics.value[index];
+  console.error(`图片加载失败:`, {
+    originalUrl: failedPic.url,
+    processedUrl: getUrl(failedPic.url),
+    index: index
   });
-};
+}
 
 </script>
 
@@ -433,6 +418,31 @@ page {
   width: 100%;
   padding-bottom: constant(safe-area-inset-bottom);
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+.evaluate_pics_view {
+  margin-bottom: 24rpx;
+
+  .pics_grid {
+    display: grid;
+    grid-template-columns: repeat(3, 230rpx);
+    gap: 8rpx;
+    justify-content: flex-start;
+  }
+
+  .pic_item {
+    width: 230rpx;
+    height: 230rpx;
+    border-radius: 8rpx;
+    overflow: hidden;
+    background-color: #f5f5f5;
+  }
+
+  .evaluate_pic_img {
+    width: 100%;
+    height: 100%;
+    border-radius: 8rpx;
+  }
 }
 
 .subBtn {
