@@ -1,28 +1,38 @@
 <template>
   <view class="flash-sale">
     <view class="flash-header">
-      <text class="flash-title">限时秒杀</text>
-      <text class="flash-countdown">8点场 07:13:55</text>
-      <uni-icons type="right" size="14" color="#999"></uni-icons>
+      <text class="flash-title">近期热销</text>
     </view>
 
     <view class="product-list">
       <view class="product-item" v-for="(item, index) in productData" :key="index">
-        <view class="product-image"></view>
-        <text class="product-title">{{ item.title }}</text>
-        <text class="product-price">¥ {{ item.price }}</text>
+          <image class="product-image" :src="getUrl(item.imageUrl)" mode="aspectFill"></image>
+        <view class="desc">
+          <text class="product-title">{{ item.title }}</text>
+          <text class="product-price">¥ {{ item.price }}</text>
+        </view>
       </view>
     </view>
   </view>
 </template>
 
 <script setup>
+import {getUrl} from "@/utils/url";
+
 const props = defineProps({
   productData: {
     type: Array,
     default: () => [] // 修改为函数返回空数组
   }
 })
+
+const init = () => {
+  // 初始化逻辑，如果需要的话
+  console.log(props.productData);
+}
+setTimeout(() => {
+  init();
+}, 1000);
 </script>
 
 <style scoped lang="scss">
@@ -60,6 +70,12 @@ const props = defineProps({
   &::-webkit-scrollbar {
     display: none;
   }
+  .desc{
+    padding: 12rpx;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
 }
 
 .product-item {
@@ -74,10 +90,12 @@ const props = defineProps({
   background-color: #f5f5f5;
   border-radius: 16rpx;
   margin-bottom: 12rpx;
+  box-shadow: 0 6rpx 6rpx rgba(0, 0, 0, 0.1);
+
 }
 
 .product-title {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #333;
   white-space: nowrap;
   overflow: hidden;
@@ -86,7 +104,7 @@ const props = defineProps({
 }
 
 .product-price {
-  font-size: 28rpx;
+  font-size: 24rpx;
   color: #FF4500;
   font-weight: bold;
 }

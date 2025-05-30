@@ -35,7 +35,7 @@
       <!-- 商品展示区 -->
       <view class="goods-section">
         <view class="goods-section">
-          <noPaginRowGoodList 
+          <noPaginRowGoodList
             :goodsList="flowData"
             :current-page="params.page"
             :page-size="params.pageSize"
@@ -61,7 +61,7 @@
   </view>
 </template>
 <script setup>
-import { ref } from 'vue';
+import  { ref } from 'vue';
 import { getCategoryMobile, getGoodList } from '@/api/homePage.js'
 import { getBannerList } from '@/api/homePage.js'
 import noPaginRowGoodList from '@/components/good-list/no-pagin-row-good-list.vue'
@@ -77,12 +77,7 @@ const initBanner = async () => {
 }
 initBanner()
 
- const products = ref ([
-  { title: '巧谷2019...', price: '108.8' },
-  { title: '私寓连衣裙', price: '265' },
-  { title: '娇诗妮 ulz...', price: '422' },
-  { title: '古景妃 短...', price: '179' }
-])
+ const products = ref ([])
 // 商品相关属性
 const params = ref({
   page: 1,
@@ -121,6 +116,11 @@ const lower = async (isRefresh = false) => {
         }
         totalCount.value = res.data.total || flowData.value.length
         isBottom.value = false
+
+        // 遍历数据，拿到所有recomend字段=true的数据,把相关数据给products
+        products.value = res.data.list.filter((item, index) => {
+          return item.recommend === true
+        });
       } else {
         isBottom.value = true
       }
