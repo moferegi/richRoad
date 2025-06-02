@@ -74,7 +74,7 @@ export const updateComment = (data) => {
 // @Router /comment/findComment [get]
 export const findComment = (params) => {
   return request({
-    url: `/comment/findComment?ID=${params}`,
+    url: `/comment/findComment`,
     method: 'get',
     params
   })

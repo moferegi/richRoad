@@ -12,15 +12,23 @@ baseUrl = '/api'
 baseUrl = 'http://localhost:8888'
 // #endif
 
-export const request = ({url, data, header, method}) => {
+export const request = ({url, data, header, method, params}) => {
+    // 处理 params 参数拼接到 url
+    let finalUrl = baseUrl + url;
+    if (params && Object.keys(params).length > 0) {
+        const queryString = Object.keys(params)
+            .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+            .join('&');
+        finalUrl += (url.includes('?') ? '&' : '?') + queryString;
+    }
 
     return new Promise((resolve, reject) => {
         uni.request({
-            url: baseUrl + url, //仅为示例，并非真实接口地址。
+            url: finalUrl, // 使用拼接后的 URL
             data: data || '',
             method,
             header: {
-                'x-token': uni.getStorageSync('x-token') ,//自定义请求头信息
+                'x-token': uni.getStorageSync('x-token'), //自定义请求头信息
                 ...header
             },
             success: (res) => {

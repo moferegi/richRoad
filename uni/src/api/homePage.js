@@ -20,9 +20,9 @@ export const getCategoryMobile  = () => {
 // 获取商品推荐
 export const getGoodList = (params) => {
     return request({
-		url:`/good/getGoodList?page=${params.page}&pageSize=${params.pageSize}&categoryID=${params.categoryID || ''}`,
+		url:`/good/getGoodList`,
         method: 'get',
-
+        params
     })
 }
 

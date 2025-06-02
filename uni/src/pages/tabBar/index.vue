@@ -96,6 +96,17 @@ const goToSearch = () => {
   })
 }
 
+const getRecommend = async () =>{
+  const res = await getGoodList({
+    recommend:true
+  })
+  if (res.code === 0 && res.data.list.length) {
+    products.value = res.data.list
+  }
+}
+
+getRecommend()
+
 // 修改 lower 函数，确保正确处理页码
 const lower = async (isRefresh = false) => {
   if(isBottom.value && !isRefresh) {
@@ -116,11 +127,6 @@ const lower = async (isRefresh = false) => {
         }
         totalCount.value = res.data.total || flowData.value.length
         isBottom.value = false
-
-        // 遍历数据，拿到所有recomend字段=true的数据,把相关数据给products
-        products.value = res.data.list.filter((item, index) => {
-          return item.recommend === true
-        });
       } else {
         isBottom.value = true
       }

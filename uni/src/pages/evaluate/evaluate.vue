@@ -64,7 +64,7 @@
 	let ID = ""
 	const findFunc = async(params) => {
 		num.value = 0
-		const res = await findComment(params)
+		const res = await findComment({ID:params})
 		if (res.code === 0) {
 			commentInfo.value = res.data
 			commentInfo.value.map((i) =>{

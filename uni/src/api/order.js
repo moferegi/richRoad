@@ -125,16 +125,14 @@ export const selfOrderComment = (orderID,goodID,SKUID) => {
 export const selfOrder = (params) => {
   return request({
     url: `/order/selfOrder?ID=${params}`,
-    method: 'get',
-    params
+    method: 'get'
   })
 }
 
 export const selfOrderList = (params) => {
   return request({
     url: `/order/selfOrderList?ID=${params}`,
-    method: 'get',
-    params
+    method: 'get'
   })
 }
 

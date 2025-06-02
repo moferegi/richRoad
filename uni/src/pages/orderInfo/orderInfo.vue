@@ -261,6 +261,8 @@ const tapPay = async () => {
       return
   }
 
+  console.log(params)
+
   const res = await getPayParams(params)
   if (res.code === 0){
     uni.requestPayment({
