@@ -10,8 +10,6 @@
           <text class="price-symbol">¥</text>
           <text class="price-num">{{ data.price && data.price / 100 }}</text>
         </view>
-        <view class="original-price">¥{{ (data.price && data.price / 100 * 1.3)?.toFixed(1) }}</view>
-        <view class="discount-tag">{{ 7 }}折</view>
       </view>
       <view class="title-section">
         <text class="product-title">{{ data.title }}</text>
@@ -19,8 +17,7 @@
       </view>
       <view class="sales-info">
         <text v-if="data.saleCount && data.saleCount>0">销量: {{ data.saleCount }}</text>
-        <text class="stock-info">库存: {{ data.stock || 4690 }}</text>
-        <text class="view-count">浏览量: {{ data.viewCount || 768 }}</text>
+        <text class="stock-info">库存: {{ getTotalInventory(data.skus) }}</text>
       </view>
 
     </view>
@@ -189,7 +186,7 @@ const init = async () => {
     status.code === 0 ? collectionFlag.value = status.data : ''
   }
 
-  const res2 = await findComment(goodID.value)
+  const res2 = await findComment({ID:goodID.value})
   if (res2.code === 0 && res2.data.length) {
     commentInfo.value = res2.data[0]
     hasContent.value = true
@@ -275,6 +272,11 @@ const addCollect = async () => {
 const selectedCoupon = ref({})
 
 const couponshow = ref(false)
+
+const getTotalInventory = (skus) => {
+  if (!skus || skus.length === 0) return 0;
+  return skus.reduce((total, sku) => total + sku.inventory, 0);
+}
 
 const opencoupon = () => {
 				couponshow.value = true
@@ -751,3 +753,5 @@ page {
 	}
 
 </style>
+
+

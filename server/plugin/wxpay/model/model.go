@@ -7,8 +7,8 @@ import (
 
 type Order struct {
 	global.GVA_MODEL
-	CustomerID uint // 下单用户ID
-	OrderID    uint `json:"orderID" form:"orderID"` // 订单ID
+	CustomerID uint `json:"customerID" form:"customerID"` // 会员ID
+	OrderID    uint `json:"orderID" form:"orderID"`       // 订单ID
 	// Transaction
 	TradeState     string // 订单状态
 	TradeStateDesc string // 订单状态详情

@@ -105,6 +105,7 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 			order.OriginPrice += order.Detail[i].Quantity * order.Detail[i].Price
 			// 减扣库存
 		}
+		order.TotalPrice = order.OriginPrice
 		if order.CouponNum != "" {
 			var couponOrderUser shop.CouponOrderUser
 			err = tx.Where("coupon_num = ? and order_id IS NULL", order.CouponNum).First(&couponOrderUser).Error
@@ -132,7 +133,6 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 			if order.OriginPrice > coupon.Discount {
 				order.TotalPrice = order.OriginPrice - coupon.Discount
 			}
-
 			order.Discount = coupon.Discount
 		}
 		order.Status = "0"

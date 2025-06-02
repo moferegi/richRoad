@@ -44,6 +44,15 @@ func (goodService *GoodService) UpdateGood(good shop.Good) (err error) {
 // Author [piexlmax](https://github.com/piexlmax)
 func (goodService *GoodService) GetGood(ID string, userID uint, authority uint) (good shop.Good, err error) {
 	err = global.GVA_DB.Where("id = ?", ID).Preload("SKUS").First(&good).Error
+
+	if err != nil {
+		return good, errors.New("商品不存在")
+	}
+	// 浏览量+1
+	err = global.GVA_DB.Model(&good).Where("id = ?", ID).UpdateColumn("view_num", gorm.Expr("view_num + ?", 1)).Error
+	if err != nil {
+		return good, err
+	}
 	if userID != 0 && authority != 888 {
 		var history shop.History
 		// 先查一下history表第一条是不是当前访问的这个 如果不是 则创建一条 并且清理掉之前的那条 一个用户最多保留30条历史记录

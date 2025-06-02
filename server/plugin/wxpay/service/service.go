@@ -49,13 +49,13 @@ func (e *WxpayService) CheckNeedPay(order model.Order) (err error, ok bool) {
 	return nil, true
 }
 
-func (e *WxpayService) GetPayParams(order model.Order) (err error, payParams string) {
+func (e *WxpayService) GetPayConf(order model.Order) (err error, payConf any) {
 	err, ctx, client := utils.CreateClientAndCtx()
 	if err != nil {
 		return err, ""
 	}
-	err, payParams = payOneParams(ctx, client, order)
-	return err, payParams
+	err, payConf = GetPayConf(ctx, client, order)
+	return err, payConf
 }
 
 func payOne(ctx context.Context, client *payment.Payment, order model.Order) (err error, codeUrl string, orderID string) {
@@ -99,18 +99,18 @@ func payOne(ctx context.Context, client *payment.Payment, order model.Order) (er
 	return err, codeUrl, orderID
 }
 
-func payOneParams(ctx context.Context, client *payment.Payment, order model.Order) (err error, payParams string) {
+func GetPayConf(ctx context.Context, client *payment.Payment, order model.Order) (err error, payConf any) {
 	// 下单用户ID
 	// 下单单号（总ID 用6位（100000）开始记录）
 	// 下单产品名(Description)
 	// 下单价格(Total)分
 	// 得到prepay_id，以及调起支付所需的参数和签名
-
+	var prepayID string
 	//rs, err := client.Security.GetCertificates(ctx)
 	//fmt.Println(rs.Data)
 	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
 		var o shop.Order
-		fe := tx.First(&o, "id = ?", order.ID).Error
+		fe := tx.First(&o, "id = ?", order.OrderID).Error
 		if fe != nil {
 			return fe
 		}
@@ -138,13 +138,20 @@ func payOneParams(ctx context.Context, client *payment.Payment, order model.Orde
 		}
 
 		response, err := client.Order.JSAPITransaction(ctx, options)
-
+		if err != nil {
+			global.GVA_LOG.Error("微信支付下单失败：" + err.Error())
+			return err
+		}
+		if response.ResponseBase.Code != "" {
+			global.GVA_LOG.Error("微信支付下单失败：" + response.ResponseBase.Message)
+			return errors.New(response.ResponseBase.Message)
+		}
 		var shopOrder shop.Order
-		sfe := tx.First(&shopOrder, "id = ?", order.ID).Update("pay_order_id", payOrderID).Error
+		sfe := tx.First(&shopOrder, "id = ?", order.OrderID).Update("pay_order_id", payOrderID).Error
 		if sfe != nil {
 			return sfe
 		}
-		payParams = response.PrepayID
+		prepayID = response.PrepayID
 
 		var payOrder model.Order
 		payOrder.Appid = wx_global.GlobalConfig.AppID
@@ -158,12 +165,12 @@ func payOneParams(ctx context.Context, client *payment.Payment, order model.Orde
 		payOrder.Currency = "CNY"
 		payOrder.PayerCurrency = "CNY"
 		perr := tx.Create(&payOrder).Error
-		if perr != nil {
-			return perr
-		}
-		return err
+		return perr
 	})
-	return err, payParams
+
+	payConf, err = client.JSSDK.BridgeConfig(prepayID, false)
+
+	return err, payConf
 }
 
 // 关闭订单  用于紧急关闭订单操作 传入订单ID即可

@@ -6,6 +6,7 @@ type Wxpay struct {
 	Secret                     string `mapstructure:"secret" json:"secret" yaml:"secret"`
 	MchCertificateSerialNumber string `mapstructure:"mch-certificate-serial-number" json:"mch-certificate-serial-number" yaml:"mch-certificate-serial-number"`
 	MchAPIv3Key                string `mapstructure:"mch-api-v3-key" json:"mch-api-v3-key" yaml:"mch-api-v3-key"`
-	PemPath                    string `mapstructure:"pem-path" json:"pem-path" yaml:"pem-path"`
+	CertPath                   string `mapstructure:"cert-path" json:"cert-path" yaml:"cert-path"`
+	KeyPath                    string `mapstructure:"key-path" json:"key-path" yaml:"key-path"`
 	NotifyUrl                  string `mapstructure:"notify-url" json:"notify-url" yaml:"notify-url"`
 }

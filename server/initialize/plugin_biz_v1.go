@@ -32,7 +32,16 @@ func bizPluginV1(group ...*gin.RouterGroup) {
 		global.GVA_CONFIG.Email.Port,
 		global.GVA_CONFIG.Email.IsSSL,
 	))
-	PluginInit(public, wxpay.CreateWxpayPlug("1625910538", "wxd7d68c1e9c2c1008", "2EE50AFA04D96FEFDB41816D2F18F32D142C31E2", "9d8609c724026e2d035791b073476288", "", "./resource/wx/apiclient_cert.pem", "./resource/wx/apiclient_key.pem", "https://gin-vue-admin.com/wxpay/payAction"))
+	PluginInit(public, wxpay.CreateWxpayPlug(
+		global.GVA_CONFIG.Wxpay.MchID,
+		global.GVA_CONFIG.Wxpay.AppID,
+		global.GVA_CONFIG.Wxpay.MchCertificateSerialNumber,
+		global.GVA_CONFIG.Wxpay.MchAPIv3Key,
+		"",
+		global.GVA_CONFIG.Wxpay.CertPath,
+		global.GVA_CONFIG.Wxpay.KeyPath,
+		global.GVA_CONFIG.Wxpay.NotifyUrl,
+	))
 
 	PluginInit(public, geo.CreateGeoPlug())
 
