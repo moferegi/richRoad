@@ -18,6 +18,7 @@ type ClientUser struct {
 	Phone     string    `json:"phone" form:"phone" gorm:"column:phone;comment:手机号;"`                             //手机号
 	Email     string    `json:"email" form:"email" gorm:"column:email;comment:邮箱;"`                              //邮箱
 	OpenID    string    `json:"openID" form:"openID" gorm:"column:open_id;comment:OpenID;"`                      //OpenID
+	Point     int       `json:"point" form:"point" gorm:"column:point;comment:积分;default:0"`                     //积分
 	CreatedBy uint      `gorm:"column:created_by;comment:创建者"`
 	UpdatedBy uint      `gorm:"column:updated_by;comment:更新者"`
 	DeletedBy uint      `gorm:"column:deleted_by;comment:删除者"`

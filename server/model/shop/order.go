@@ -26,6 +26,7 @@ type Order struct {
 	Street      string        `json:"street" form:"street" gorm:"column:street;comment:收件详细地址;"`               //收件详细地址
 	CloseTime   time.Time     `json:"closeTime" form:"closeTime" gorm:"column:close_time;comment:关闭时间;"`       //关闭时间
 	Comment     *Comment      `json:"comment" gorm:"->;foreignKey:OrderID;references:ID"`
+	Pointed     bool          `json:"pointed" form:"pointed" gorm:"column:pointed;comment:是否已积分;"` //是否已积分
 }
 
 // TableName 订单 Order自定义表名 shop_order

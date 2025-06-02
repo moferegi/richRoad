@@ -6,6 +6,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	clientReq "github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -33,6 +34,7 @@ func (clientUserService *ClientUserService) CreateClientUser(clientUser *client.
 	if clientUser.Nickname == "" {
 		clientUser.Nickname = clientUser.Username
 	}
+	clientUser.UUID, _ = uuid.NewUUID()
 	clientUser.Password = utils.BcryptHash(clientUser.Password)
 	err = global.GVA_DB.Create(clientUser).Error
 	return err

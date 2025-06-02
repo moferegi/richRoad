@@ -60,7 +60,6 @@ func (orderService *OrderService) ChangeOrderCoupon(userID uint, orderID string,
 			}
 		}
 		order.TotalPrice = 0
-
 		if order.OriginPrice > coupon.Discount {
 			order.TotalPrice = order.OriginPrice - coupon.Discount
 		}
@@ -235,13 +234,19 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 		db = global.GVA_DB
 	}
 	err = db.Transaction(func(tx *gorm.DB) error {
-		err = tx.Model(&shop.Order{}).Where("id = ?", orderID).Update("status", status).Error
+		var order shop.Order
+		var user client.ClientUser
+		err = tx.First(&order, "id = ?", orderID).Update("status", status).Error
 		if err != nil {
 			return err
 		}
-		if status == "5" {
-			var order shop.Order
-			err = tx.Preload("Detail").Where("id = ?", orderID).First(&order).Error
+		err = tx.Where("id = ?", order.UserID).First(&user).Error
+		if err != nil {
+			return err
+		}
+		totalPrice := order.TotalPrice
+		if status == "5" && order.Pointed {
+			err = tx.Preload("Detail").First(&order, "id = ?", orderID).Error
 			if err != nil {
 				return err
 			}
@@ -251,7 +256,26 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 					return err
 				}
 			}
+			err = tx.Model(user).Update("point", gorm.Expr("point - ?", totalPrice)).Error
+			if err != nil {
+				return err
+			}
+			err = tx.Model(&order).Update("pointed", false).Error
+			if err != nil {
+				return err
+			}
 			return nil
+		}
+
+		if status == "1" && !order.Pointed {
+			err = tx.Model(user).Update("point", gorm.Expr("point + ?", totalPrice)).Error
+			if err != nil {
+				return err
+			}
+			err = tx.Model(&order).Update("pointed", true).Error
+			if err != nil {
+				return err
+			}
 		}
 		return err
 	})
