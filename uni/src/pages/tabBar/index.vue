@@ -31,7 +31,7 @@
       <categories :categoriesData="gridList"></categories>
 
       <!-- 限时秒杀区域 -->
-      <seckilling :productData="products"></seckilling>
+      <seckilling v-if="products.length>0" :productData="products"></seckilling>
       <!-- 商品展示区 -->
       <view class="goods-section">
         <view class="goods-section">

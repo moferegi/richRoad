@@ -1,6 +1,7 @@
 <template>
   <view class="flash-sale">
     <view class="flash-header">
+      <image class="top-sell" src="@/static/top.png" mode="aspectFill"></image>
       <text class="flash-title">近期热销</text>
     </view>
 
@@ -48,6 +49,11 @@ setTimeout(() => {
   display: flex;
   align-items: center;
   margin-bottom: 24rpx;
+  .top-sell{
+    width: 40rpx;
+    height: 40rpx;
+    margin-right: 20rpx;
+  }
 }
 
 .flash-title {
