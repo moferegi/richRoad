@@ -35,21 +35,21 @@
         </view>
       </view>
     </view>
-    
+
     <!-- 滚动检测触发区域 -->
-    <view 
-      class="scroll-trigger" 
+    <view
+      class="scroll-trigger"
       ref="scrollTriggerRef"
       v-if="!isLastPage && goodsList.length > 0"
     >
       <!-- 这个区域用于触发滚动检测，当它进入可视区域时自动加载下一页 -->
     </view>
-    
+
     <!-- 加载状态指示器 -->
     <view class="loading-indicator" v-if="loading && goodsList.length > 0">
       <text>加载中...</text>
     </view>
-    
+
     <!-- 到底提示 -->
     <view class="no-more-data" v-if="isLastPage && goodsList.length > 0">
       <text>已经到底啦~</text>
@@ -312,7 +312,7 @@ const handleGoodsClick = (item) => {
 const initScrollDetection = () => {
   // 使用 IntersectionObserver 检测触发区域是否进入可视区域
   intersectionObserver.value = uni.createIntersectionObserver()
-  
+
   intersectionObserver.value
     .relativeToViewport({ bottom: props.loadOffset })
     .observe('.scroll-trigger', (res) => {
@@ -327,9 +327,9 @@ const handleAutoLoadMore = async () => {
   if (isLoadingMore.value || props.loading || isLastPage.value) {
     return
   }
-  
+
   isLoadingMore.value = true
-  
+
   try {
     // 发送加载更多事件给父组件
     emit('load-more')
@@ -404,6 +404,7 @@ page {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  justify-content: space-around;
 
   .goods-name {
     font-size: 28rpx;
