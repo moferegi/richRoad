@@ -1,45 +1,54 @@
 <template>
   <view>
     <view class="cate-box">
-      <scroll-view scroll-y="true" class="left">
-        <view class="left-text" :class="activeindex == index ? 'active' : ''" @tap="checkitem(index, item)"
-              v-for="(item, index) in catelist" :key="index">{{ item.title }}</view>
-      </scroll-view>
-      <scroll-view scroll-y="true" class="right-box" @scrolltolower="handleScrollToLower" :lower-threshold="lowerThresholdInPx">
-        <view class="cate-title" v-if="currentCategory">
-          <view class="">{{ currentCategory.title }}</view>
+      <scroll-view class="left" scroll-y="true">
+        <view v-for="(item, index) in catelist" :key="index" :class="activeindex == index ? 'active' : ''"
+              class="left-text" @tap="checkitem(index, item)">{{ item.title }}
         </view>
-        <view class="goods-box" @tap="clickitem(item)" v-for="(item, index) in goodsList" :key="item.ID">
-          <view class="img-box">
-            <image class="goods-img" :src="getUrl(item.imageUrl)" mode="aspectFit"></image>
-          </view>
+      </scroll-view>
+      <scroll-view :lower-threshold="lowerThresholdInPx" class="right-box" scroll-y="true"
+                   @scrolltolower="handleScrollToLower">
+        <!--        <view class="cate-title" v-if="currentCategory">
+                  <view class="">GVA商城</view>
+                </view>-->
+        <view v-for="(item, index) in goodsList" :key="item.ID" class="goods-box" @tap="goto(item)">
+          <image :src="getUrl(item.imageUrl)" class="goods-img" mode="aspectFit"></image>
           <view class="goods-info">
             <view class="goods-title">{{ item.title }}</view>
             <view class="goods-desc">{{ item.description }}</view>
-            <view class="goods-tags" v-if="item.tags && item.tags.length > 0">
-              <text class="tag" v-for="tag in item.tags" :key="tag.ID" :style="{color: tag.color}">
+            <view v-if="item.tags && item.tags.length > 0" class="merchant-tags">
+              <text
+                  v-for="tag in item.tags"
+                  :key="tag.ID"
+                  :style="{
+                color: tag.color,
+                background: `${tag.color}1A`,
+                border: `1px solid ${tag.color}33`
+            }"
+                  class="merchant-tag"
+              >
                 {{ tag.name }}
               </text>
             </view>
             <view class="goods-price-cart">
-              <view class="goods-price">￥{{ item.price/10 }}</view>
-              <view class="goods-cart">
-                <uni-icons color="#fff" size="20" type="cart"></uni-icons>
+              <view class="goods-price">￥{{ item.price / 100 }}</view>
+              <view class="goods-cart" >
+                <uni-icons color="#fff" size="20" type="search"></uni-icons>
               </view>
             </view>
           </view>
         </view>
 
-        <view class="load-more" v-if="loading && goodsList.length === 0 && currentCategory">
+        <view v-if="loading && goodsList.length === 0 && currentCategory" class="load-more">
           <text class="loading-text">正在加载...</text>
         </view>
-        <view class="load-more" v-if="loading && goodsList.length > 0">
+        <view v-if="loading && goodsList.length > 0" class="load-more">
           <text class="loading-text">正在加载更多...</text>
         </view>
-        <view class="load-more" v-if="!hasMore && goodsList.length > 0">
+        <view v-if="!hasMore && goodsList.length > 0" class="load-more">
           <text class="no-more-text">没有更多数据了</text>
         </view>
-        <view class="load-more" v-if="!hasMore && goodsList.length === 0 && !loading && currentCategory">
+        <view v-if="!hasMore && goodsList.length === 0 && !loading && currentCategory" class="load-more">
           <text class="no-more-text">暂无商品数据</text>
         </view>
       </scroll-view>
@@ -48,9 +57,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { getUrl } from '@/utils/url'
-import { getCategoryMobile, getGoodList } from '@/api/homePage.js'
+import {ref, onMounted} from 'vue'
+import {getUrl} from '@/utils/url'
+import {getCategoryMobile, getGoodList} from '@/api/homePage.js'
 
 // 分类数据
 const catelist = ref([])
@@ -85,7 +94,7 @@ const getCategoryData = async () => {
       goodsList.value = [];
       hasMore.value = false;
       currentCategory.value = null;
-      uni.showToast({ title: '获取分类数据失败', icon: 'none' });
+      uni.showToast({title: '获取分类数据失败', icon: 'none'});
     }
   } catch (error) {
     console.error('获取分类数据失败:', error)
@@ -176,6 +185,11 @@ const getgoods = (item) => {
   })
 }
 
+const goto = (item) => {
+  uni.navigateTo({
+    url: '/pages/goodsDetails/goodsDetails?id=' + item.ID
+  })
+}
 // 页面加载时执行
 onMounted(() => {
   // 将 200rpx 转换为 px 值并设置
@@ -228,6 +242,40 @@ onMounted(() => {
     }
   }
 
+  .merchant-tags {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 4rpx 0;
+
+    .merchant-tag {
+      font-size: 18rpx;
+      padding: 0 6rpx;
+      border-radius: 4rpx;
+      height: 26rpx;
+      line-height: 26rpx;
+      margin-right: 4rpx;
+      margin-bottom: 4rpx;
+
+      &.self-operated {
+        color: #ff6b6b;
+        background: rgba(255, 107, 107, 0.1);
+        border: 1px solid rgba(255, 107, 107, 0.2);
+      }
+
+      &.quality-assured {
+        color: #2196f3;
+        background: rgba(33, 150, 243, 0.1);
+        border: 1px solid rgba(33, 150, 243, 0.2);
+      }
+
+      &.plus-delivery {
+        color: #4caf50;
+        background: rgba(76, 175, 80, 0.1);
+        border: 1px solid rgba(76, 175, 80, 0.2);
+      }
+    }
+  }
+
   .right-box {
     flex: 1;
     height: 100%;
@@ -241,7 +289,6 @@ onMounted(() => {
       text-align: center;
       position: sticky;
       top: 0;
-      background: #fff;
       z-index: 10;
       padding: 20rpx 15rpx 10rpx 15rpx;
       margin-bottom: 10rpx;
@@ -256,22 +303,15 @@ onMounted(() => {
 
     .goods-box {
       display: flex;
-      padding: 20rpx 15rpx;
+      padding: 40rpx 15rpx;
       align-items: center;
 
-      .img-box {
-        width: 180rpx;
-        height: 180rpx;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 20rpx;
 
-        .goods-img {
-          width: 100%;
-          height: 100%;
-          border-radius: 10rpx;
-        }
+      .goods-img {
+        width: 220rpx;
+        height: 220rpx;
+        border-radius: 8rpx;
+        margin-right: 16rpx;
       }
 
       .goods-info {
@@ -311,6 +351,7 @@ onMounted(() => {
 
         .goods-tags {
           margin-bottom: 8rpx;
+
           .tag {
             margin-right: 8rpx;
             padding: 2rpx 8rpx;
@@ -343,10 +384,12 @@ onMounted(() => {
             align-items: center;
             justify-content: center;
             border-radius: 50%;
+            margin-right: 20rpx;
           }
         }
       }
     }
+
     .load-more {
       text-align: center;
       padding: 20rpx 0;
