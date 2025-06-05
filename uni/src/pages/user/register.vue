@@ -61,6 +61,27 @@
 	}
 	//去登陆
 	const registerFunc = async () => {
+    if (!form.username) {
+      uni.showToast({
+        title: '请输入您的用户名',
+        icon: 'none'
+      });
+      return;
+    }
+    if (!form.password) {
+      uni.showToast({
+        title: '请输入您的密码',
+        icon: 'none'
+      });
+      return;
+    }
+    if (!form.rePassword) {
+      uni.showToast({
+        title: '请再次输入您的密码',
+        icon: 'none'
+      });
+      return;
+    }
 		const res = await register(form)
 		if(res.code === 0){
 			uni.showToast({
