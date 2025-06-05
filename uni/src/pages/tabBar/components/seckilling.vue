@@ -6,7 +6,7 @@
     </view>
 
     <view class="product-list">
-      <view class="product-item" v-for="(item, index) in productData" :key="index">
+      <view class="product-item" v-for="(item, index) in productData" :key="index" @click="goto(item)">
           <image class="product-image" :src="getUrl(item.imageUrl)" mode="aspectFill"></image>
         <view class="desc">
           <text class="product-title">{{ item.title }}</text>
@@ -26,7 +26,11 @@ const props = defineProps({
     default: () => [] // 修改为函数返回空数组
   }
 })
-
+const goto = (item) => {
+  uni.navigateTo({
+    url: '/pages/goodsDetails/goodsDetails?id=' + item.ID
+  })
+}
 const init = () => {
   // 初始化逻辑，如果需要的话
   console.log(props.productData);
