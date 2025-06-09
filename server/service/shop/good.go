@@ -86,10 +86,9 @@ func (goodService *GoodService) GetGoodHistory(userID uint) (goods []shop.Good, 
 	for _, history := range histories {
 		var good shop.Good
 		err = global.GVA_DB.Where("id = ?", history.GoodID).Preload("SKUS").First(&good).Error
-		if err != nil {
-			return nil, err
+		if err == nil {
+			goods = append(goods, good)
 		}
-		goods = append(goods, good)
 	}
 	return goods, nil
 }
