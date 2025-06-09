@@ -213,6 +213,8 @@ func (orderService *OrderService) PlaceOrderByCart(userID uint) (OrderID uint, e
 
 		// 3. 创建订单详情
 
+		order.TotalPrice = order.OriginPrice
+
 		err = tx.Create(&order).Error
 		if err != nil {
 			return err

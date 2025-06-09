@@ -216,8 +216,10 @@ wxpay:
     secret: ""
     mch-certificate-serial-number: ""
     mch-api-v3-key: ""
-    pem-path: ""
-    notify-url: ""
+    mch-api-v2-key: ""
+    key-path: "./resource/wx/apiclient_key.pem"
+    cert-path: "./resource/wx/apiclient_cert.pem"
+    notify-url: "https://test.gin-vue-admin.com/api/v1/wxpay/notify"
 zap:
     level: info
     prefix: '[github.com/flipped-aurora/gin-vue-admin/server]'
