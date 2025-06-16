@@ -85,37 +85,37 @@
         <!-- 订单操作按钮 -->
         <view class="order-actions">
           <view class="right-actions">
-            <button
+            <view
                 v-if="item.status==='4'"
                 class="action-btn delete-btn"
             >
               已取消
-            </button>
-            <button
+            </view>
+            <view
                 v-if="item.status==='0'"
                 class="action-btn cancel-btn"
                 @tap="cancelOrder(item)"
-            >取消订单</button>
-            <button
+            >取消订单</view>
+            <view
                 v-if="item.status==='0'"
                 class="action-btn pay-btn"
                 @tap="payOff(item.ID)"
-            >立即支付</button>
-            <button
+            >立即支付</view>
+            <view
                 v-if="item.status==='2'"
                 class="action-btn track-btn"
                 @tap="trackLogistics(item)"
-            >查看物流</button>
+            >查看物流</view>
             <view class="btn-box" v-for="(detail, detailIndex) in item.detail"
                   :key="detailIndex">
-              <button v-if="(item.status==='3'||item.status==='7')&& !detail.isComment" class="action-btn track-btn" @tap="goComment(item, detail)">评价订单</button>
-              <button v-if="(item.status==='3'||item.status==='7')&& detail.isComment" class="action-btn track-btn" @tap="goComment(item, detail)">查看评价</button>
+              <view v-if="(item.status==='3'||item.status==='7')&& !detail.isComment" class="action-btn track-btn" @tap="goComment(item, detail)">评价订单</view>
+              <view v-if="(item.status==='3'||item.status==='7')&& detail.isComment" class="action-btn track-btn" @tap="goComment(item, detail)">查看评价</view>
             </view>
-            <button
+            <view
                 v-if="item.status==='2'"
                 class="action-btn confirm-btn"
                 @tap="confirm(item)"
-            >确认收货</button>
+            >确认收货</view>
           </view>
         </view>
       </view>

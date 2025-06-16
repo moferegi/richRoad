@@ -19,42 +19,34 @@
 
         <!-- 右侧消息 -->
         <view class="message-icon">
-          <uni-icons type="chat" size="22" color="#fff"></uni-icons>
+          <button class="contact-action-button" open-type="contact" :session-from="sessionFrom">123</button>
         </view>
       </view>
     </view>
-    <scroll-view scroll-y="true" class="scroll-Y" @scrolltolower="debouncedLower" @refresherrefresh="onRefresh" >
+    <scroll-view scroll-y="true" class="scroll-Y" @scrolltolower="debouncedLower">
       <!-- 轮播图区域 -->
       <swpiers :lists="list"></swpiers>
-
       <!-- 分类导航 -->
       <categories :categoriesData="gridList"></categories>
-
       <!-- 限时秒杀区域 -->
-      <seckilling v-if="products.length>0" :productData="products"></seckilling>
+      <seckilling v-if="products.length > 0" :productData="products"></seckilling>
       <!-- 商品展示区 -->
       <view class="goods-section">
-        <view class="goods-section">
-          <noPaginRowGoodList
+        <noPaginRowGoodList
             :goodsList="flowData"
             :current-page="params.page"
             :page-size="params.pageSize"
             :total="totalCount"
-            :loading="isLoading"
-            :load-offset="200"
             @load-more="handleAutoLoadMore"
-          ></noPaginRowGoodList>
-        </view>
+        />
       </view>
-
       <!-- 底部加载状态 -->
       <view class="loading-status" v-if="flowData.length > 0">
-        <gva-divider :text="isBottom?'已经到底啦':'加载中...'"></gva-divider>
+        <gva-divider :text="isBottom ? '已经到底啦' : '加载中...'"></gva-divider>
       </view>
-
       <!-- 空状态 -->
       <view class="empty-state" v-if="flowData.length === 0 && !isLoading">
-        <uni-icons type="shop" size="60" color="#ddd"></uni-icons>
+        <uni-icons type="shop" size="60" color="#ddd" />
         <text>暂无商品</text>
       </view>
     </scroll-view>
@@ -89,6 +81,8 @@ const flowData = ref([])
 const isBottom = ref(false)
 const isLoading = ref(true)
 
+const sessionFrom = ref('');
+
 // 跳转到搜索页面
 const goToSearch = () => {
   uni.navigateTo({
@@ -108,7 +102,7 @@ const getRecommend = async () =>{
 getRecommend()
 
 // 修改 lower 函数，确保正确处理页码
-const lower = async (isRefresh = false) => {
+/*const lower = async (isRefresh = false) => {
   if(isBottom.value && !isRefresh) {
     return
   } else {
@@ -135,6 +129,35 @@ const lower = async (isRefresh = false) => {
     } finally {
       isLoading.value = false
     }
+  }
+}*/
+const lower = async (isRefresh = false) => {
+  if (isBottom.value && !isRefresh) return
+  isLoading.value = true
+  if (!isRefresh) params.value.page += 1
+
+  try {
+    const res = await getGoodList(params.value)
+    if (res.code === 0) {
+      const listData = res.data.list || []
+      // 合并或重置
+      if (isRefresh) {
+        flowData.value = listData
+      } else {
+        flowData.value.push(...listData)
+      }
+      // 更新总数
+      totalCount.value = res.data.total ?? flowData.value.length
+      // 如果返回条数小于 pageSize，说明已经是最后一页
+      isBottom.value = listData.length < params.value.pageSize
+    } else {
+      // 接口异常也视为无更多
+      isBottom.value = true
+    }
+  } catch (error) {
+    console.error('获取商品列表失败', error)
+  } finally {
+    isLoading.value = false
   }
 }
 
