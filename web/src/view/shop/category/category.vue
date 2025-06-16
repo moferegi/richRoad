@@ -137,6 +137,7 @@
               icon="edit"
               class="table-button"
               @click="openDialog(scope.row.ID)"
+              v-if="scope.row.parentId === 0"
             >添加子分类</el-button>
             <el-button
               type="primary"

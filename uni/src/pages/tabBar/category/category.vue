@@ -11,44 +11,43 @@
         <!--        <view class="cate-title" v-if="currentCategory">
                   <view class="">GVA商城</view>
                 </view>-->
-        <view v-for="(item, index) in goodsList" :key="item.ID" class="goods-box" @tap="goto(item)">
-          <image :src="getUrl(item.imageUrl)" class="goods-img" mode="aspectFit"></image>
-          <view class="goods-info">
-            <view class="goods-title">{{ item.title }}</view>
-            <view class="goods-desc">{{ item.description }}</view>
-            <view v-if="item.tags && item.tags.length > 0" class="merchant-tags">
-              <text
-                  v-for="tag in item.tags"
-                  :key="tag.ID"
-                  :style="{
-                color: tag.color,
-                background: `${tag.color}1A`,
-                border: `1px solid ${tag.color}33`
-            }"
-                  class="merchant-tag"
-              >
-                {{ tag.name }}
-              </text>
-            </view>
-            <view class="goods-price-cart">
-              <view class="goods-price">￥{{ item.price / 100 }}</view>
-              <view class="goods-cart" >
-                <uni-icons color="#fff" size="20" type="search"></uni-icons>
+        <template v-for="category in categoriesWithGoods" :key="category.ID">
+          <view v-if="category.goods && category.goods.length > 0" class="category-section">
+            <view class="category-title">{{ category.title }}</view>
+            <view v-for="item in category.goods" :key="item.ID" class="goods-box" @tap="goto(item)">
+              <image :src="getUrl(item.imageUrl)" class="goods-img" mode="aspectFit"></image>
+              <view class="goods-info">
+                <view class="goods-title">{{ item.title }}</view>
+                <view class="goods-desc">{{ item.description }}</view>
+                <view v-if="item.tags && item.tags.length > 0" class="merchant-tags">
+                  <text
+                      v-for="tag in item.tags"
+                      :key="tag.ID"
+                      :style="{
+                    color: tag.color,
+                    background: `${tag.color}1A`,
+                    border: `1px solid ${tag.color}33`
+                }"
+                      class="merchant-tag"
+                  >
+                    {{ tag.name }}
+                  </text>
+                </view>
+                <view class="goods-price-cart">
+                  <view class="goods-price">￥{{ item.price / 100 }}</view>
+                  <view class="goods-cart" >
+                    <uni-icons color="#fff" size="20" type="search"></uni-icons>
+                  </view>
+                </view>
               </view>
             </view>
           </view>
-        </view>
+        </template>
 
-        <view v-if="loading && goodsList.length === 0 && currentCategory" class="load-more">
+        <view v-if="loading && categoriesWithGoods.length === 0 && currentCategory" class="load-more">
           <text class="loading-text">正在加载...</text>
         </view>
-        <view v-if="loading && goodsList.length > 0" class="load-more">
-          <text class="loading-text">正在加载更多...</text>
-        </view>
-        <view v-if="!hasMore && goodsList.length > 0" class="load-more">
-          <text class="no-more-text">没有更多数据了</text>
-        </view>
-        <view v-if="!hasMore && goodsList.length === 0 && !loading && currentCategory" class="load-more">
+        <view v-if="categoriesWithGoods.length === 0 && !loading && currentCategory" class="load-more">
           <text class="no-more-text">暂无商品数据</text>
         </view>
       </scroll-view>
@@ -59,18 +58,15 @@
 <script setup>
 import {ref, onMounted} from 'vue'
 import {getUrl} from '@/utils/url'
-import {getCategoryMobile, getGoodList} from '@/api/homePage.js'
+import {getCategoryMobile, getChildrenCategoryAndProduct} from '@/api/homePage.js'
 
 // 分类数据
 const catelist = ref([])
 const activeindex = ref(0)
 const currentCategory = ref(null)
 
-// 商品数据
-const goodsList = ref([])
-const currentPage = ref(1)
-const pageSize = ref(10)
-const hasMore = ref(true)
+// 分类和商品数据
+const categoriesWithGoods = ref([])
 const loading = ref(false)
 
 // 新增：用于存储转换后的 lower-threshold 的 px 值
@@ -84,22 +80,19 @@ const getCategoryData = async () => {
       catelist.value = res.data
       if (catelist.value.length > 0) {
         currentCategory.value = catelist.value[0]
-        await loadInitialGoods(currentCategory.value.ID)
+        await loadCategoryData(currentCategory.value.ID)
       } else {
-        goodsList.value = [];
-        hasMore.value = false;
+        categoriesWithGoods.value = [];
         currentCategory.value = null;
       }
     } else {
-      goodsList.value = [];
-      hasMore.value = false;
+      categoriesWithGoods.value = [];
       currentCategory.value = null;
       uni.showToast({title: '获取分类数据失败', icon: 'none'});
     }
   } catch (error) {
     console.error('获取分类数据失败:', error)
-    goodsList.value = [];
-    hasMore.value = false;
+    categoriesWithGoods.value = [];
     currentCategory.value = null;
     uni.showToast({
       title: '获取分类失败',
@@ -108,47 +101,28 @@ const getCategoryData = async () => {
   }
 }
 
-// 加载初始商品数据
-const loadInitialGoods = async (categoryID) => {
-  goodsList.value = []
-  currentPage.value = 1
-  hasMore.value = true
-  await fetchMoreGoods(categoryID)
-}
-
-// 获取更多商品数据
-const fetchMoreGoods = async (categoryID) => {
-  if (loading.value || !hasMore.value) {
+// 加载分类和商品数据
+const loadCategoryData = async (parentID) => {
+  if (loading.value) {
     return
   }
   loading.value = true
   try {
     const params = {
-      page: currentPage.value,
-      pageSize: pageSize.value,
-      categoryID: categoryID
+      parentID: parentID
     }
-    const res = await getGoodList(params)
+    const res = await getChildrenCategoryAndProduct(params)
     if (res && res.code === 0 && res.data) {
-      const newItems = res.data.list || []
-      if (newItems.length > 0) {
-        goodsList.value.push(...newItems)
-        currentPage.value++
-        if (newItems.length < pageSize.value) {
-          hasMore.value = false;
-        }
-      } else {
-        hasMore.value = false
-      }
+      categoriesWithGoods.value = res.data || []
     } else {
-      hasMore.value = false
-      console.error('获取商品数据API响应异常:', res)
+      categoriesWithGoods.value = []
+      console.error('获取分类商品数据API响应异常:', res)
     }
   } catch (error) {
-    console.error('获取商品数据失败:', error)
-    hasMore.value = false
+    console.error('获取分类商品数据失败:', error)
+    categoriesWithGoods.value = []
     uni.showToast({
-      title: '获取商品列表失败',
+      title: '获取分类商品失败',
       icon: 'none'
     })
   } finally {
@@ -158,19 +132,17 @@ const fetchMoreGoods = async (categoryID) => {
 
 // 切换分类
 const checkitem = async (index, item) => {
-  if (activeindex.value === index && goodsList.value.length > 0) {
+  if (activeindex.value === index && categoriesWithGoods.value.length > 0) {
     return;
   }
   activeindex.value = index
   currentCategory.value = item
-  await loadInitialGoods(item.ID)
+  await loadCategoryData(item.ID)
 }
 
-// 滚动到底部时触发加载更多
+// 滚动到底部时触发（暂时保留，但不再需要分页加载）
 const handleScrollToLower = () => {
-  if (currentCategory.value && currentCategory.value.ID) {
-    fetchMoreGoods(currentCategory.value.ID)
-  }
+  // 新的数据结构一次性加载所有分类和商品，不需要分页
 }
 
 // 点击商品
@@ -389,6 +361,29 @@ onMounted(() => {
         }
       }
     }
+
+    .category-section {
+       .category-title {
+         font-size: 32rpx;
+         font-weight: 600;
+         color: #333;
+         margin: 20rpx 15rpx 15rpx 15rpx;
+         display: flex;
+         align-items: center;
+         justify-content: center;
+         gap: 20rpx;
+         
+         &::before,
+         &::after {
+           content: '';
+           width: 6rpx;
+           height: 24rpx;
+           background: linear-gradient(to bottom, #e11d48, #f43f5e);
+           border-radius: 3rpx;
+           flex-shrink: 0;
+         }
+       }
+     }
 
     .load-more {
       text-align: center;

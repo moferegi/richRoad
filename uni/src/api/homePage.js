@@ -9,10 +9,11 @@ export const getBannerList  = () => {
 }
 
 // 获取分类
-export const getCategoryMobile  = () => {
+export const getCategoryMobile  = (params) => {
     return request({
 		url:'/category/getCategoryMobile',
-        method: 'get'
+        method: 'get',
+        params
     })
 }
 
@@ -31,5 +32,14 @@ export const getPromotionPublic = () => {
     return request({
         url:'/promo/getPromotionPublic',
         method: 'get'
+    })
+}
+
+
+export const getChildrenCategoryAndProduct  = (params) => {
+    return request({
+		url:'/category/getChildrenCategoryAndProduct',
+        method: 'get',
+        params
     })
 }

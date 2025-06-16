@@ -8,6 +8,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"strconv"
 )
 
 type CategoryApi struct {
@@ -151,7 +152,30 @@ func (categoryApi *CategoryApi) GetCategoryList(c *gin.Context) {
 }
 
 func (categoryApi *CategoryApi) GetCategoryMobile(c *gin.Context) {
-	if data, err := categoryService.GetCategoryMobile(); err != nil {
+	var parentID int = 0
+	qid := c.Query("parentID")
+	if qid != "" {
+		if id, err := strconv.Atoi(qid); err == nil {
+			parentID = id
+		}
+	}
+	if data, err := categoryService.GetCategoryMobile(parentID); err != nil {
+		global.GVA_LOG.Error("获取失败!", zap.Error(err))
+		response.FailWithMessage("获取失败", c)
+	} else {
+		response.OkWithDetailed(data, "获取成功", c)
+	}
+}
+
+func (categoryApi *CategoryApi) GetChildrenCategoryAndProduct(c *gin.Context) {
+	var parentID int = 0
+	qid := c.Query("parentID")
+	if qid != "" {
+		if id, err := strconv.Atoi(qid); err == nil {
+			parentID = id
+		}
+	}
+	if data, err := categoryService.GetChildrenCategoryAndProduct(parentID); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
 		response.FailWithMessage("获取失败", c)
 	} else {

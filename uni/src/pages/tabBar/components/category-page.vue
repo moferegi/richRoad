@@ -30,14 +30,13 @@
 </template>
 
 <script setup>
-import {ref, nextTick} from 'vue'
+import {ref, nextTick, onMounted} from 'vue'
 import noPaginGridGoodList from '@/components/good-list/no-pagin-grid-good-list.vue'
 import { getCategoryMobile, getGoodList } from '@/api/homePage.js'
 import {onLoad} from "@dcloudio/uni-app"
 import {getUrl} from "@/utils/url"
 
 const selectedIndex = ref(0)
-const optionID = ref('')
 const currentCategoryID = ref('') // 当前选中的分类ID
 
 // 分页相关状态
@@ -48,22 +47,22 @@ const noMore = ref(false)
 
 onLoad((options) => {
   if (options.id) {
-    optionID.value = options.id
-    currentCategoryID.value = options.id
+    initCategory(options.id)
   }
 })
 
 const gridList = ref([])
 const flowData = ref([])
 
-const initCategory = async () => {
-  const res = await getCategoryMobile()
+const initCategory = async (parentID) => {
+  const res = await getCategoryMobile({parentID:parentID})
   if (res.code === 0 && res.data.length) {
     gridList.value = res.data
+    currentCategoryID.value = res.data[0].ID
   }
 
   // 匹配选中项的颜色
-  const targetIndex = gridList.value.findIndex(item => item.ID == optionID.value)
+  const targetIndex = gridList.value.findIndex(item => item.ID == currentCategoryID.value)
   if (targetIndex !== -1) {
     selectedIndex.value = targetIndex
   }
@@ -149,8 +148,6 @@ const goto = async (item, index) => {
   await loadGoodsList(item.ID, true)
 }
 
-// 初始化
-initCategory()
 </script>
 
 <style scoped lang="scss">

@@ -163,7 +163,7 @@
         >
           <template #default="scope">{{ formatBoolean(scope.row.status) }}</template>
         </el-table-column>
- 
+
         <el-table-column
           align="left"
           label="操作"
@@ -251,18 +251,15 @@
               label="商品类型:"
               prop="categoryID"
             >
-              <el-select
+              <el-tree-select
                 v-model="formData.categoryID"
+                :data="categoryList"
+                :props="{ label: 'title', value: 'ID', children: 'children', isLeaf: 'isLeaf' }"
                 placeholder="请选择商品类型"
+                check-strictly
+                :only-leaf-select="true"
                 clearable
-              >
-                <el-option
-                  v-for="item in categoryList"
-                  :key="item.ID"
-                  :label="item.title"
-                  :value="item.ID"
-                />
-              </el-select>
+              />
             </el-form-item>
           </el-col>
           <el-col :span="6">
@@ -295,7 +292,7 @@
               />
             </el-form-item>
           </el-col>
-          
+
         </el-row>
         <el-form-item
           label="商品图片URL:"
