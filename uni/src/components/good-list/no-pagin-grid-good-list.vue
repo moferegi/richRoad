@@ -171,7 +171,7 @@ onMounted(() => {
 
   // 其他平台使用uni API
   // #ifndef H5
-  uni.onPageScroll(handleScroll)
+  handleScroll()
   console.log('uni滚动监听已添加')
   // #endif
 })
