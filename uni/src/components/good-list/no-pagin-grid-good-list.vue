@@ -193,14 +193,11 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 /* 页面背景色 */
-page {
-  background: #ffffff;
-}
+
 
 /* 商品列表容器 */
 .goods-list {
   padding: 16rpx 12rpx;
-  background: #ffffff;
 
   /* 商品行布局 */
   .goods-row {

@@ -2,7 +2,7 @@
   <view class="shop-container">
     <shop-goods-list></shop-goods-list>
     <gva-divider text="猜你喜欢"></gva-divider>
-    <noPaginGridGoodList v-if="flowData" :goodsList="flowData"></noPaginGridGoodList>
+    <noPaginGridGoodList style="margin-top: 40rpx;" v-if="flowData" :goodsList="flowData"></noPaginGridGoodList>
     <view style="height: 80rpx;"></view>
   </view>
 </template>
@@ -32,23 +32,48 @@ init()
 
 <style lang="scss">
 page {
-  background-color: #F8F8F8;
+  background-color: #f7f7f7;
+  min-height: 100vh;
+}
+
+.shop-container {
+  padding: 20rpx;
+  min-height: 100vh;
 }
 
 .recommend-section {
-  margin-top: 24rpx;
-  background-color: #fff;
-  border-radius: 24rpx 24rpx 0 0;
+  margin-top: 32rpx;
+  background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+  border-radius: 32rpx 32rpx 0 0;
   overflow: hidden;
-  padding-top: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 8rpx 32rpx rgba(255, 76, 125, 0.15);
+  backdrop-filter: blur(10rpx);
+  border: 1rpx solid rgba(255, 255, 255, 0.2);
 }
 
 .section-title {
-  font-size: 32rpx;
+  font-size: 36rpx;
   color: #333;
-  font-weight: 500;
+  font-weight: 600;
   text-align: center;
-  padding: 24rpx 0;
+  padding: 32rpx 0;
   position: relative;
+  background: linear-gradient(135deg, #ff4c7d, #ff6b9d);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 16rpx;
+    transform: translateX(-50%);
+    width: 60rpx;
+    height: 4rpx;
+    background: linear-gradient(90deg, #ff4c7d, #ff6b9d);
+    border-radius: 2rpx;
+  }
 }
 </style>
