@@ -1,5 +1,6 @@
 <template>
 	<view class="login">
+  <image class="background-image" src="@/static/background.jpg" mode="aspectFill"></image>
 		<view class="login-view">
 			<view class="t-login">
 				<form class="cl">
@@ -97,8 +98,16 @@
   display: flex;
   flex-direction: column;
   height: calc(100vh - 80rpx);
-  background: url("@/static/background.jpg") no-repeat center center;
-  background-size: cover;
+  position: relative;
+}
+
+.background-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
 }
 
 .txt {
