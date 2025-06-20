@@ -87,7 +87,7 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { selfOrder } from '@/api/order.js'
+import { selfOrder, selfOrderComment } from '@/api/order.js'
 import { createComment } from '@/api/comment.js'
 import { getUrl } from '@/utils/url.js'
 
@@ -125,12 +125,20 @@ onLoad((options) => {
 const loadOrderData = async () => {
 	loading.value = true
 	try {
-		const res = await selfOrder(orderID.value)
-		if (res.code === 0 && res.data) {
-			Object.assign(orderInfo, res.data)
-			initOrderItems()
-		} else {
+		// 首先获取基本订单信息
+		const orderRes = await selfOrder(orderID.value)
+		if (orderRes.code !== 0 || !orderRes.data) {
 			throw new Error('获取订单数据失败')
+		}
+
+		Object.assign(orderInfo, orderRes.data)
+
+		// 如果是查看模式，需要为每个商品获取评价信息
+		if (viewMode.value && orderInfo.detail && orderInfo.detail.length > 0) {
+			await loadOrderItemsWithComments()
+		} else {
+			// 评价模式，直接初始化商品列表
+			initOrderItems()
 		}
 	} catch (error) {
 		console.error('加载订单数据失败:', error)
@@ -146,7 +154,77 @@ const loadOrderData = async () => {
 	}
 }
 
-// 初始化订单商品
+// 加载订单商品及其评价信息（查看模式）
+const loadOrderItemsWithComments = async () => {
+	if (!orderInfo.detail || orderInfo.detail.length === 0) {
+		uni.showToast({
+			title: '订单中没有商品',
+			icon: 'none'
+		})
+		setTimeout(() => {
+			uni.navigateBack()
+		}, 1500)
+		return
+	}
+
+	try {
+		const itemsWithComments = await Promise.all(
+			orderInfo.detail.map(async (item) => {
+				try {
+					// 为每个商品获取评价信息
+					const commentRes = await selfOrderComment(orderID.value, item.goodID, item.skuID)
+
+					if (commentRes.code === 0 && commentRes.data) {
+						const commentData = commentRes.data
+						return {
+							...item,
+							name: commentData.detail?.good?.name || item.sku?.name || item.name || '商品名称',
+							image: commentData.detail?.good?.imageUrl || item.sku?.picture || item.image,
+							spec: formatSpec(commentData.detail?.sku?.attrs || item.sku?.attrs),
+							price: (commentData.detail?.price || item.price || 0).toFixed(2),
+							rating: commentData.comment?.rating || 5,
+							comment: commentData.comment?.content || '',
+							images: commentData.comment?.pics || []
+						}
+					} else {
+						// 如果获取评价失败，使用默认数据
+						return {
+							...item,
+							name: item.sku?.name || item.name || '商品名称',
+							image: item.sku?.picture || item.image,
+							spec: formatSpec(item.sku?.attrs),
+							price: (item.price || 0).toFixed(2),
+							rating: 5,
+							comment: '',
+							images: []
+						}
+					}
+				} catch (error) {
+					console.error(`获取商品 ${item.goodID}-${item.skuID} 评价失败:`, error)
+					// 出错时返回默认数据
+					return {
+						...item,
+						name: item.sku?.name || item.name || '商品名称',
+						image: item.sku?.picture || item.image,
+						spec: formatSpec(item.sku?.attrs),
+						price: (item.price || 0).toFixed(2),
+						rating: 5,
+						comment: '',
+						images: []
+					}
+				}
+			})
+		)
+
+		orderItems.value = itemsWithComments
+	} catch (error) {
+		console.error('加载商品评价信息失败:', error)
+		// 如果批量加载失败，回退到基本初始化
+		initOrderItems()
+	}
+}
+
+// 初始化订单商品（评价模式）
 const initOrderItems = () => {
 	if (orderInfo.detail && orderInfo.detail.length > 0) {
 		orderItems.value = orderInfo.detail.map(item => ({
@@ -205,6 +283,22 @@ const chooseImage = (itemIndex) => {
 // 删除图片
 const deleteImage = (itemIndex, imageIndex) => {
 	orderItems.value[itemIndex].images.splice(imageIndex, 1)
+}
+
+// 新增图片预览方法
+const previewImage = (index) => {
+  const urls = pics.value.map(pic => getUrl(pic.url))
+  uni.previewImage({
+    current: index,
+    urls: urls,
+    fail: (err) => {
+      console.error('图片预览失败:', err)
+      uni.showToast({
+        title: '图片加载失败',
+        icon: 'error'
+      })
+    }
+  })
 }
 
 // 表单验证
