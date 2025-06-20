@@ -1,8 +1,8 @@
 <template>
   <view class="evaluate-container">
-    <view class="header">
+<!--    <view class="header">
       <text class="title">{{ isCheck ? '查看评价' : '商品评价' }}</text>
-    </view>
+    </view>-->
 
     <view class="item-card">
       <view class="item-header">
@@ -165,7 +165,7 @@ const chooseImage = () => {
     })
     return
   }
-  
+
   uni.chooseImage({
     count: 9 - pics.value.length,
     sizeType: ['compressed'],
@@ -428,7 +428,7 @@ page {
 
 .evaluate-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: #f7f7f7;
   padding-bottom: 120rpx;
 }
 

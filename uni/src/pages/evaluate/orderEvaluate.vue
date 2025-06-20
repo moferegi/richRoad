@@ -1,11 +1,7 @@
 <template>
 	<view class="order-evaluate-container">
-		<view class="header">
+<!--		<view class="header">
 			<text class="title">{{ viewMode ? '查看评价' : '订单评价' }}</text>
-		</view>
-
-<!--		<view class="order-info" v-if="orderInfo">
-			<text class="order-number">订单号：{{ orderInfo.orderNumber }}</text>
 		</view>-->
 
 		<view class="items-container">
@@ -280,12 +276,12 @@ const submitEvaluations = async () => {
 <style lang="scss" scoped>
 .order-evaluate-container {
 	min-height: 100vh;
-	background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+	background: #f7f7f7;
 	padding-bottom: 120rpx;
 }
 
 .header {
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	background: linear-gradient(135deg, #667eea 0%, #ff4c7d 100%);
 	padding: 40rpx 30rpx 30rpx;
 	color: white;
 	box-shadow: 0 4rpx 20rpx rgba(102, 126, 234, 0.3);
@@ -542,7 +538,7 @@ const submitEvaluations = async () => {
 	.submit-btn {
 		width: 100%;
 		height: 80rpx;
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+		background: linear-gradient(135deg, #667eea 0%, #ff4c7d 100%);
 		color: white;
 		border: none;
 		border-radius: 40rpx;
