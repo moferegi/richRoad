@@ -53,8 +53,9 @@
 								v-for="(img, imgIndex) in item.images"
 								:key="imgIndex"
 								class="image-item"
+                @tap="previewImage(index, imgIndex)"
 							>
-								<image :src="img" mode="aspectFill" class="uploaded-image"></image>
+								<image :src="getUrl(img)" mode="aspectFill" class="uploaded-image"></image>
 								<text v-if="!viewMode" class="delete-btn" @click="deleteImage(index, imgIndex)">×</text>
 							</view>
 							<view
@@ -90,6 +91,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { selfOrder, selfOrderComment } from '@/api/order.js'
 import { createComment } from '@/api/comment.js'
 import { getUrl } from '@/utils/url.js'
+import { baseUrl } from '@/utils/request.js'
 
 // 响应式数据
 const orderID = ref('')
@@ -268,7 +270,7 @@ const getRatingText = (rating) => {
 // 选择图片
 const chooseImage = (itemIndex) => {
 	uni.chooseImage({
-		count: 5 - orderItems.value[itemIndex].images.length,
+		count: 9 - orderItems.value[itemIndex].images.length,
 		sizeType: ['compressed'],
 		sourceType: ['album', 'camera'],
 		success: (res) => {
@@ -285,16 +287,57 @@ const deleteImage = (itemIndex, imageIndex) => {
 	orderItems.value[itemIndex].images.splice(imageIndex, 1)
 }
 
-// 新增图片预览方法
-const previewImage = (index) => {
-  const urls = pics.value.map(pic => getUrl(pic.url))
+// 图片预览方法
+const previewImage = (itemIndex, imageIndex = 0) => {
+  const currentItem = orderItems.value[itemIndex]
+  if (!currentItem || !currentItem.images || currentItem.images.length === 0) {
+    uni.showToast({
+      title: '暂无图片可预览',
+      icon: 'none'
+    })
+    return
+  }
+
+  // 获取当前商品的所有图片URL
+  const urls = currentItem.images.map(img => {
+    // 如果是本地临时文件路径，直接使用
+    if (img.startsWith('blob:') || img.startsWith('file://') || img.startsWith('/')) {
+      return img
+    }
+    // 如果是网络图片，使用getUrl处理
+    return getUrl(img)
+  })
+
   uni.previewImage({
-    current: index,
-    urls: urls,
+    current: imageIndex, // 当前预览的图片索引
+    urls: urls, // 图片URL数组
+    longPressActions: {
+      itemList: ['保存图片'],
+      success: function (res) {
+        if (res.tapIndex === 0) {
+          // 保存图片到相册
+          uni.saveImageToPhotosAlbum({
+            filePath: urls[res.index],
+            success: () => {
+              uni.showToast({
+                title: '保存成功',
+                icon: 'success'
+              })
+            },
+            fail: () => {
+              uni.showToast({
+                title: '保存失败',
+                icon: 'error'
+              })
+            }
+          })
+        }
+      }
+    },
     fail: (err) => {
       console.error('图片预览失败:', err)
       uni.showToast({
-        title: '图片加载失败',
+        title: '图片预览失败',
         icon: 'error'
       })
     }
@@ -323,6 +366,81 @@ const validateForm = () => {
 	return true
 }
 
+// 单个图片上传
+const uploadSingleImage = (tempFilePath, index, itemIndex) => {
+	return new Promise((resolve, reject) => {
+		uni.uploadFile({
+			url: baseUrl + '/fileUploadAndDownload/upload?noSave=1',
+			header: {
+				"x-token": uni.getStorageSync('x-token')
+			},
+			filePath: tempFilePath,
+			name: 'file',
+			success: (res) => {
+				try {
+					const data = JSON.parse(res.data)
+					if (data.code !== 0) {
+						reject(new Error(data.msg || `商品${itemIndex + 1}的图片${index + 1}上传失败`))
+						return
+					}
+					resolve(data.data.file.url)
+				} catch (parseError) {
+					reject(new Error(`商品${itemIndex + 1}的图片${index + 1}响应数据解析失败`))
+				}
+			},
+			fail: (error) => {
+				reject(new Error(`商品${itemIndex + 1}的图片${index + 1}网络请求失败: ${error.errMsg}`))
+			}
+		})
+	})
+}
+
+// 批量上传单个商品的图片
+const uploadItemImages = async (item, itemIndex) => {
+	if (!item.images || item.images.length === 0) return []
+
+	const uploadPromises = item.images.map((imagePath, index) =>
+		uploadSingleImage(imagePath, index, itemIndex)
+	)
+
+	try {
+		const results = await Promise.allSettled(uploadPromises)
+		const successUrls = []
+		const failedIndexes = []
+
+		results.forEach((result, index) => {
+			if (result.status === 'fulfilled') {
+				successUrls.push(result.value)
+			} else {
+				failedIndexes.push(index)
+				console.error(`商品${itemIndex + 1}的图片${index + 1}上传失败:`, result.reason)
+			}
+		})
+
+		// 如果有失败的图片，给用户提示
+		if (failedIndexes.length > 0) {
+			const failedCount = failedIndexes.length
+			const successCount = successUrls.length
+
+			if (successCount === 0) {
+				throw new Error(`商品${itemIndex + 1}的所有图片上传失败，请检查网络后重试`)
+			} else {
+				uni.showToast({
+					title: `商品${itemIndex + 1}有${failedCount}张图片上传失败`,
+					icon: 'none',
+					duration: 2000
+				})
+			}
+		}
+
+		return successUrls
+
+	} catch (error) {
+		console.error(`商品${itemIndex + 1}图片批量上传失败:`, error)
+		throw error
+	}
+}
+
 // 提交评价
 const submitEvaluations = async () => {
 	if (!validateForm()) {
@@ -332,20 +450,62 @@ const submitEvaluations = async () => {
 	submitting.value = true
 
 	try {
-		// 批量提交评价
-		for (const item of orderItems.value) {
+		// 1. 先批量上传所有商品的图片
+		const itemsWithUploadedImages = []
+
+		for (let i = 0; i < orderItems.value.length; i++) {
+			const item = orderItems.value[i]
+
+			// 如果有图片需要上传
+			let uploadedPics = []
+			if (item.images && item.images.length > 0) {
+				uni.showLoading({
+					title: `上传商品${i + 1}的图片...`,
+					mask: true
+				})
+
+				try {
+					uploadedPics = await uploadItemImages(item, i)
+					console.log(`商品${i + 1}图片上传成功:`, uploadedPics)
+				} catch (error) {
+					uni.hideLoading()
+					uni.showToast({
+						title: error.message || `商品${i + 1}图片上传失败`,
+						icon: 'none',
+						duration: 2000
+					})
+					return
+				}
+
+				uni.hideLoading()
+			}
+
+			itemsWithUploadedImages.push({
+				...item,
+				uploadedPics
+			})
+		}
+
+		// 2. 提交所有评价数据
+		uni.showLoading({
+			title: '提交评价中...',
+			mask: true
+		})
+
+		for (const item of itemsWithUploadedImages) {
 			const commentData = {
 				orderID: parseInt(orderID.value),
 				goodID: item.goodID,
 				SKUID: item.skuID,
 				rating: item.rating,
 				content: item.comment.trim(),
-				pics: item.images
+				pics: item.uploadedPics
 			}
 
 			await createComment(commentData)
 		}
 
+		uni.hideLoading()
 		uni.showToast({
 			title: '评价提交成功',
 			icon: 'success'
@@ -357,6 +517,7 @@ const submitEvaluations = async () => {
 
 	} catch (error) {
 		console.error('提交评价失败:', error)
+		uni.hideLoading()
 		uni.showToast({
 			title: '提交失败，请重试',
 			icon: 'none'
@@ -553,7 +714,7 @@ const submitEvaluations = async () => {
 			display: flex;
 			flex-wrap: wrap;
 			gap: 15rpx;
-
+      margin-top: 30rpx;
 			.image-item {
 				position: relative;
 				width: 120rpx;

@@ -585,7 +585,7 @@ page {
       display: flex;
       flex-wrap: wrap;
       gap: 15rpx;
-
+      margin-top: 30rpx;
       .image-item {
         position: relative;
         width: 120rpx;
