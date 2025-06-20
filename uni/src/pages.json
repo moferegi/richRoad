@@ -1,5 +1,5 @@
 {
-	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+	"pages": [
 		{
 			"path": "pages/tabBar/index",
 			"style": {
@@ -75,6 +75,14 @@
 			"path": "pages/evaluate/addEvaluate",
 			"style": {
 				"navigationBarTitleText": "评价",
+				"enablePullDownRefresh": false
+			}
+
+		},
+		{
+			"path": "pages/evaluate/orderEvaluate",
+			"style": {
+				"navigationBarTitleText": "订单评价",
 				"enablePullDownRefresh": false
 			}
 

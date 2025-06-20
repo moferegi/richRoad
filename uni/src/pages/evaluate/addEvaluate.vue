@@ -1,86 +1,85 @@
 <template>
-  <view class="bgc_fff">
-    <view class=" evaluate_goods_box">
-      <view class="flex m_b_24">
-        <image :src="getUrl(SKU.picture)"
-               class="item_goods_img m_r_16"
-               mode=""></image>
-        <view class="flex-fitem">
-          <view class="m_b_8 flex-aic flexr-jsb">
-            <text class="color_333 font_24 text_nowrap"
-                  style="max-width: 480rpx;">{{ SKU.name }}
-            </text>
+  <view class="evaluate-container">
+    <view class="header">
+      <text class="title">{{ isCheck ? '查看评价' : '商品评价' }}</text>
+    </view>
+
+    <view class="item-card">
+      <view class="item-header">
+        <image
+            :src="getUrl(SKU.picture)"
+            class="evaluate_pic_img"
+            mode="aspectFill"
+        />
+        <view class="item-info">
+          <text class="item-name">{{ SKU.name }}</text>
+          <view v-for="(sku, index) in SKU.attrs" :key="index" class="item-spec">
+            {{ sku.label }}:{{ sku.value }}
           </view>
-          <view class="color_999 font_24 m_b_4 text_nowrap" style="max-width: 560rpx;">
-            <view v-for="(sku, index) in SKU.attrs" :key="index">
-              <view class="color_333 m_b_16">
-                {{ sku.label }}:{{ sku.value }}
-              </view>
+        </view>
+      </view>
+
+      <view class="rating-section">
+        <text class="section-title">商品评分</text>
+        <view class="stars">
+          <text
+              v-for="star in 5"
+              :key="star"
+              :class="['star', { active: star <= rating }]"
+              @click="!isCheck && setRating(star)"
+          >★</text>
+        </view>
+        <text class="rating-text">{{ getRatingText(rating) }}</text>
+      </view>
+
+      <view class="comment-section">
+        <text class="section-title">评价内容</text>
+        <textarea
+            v-model="content"
+            class="comment-input"
+            :placeholder="isCheck ? '' : '请输入您对该商品的评价…'"
+            maxlength="200"
+            show-confirm-bar="false"
+            :disabled="isCheck"
+        ></textarea>
+        <text class="char-count" v-if="!isCheck">{{ content.length }}/200</text>
+      </view>
+
+      <view class="image-section">
+        <text class="section-title">{{ isCheck ? '评价图片' : '上传图片（最多9张）' }}</text>
+        <view class="image-upload">
+          <view class="uploaded-images">
+            <view
+                v-for="(pic, index) in pics"
+                :key="index"
+                class="image-item"
+                @tap="previewImage(index)"
+            >
+              <image
+                  :src="getUrl(pic.url || pic.tempFilePath)"
+                  mode="aspectFill"
+                  class="uploaded-image"
+                  @error="onImageError(index)"
+              />
+              <text v-if="!isCheck" class="delete-btn" @click.stop="deletePic(index)">×</text>
+            </view>
+            <view
+                v-if="!isCheck && pics.length < 9"
+                class="add-image-btn"
+                @click="chooseImage"
+            >
+              <text class="add-icon">+</text>
+              <text class="add-text">添加图片</text>
             </view>
           </view>
-
         </view>
       </view>
-      <view class="flex flex-aic m_b_24">
-        <text class="color_333 font_30 m_r_16">商品评分</text>
-        <uni-rate :disabled="isCheck" :value="rating" active-color="#fe5572" disabled-color="#fe5572" size="22"
-                  @change="onChange"/>
-      </view>
-      <textarea v-model="content" :disabled="isCheck" :maxlength="200"
-                adjust-position class="bgc_f9f9f9 evaluate_textarea_box boxs_bb m_b_24" placeholder="请输入您对该商品的评价…"></textarea>
-      <uni-file-picker
-          v-model="pics"
-          :auto-upload="false"
-          :disabled="isCheck"
-          v-if="!isCheck"
-          :source-type="['album', 'camera']"
-          limit="9"
-          title="最多选择9张图片"
-          @delete="deletePic"
-          @select="afterRead"
-      >
-      </uni-file-picker>
-
-      <!-- 查看评价时的图片展示 -->
-      <view v-if="isCheck && pics.length > 0" class="evaluate_pics_view">
-        <text class="color_333 font_30 m_b_16">评价图片</text>
-        <view class="pics_grid">
-          <view
-              v-for="(pic, index) in pics"
-              :key="index"
-              class="pic_item"
-              @tap="previewImage(index)"
-          >
-            <image
-                :src="getUrl(pic.url)"
-                class="evaluate_pic_img"
-                mode="aspectFill"
-                @error="onImageError(index)"
-            />
-          </view>
-        </view>
-      </view>
-      <!--      <uni-file-picker
-                v-model="pics"
-                file-mediatype="image"
-                mode="grid"
-                file-extname="png,jpg"
-                :limit="1"
-                @success="success"
-                @fail="fail"
-                @select="select"
-            />-->
     </view>
-    <view class="evaluate_form_nav_view">
-      <view v-if="!isCheck" class="evaluate_form_nav_box pos_f m_b_20  flex-aic flexr-jsc">
-        <button
-            :disabled="isSubmitting"
-            class="subBtn"
-            @tap="submit"
-        >
-          {{ isSubmitting ? '提交中...' : '提交' }}
-        </button>
-      </view>
+
+    <view class="submit-section" v-if="!isCheck">
+      <button class="submit-btn" @click="submit" :disabled="isSubmitting">
+        {{ isSubmitting ? '提交中...' : '提交评价' }}
+      </button>
     </view>
   </view>
 </template>
@@ -142,6 +141,46 @@ onLoad(async (options) => {
 
 const onChange = (e) => {
   rating.value = e.value
+}
+
+// 设置评分
+const setRating = (star) => {
+  if (!isCheck.value) {
+    rating.value = star
+  }
+}
+
+// 获取评分文本
+const getRatingText = (rating) => {
+  const texts = ['', '很差', '一般', '满意', '很好', '非常好']
+  return texts[rating] || ''
+}
+
+// 选择图片
+const chooseImage = () => {
+  if (pics.value.length >= 9) {
+    uni.showToast({
+      title: '最多只能上传9张图片',
+      icon: 'none'
+    })
+    return
+  }
+  
+  uni.chooseImage({
+    count: 9 - pics.value.length,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: (res) => {
+      const newPics = res.tempFilePaths.map(path => ({
+        url: path,
+        tempFilePath: path
+      }))
+      pics.value.push(...newPics)
+    },
+    fail: (err) => {
+      console.error('选择图片失败:', err)
+    }
+  })
 }
 
 // 修改提交方法
@@ -387,69 +426,279 @@ page {
   background-color: #f8f8f8;
 }
 
-.item_goods_img {
-  width: 108rpx;
-  height: 108rpx;
-  border-radius: 2rpx;
+.evaluate-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding-bottom: 120rpx;
+}
+
+.header {
+  background: white;
+  padding: 30rpx;
+  text-align: center;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+
+  .title {
+    font-size: 36rpx;
+    font-weight: 600;
+    color: #333;
+  }
+}
+
+.item-card {
+  background: white;
+  margin: 20rpx;
+  border-radius: 20rpx;
   overflow: hidden;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.1);
+  animation: fadeIn 0.3s ease-out;
 }
 
-.evaluate_goods_box {
-  padding: 24rpx 24rpx 30rpx;
+.item-header {
+  display: flex;
+  padding: 30rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+
+  .evaluate_pic_img {
+    width: 120rpx;
+    height: 120rpx;
+    border-radius: 12rpx;
+    margin-right: 20rpx;
+    border: 1rpx solid #e0e0e0;
+  }
+
+  .item-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    .item-name {
+      font-size: 30rpx;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 10rpx;
+      line-height: 1.4;
+    }
+
+    .item-spec {
+      font-size: 24rpx;
+      color: #666;
+      margin-bottom: 5rpx;
+    }
+  }
 }
 
-.evaluate_textarea_box {
-  width: 100%;
-  padding: 12rpx;
+.rating-section {
+  padding: 30rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+
+  .section-title {
+    font-size: 28rpx;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 15rpx;
+  }
+
+  .stars {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10rpx;
+
+    .star {
+      font-size: 40rpx;
+      color: #ddd;
+      margin-right: 8rpx;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &.active {
+        color: #ffd700;
+      }
+
+      &:hover {
+        transform: scale(1.1);
+      }
+    }
+  }
+
+  .rating-text {
+    font-size: 24rpx;
+    color: #666;
+    font-style: italic;
+  }
 }
 
-.evaluate_form_nav_view {
-  height: 100rpx;
-  width: 100%;
-  padding-bottom: constant(safe-area-inset-bottom);
-  padding-bottom: env(safe-area-inset-bottom);
+.comment-section {
+  padding: 30rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+
+  .section-title {
+    font-size: 28rpx;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 15rpx;
+  }
+
+  .comment-input {
+    width: 100%;
+    min-height: 120rpx;
+    padding: 20rpx;
+    border: 1rpx solid #e0e0e0;
+    border-radius: 12rpx;
+    font-size: 28rpx;
+    line-height: 1.5;
+    background-color: #fafafa;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease;
+
+    &:focus {
+      border-color: #667eea;
+      background-color: white;
+    }
+  }
+
+  .char-count {
+    display: block;
+    text-align: right;
+    font-size: 24rpx;
+    color: #999;
+    margin-top: 10rpx;
+  }
 }
 
-.evaluate_form_nav_box {
+.image-section {
+  padding: 30rpx;
+
+  .section-title {
+    font-size: 28rpx;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 15rpx;
+  }
+
+  .image-upload {
+    .uploaded-images {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15rpx;
+
+      .image-item {
+        position: relative;
+        width: 120rpx;
+        height: 120rpx;
+        border-radius: 12rpx;
+        overflow: hidden;
+        border: 1rpx solid #e0e0e0;
+
+        .uploaded-image {
+          width: 100%;
+          height: 100%;
+        }
+
+        .delete-btn {
+          position: absolute;
+          top: -5rpx;
+          right: -5rpx;
+          width: 30rpx;
+          height: 30rpx;
+          background: #ff4757;
+          color: white;
+          border-radius: 50%;
+          font-size: 20rpx;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+          cursor: pointer;
+          box-shadow: 0 2rpx 8rpx rgba(255, 71, 87, 0.3);
+        }
+      }
+
+      .add-image-btn {
+        width: 120rpx;
+        height: 120rpx;
+        border: 2rpx dashed #ccc;
+        border-radius: 12rpx;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #fafafa;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          border-color: #667eea;
+          background: #f0f2ff;
+        }
+
+        .add-icon {
+          font-size: 40rpx;
+          color: #999;
+          margin-bottom: 5rpx;
+        }
+
+        .add-text {
+          font-size: 20rpx;
+          color: #999;
+        }
+      }
+    }
+  }
+}
+
+.submit-section {
+  position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 100rpx;
-  width: 100%;
-  padding-bottom: constant(safe-area-inset-bottom);
-  padding-bottom: env(safe-area-inset-bottom);
-}
+  background: white;
+  padding: 20rpx 30rpx;
+  border-top: 1rpx solid #e0e0e0;
+  box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.1);
 
-.evaluate_pics_view {
-  margin-bottom: 24rpx;
-
-  .pics_grid {
-    display: grid;
-    grid-template-columns: repeat(3, 230rpx);
-    gap: 8rpx;
-    justify-content: flex-start;
-  }
-
-  .pic_item {
-    width: 230rpx;
-    height: 230rpx;
-    border-radius: 8rpx;
-    overflow: hidden;
-    background-color: #f5f5f5;
-  }
-
-  .evaluate_pic_img {
+  .submit-btn {
     width: 100%;
-    height: 100%;
-    border-radius: 8rpx;
+    height: 80rpx;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 40rpx;
+    font-size: 32rpx;
+    font-weight: 500;
+    box-shadow: 0 4rpx 15rpx rgba(102, 126, 234, 0.4);
+    transition: all 0.2s ease;
+
+    &:hover {
+      transform: translateY(-2rpx);
+      box-shadow: 0 6rpx 20rpx rgba(102, 126, 234, 0.5);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      transform: none;
+      box-shadow: 0 4rpx 15rpx rgba(102, 126, 234, 0.2);
+    }
   }
 }
 
-.subBtn {
-  width: 90%;
-  color: #fff;
-  border-color: #fe5572;
-  background-color: #fe5572;
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
+.item-card {
+  animation: fadeIn 0.3s ease-out;
+}
 </style>

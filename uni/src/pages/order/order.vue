@@ -78,12 +78,12 @@
         <view class="order-summary">
           <view class="total-count">共 {{ item.detail ? item.detail.length : 0 }} 件商品 实付款</view>
           <view class="total-price">¥ {{
-              item.detail ? item.detail.reduce((total, curr) => total + (curr.quantity * curr.price / 100), 0).toFixed(1) : 0
+              item.detail ? item.detail.reduce((total, curr) => total + (curr.quantity * curr.price / 100), 0).toFixed(2) : 0
             }}</view>
         </view>
 
         <!-- 订单操作按钮 -->
-        <view class="order-actions">
+        <view class="order-actions" style="display: flex; justify-content: flex-end;">
           <view class="right-actions">
             <view
                 v-if="item.status==='4'"
@@ -106,10 +106,18 @@
                 class="action-btn track-btn"
                 @tap="trackLogistics(item)"
             >查看物流</view>
-            <view class="btn-box" v-for="(detail, detailIndex) in item.detail"
-                  :key="detailIndex">
-              <view v-if="(item.status==='3'||item.status==='7')&& !detail.isComment" class="action-btn track-btn" @tap="goComment(item, detail)">评价订单</view>
-              <view v-if="(item.status==='3'||item.status==='7')&& detail.isComment" class="action-btn track-btn" @tap="goComment(item, detail)">查看评价</view>
+            <!-- 智能评价按钮 -->
+            <view v-if="item.status==='3'||item.status==='7'">
+              <!-- 多个商品时显示统一评价按钮 -->
+              <view v-if="item.detail && item.detail.length > 1">
+                <view v-if="hasUncommentedItems(item)" class="action-btn evaluate-btn" @tap="goCommentAll(item)">评价订单</view>
+                <view v-else-if="hasCommentedItems(item)" class="action-btn view-evaluate-btn" @tap="goCommentAll(item)">查看评价</view>
+              </view>
+              <!-- 单个商品时显示单个评价按钮 -->
+              <view v-else-if="item.detail && item.detail.length === 1">
+                <view v-if="!item.detail[0].isComment" class="action-btn evaluate-btn" @tap="goComment(item, item.detail[0])">评价订单</view>
+                <view v-else class="action-btn view-evaluate-btn" @tap="goComment(item, item.detail[0])">查看评价</view>
+              </view>
             </view>
             <view
                 v-if="item.status==='2'"
@@ -227,6 +235,40 @@ const goComment = (order, detail) => {
   })
 }
 
+// 判断订单中是否有未评价的商品
+const hasUncommentedItems = (order) => {
+  return order.detail && order.detail.some(item => !item.isComment)
+}
+
+// 判断订单中是否有已评价的商品
+const hasCommentedItems = (order) => {
+  return order.detail && order.detail.some(item => item.isComment)
+}
+
+// 智能评价跳转函数
+const goCommentAll = (order) => {
+  if (order.detail && order.detail.length > 1) {
+    // 多个商品的情况
+    if (hasUncommentedItems(order)) {
+      // 有未评价商品，跳转到评价页面
+      uni.navigateTo({
+        url: `/pages/evaluate/orderEvaluate?orderID=${order.ID}`
+      })
+    } else {
+      // 全部已评价，跳转到查看评价页面
+      uni.navigateTo({
+        url: `/pages/evaluate/orderEvaluate?orderID=${order.ID}&mode=view`
+      })
+    }
+  } else if (order.detail && order.detail.length === 1) {
+    // 单个商品，跳转到单商品评价页面
+    const detail = order.detail[0]
+    uni.navigateTo({
+      url: `/pages/evaluate/addEvaluate?orderID=${order.ID}&goodID=${detail.goodID}&SKUID=${detail.skuID}`
+    })
+  }
+}
+
 const tapBtn = async (item) => {
   activeSataus.value = item.id
   const res = await SelfOrderList(item.id)
@@ -268,7 +310,8 @@ page {
 
 .tab-item {
   position: relative;
-  font-size: 28rpx;
+  font-size: 26rpx;
+  font-weight: 600;
   color: #666;
   padding: 20rpx 30rpx;
   display: inline-block;
@@ -276,7 +319,7 @@ page {
 
 .tab-item.active {
   color: #fe5572;
-  font-weight: normal;
+  font-weight: 600;
 }
 
 .tab-line {
@@ -329,6 +372,7 @@ page {
 .order-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: 20rpx;
   border-bottom: 1rpx solid #f0f0f0;
 }
@@ -360,6 +404,7 @@ page {
 .goods-thumbnail {
   width: 140rpx;
   height: 140rpx;
+  border-radius: 10rpx;
   margin-right: 16rpx;
 }
 .good-only{
@@ -371,12 +416,14 @@ page {
   display: flex;
   flex-direction: column;
   .good-name-title{
-    font-size: 36rpx;
+    font-size: 34rpx;
+    font-weight: 800;
     color: #3B4144;
   }
   .good-name-desc{
-    padding-top: 30rpx;
-    color: #3B4144;
+    padding-top: 24rpx;
+    font-size: 28rpx;
+    color: grey;
   }
 }
 
@@ -402,8 +449,6 @@ page {
 
 /* 订单操作按钮 */
 .order-actions {
-  display: flex;
-  justify-content: end;
   padding: 20rpx;
 }
 
@@ -458,5 +503,27 @@ page {
   border: 1rpx solid #fe5572;
   background-color: #fe5572;
   color: #fff;
+}
+
+/* 评价按钮样式 */
+.evaluate-btn {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+  color: #fff;
+  box-shadow: 0 4rpx 12rpx rgba(255, 107, 107, 0.3);
+}
+
+.evaluate-btn:active {
+  background: linear-gradient(135deg, #ee5a52, #dd4b42);
+}
+
+/* 查看评价按钮样式 */
+.view-evaluate-btn {
+  background: linear-gradient(135deg, #51cf66, #40c057);
+  color: #fff;
+  box-shadow: 0 4rpx 12rpx rgba(81, 207, 102, 0.3);
+}
+
+.view-evaluate-btn:active {
+  background: linear-gradient(135deg, #40c057, #37b24d);
 }
 </style>
