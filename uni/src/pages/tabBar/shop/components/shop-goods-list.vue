@@ -361,16 +361,6 @@
   position: relative;
   overflow: hidden;
 
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2rpx;
-    background: linear-gradient(90deg, #ff4c7d, #ff6b9d);
-  }
-
   &:hover {
     transform: translateY(-2rpx);
     box-shadow: 0 8rpx 24rpx rgba(255, 76, 125, 0.15);
@@ -456,7 +446,6 @@
     background: linear-gradient(135deg, #f8f9fa, #e9ecef);
     padding: 8rpx 12rpx;
     border-radius: 8rpx;
-    border-left: 3rpx solid #ff4c7d;
   }
 }
 
@@ -596,7 +585,7 @@
   z-index: 100;
   padding: 0 24rpx;
   /* #ifdef H5 */
-  bottom: 90rpx;
+  bottom: 88rpx;
   /* #endif */
   /* #ifdef MP */
   bottom: 0rpx;
