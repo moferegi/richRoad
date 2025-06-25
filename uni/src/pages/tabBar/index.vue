@@ -1,25 +1,33 @@
 <template>
   <view class="content">
-    <!-- 顶部搜索栏 - 修改刘海屏适配 -->
+    <!-- 顶部搜索栏  -->
     <view class="status-bar-placeholder"></view>
     <view class="status-bar">
       <view class="test">
-        <!-- 左侧菜单图标 -->
-        <view class="scan-icon">
-          <uni-icons type="bars" size="22" color="#fff"></uni-icons>
+        <!-- 左侧客服按钮 -->
+        <view class="message-icon">
+          <button class="contact-action-button" open-type="contact" :session-from="sessionFrom">
+            <uni-icons type="chat" size="20" color="#fff"></uni-icons>
+          </button>
         </view>
 
         <!-- 中间搜索框 -->
-        <view class="search-bar" @click="goToSearch">
+        <view class="search-bar">
           <view class="search-icon">
             <uni-icons type="search" size="18" color="#999"></uni-icons>
           </view>
-          <text class="search-placeholder">请输入地址 如：大钟寺</text>
+          <input
+            class="search-input"
+            placeholder="请输入您想搜索的商品"
+            v-model="searchKeyword"
+            @confirm="goToSearchWithKeyword"
+            @click.stop
+          />
         </view>
 
-        <!-- 右侧消息 -->
-        <view class="message-icon">
-          <button class="contact-action-button" open-type="contact" :session-from="sessionFrom">123</button>
+        <!-- 右侧搜索按钮 -->
+        <view class="search-button" @click="goToSearchWithKeyword">
+          <uni-icons type="search" size="20" color="#fff"></uni-icons>
         </view>
       </view>
     </view>
@@ -63,6 +71,8 @@ import seckilling from './components/seckilling.vue';
 
 // 轮播图相关业务逻辑
 const list = ref([])
+const searchKeyword = ref('')
+
 const initBanner = async () => {
   const res = await getBannerList()
   list.value = res.data.list
@@ -82,11 +92,12 @@ const isBottom = ref(false)
 const isLoading = ref(true)
 
 const sessionFrom = ref('');
-
-// 跳转到搜索页面
-const goToSearch = () => {
+// 清空搜索关键词
+searchKeyword.value = ''
+// 带关键词跳转到搜索页面
+const goToSearchWithKeyword = () => {
   uni.navigateTo({
-    url: '/pages/search/index'
+    url: `/pages/search/index?keyword=${encodeURIComponent(searchKeyword.value.trim())}`
   })
 }
 
@@ -237,9 +248,16 @@ page {
 // 刘海屏适配
 .status-bar-placeholder {
   width: 100%;
-  height: var(--status-bar-height);
+  height: var(--status-bar-height, 0px);
   background-color: #ff4c7d;
 }
+
+// 微信小程序刘海屏兼容
+/* #ifdef MP-WEIXIN */
+.status-bar-placeholder {
+  height: var(--status-bar-height, 44px);
+}
+/* #endif */
 
 .test {
   display: flex;
@@ -260,13 +278,44 @@ page {
   width: 100%;
 }
 
-.scan-icon,
-.message-icon {
+.message-icon,
+.search-button {
   width: 60rpx;
   height: 60rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+
+  &:active {
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: scale(0.95);
+  }
+}
+
+// 客服按钮样式
+.contact-action-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+
+  &:active {
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: scale(0.95);
+  }
+
+  &::after {
+    border: none;
+  }
 }
 
 .search-bar {
@@ -284,9 +333,17 @@ page {
   margin-right: 12rpx;
 }
 
-.search-placeholder {
-  color: #999;
+.search-input {
+  flex: 1;
+  color: #333;
   font-size: 28rpx;
+  border: none;
+  outline: none;
+  background: transparent;
+
+  &::placeholder {
+    color: #999;
+  }
 }
 
 // 促销横幅

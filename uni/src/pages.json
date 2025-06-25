@@ -9,6 +9,14 @@
 			}
 		},
 		{
+			"path": "pages/search/index",
+			"style": {
+				"navigationBarTitleText": "商品搜索",
+				"navigationStyle": "custom",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
 			"path": "pages/tabBar/category/category",
 			"style": {
 				"navigationBarTitleText": "商品分类",
