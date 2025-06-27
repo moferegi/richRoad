@@ -3,8 +3,8 @@
     <!-- 顶部搜索栏 -->
     <view class="search-header">
       <view class="search-box">
-        <uni-icons type="search" size="18" color="#999"></uni-icons>
-        <text class="search-placeholder">搜索商品</text>
+<!--        <uni-icons type="search" size="18" color="#999"></uni-icons>-->
+<!--        <text class="search-placeholder">搜索商品</text>-->
       </view>
     </view>
 
@@ -243,13 +243,11 @@ onMounted(() => {
 // 搜索头部
 .search-header {
   padding: 20rpx 30rpx;
-  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10rpx);
 
   .search-box {
     display: flex;
     align-items: center;
-    background: #f8f9fa;
     border-radius: 50rpx;
     padding: 20rpx 30rpx;
     gap: 15rpx;

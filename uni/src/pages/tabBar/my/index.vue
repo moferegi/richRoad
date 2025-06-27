@@ -274,7 +274,7 @@ page {
 /* 头部样式 */
 .header-section {
   position: relative;
-  padding: 20rpx 30rpx;
+  padding: 60rpx 30rpx;
   background: #ff4c7d;
   border-radius: 0 0 20rpx 20rpx;
   overflow: hidden;
