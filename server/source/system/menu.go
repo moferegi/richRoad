@@ -122,6 +122,9 @@ func (i *initMenu) InitializeData(ctx context.Context) (next context.Context, er
 		{MenuLevel: 1, Hidden: false, ParentId: menuNameMap["shop"], Path: "good", Name: "good", Component: "view/shop/good/good.vue", Sort: 1000, Meta: Meta{Title: "商品管理", Icon: "shopping-bag"}},
 		{MenuLevel: 1, Hidden: true, ParentId: menuNameMap["shop"], Path: "sku", Name: "sku", Component: "view/shop/sku/sku.vue", Sort: 0, Meta: Meta{Title: "sku-${id}", Icon: ""}},
 		{MenuLevel: 1, Hidden: false, ParentId: menuNameMap["shop"], Path: "order", Name: "order", Component: "view/shop/order/order.vue", Sort: 0, Meta: Meta{Title: "订单管理", Icon: "coordinate"}},
+		{MenuLevel: 1, Hidden: false, ParentId: menuNameMap["shop"], Path: "tag", Name: "tag", Component: "view/shop/tag/tag.vue", Sort: 0, Meta: Meta{Title: "标签管理", Icon: "price-tag"}},
+		{MenuLevel: 1, Hidden: false, ParentId: menuNameMap["shop"], Path: "Cou", Name: "Cou", Component: "view/shop/coupon/coupon.vue", Sort: 0, Meta: Meta{Title: "优惠券", Icon: "postcard"}},
+		{MenuLevel: 1, Hidden: false, ParentId: menuNameMap["shop"], Path: "Promo", Name: "Promo", Component: "view/shop/promotion/promotion.vue", Sort: 99, Meta: Meta{Title: "促销信息", Icon: "bicycle"}},
 
 		{MenuLevel: 1, Hidden: false, ParentId: menuNameMap["geoGroup"], Path: "geo", Name: "geo", Component: "plugin/geo/view/index.vue", Sort: 0, Meta: Meta{Title: "城市管理", Icon: "school"}},
 

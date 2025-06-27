@@ -289,6 +289,40 @@ func (i *initCasbin) InitializeData(ctx context.Context) (context.Context, error
 		{Ptype: "p", V0: "888", V1: "/attachmentCategory/addCategory", V2: "POST"},
 		{Ptype: "p", V0: "888", V1: "/attachmentCategory/deleteCategory", V2: "POST"},
 
+		// 标签管理权限
+		{Ptype: "p", V0: "888", V1: "/tag/createTag", V2: "POST"},
+		{Ptype: "p", V0: "888", V1: "/tag/deleteTag", V2: "DELETE"},
+		{Ptype: "p", V0: "888", V1: "/tag/deleteTagByIds", V2: "DELETE"},
+		{Ptype: "p", V0: "888", V1: "/tag/updateTag", V2: "PUT"},
+		{Ptype: "p", V0: "888", V1: "/tag/findTag", V2: "GET"},
+		{Ptype: "p", V0: "888", V1: "/tag/getTagList", V2: "GET"},
+
+		// 优惠券管理权限
+		{Ptype: "p", V0: "888", V1: "/cou/adminIssueCouponToAll", V2: "POST"},
+		{Ptype: "p", V0: "888", V1: "/cou/claimCouponByUser", V2: "POST"},
+		{Ptype: "p", V0: "888", V1: "/Cou/createCoupon", V2: "POST"},
+		{Ptype: "p", V0: "888", V1: "/cou/createCouponOrderUser", V2: "POST"},
+		{Ptype: "p", V0: "888", V1: "/Cou/deleteCoupon", V2: "DELETE"},
+		{Ptype: "p", V0: "888", V1: "/Cou/deleteCouponByIds", V2: "DELETE"},
+		{Ptype: "p", V0: "888", V1: "/cou/deleteCouponOrderUser", V2: "DELETE"},
+		{Ptype: "p", V0: "888", V1: "/cou/deleteCouponOrderUserByIds", V2: "DELETE"},
+		{Ptype: "p", V0: "888", V1: "/Cou/findCoupon", V2: "GET"},
+		{Ptype: "p", V0: "888", V1: "/cou/findCouponOrderUser", V2: "GET"},
+		{Ptype: "p", V0: "888", V1: "/cou/getAllClaimCoupon", V2: "POST"},
+		{Ptype: "p", V0: "888", V1: "/Cou/getCouponList", V2: "GET"},
+		{Ptype: "p", V0: "888", V1: "/cou/getCouponOrderUserList", V2: "GET"},
+		{Ptype: "p", V0: "888", V1: "/Cou/updateCoupon", V2: "PUT"},
+		{Ptype: "p", V0: "888", V1: "/cou/updateCouponOrderUser", V2: "PUT"},
+		{Ptype: "p", V0: "888", V1: "/order/changeOrderCoupon", V2: "POST"},
+
+		// 促销信息管理权限
+		{Ptype: "p", V0: "888", V1: "/Promo/createPromotion", V2: "POST"},
+		{Ptype: "p", V0: "888", V1: "/Promo/deletePromotion", V2: "DELETE"},
+		{Ptype: "p", V0: "888", V1: "/Promo/deletePromotionByIds", V2: "DELETE"},
+		{Ptype: "p", V0: "888", V1: "/Promo/updatePromotion", V2: "PUT"},
+		{Ptype: "p", V0: "888", V1: "/Promo/findPromotion", V2: "GET"},
+		{Ptype: "p", V0: "888", V1: "/Promo/getPromotionList", V2: "GET"},
+
 		{Ptype: "p", V0: "8881", V1: "/user/admin_register", V2: "POST"},
 		{Ptype: "p", V0: "8881", V1: "/api/createApi", V2: "POST"},
 		{Ptype: "p", V0: "8881", V1: "/api/getApiList", V2: "POST"},
@@ -329,6 +363,14 @@ func (i *initCasbin) InitializeData(ctx context.Context) (context.Context, error
 		{Ptype: "p", V0: "8881", V1: "/customer/customerList", V2: "GET"},
 		{Ptype: "p", V0: "8881", V1: "/user/getUserInfo", V2: "GET"},
 
+		// 8881角色的促销信息管理权限
+		{Ptype: "p", V0: "8881", V1: "/Promo/createPromotion", V2: "POST"},
+		{Ptype: "p", V0: "8881", V1: "/Promo/deletePromotion", V2: "DELETE"},
+		{Ptype: "p", V0: "8881", V1: "/Promo/deletePromotionByIds", V2: "DELETE"},
+		{Ptype: "p", V0: "8881", V1: "/Promo/updatePromotion", V2: "PUT"},
+		{Ptype: "p", V0: "8881", V1: "/Promo/findPromotion", V2: "GET"},
+		{Ptype: "p", V0: "8881", V1: "/Promo/getPromotionList", V2: "GET"},
+
 		{Ptype: "p", V0: "8080", V1: "/address/createAddress", V2: "POST"},
 		{Ptype: "p", V0: "8080", V1: "/address/deleteAddress", V2: "DELETE"},
 		{Ptype: "p", V0: "8080", V1: "/address/deleteAddressByIds", V2: "DELETE"},
@@ -362,6 +404,11 @@ func (i *initCasbin) InitializeData(ctx context.Context) (context.Context, error
 		{Ptype: "p", V0: "8080", V1: "/order/selfOrderList", V2: "GET"},
 		{Ptype: "p", V0: "8080", V1: "/order/updateOrderStatus", V2: "POST"},
 		{Ptype: "p", V0: "8080", V1: "/order/updateOrder", V2: "POST"},
+
+		// 8080角色的优惠券权限
+		{Ptype: "p", V0: "8080", V1: "/cou/claimCouponByUser", V2: "POST"},
+		{Ptype: "p", V0: "8080", V1: "/cou/getAllClaimCoupon", V2: "POST"},
+		{Ptype: "p", V0: "8080", V1: "/order/changeOrderCoupon", V2: "POST"},
 	}
 	if err := db.Create(&entities).Error; err != nil {
 		return ctx, errors.Wrap(err, "Casbin 表 ("+i.InitializerName()+") 数据初始化失败!")
