@@ -115,7 +115,7 @@ func (goodService *GoodService) GetGoodInfoList(info shopReq.GoodSearch) (list [
 	} else if info.Title != "" {
 		searchTerm = info.Title
 	}
-	
+
 	if searchTerm != "" {
 		// 在商品标题、描述中搜索，对于JSON字段tags使用JSON_UNQUOTE和JSON_SEARCH
 		db = db.Where("title LIKE ? OR description LIKE ? OR JSON_SEARCH(tags, 'one', ?) IS NOT NULL",

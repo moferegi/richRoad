@@ -114,19 +114,19 @@ func (categoryService *CategoryService) GetChildrenCategoryAndProduct(parentID i
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// 将当前分类添加到结果列表
 	list = append(list, currentCategory)
-	
+
 	// 查询子分类及其商品
 	var childCategories []shop.Category
 	err = global.GVA_DB.Preload("Goods").Where("parent_id = ?", parentID).Find(&childCategories).Error
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// 将子分类添加到结果列表
 	list = append(list, childCategories...)
-	
+
 	return list, nil
 }

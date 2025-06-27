@@ -10,7 +10,7 @@ autocode:
     root: /Users/jiangjizhao/gva-uni-shop-plus
     server: server
     module: github.com/flipped-aurora/gin-vue-admin/server
-    ai-path: https://ai.gin-vue-admin.com/{FUNC}/qimiao/76f4b07c-5d44-48f2-b92e-905b71a57051
+    ai-path: https://ai.gin-vue-admin.com/{FUNC}/qimiao/{AI_KEY}
 aws-s3:
     bucket: xxxxx-10005608
     region: ap-shanghai
@@ -116,10 +116,10 @@ mysql:
     prefix: ""
     port: "3306"
     config: charset=utf8mb4&parseTime=True&loc=Local
-    db-name: gva_uni_shop_dev
-    username: gva_uni_shop_dev
-    password: Aa@6447985
-    path: 101.226.8.201
+    db-name: ""
+    username: ""
+    password: "" 
+    path: ""
     engine: ""
     log-mode: error
     max-idle-conns: 10
