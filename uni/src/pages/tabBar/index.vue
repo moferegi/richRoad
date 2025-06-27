@@ -1,60 +1,60 @@
 <template>
   <view class="content">
-    <!-- 顶部搜索栏 - 修改刘海屏适配 -->
+    <!-- 顶部搜索栏  -->
     <view class="status-bar-placeholder"></view>
     <view class="status-bar">
       <view class="test">
-        <!-- 左侧菜单图标 -->
-        <view class="scan-icon">
-          <uni-icons type="bars" size="22" color="#fff"></uni-icons>
+        <!-- 左侧客服按钮 -->
+        <view class="message-icon">
+          <button class="contact-action-button" open-type="contact" :session-from="sessionFrom">
+            <uni-icons type="chat" size="20" color="#fff"></uni-icons>
+          </button>
         </view>
 
         <!-- 中间搜索框 -->
-        <view class="search-bar" @click="goToSearch">
+        <view class="search-bar">
           <view class="search-icon">
             <uni-icons type="search" size="18" color="#999"></uni-icons>
           </view>
-          <text class="search-placeholder">请输入地址 如：大钟寺</text>
+          <input
+            class="search-input"
+            placeholder="请输入您想搜索的商品"
+            v-model="searchKeyword"
+            @confirm="goToSearchWithKeyword"
+            @click.stop
+          />
         </view>
 
-        <!-- 右侧消息 -->
-        <view class="message-icon">
-          <uni-icons type="chat" size="22" color="#fff"></uni-icons>
+        <!-- 右侧搜索按钮 -->
+        <view class="search-button" @click="goToSearchWithKeyword">
+          <uni-icons type="search" size="20" color="#fff"></uni-icons>
         </view>
       </view>
     </view>
-    <scroll-view scroll-y="true" class="scroll-Y" @scrolltolower="debouncedLower" @refresherrefresh="onRefresh" >
+    <scroll-view scroll-y="true" class="scroll-Y" @scrolltolower="debouncedLower">
       <!-- 轮播图区域 -->
       <swpiers :lists="list"></swpiers>
-
       <!-- 分类导航 -->
       <categories :categoriesData="gridList"></categories>
-
       <!-- 限时秒杀区域 -->
-      <seckilling v-if="products.length>0" :productData="products"></seckilling>
+      <seckilling v-if="products.length > 0" :productData="products"></seckilling>
       <!-- 商品展示区 -->
       <view class="goods-section">
-        <view class="goods-section">
-          <noPaginRowGoodList
+        <noPaginRowGoodList
             :goodsList="flowData"
             :current-page="params.page"
             :page-size="params.pageSize"
             :total="totalCount"
-            :loading="isLoading"
-            :load-offset="200"
             @load-more="handleAutoLoadMore"
-          ></noPaginRowGoodList>
-        </view>
+        />
       </view>
-
       <!-- 底部加载状态 -->
       <view class="loading-status" v-if="flowData.length > 0">
-        <gva-divider :text="isBottom?'已经到底啦':'加载中...'"></gva-divider>
+        <gva-divider :text="isBottom ? '已经到底啦' : '加载中...'"></gva-divider>
       </view>
-
       <!-- 空状态 -->
       <view class="empty-state" v-if="flowData.length === 0 && !isLoading">
-        <uni-icons type="shop" size="60" color="#ddd"></uni-icons>
+        <uni-icons type="shop" size="60" color="#ddd" />
         <text>暂无商品</text>
       </view>
     </scroll-view>
@@ -71,6 +71,8 @@ import seckilling from './components/seckilling.vue';
 
 // 轮播图相关业务逻辑
 const list = ref([])
+const searchKeyword = ref('')
+
 const initBanner = async () => {
   const res = await getBannerList()
   list.value = res.data.list
@@ -89,10 +91,13 @@ const flowData = ref([])
 const isBottom = ref(false)
 const isLoading = ref(true)
 
-// 跳转到搜索页面
-const goToSearch = () => {
+const sessionFrom = ref('');
+// 清空搜索关键词
+searchKeyword.value = ''
+// 带关键词跳转到搜索页面
+const goToSearchWithKeyword = () => {
   uni.navigateTo({
-    url: '/pages/search/index'
+    url: `/pages/search/index?keyword=${encodeURIComponent(searchKeyword.value.trim())}`
   })
 }
 
@@ -108,7 +113,7 @@ const getRecommend = async () =>{
 getRecommend()
 
 // 修改 lower 函数，确保正确处理页码
-const lower = async (isRefresh = false) => {
+/*const lower = async (isRefresh = false) => {
   if(isBottom.value && !isRefresh) {
     return
   } else {
@@ -135,6 +140,35 @@ const lower = async (isRefresh = false) => {
     } finally {
       isLoading.value = false
     }
+  }
+}*/
+const lower = async (isRefresh = false) => {
+  if (isBottom.value && !isRefresh) return
+  isLoading.value = true
+  if (!isRefresh) params.value.page += 1
+
+  try {
+    const res = await getGoodList(params.value)
+    if (res.code === 0) {
+      const listData = res.data.list || []
+      // 合并或重置
+      if (isRefresh) {
+        flowData.value = listData
+      } else {
+        flowData.value.push(...listData)
+      }
+      // 更新总数
+      totalCount.value = res.data.total ?? flowData.value.length
+      // 如果返回条数小于 pageSize，说明已经是最后一页
+      isBottom.value = listData.length < params.value.pageSize
+    } else {
+      // 接口异常也视为无更多
+      isBottom.value = true
+    }
+  } catch (error) {
+    console.error('获取商品列表失败', error)
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -214,9 +248,16 @@ page {
 // 刘海屏适配
 .status-bar-placeholder {
   width: 100%;
-  height: var(--status-bar-height);
-  background-color: #fea94a;
+  height: var(--status-bar-height, 0px);
+  background-color: #ff4c7d;
 }
+
+// 微信小程序刘海屏兼容
+/* #ifdef MP-WEIXIN */
+.status-bar-placeholder {
+  height: var(--status-bar-height, 44px);
+}
+/* #endif */
 
 .test {
   display: flex;
@@ -226,7 +267,7 @@ page {
 
 // 顶部状态栏
 .status-bar {
-  background-color: #fea94a;
+  background-color: #ff4c7d;
   display: flex;
   align-items: center;
   padding: 16rpx 24rpx;
@@ -237,13 +278,44 @@ page {
   width: 100%;
 }
 
-.scan-icon,
-.message-icon {
+.message-icon,
+.search-button {
   width: 60rpx;
   height: 60rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+
+  &:active {
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: scale(0.95);
+  }
+}
+
+// 客服按钮样式
+.contact-action-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+
+  &:active {
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: scale(0.95);
+  }
+
+  &::after {
+    border: none;
+  }
 }
 
 .search-bar {
@@ -261,9 +333,17 @@ page {
   margin-right: 12rpx;
 }
 
-.search-placeholder {
-  color: #999;
+.search-input {
+  flex: 1;
+  color: #333;
   font-size: 28rpx;
+  border: none;
+  outline: none;
+  background: transparent;
+
+  &::placeholder {
+    color: #999;
+  }
 }
 
 // 促销横幅

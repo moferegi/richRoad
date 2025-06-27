@@ -102,7 +102,31 @@ func makeCategoryTree(list []shop.Category) []shop.Category {
 	return categoryTree
 }
 
-func (categoryService *CategoryService) GetCategoryMobile() (list []shop.Category, err error) {
-	err = global.GVA_DB.Find(&list, "parent_id = ?", 0).Error
+func (categoryService *CategoryService) GetCategoryMobile(parentID int) (list []shop.Category, err error) {
+	err = global.GVA_DB.Find(&list, "parent_id = ?", parentID).Error
 	return
+}
+
+func (categoryService *CategoryService) GetChildrenCategoryAndProduct(parentID int) (list []shop.Category, err error) {
+	// 查询当前分类及其商品
+	var currentCategory shop.Category
+	err = global.GVA_DB.Preload("Goods").Where("id = ?", parentID).First(&currentCategory).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// 将当前分类添加到结果列表
+	list = append(list, currentCategory)
+
+	// 查询子分类及其商品
+	var childCategories []shop.Category
+	err = global.GVA_DB.Preload("Goods").Where("parent_id = ?", parentID).Find(&childCategories).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// 将子分类添加到结果列表
+	list = append(list, childCategories...)
+
+	return list, nil
 }

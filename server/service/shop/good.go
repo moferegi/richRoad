@@ -95,6 +95,8 @@ func (goodService *GoodService) GetGoodHistory(userID uint) (goods []shop.Good, 
 
 // GetGoodInfoList 分页获取商品记录
 // Author [piexlmax](https://github.com/piexlmax)
+// GetGoodInfoList 分页获取商品记录
+// Author `https://github.com/piexlmax`
 func (goodService *GoodService) GetGoodInfoList(info shopReq.GoodSearch) (list []shop.Good, total int64, err error) {
 	limit := info.PageSize
 	offset := info.PageSize * (info.Page - 1)
@@ -106,9 +108,20 @@ func (goodService *GoodService) GetGoodInfoList(info shopReq.GoodSearch) (list [
 		db = db.Where("created_at BETWEEN ? AND ?", info.StartCreatedAt, info.EndCreatedAt)
 	}
 
-	if info.Title != "" {
-		db = db.Where("title LIKE ?", "%"+info.Title+"%")
+	// 统一搜索逻辑：优先使用keyword，如果没有则使用title
+	searchTerm := ""
+	if info.Keyword != "" {
+		searchTerm = info.Keyword
+	} else if info.Title != "" {
+		searchTerm = info.Title
 	}
+
+	if searchTerm != "" {
+		// 在商品标题、描述中搜索，对于JSON字段tags使用JSON_UNQUOTE和JSON_SEARCH
+		db = db.Where("title LIKE ? OR description LIKE ? OR JSON_SEARCH(tags, 'one', ?) IS NOT NULL",
+			"%"+searchTerm+"%", "%"+searchTerm+"%", "%"+searchTerm+"%")
+	}
+
 	if info.CategoryID != 0 {
 		db = db.Where("category_id = ?", info.CategoryID)
 	}

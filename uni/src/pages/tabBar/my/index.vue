@@ -275,7 +275,7 @@ page {
 .header-section {
   position: relative;
   padding: 20rpx 30rpx;
-  background: linear-gradient(135deg, #fea94a, #ff8c55);
+  background: #ff4c7d;
   border-radius: 0 0 20rpx 20rpx;
   overflow: hidden;
 }

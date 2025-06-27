@@ -44,193 +44,15 @@
     >
       <!-- 这个区域用于触发滚动检测，当它进入可视区域时自动加载下一页 -->
     </view>
-
-    <!-- 加载状态指示器 -->
-    <view class="loading-indicator" v-if="loading && goodsList.length > 0">
-      <text>加载中...</text>
-    </view>
-
-    <!-- 到底提示 -->
-    <view class="no-more-data" v-if="isLastPage && goodsList.length > 0">
-      <text>已经到底啦~</text>
-    </view>
   </view>
 </template>
 
 <script setup>
 import {ref, computed, onMounted, onUnmounted, nextTick, watch} from 'vue'
 import {getUrl} from "@/utils/url.js"
+import { onReachBottom } from '@dcloudio/uni-app'
 
-const goodsList = ref([
-  {
-    name: '2023新款时尚运动鞋男女同款透气网面跑步鞋减震耐磨休闲运动鞋',
-    image: 'https://picsum.photos/300/300?random=1',
-    originalPrice: 399,
-    discountPrice: 299,
-    discount: 7.5,
-    discountEmoji: '🔥',
-    rating: 4.8,
-    ratingCount: 2531,
-    monthSales: 1688,
-    tags: ['正品保证', '极速发货', '七天退换'],
-    isSelfOperated: true,
-    hasQualityAssurance: true,
-    isPlusDelivery: true,
-    shop: {
-      name: '运动户外专营店',
-      avatar: 'https://picsum.photos/64/64?random=1',
-      rating: 4.8,
-      isOfficial: true
-    }
-  },
-  {
-    name: '新款时尚帆布双肩包大容量学生书包防水耐磨电脑包户外旅行背包',
-    image: 'https://picsum.photos/300/300?random=2',
-    originalPrice: 199,
-    discountPrice: 139,
-    discount: 7.0,
-    discountEmoji: '⚡',
-    rating: 4.6,
-    ratingCount: 1234,
-    monthSales: 966,
-    tags: ['品牌精选', '免邮费'],
-    isSelfOperated: true,
-    hasQualityAssurance: true,
-    isPlusDelivery: false,
-    shop: {
-      name: '时尚箱包旗舰店',
-      avatar: 'https://picsum.photos/64/64?random=2',
-      rating: 4.7,
-      isOfficial: true
-    }
-  },
-  {
-    name: '智能手表多功能运动计步心率血压监测防水触屏蓝牙通话智能手环',
-    image: 'https://picsum.photos/300/300?random=3',
-    originalPrice: 899,
-    discountPrice: 699,
-    discount: 7.8,
-    discountEmoji: '💥',
-    rating: 4.7,
-    ratingCount: 1876,
-    monthSales: 1245,
-    tags: ['智能手表', '防水'],
-    isSelfOperated: true,
-    hasQualityAssurance: true,
-    isPlusDelivery: true,
-    shop: {
-      name: '智能设备旗舰店',
-      avatar: 'https://picsum.photos/64/64?random=3',
-      rating: 4.7,
-      isOfficial: true
-    }
-  },
-  {
-    name: '真无线蓝牙耳机主动降噪双耳入耳式运动防水高音质长续航通话耳机',
-    image: 'https://picsum.photos/300/300?random=4',
-    originalPrice: 299,
-    discountPrice: 199,
-    discount: 6.6,
-    discountEmoji: '🎉',
-    rating: 4.5,
-    ratingCount: 1023,
-    monthSales: 789,
-    tags: ['无线耳机', '降噪'],
-    isSelfOperated: true,
-    hasQualityAssurance: true,
-    isPlusDelivery: false,
-    shop: {
-      name: '音频设备旗舰店',
-      avatar: 'https://picsum.photos/64/64?random=4',
-      rating: 4.5,
-      isOfficial: true
-    }
-  },
-  {
-    name: '智能手环心率血压监测运动计步器防水彩屏信息提醒健康管理手环',
-    image: 'https://picsum.photos/300/300?random=5',
-    originalPrice: 199,
-    discountPrice: 149,
-    discount: 7.5,
-    discountEmoji: '🎯',
-    rating: 4.3,
-    ratingCount: 852,
-    monthSales: 654,
-    tags: ['智能手环', '健康监测'],
-    isSelfOperated: true,
-    hasQualityAssurance: true,
-    isPlusDelivery: true,
-    shop: {
-      name: '健康监测旗舰店',
-      avatar: 'https://picsum.photos/64/64?random=5',
-      rating: 4.3,
-      isOfficial: true
-    }
-  },
-  {
-    name: '便携式蓝牙音箱无线重低音炮户外防水迷你小音响手机电脑通用音箱',
-    image: 'https://picsum.photos/300/300?random=6',
-    originalPrice: 299,
-    discountPrice: 239,
-    discount: 8.0,
-    discountEmoji: '⚡',
-    rating: 4.9,
-    ratingCount: 3000,
-    monthSales: 2000,
-    tags: ['蓝牙音箱', '无线连接'],
-    isSelfOperated: true,
-    hasQualityAssurance: true,
-    isPlusDelivery: true,
-    shop: {
-      name: '智能家居旗舰店',
-      avatar: 'https://picsum.photos/64/64?random=6',
-      rating: 4.9,
-      isOfficial: true
-    }
-  },
-  {
-    name: '大容量商务电脑包防盗防水15.6寸笔记本双肩包男女休闲旅行背包',
-    image: 'https://picsum.photos/300/300?random=7',
-    originalPrice: 259,
-    discountPrice: 189,
-    discount: 7.3,
-    discountEmoji: '💫',
-    rating: 4.2,
-    ratingCount: 1500,
-    monthSales: 1000,
-    tags: ['电脑背包', '防水'],
-    isSelfOperated: true,
-    hasQualityAssurance: true,
-    isPlusDelivery: false,
-    shop: {
-      name: '电脑配件旗舰店',
-      avatar: 'https://picsum.photos/64/64?random=7',
-      rating: 4.2,
-      isOfficial: true
-    }
-  },
-  {
-    name: '机械键盘青轴黑轴茶轴红轴游戏办公专用有线无线蓝牙双模RGB背光',
-    image: 'https://picsum.photos/300/300?random=8',
-    originalPrice: 499,
-    discountPrice: 399,
-    discount: 8.0,
-    discountEmoji: '🌟',
-    rating: 4.7,
-    ratingCount: 2200,
-    monthSales: 1500,
-    tags: ['机械键盘', '背光'],
-    isSelfOperated: true,
-    hasQualityAssurance: true,
-    isPlusDelivery: true,
-    shop: {
-      name: '电子配件旗舰店',
-      avatar: 'https://picsum.photos/64/64?random=8',
-      rating: 4.7,
-      isOfficial: true
-    }
-  }
-])
+const goodsList = ref([])
 const props = defineProps({
   goodsList: {
     type: Array,
@@ -247,10 +69,6 @@ const props = defineProps({
   total: {
     type: Number,
     default: 0
-  },
-  loading: {
-    type: Boolean,
-    default: false
   },
   // 距离底部多少rpx时触发加载
   loadOffset: {
@@ -272,8 +90,28 @@ const queryList = async (pageNo, pageSize) => {
 // 加载数据方法
 
 }
-
+// 向父组件发送事件
 const emit = defineEmits(['load-more'])
+
+// 组件引用
+const goodsListRef = ref(null)
+
+// 计算是否为最后一页
+const isLastPage = computed(() => {
+  if (props.total % props.pageSize === 0) {
+    return props.currentPage >= props.total / props.pageSize
+  }
+  return props.currentPage >= Math.floor(props.total / props.pageSize) + 1
+})
+
+// 页面滚动到底部触发加载
+onReachBottom(() => {
+  if (!isLastPage.value) {
+    emit('load-more')
+  }
+})
+
+/*const emit = defineEmits(['load-more'])
 // 组件引用
 const goodsListRef = ref(null)
 const scrollTriggerRef = ref(null)
@@ -286,7 +124,7 @@ const intersectionObserver = ref(null)
 const isLastPage = computed(() => {
   if (props.total === 0) return false
   return props.currentPage * props.pageSize >= props.total
-})
+})*/
 // 根据评分生成星星
 const getRatingStars = (rating) => {
   // 如果评分为0，返回1颗星
@@ -308,7 +146,7 @@ const handleGoodsClick = (item) => {
   })
 }
 
-// 初始化滚动检测
+/*// 初始化滚动检测
 const initScrollDetection = () => {
   // 使用 IntersectionObserver 检测触发区域是否进入可视区域
   intersectionObserver.value = uni.createIntersectionObserver()
@@ -365,7 +203,7 @@ onUnmounted(() => {
   if (intersectionObserver.value) {
     intersectionObserver.value.disconnect()
   }
-})
+})*/
 
 </script>
 

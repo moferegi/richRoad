@@ -23,9 +23,10 @@ func (s *CategoryRouter) InitCategoryRouter(Router *gin.RouterGroup, PublicRoute
 		categoryRouter.PUT("updateCategory", categoryApi.UpdateCategory)              // 更新商品分类
 	}
 	{
-		categoryRouterWithoutRecord.GET("findCategory", categoryApi.FindCategory)         // 根据ID获取商品分类
-		categoryRouterWithoutAuth.GET("getCategoryList", categoryApi.GetCategoryList)     // 获取商品分类列表
-		categoryRouterWithoutAuth.GET("getCategoryMobile", categoryApi.GetCategoryMobile) // 获取商品分类列表
+		categoryRouterWithoutRecord.GET("findCategory", categoryApi.FindCategory)                                 // 根据ID获取商品分类
+		categoryRouterWithoutAuth.GET("getCategoryList", categoryApi.GetCategoryList)                             // 获取商品分类列表
+		categoryRouterWithoutAuth.GET("getCategoryMobile", categoryApi.GetCategoryMobile)                         // 获取商品分类列表
+		categoryRouterWithoutAuth.GET("getChildrenCategoryAndProduct", categoryApi.GetChildrenCategoryAndProduct) // 获取商品分类列表
 	}
 	{
 		categoryRouterWithoutAuth.GET("getCategoryPublic", categoryApi.GetCategoryPublic) // 获取商品分类列表

@@ -1,5 +1,6 @@
 <template>
   <view class="login">
+    <view class="gradient-background"></view>
     <view class="login-view">
       <view class="t-login">
         <form class="cl">
@@ -143,8 +144,22 @@
   display: flex;
   flex-direction: column;
   height: calc(100vh - 80rpx);
-  background: url("@/static/background.jpg") no-repeat center center;
-  background-size: cover;
+  position: relative;
+}
+
+.gradient-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  background: radial-gradient(circle at 20% 30%, rgba(255, 76, 125, 0.8) 0%, rgba(255, 76, 125, 0.4) 10%, transparent 60%),
+              radial-gradient(circle at 80% 40%, rgba(255, 76, 125, 0.6) 0%, rgba(255, 76, 125, 0.3) 30%, transparent 60%),
+              radial-gradient(circle at 40% 40%, rgba(255, 76, 125, 0.7) 0%, rgba(255, 76, 125, 0.2) 35%, transparent 70%),
+              radial-gradient(circle at 90% 70%, rgba(255, 76, 125, 0.5) 0%, rgba(255, 76, 125, 0.1) 40%, transparent 80%),
+              linear-gradient(135deg, rgba(255, 76, 125, 0.1) 0%, rgba(255, 76, 125, 0.05) 50%, rgba(255, 76, 125, 0.1) 100%);
+
 }
 
 .txt {
@@ -195,7 +210,7 @@
 .login-btn {
   flex: 1;
   font-size: 28upx;
-  background: #2796f2;
+  background: linear-gradient(135deg, #ff4c7d 0%, #ff6b9d 50%, #ff8fb3 100%);
   color: #fff;
   height: 90upx;
   line-height: 90upx;
@@ -203,6 +218,13 @@
   font-weight: bold;
   margin: 0;
   border: none;
+  box-shadow: 0 8upx 20upx rgba(255, 76, 125, 0.3);
+  transition: all 0.3s ease;
+}
+
+.login-btn:active {
+  transform: translateY(2upx);
+  box-shadow: 0 4upx 12upx rgba(255, 76, 125, 0.4);
 }
 
 /* 注册按钮样式 */
@@ -213,13 +235,22 @@
   line-height: 90upx;
   border-radius: 50upx;
   font-weight: bold;
-  background: #f5f6fa;
-  color: #000000;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
+  color: #ff4c7d;
   text-align: center;
   margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 2upx solid rgba(255, 76, 125, 0.3);
+  box-shadow: 0 6upx 16upx rgba(255, 76, 125, 0.15);
+  transition: all 0.3s ease;
+}
+
+.register-btn:active {
+  transform: translateY(2upx);
+  background: linear-gradient(135deg, rgba(255, 76, 125, 0.1) 0%, rgba(255, 76, 125, 0.05) 100%);
+  border-color: rgba(255, 76, 125, 0.5);
 }
 .t-login input {
   height: 90upx;

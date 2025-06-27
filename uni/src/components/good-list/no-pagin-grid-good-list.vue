@@ -171,7 +171,7 @@ onMounted(() => {
 
   // 其他平台使用uni API
   // #ifndef H5
-  uni.onPageScroll(handleScroll)
+  handleScroll()
   console.log('uni滚动监听已添加')
   // #endif
 })
@@ -193,20 +193,17 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 /* 页面背景色 */
-page {
-  background: #ffffff;
-}
+
 
 /* 商品列表容器 */
 .goods-list {
   padding: 16rpx 12rpx;
-  background: #ffffff;
 
   /* 商品行布局 */
   .goods-row {
     display: flex;
     flex-wrap: wrap;
-    margin: 0 -6rpx;
+    margin: 0 -8rpx;
   }
 }
 /* 空状态样式 */
@@ -239,10 +236,10 @@ page {
 
 /* 商品卡片 */
 .goods-item {
-  width: calc(50% - 12rpx);
+  width: calc(50% - 16rpx);
   background: #ffffff;
   border-radius: 12rpx;
-  margin: 6rpx;
+  margin: 8rpx;
   overflow: hidden;
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.3);
   transition: all 0.3s ease;

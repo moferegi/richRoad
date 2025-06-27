@@ -164,11 +164,11 @@ const opencoupon = () => {
             })
             item.couponNum = res.data
             // 领取成功提示
-            uni.showToast({
+            /*uni.showToast({
               title: '领取成功',
               icon: 'success',
               duration: 1500
-            })
+            })*/
           }
           await changeOrderCoupon({
             orderID: orderID.value,
@@ -181,10 +181,10 @@ const opencoupon = () => {
             hidecoupon()
           }, 500)
         } catch (error) {
-          uni.showToast({
+          /*uni.showToast({
             title: '操作失败，请重试',
             icon: 'none'
-          })
+          })*/
         } finally {
           uni.hideLoading()
         }
@@ -216,10 +216,10 @@ const checkOrder = () => {
   timer = setInterval(async () => {
     const res = await getOrderById(orderID.value)
     if (res.data.TradeState === "SUCCESS") {
-      uni.showToast({
-        title: "支付成功",
-        icon: "none"
-      });
+      // uni.showToast({
+      //   title: "支付成功",
+      //   icon: "none"
+      // });
       clreatTimer()
       // 这里要重新获取当前订单信息改变状态
       await selfOrder(orderID.value)
@@ -237,10 +237,10 @@ const tapPay = async () => {
     uni.navigateTo({
       url: `/pages/address/address?ID=${data.value.goodID || data.value.ID}`,
     })
-    uni.showToast({
+    /*uni.showToast({
       title: '地址信息不全！请填写收货地址',
       icon: 'none'
-    })
+    })*/
     return
   }
   // 获取参数
@@ -251,10 +251,10 @@ const tapPay = async () => {
 
   const needPayRes = await checkNeedPay(params)
   if (!needPayRes.data) {
-    uni.showToast({
-      title: '订单已支付！',
-      icon: 'none'
-    })
+    // uni.showToast({
+    //   title: '订单已支付！',
+    //   icon: 'none'
+    // })
     uni.navigateTo({
         url: `/pages/order/order?orderID=${orderID.value}`,
       })
