@@ -556,7 +556,7 @@ const tags = ref([])
 const getTags = async() => {
   const res = await getTagList()
   if (res.code === 0) {
-    tags.value = res.data.list
+    tags.value = res.data.list || []
   }
 }
 

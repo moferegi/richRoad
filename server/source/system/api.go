@@ -285,6 +285,7 @@ func (i *initApi) InitializeData(ctx context.Context) (context.Context, error) {
 		{ApiGroup: "媒体库分类", Method: "GET", Path: "/attachmentCategory/getCategoryList", Description: "分类列表"},
 		{ApiGroup: "媒体库分类", Method: "POST", Path: "/attachmentCategory/addCategory", Description: "添加/编辑分类"},
 		{ApiGroup: "媒体库分类", Method: "POST", Path: "/attachmentCategory/deleteCategory", Description: "删除分类"},
+		{ApiGroup: "标签", Method: "POST", Path: "/tag/createTag", Description: "创建标签"},
 		{ApiGroup: "标签", Method: "DELETE", Path: "/tag/deleteTag", Description: "删除标签"},
 		{ApiGroup: "标签", Method: "DELETE", Path: "/tag/deleteTagByIds", Description: "批量删除标签"},
 		{ApiGroup: "标签", Method: "PUT", Path: "/tag/updateTag", Description: "更新标签"},
