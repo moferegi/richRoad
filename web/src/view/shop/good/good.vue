@@ -584,7 +584,7 @@ const categoryList = ref([])
 const getCategoryListFunc = async() => {
   const res = await getCategoryList()
   if (res.code === 0) {
-    categoryList.value = res.data.list
+    categoryList.value = res.data.list || []
   }
 }
 
