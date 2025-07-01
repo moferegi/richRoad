@@ -316,12 +316,12 @@ func (i *initCasbin) InitializeData(ctx context.Context) (context.Context, error
 		{Ptype: "p", V0: "888", V1: "/order/changeOrderCoupon", V2: "POST"},
 
 		// 促销信息管理权限
-		{Ptype: "p", V0: "888", V1: "/Promo/createPromotion", V2: "POST"},
-		{Ptype: "p", V0: "888", V1: "/Promo/deletePromotion", V2: "DELETE"},
-		{Ptype: "p", V0: "888", V1: "/Promo/deletePromotionByIds", V2: "DELETE"},
-		{Ptype: "p", V0: "888", V1: "/Promo/updatePromotion", V2: "PUT"},
-		{Ptype: "p", V0: "888", V1: "/Promo/findPromotion", V2: "GET"},
-		{Ptype: "p", V0: "888", V1: "/Promo/getPromotionList", V2: "GET"},
+		{Ptype: "p", V0: "888", V1: "/promo/createPromotion", V2: "POST"},
+		{Ptype: "p", V0: "888", V1: "/promo/deletePromotion", V2: "DELETE"},
+		{Ptype: "p", V0: "888", V1: "/promo/deletePromotionByIds", V2: "DELETE"},
+		{Ptype: "p", V0: "888", V1: "/promo/updatePromotion", V2: "PUT"},
+		{Ptype: "p", V0: "888", V1: "/promo/findPromotion", V2: "GET"},
+		{Ptype: "p", V0: "888", V1: "/promo/getPromotionList", V2: "GET"},
 
 		{Ptype: "p", V0: "8881", V1: "/user/admin_register", V2: "POST"},
 		{Ptype: "p", V0: "8881", V1: "/api/createApi", V2: "POST"},
@@ -364,12 +364,12 @@ func (i *initCasbin) InitializeData(ctx context.Context) (context.Context, error
 		{Ptype: "p", V0: "8881", V1: "/user/getUserInfo", V2: "GET"},
 
 		// 8881角色的促销信息管理权限
-		{Ptype: "p", V0: "8881", V1: "/Promo/createPromotion", V2: "POST"},
-		{Ptype: "p", V0: "8881", V1: "/Promo/deletePromotion", V2: "DELETE"},
-		{Ptype: "p", V0: "8881", V1: "/Promo/deletePromotionByIds", V2: "DELETE"},
-		{Ptype: "p", V0: "8881", V1: "/Promo/updatePromotion", V2: "PUT"},
-		{Ptype: "p", V0: "8881", V1: "/Promo/findPromotion", V2: "GET"},
-		{Ptype: "p", V0: "8881", V1: "/Promo/getPromotionList", V2: "GET"},
+		{Ptype: "p", V0: "8881", V1: "/promo/createPromotion", V2: "POST"},
+		{Ptype: "p", V0: "8881", V1: "/promo/deletePromotion", V2: "DELETE"},
+		{Ptype: "p", V0: "8881", V1: "/promo/deletePromotionByIds", V2: "DELETE"},
+		{Ptype: "p", V0: "8881", V1: "/promo/updatePromotion", V2: "PUT"},
+		{Ptype: "p", V0: "8881", V1: "/promo/findPromotion", V2: "GET"},
+		{Ptype: "p", V0: "8881", V1: "/promo/getPromotionList", V2: "GET"},
 
 		{Ptype: "p", V0: "8080", V1: "/address/createAddress", V2: "POST"},
 		{Ptype: "p", V0: "8080", V1: "/address/deleteAddress", V2: "DELETE"},
