@@ -30,10 +30,10 @@ func Timer() {
 			if global.GVA_DB == nil {
 				return
 			}
-			e := task.ClearOrder(global.GVA_DB) // 定时任务方法定在task文件包中
-			if e != nil {
-				fmt.Println("订单清理失败:", err)
-			}
+			//e := task.ClearOrder(global.GVA_DB) // 定时任务方法定在task文件包中
+			//if e != nil {
+			//	fmt.Println("订单清理失败:", err)
+			//}
 		}, "定时清理已过期订单", option...)
 		if err != nil {
 			fmt.Println("add timer error:", err)

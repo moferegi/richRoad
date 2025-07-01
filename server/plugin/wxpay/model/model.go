@@ -73,7 +73,3 @@ type PayOrder struct {
 		PayerCurrency string `json:"payer_currency"`
 	} `json:"amount"`
 }
-
-func (*PayOrder) TableName() string {
-	return "shop_order"
-}
