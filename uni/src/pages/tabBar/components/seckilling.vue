@@ -10,7 +10,7 @@
           <image class="product-image" :src="getUrl(item.imageUrl)" mode="aspectFill"></image>
         <view class="desc">
           <text class="product-title">{{ item.title }}</text>
-          <text class="product-price">¥ {{ item.price }}</text>
+          <text class="product-price">¥ {{ formatPrice(item.price) }}</text>
         </view>
       </view>
     </view>
@@ -26,6 +26,23 @@ const props = defineProps({
     default: () => [] // 修改为函数返回空数组
   }
 })
+
+// 处理分转元的价格格式化，避免浮点数精度问题
+const formatPrice = (priceInCents) => {
+  if (!priceInCents && priceInCents !== 0) return '0.00'
+  
+  // 确保输入是数字
+  const cents = parseInt(priceInCents)
+  if (isNaN(cents)) return '0.00'
+  
+  // 使用整数运算避免精度问题
+  const yuan = Math.floor(cents / 100)
+  const remainingCents = cents % 100
+  
+  // 格式化为两位小数
+  return `${yuan}.${remainingCents.toString().padStart(2, '0')}`
+}
+
 const goto = (item) => {
   uni.navigateTo({
     url: '/pages/goodsDetails/goodsDetails?id=' + item.ID
@@ -83,8 +100,8 @@ setTimeout(() => {
   .desc{
     padding: 12rpx;
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 8rpx;
   }
 }
 
@@ -110,13 +127,16 @@ setTimeout(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: 8rpx;
+  flex: 1;
+  min-width: 0;
 }
 
 .product-price {
   font-size: 24rpx;
   color: #FF4500;
   font-weight: bold;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 </style>
 

@@ -96,8 +96,19 @@ const sessionFrom = ref('');
 searchKeyword.value = ''
 // 带关键词跳转到搜索页面
 const goToSearchWithKeyword = () => {
+  const keyword = searchKeyword.value.trim()
+  if (!keyword) {
+    uni.showToast({
+      title: '请输入搜索关键词',
+      icon: 'none'
+    })
+    return
+  }
+  
+  // 使用 uni.setStorageSync 临时存储搜索关键词
+  uni.setStorageSync('searchKeyword', keyword)
   uni.navigateTo({
-    url: `/pages/search/index?keyword=${encodeURIComponent(searchKeyword.value.trim())}`
+    url: '/pages/search/index'
   })
 }
 
