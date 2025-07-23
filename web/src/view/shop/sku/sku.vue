@@ -267,7 +267,7 @@
           prop="inventory"
         >
           <el-input
-            v-model.number="spec.value"
+            v-model="spec.value"
             :clearable="true"
             :placeholder="'请输入'+spec.label"
           />
