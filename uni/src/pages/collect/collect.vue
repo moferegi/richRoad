@@ -31,7 +31,7 @@
 	</view>
   <view v-if="!collectList.length" class="empty-state">
       <view class="empty-image-container">
-        <image class="empty-image-placeholder" src="./../../static/emptyStatus.png"></image>
+        <image class="empty-image-placeholder" src="./../../static/emptyStatus.jpg"></image>
       </view>
       <view class="empty-text">暂无订单数据</view>
   </view>

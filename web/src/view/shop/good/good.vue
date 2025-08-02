@@ -347,7 +347,7 @@
         <el-row :gutter="12">
           <el-col :span="8">
             <el-form-item
-              label="商品价格:"
+              label="商品价格(单位：分):"
               prop="price"
             >
               <el-input-number

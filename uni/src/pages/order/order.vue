@@ -21,7 +21,8 @@
     <!-- 空状态展示 -->
     <view class="empty-state" v-if="orderList.length === 0">
       <view class="empty-image-container">
-          <image class="empty-image-placeholder" src="./../../static/emptyStatus.png"></image>
+        <image class="empty-image-placeholder" src="@/static/emptyStatus.jpg" mode="aspectFill"></image>
+<!--          <image class="empty-image-placeholder" src="./../../static/emptyStatus.jpg"></image>-->
       </view>
       <view class="empty-text">暂无订单数据</view>
     </view>
@@ -281,7 +282,7 @@ const tapBtn = async (item) => {
 
 <style lang="scss">
 page {
-  background-color: #f7f7f7;
+  background-color: #ffffff;
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, sans-serif;
 }
 
@@ -361,11 +362,15 @@ page {
 /* 订单列表样式 */
 .order-list {
   padding: 16rpx;
+  background-color: #ffffff;
 }
 
 .order-card {
   background-color: #fff;
   margin-bottom: 20rpx;
+  border-radius: 16rpx;
+  border: 1rpx solid #f0f0f0;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
 }
 
 /* 订单头部 */

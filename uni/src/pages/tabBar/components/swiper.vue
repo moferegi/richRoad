@@ -23,28 +23,9 @@ const props = defineProps({
 // 处理轮播图点击事件
 const handleSwiperClick = (item) => {
   if (item.href && item.href.trim() !== '') {
-    let url = item.href;
-    // 检查是否是包含协议的完整URL
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      // 查找'#/'之后的部分作为目标路径
-      const hashIndex = url.indexOf('#');
-      if (hashIndex !== -1) {
-        const path = url.substring(hashIndex + 1);
-        uni.navigateTo({
-          url: path
-        });
-      } else {
-        // 如果没有'#/'，则视为外部链接，使用webview打开
-        uni.navigateTo({
-          url: '/pages/webview/webview?url=' + encodeURIComponent(url)
-        });
-      }
-    } else {
-      // 如果是内部路由，直接跳转
-      uni.navigateTo({
-        url: url
-      });
-    }
+    uni.navigateTo({
+      url: item.href
+    });
   }
 };
 

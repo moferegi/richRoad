@@ -78,7 +78,18 @@ const params = ref({
 
 // 页面加载时获取参数
 onLoad((options) => {
-  // 处理搜索关键词参数
+  // 优先从本地存储获取搜索关键词
+  const storedKeyword = uni.getStorageSync('searchKeyword')
+  if (storedKeyword && storedKeyword.trim()) {
+    searchKeyword.value = storedKeyword.trim()
+    params.value.keyword = storedKeyword.trim()
+    // 使用后立即清除存储
+    uni.removeStorageSync('searchKeyword')
+    handleSearch()
+    return
+  }
+
+  // 处理URL参数中的搜索关键词
   if (options.keyword && options.keyword.trim()) {
     searchKeyword.value = options.keyword.trim()
     params.value.keyword = options.keyword.trim()
