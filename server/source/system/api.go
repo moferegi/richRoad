@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+
 	sysModel "github.com/flipped-aurora/gin-vue-admin/server/model/system"
 	"github.com/flipped-aurora/gin-vue-admin/server/service/system"
 	"github.com/pkg/errors"
@@ -313,6 +314,14 @@ func (i *initApi) InitializeData(ctx context.Context) (context.Context, error) {
 		{ApiGroup: "优惠券", Method: "POST", Path: "/cou/claimCouponByUser", Description: "用户领取优惠券"},
 		{ApiGroup: "优惠券", Method: "POST", Path: "/cou/adminIssueCouponToAll", Description: "管理员向所有用户发放优惠券"},
 		{ApiGroup: "订单", Method: "POST", Path: "/order/changeOrderCoupon", Description: "更换优惠券"},
+
+		{ApiGroup: "版本控制", Method: "GET", Path: "/sysVersion/findSysVersion", Description: "获取单一版本"},
+		{ApiGroup: "版本控制", Method: "GET", Path: "/sysVersion/getSysVersionList", Description: "获取版本列表"},
+		{ApiGroup: "版本控制", Method: "GET", Path: "/sysVersion/downloadVersionJson", Description: "下载版本json"},
+		{ApiGroup: "版本控制", Method: "POST", Path: "/sysVersion/exportVersion", Description: "创建版本"},
+		{ApiGroup: "版本控制", Method: "POST", Path: "/sysVersion/importVersion", Description: "同步版本"},
+		{ApiGroup: "版本控制", Method: "DELETE", Path: "/sysVersion/deleteSysVersion", Description: "删除版本"},
+		{ApiGroup: "版本控制", Method: "DELETE", Path: "/sysVersion/deleteSysVersionByIds", Description: "批量删除版本"},
 	}
 	if err := db.Create(&entities).Error; err != nil {
 		return ctx, errors.Wrap(err, sysModel.SysApi{}.TableName()+"表数据初始化失败!")

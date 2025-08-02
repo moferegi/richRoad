@@ -289,6 +289,14 @@ func (i *initCasbin) InitializeData(ctx context.Context) (context.Context, error
 		{Ptype: "p", V0: "888", V1: "/attachmentCategory/addCategory", V2: "POST"},
 		{Ptype: "p", V0: "888", V1: "/attachmentCategory/deleteCategory", V2: "POST"},
 
+		{Ptype: "p", V0: "888", V1: "/sysVersion/findSysVersion", V2: "GET"},
+		{Ptype: "p", V0: "888", V1: "/sysVersion/getSysVersionList", V2: "GET"},
+		{Ptype: "p", V0: "888", V1: "/sysVersion/downloadVersionJson", V2: "GET"},
+		{Ptype: "p", V0: "888", V1: "/sysVersion/exportVersion", V2: "POST"},
+		{Ptype: "p", V0: "888", V1: "/sysVersion/importVersion", V2: "POST"},
+		{Ptype: "p", V0: "888", V1: "/sysVersion/deleteSysVersion", V2: "DELETE"},
+		{Ptype: "p", V0: "888", V1: "/sysVersion/deleteSysVersionByIds", V2: "DELETE"},
+
 		// 标签管理权限
 		{Ptype: "p", V0: "888", V1: "/tag/createTag", V2: "POST"},
 		{Ptype: "p", V0: "888", V1: "/tag/deleteTag", V2: "DELETE"},
@@ -404,11 +412,39 @@ func (i *initCasbin) InitializeData(ctx context.Context) (context.Context, error
 		{Ptype: "p", V0: "8080", V1: "/order/selfOrderList", V2: "GET"},
 		{Ptype: "p", V0: "8080", V1: "/order/updateOrderStatus", V2: "POST"},
 		{Ptype: "p", V0: "8080", V1: "/order/updateOrder", V2: "POST"},
-
-		// 8080角色的优惠券权限
 		{Ptype: "p", V0: "8080", V1: "/cou/claimCouponByUser", V2: "POST"},
 		{Ptype: "p", V0: "8080", V1: "/cou/getAllClaimCoupon", V2: "POST"},
 		{Ptype: "p", V0: "8080", V1: "/order/changeOrderCoupon", V2: "POST"},
+
+		{Ptype: "p", V0: "9528", V1: "/menu/getMenu", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/menu/getMenuList", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/menu/addBaseMenu", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/menu/getBaseMenuTree", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/menu/addMenuAuthority", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/menu/getMenuAuthority", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/menu/deleteBaseMenu", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/menu/updateBaseMenu", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/menu/getBaseMenuById", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/user/changePassword", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/user/getUserList", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/user/setUserAuthority", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/fileUploadAndDownload/upload", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/fileUploadAndDownload/getFileList", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/fileUploadAndDownload/deleteFile", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/fileUploadAndDownload/editFileName", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/fileUploadAndDownload/importURL", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/casbin/updateCasbin", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/casbin/getPolicyPathByAuthorityId", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/jwt/jsonInBlacklist", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/system/getSystemConfig", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/system/setSystemConfig", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/customer/customer", V2: "PUT"},
+		{Ptype: "p", V0: "9528", V1: "/customer/customer", V2: "GET"},
+		{Ptype: "p", V0: "9528", V1: "/customer/customer", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/customer/customer", V2: "DELETE"},
+		{Ptype: "p", V0: "9528", V1: "/customer/customerList", V2: "GET"},
+		{Ptype: "p", V0: "9528", V1: "/autoCode/createTemp", V2: "POST"},
+		{Ptype: "p", V0: "9528", V1: "/user/getUserInfo", V2: "GET"},
 	}
 	if err := db.Create(&entities).Error; err != nil {
 		return ctx, errors.Wrap(err, "Casbin 表 ("+i.InitializerName()+") 数据初始化失败!")

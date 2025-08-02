@@ -161,8 +161,8 @@ func ({{.Abbreviation}}Service *{{.StructName}}Service)Get{{.StructName}}InfoLis
         var OrderStr string
         orderMap := make(map[string]bool)
         {{- if .GvaModel }}
-           orderMap["ID"] = true
-           orderMap["CreatedAt"] = true
+           orderMap["id"] = true
+           orderMap["created_at"] = true
         {{- end }}
        {{- range .Fields}}
             {{- if .Sort}}
@@ -195,7 +195,7 @@ func ({{.Abbreviation}}Service *{{.StructName}}Service)Get{{.StructName}}DataSou
 	   {{$key}} := make([]map[string]any, 0)
 	   {{ $dataDB := "" }}
 	   {{- if eq $value.DBName "" }}
-       {{ $dataDB = $db }}
+       {{ $dataDB = "global.GVA_DB" }}
        {{- else}}
        {{ $dataDB = printf "global.MustGetGlobalDBByDBName(\"%s\")" $value.DBName }}
        {{- end}}

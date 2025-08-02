@@ -118,7 +118,7 @@ mysql:
     config: charset=utf8mb4&parseTime=True&loc=Local
     db-name: ""
     username: ""
-    password: "" 
+    password: ""
     path: ""
     engine: ""
     log-mode: error
