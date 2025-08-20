@@ -51,7 +51,7 @@
           <el-table-column align="left" label="收货电话" prop="phone" width="120" />
           <el-table-column align="left" label="收货地址" prop="addr" width="120">
             <template #default="{row}">
-               {{ row.province }}/{{ row.city }}/{{ row.area }}/{{ row.address }}
+               {{ row.province }}/{{ row.city }}/{{ row.area }}/{{ row.street }}
             </template>
           </el-table-column>
           <el-table-column align="left" label="快递单号" prop="express" width="160" />
@@ -81,6 +81,7 @@
             />
         </div>
     </div>
+    <!-- 编辑订单抽屉 -->
     <el-drawer size="800" v-model="dialogFormVisible" :show-close="false" :before-close="closeDialog">
        <template #header>
               <div class="flex justify-between items-center">
@@ -105,6 +106,175 @@
               </el-select>
             </el-form-item>
           </el-form>
+    </el-drawer>
+
+    <!-- 订单详情抽屉 -->
+    <el-drawer size="1000" v-model="detailDialogVisible" :show-close="false" :before-close="closeDetailDialog">
+      <template #header>
+        <div class="flex justify-between items-center">
+          <span class="text-lg">订单详情</span>
+          <el-button @click="closeDetailDialog">关 闭</el-button>
+        </div>
+      </template>
+
+      <div v-if="orderDetail" class="order-detail-container">
+        <!-- 订单基本信息 -->
+        <el-card class="mb-4" shadow="never">
+          <template #header>
+            <span class="text-base font-medium">订单信息</span>
+          </template>
+          <el-row :gutter="20">
+            <el-col :span="8">
+              <div class="detail-item">
+                <span class="label">订单ID:</span>
+                <span class="value">{{ orderDetail.ID }}</span>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="detail-item">
+                <span class="label">购买者ID:</span>
+                <span class="value">{{ orderDetail.userID }}</span>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="detail-item">
+                <span class="label">订单状态:</span>
+                <el-tag :type="getStatusType(orderDetail.status)">{{ filterDict(orderDetail.status, orderStatusOptions) }}</el-tag>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="detail-item">
+                <span class="label">创建时间:</span>
+                <span class="value">{{ formatDate(orderDetail.CreatedAt) }}</span>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="detail-item">
+                <span class="label">优惠券编号:</span>
+                <span class="value">{{ orderDetail.couponNum || '无' }}</span>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="detail-item">
+                <span class="label">快递单号:</span>
+                <span class="value">{{ orderDetail.express || '未发货' }}</span>
+              </div>
+            </el-col>
+          </el-row>
+        </el-card>
+
+        <!-- 价格信息 -->
+        <el-card class="mb-4" shadow="never">
+          <template #header>
+            <span class="text-base font-medium">价格信息</span>
+          </template>
+          <el-row :gutter="20">
+            <el-col :span="8">
+              <div class="detail-item">
+                <span class="label">原价:</span>
+                <span class="value price">¥{{ (orderDetail.originPrice / 100).toFixed(2) }}</span>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="detail-item">
+                <span class="label">优惠金额:</span>
+                <span class="value discount">-¥{{ (orderDetail.discount / 100).toFixed(2) }}</span>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="detail-item">
+                <span class="label">实际金额:</span>
+                <span class="value total-price">¥{{ (orderDetail.totalPrice / 100).toFixed(2) }}</span>
+              </div>
+            </el-col>
+          </el-row>
+        </el-card>
+
+        <!-- 收货信息 -->
+        <el-card class="mb-4" shadow="never">
+          <template #header>
+            <span class="text-base font-medium">收货信息</span>
+          </template>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <div class="detail-item">
+                <span class="label">收件人:</span>
+                <span class="value">{{ orderDetail.name }}</span>
+              </div>
+            </el-col>
+            <el-col :span="12">
+              <div class="detail-item">
+                <span class="label">联系电话:</span>
+                <span class="value">{{ orderDetail.phone }}</span>
+              </div>
+            </el-col>
+            <el-col :span="24">
+              <div class="detail-item">
+                <span class="label">收货地址:</span>
+                <span class="value">{{ orderDetail.province }}/{{ orderDetail.city }}/{{ orderDetail.area }}/{{ orderDetail.street }}</span>
+              </div>
+            </el-col>
+          </el-row>
+        </el-card>
+
+        <!-- 商品详情 -->
+        <el-card shadow="never">
+          <template #header>
+            <span class="text-base font-medium">商品详情</span>
+          </template>
+          <el-table :data="orderDetail.detail" style="width: 100%" border>
+             <el-table-column label="商品名称" width="200">
+               <template #default="scope">
+                 {{ scope.row.good?.title || '未知商品' }}
+               </template>
+             </el-table-column>
+             <el-table-column label="SKU规格" width="200">
+               <template #default="scope">
+                 <div v-if="scope.row.sku">
+                   <div>{{ scope.row.sku.name }}</div>
+                   <div class="text-xs text-gray-500" v-if="scope.row.sku.specs && scope.row.sku.specs.length > 0">
+                     <span v-for="(spec, index) in scope.row.sku.specs" :key="index">
+                       {{ spec.label }}: {{ spec.value }}
+                       <span v-if="index < scope.row.sku.specs.length - 1">; </span>
+                     </span>
+                   </div>
+                 </div>
+                 <span v-else>无规格信息</span>
+               </template>
+             </el-table-column>
+             <el-table-column prop="quantity" label="购买数量" width="100" align="center" />
+             <el-table-column prop="price" label="单价" width="120" align="center">
+               <template #default="scope">
+                 ¥{{ (scope.row.price / 100).toFixed(2) }}
+               </template>
+             </el-table-column>
+             <el-table-column label="小计" width="120" align="center">
+               <template #default="scope">
+                 ¥{{ ((scope.row.price * scope.row.quantity) / 100).toFixed(2) }}
+               </template>
+             </el-table-column>
+             <el-table-column label="商品图片" width="100" align="center">
+               <template #default="scope">
+                 <el-image 
+                   v-if="scope.row.sku?.picture" 
+                   :src="scope.row.sku.picture" 
+                   style="width: 50px; height: 50px" 
+                   fit="cover"
+                   :preview-src-list="[scope.row.sku.picture]"
+                 />
+                 <el-image 
+                   v-else-if="scope.row.good?.imageUrl" 
+                   :src="scope.row.good.imageUrl" 
+                   style="width: 50px; height: 50px" 
+                   fit="cover"
+                   :preview-src-list="[scope.row.good.imageUrl]"
+                 />
+                 <span v-else>无图片</span>
+               </template>
+             </el-table-column>
+           </el-table>
+        </el-card>
+      </div>
     </el-drawer>
   </div>
 </template>
@@ -327,8 +497,112 @@ const checkRoutersFunc = async (row) =>{
   console.log(res)
 }
 
+// 订单详情相关
+const detailDialogVisible = ref(false)
+const orderDetail = ref(null)
+
+// 获取订单详情
+const getDetails = async (row) => {
+  try {
+    const res = await findOrder({ ID: row.ID })
+    if (res.code === 0) {
+      orderDetail.value = res.data.reorder
+      detailDialogVisible.value = true
+    } else {
+      ElMessage.error('获取订单详情失败')
+    }
+  } catch (error) {
+    console.error('获取订单详情错误:', error)
+    ElMessage.error('获取订单详情失败')
+  }
+}
+
+// 关闭订单详情弹窗
+const closeDetailDialog = () => {
+  detailDialogVisible.value = false
+  orderDetail.value = null
+}
+
+// 获取订单状态对应的标签类型
+const getStatusType = (status) => {
+  const statusMap = {
+    '0': 'info',     // 待支付
+    '1': 'warning',  // 待发货
+    '2': 'primary',  // 已发货
+    '3': 'success',  // 已完成
+    '4': 'danger',   // 已取消
+    '5': 'danger'    // 已退款
+  }
+  return statusMap[status] || 'info'
+}
+
 </script>
 
-<style>
+<style scoped>
+.order-detail-container {
+  padding: 0;
+}
 
+.detail-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  min-height: 32px;
+}
+
+.detail-item .label {
+  font-weight: 500;
+  color: #606266;
+  min-width: 80px;
+  margin-right: 12px;
+}
+
+.detail-item .value {
+  color: #303133;
+  flex: 1;
+}
+
+.detail-item .value.price {
+  color: #409EFF;
+  font-weight: 500;
+}
+
+.detail-item .value.discount {
+  color: #F56C6C;
+  font-weight: 500;
+}
+
+.detail-item .value.total-price {
+  color: #E6A23C;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.mb-4 {
+  margin-bottom: 16px;
+}
+
+:deep(.el-card__header) {
+  padding: 16px 20px;
+  border-bottom: 1px solid #EBEEF5;
+}
+
+:deep(.el-card__body) {
+  padding: 20px;
+}
+
+:deep(.el-table) {
+  font-size: 14px;
+}
+
+:deep(.el-table th) {
+  background-color: #F5F7FA;
+  color: #606266;
+  font-weight: 500;
+}
+
+:deep(.el-image) {
+  border-radius: 4px;
+  border: 1px solid #DCDFE6;
+}
 </style>

@@ -47,20 +47,11 @@
 
         <el-table-column align="left" label="收件人名称" prop="name" width="120" />
         <el-table-column align="left" label="收件人电话" prop="phone" width="120" />
-        <el-table-column align="left" label="收件省份" prop="province" width="120">
-          <template #default="scope">
-          {{ filterDataSource(dataSource.province,scope.row.province) }}
-         </template>
+        <el-table-column align="left" label="收件省份" prop="provinceStr" width="120">
          </el-table-column>
-        <el-table-column align="left" label="收件城市" prop="city" width="120">
-          <template #default="scope">
-          {{ filterDataSource(dataSource.city,scope.row.city) }}
-         </template>
+        <el-table-column align="left" label="收件城市" prop="cityStr" width="120">
          </el-table-column>
-        <el-table-column align="left" label="收件区域" prop="area" min-width="120">
-          <template #default="scope">
-          {{ filterDataSource(dataSource.area,scope.row.area) }}
-         </template>
+        <el-table-column align="left" label="收件区域" prop="areaStr" min-width="120">
          </el-table-column>
         <el-table-column align="left" label="收件详细地址" prop="street" width="120" />
         <el-table-column align="left" label="用户id" prop="userID" width="120" />
