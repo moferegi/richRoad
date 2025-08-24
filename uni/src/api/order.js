@@ -18,6 +18,15 @@ export const placeOrderByCart  = (data) => {
     })
 }
 
+// 变更订单积分抵扣
+export const changeOrderPoints = (params) => {
+    return request({
+        url: '/order/changeOrderPoints',
+        method: 'post',
+        params: params
+    })
+}
+
 // 改变订单购物券
 export const changeOrderCoupon  = (params) => {
   return request({

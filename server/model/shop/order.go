@@ -13,6 +13,8 @@ type CreateOrder struct {
 	OriginPrice uint          `json:"originPrice" form:"originPrice" gorm:"column:origin_price;comment:原价;"`   //原价（分）
 	TotalPrice  uint          `json:"totalPrice" form:"totalPrice" gorm:"column:total_price;comment:订单价格;"`    //订单价格（分）
 	Discount    uint          `json:"discount" form:"discount" gorm:"column:discount;comment:优惠金额;"`           //优惠金额（分）
+	UsePoints   bool          `json:"usePoints" form:"usePoints" gorm:"column:use_points;comment:是否使用积分;"`     //是否使用积分
+	PointsUsed  uint          `json:"pointsUsed" form:"pointsUsed" gorm:"column:points_used;comment:使用的积分数;"`  //使用的积分数
 	Express     string        `json:"express" form:"express" gorm:"column:express;comment:快递单号;"`              //快递单号
 	Status      string        `json:"status" form:"status" gorm:"column:status;comment:订单状态;"`                 //订单状态
 	Detail      []OrderDetail `json:"detail" gorm:"foreignKey:OrderID;references:ID"`                          //订单详情
@@ -61,8 +63,10 @@ type Order struct {
 	CouponNum   string        `json:"couponNum" form:"couponNum" gorm:"column:coupon_num;comment:优惠券编号;"`      //优惠券编号
 	UserID      uint          `json:"userID" form:"userID" gorm:"column:user_id;comment:购买者ID;"`               //购买者ID
 	OriginPrice uint          `json:"originPrice" form:"originPrice" gorm:"column:origin_price;comment:原价;"`   //原价（分）
-	TotalPrice  uint          `json:"totalPrice" form:"totalPrice" gorm:"column:total_price;comment:订单价格;"`    //订单价格（分）
+	TotalPrice  int           `json:"totalPrice" form:"totalPrice" gorm:"column:total_price;comment:订单价格;"`    //订单价格（分）
 	Discount    uint          `json:"discount" form:"discount" gorm:"column:discount;comment:优惠金额;"`           //优惠金额（分）
+	UsePoints   bool          `json:"usePoints" form:"usePoints" gorm:"column:use_points;comment:是否使用积分;"`     //是否使用积分
+	PointsUsed  uint          `json:"pointsUsed" form:"pointsUsed" gorm:"column:points_used;comment:使用的积分数;"`  //使用的积分数
 	Express     string        `json:"express" form:"express" gorm:"column:express;comment:快递单号;"`              //快递单号
 	Status      string        `json:"status" form:"status" gorm:"column:status;comment:订单状态;"`                 //订单状态
 	Detail      []OrderDetail `json:"detail" gorm:"foreignKey:OrderID;references:ID"`                          //订单详情

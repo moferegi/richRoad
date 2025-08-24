@@ -117,6 +117,7 @@ func (i *initMenu) InitializeData(ctx context.Context) (next context.Context, er
 		{MenuLevel: 1, Hidden: false, ParentId: menuNameMap["client"], Path: "clientUser", Name: "clientUser", Component: "view/client/user/user.vue", Sort: 1, Meta: Meta{Title: "客户端用户", Icon: "user-filled"}},
 		{MenuLevel: 1, Hidden: false, ParentId: menuNameMap["client"], Path: "address", Name: "address", Component: "view/client/address/address.vue", Sort: 0, Meta: Meta{Title: "用户地址", Icon: "add-location"}},
 		{MenuLevel: 1, Hidden: false, ParentId: menuNameMap["client"], Path: "comment", Name: "comment", Component: "view/shop/comment/comment.vue", Sort: 0, Meta: Meta{Title: "用户评论", Icon: "message"}},
+		{MenuLevel: 1, Hidden: false, ParentId: menuNameMap["client"], Path: "cpr", Name: "cpr", Component: "view/client/pointRecord/pointRecord.vue", Sort: 10, Meta: Meta{Title: "积分记录", Icon: "medal"}},
 
 		{MenuLevel: 1, Hidden: false, ParentId: menuNameMap["shop"], Path: "banner", Name: "banner", Component: "view/shop/banner/banner.vue", Sort: 1, Meta: Meta{Title: "轮播图", Icon: "picture-filled"}},
 		{MenuLevel: 1, Hidden: false, ParentId: menuNameMap["shop"], Path: "category", Name: "category", Component: "view/shop/category/category.vue", Sort: 2000, Meta: Meta{Title: "商品分类", Icon: "cherry"}},
@@ -128,7 +129,6 @@ func (i *initMenu) InitializeData(ctx context.Context) (next context.Context, er
 		{MenuLevel: 1, Hidden: false, ParentId: menuNameMap["shop"], Path: "Promo", Name: "Promo", Component: "view/shop/promotion/promotion.vue", Sort: 99, Meta: Meta{Title: "促销信息", Icon: "bicycle"}},
 
 		{MenuLevel: 1, Hidden: false, ParentId: menuNameMap["geoGroup"], Path: "geo", Name: "geo", Component: "plugin/geo/view/index.vue", Sort: 0, Meta: Meta{Title: "城市管理", Icon: "school"}},
-
 	}
 
 	// 创建子菜单

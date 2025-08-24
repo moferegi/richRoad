@@ -322,6 +322,7 @@ func (i *initCasbin) InitializeData(ctx context.Context) (context.Context, error
 		{Ptype: "p", V0: "888", V1: "/Cou/updateCoupon", V2: "PUT"},
 		{Ptype: "p", V0: "888", V1: "/cou/updateCouponOrderUser", V2: "PUT"},
 		{Ptype: "p", V0: "888", V1: "/order/changeOrderCoupon", V2: "POST"},
+		{Ptype: "p", V0: "888", V1: "/order/changeOrderPoints", V2: "POST"},
 
 		// 促销信息管理权限
 		{Ptype: "p", V0: "888", V1: "/promo/createPromotion", V2: "POST"},
@@ -330,6 +331,13 @@ func (i *initCasbin) InitializeData(ctx context.Context) (context.Context, error
 		{Ptype: "p", V0: "888", V1: "/promo/updatePromotion", V2: "PUT"},
 		{Ptype: "p", V0: "888", V1: "/promo/findPromotion", V2: "GET"},
 		{Ptype: "p", V0: "888", V1: "/promo/getPromotionList", V2: "GET"},
+
+		{Ptype: "p", V0: "888", V1: "/cpr/createPointRecord", V2: "POST"},
+		{Ptype: "p", V0: "888", V1: "/cpr/deletePointRecord", V2: "DELETE"},
+		{Ptype: "p", V0: "888", V1: "/cpr/deletePointRecordByIds", V2: "DELETE"},
+		{Ptype: "p", V0: "888", V1: "/cpr/updatePointRecord", V2: "PUT"},
+		{Ptype: "p", V0: "888", V1: "/cpr/findPointRecord", V2: "GET"},
+		{Ptype: "p", V0: "888", V1: "/cpr/getPointRecordList", V2: "GET"},
 
 		{Ptype: "p", V0: "8881", V1: "/user/admin_register", V2: "POST"},
 		{Ptype: "p", V0: "8881", V1: "/api/createApi", V2: "POST"},
@@ -415,6 +423,7 @@ func (i *initCasbin) InitializeData(ctx context.Context) (context.Context, error
 		{Ptype: "p", V0: "8080", V1: "/cou/claimCouponByUser", V2: "POST"},
 		{Ptype: "p", V0: "8080", V1: "/cou/getAllClaimCoupon", V2: "POST"},
 		{Ptype: "p", V0: "8080", V1: "/order/changeOrderCoupon", V2: "POST"},
+		{Ptype: "p", V0: "8080", V1: "/order/changeOrderPoints", V2: "POST"},
 
 		{Ptype: "p", V0: "9528", V1: "/menu/getMenu", V2: "POST"},
 		{Ptype: "p", V0: "9528", V1: "/menu/getMenuList", V2: "POST"},

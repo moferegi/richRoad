@@ -108,6 +108,19 @@ func (i *initDictDetail) InitializeData(ctx context.Context) (context.Context, e
 		{Label: "取消", Value: "4", Extend: "", Status: &True},
 	}
 
+	dicts[7].SysDictionaryDetails = []sysModel.SysDictionaryDetail{
+		{Label: "购买商品", Value: "purchase", Status: &True, Sort: 1},
+		{Label: "订单完成", Value: "order_complete", Status: &True, Sort: 2},
+		{Label: "签到奖励", Value: "daily_checkin", Status: &True, Sort: 3},
+		{Label: "推荐奖励", Value: "referral_reward", Status: &True, Sort: 4},
+		{Label: "活动奖励", Value: "activity_reward", Status: &True, Sort: 5},
+		{Label: "系统赠送", Value: "system_gift", Status: &True, Sort: 6},
+		{Label: "积分兑换", Value: "point_exchange", Status: &True, Sort: 7},
+		{Label: "退款返还", Value: "refund_return", Status: &True, Sort: 8},
+		{Label: "过期扣除", Value: "expire_deduct", Status: &True, Sort: 9},
+		{Label: "管理员调整", Value: "admin_adjust", Status: &True, Sort: 10},
+	}
+
 	for _, dict := range dicts {
 		if err := db.Model(&dict).Association("SysDictionaryDetails").
 			Replace(dict.SysDictionaryDetails); err != nil {

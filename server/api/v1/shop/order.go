@@ -81,7 +81,13 @@ func (orderApi *OrderApi) PlaceOrder(c *gin.Context) {
 // @Router /order/placeOrderByCart [post]
 func (orderApi *OrderApi) PlaceOrderByCart(c *gin.Context) {
 	userID := utils.GetUserID(c)
-	if orderID, err := orderService.PlaceOrderByCart(userID); err != nil {
+	var req shopReq.PlaceOrderByCartRequest
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	if orderID, err := orderService.PlaceOrderByCart(userID, req); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
 		response.FailWithMessage(err.Error(), c)
 	} else {
@@ -99,6 +105,31 @@ func (orderApi *OrderApi) ChangeOrderCoupon(c *gin.Context) {
 
 	if err := orderService.ChangeOrderCoupon(userID, orderID, couponNum); err != nil {
 		global.GVA_LOG.Error("变更失败!", zap.Error(err))
+		response.FailWithMessage(err.Error(), c)
+	} else {
+		response.Ok(c)
+	}
+}
+
+// ChangeOrderPoints 变更订单积分抵扣
+// @Tags Order
+// @Summary 变更订单积分抵扣
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param orderID query string true "订单ID"
+// @Param usePoints query bool true "是否使用积分"
+// @Success 200 {object} response.Response{msg=string} "变更成功"
+// @Router /order/changeOrderPoints [post]
+func (orderApi *OrderApi) ChangeOrderPoints(c *gin.Context) {
+	orderID := c.Query("orderID")
+	usePointsStr := c.Query("usePoints")
+	userID := utils.GetUserID(c)
+
+	usePoints := usePointsStr == "true"
+
+	if err := orderService.ChangeOrderPoints(userID, orderID, usePoints); err != nil {
+		global.GVA_LOG.Error("积分变更失败!", zap.Error(err))
 		response.FailWithMessage(err.Error(), c)
 	} else {
 		response.Ok(c)

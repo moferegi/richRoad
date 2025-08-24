@@ -4,4 +4,5 @@ type ServiceGroup struct {
 	ClientUserService
 	AddressService
 	CollectService
+	PointRecordService
 }

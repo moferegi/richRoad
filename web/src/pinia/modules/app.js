@@ -13,6 +13,7 @@ export const useAppStore = defineStore('app', () => {
     primaryColor: '#3b82f6',
     showTabs: true,
     darkMode: 'auto',
+    drawerSize:"50%",
     layout_side_width: 256,
     layout_side_collapsed_width: 80,
     layout_side_item_height: 48,

@@ -314,6 +314,7 @@ func (i *initApi) InitializeData(ctx context.Context) (context.Context, error) {
 		{ApiGroup: "优惠券", Method: "POST", Path: "/cou/claimCouponByUser", Description: "用户领取优惠券"},
 		{ApiGroup: "优惠券", Method: "POST", Path: "/cou/adminIssueCouponToAll", Description: "管理员向所有用户发放优惠券"},
 		{ApiGroup: "订单", Method: "POST", Path: "/order/changeOrderCoupon", Description: "更换优惠券"},
+		{ApiGroup: "订单", Method: "POST", Path: "/order/changeOrderPoints", Description: "调整是否使用积分"},
 
 		{ApiGroup: "版本控制", Method: "GET", Path: "/sysVersion/findSysVersion", Description: "获取单一版本"},
 		{ApiGroup: "版本控制", Method: "GET", Path: "/sysVersion/getSysVersionList", Description: "获取版本列表"},
@@ -322,6 +323,14 @@ func (i *initApi) InitializeData(ctx context.Context) (context.Context, error) {
 		{ApiGroup: "版本控制", Method: "POST", Path: "/sysVersion/importVersion", Description: "同步版本"},
 		{ApiGroup: "版本控制", Method: "DELETE", Path: "/sysVersion/deleteSysVersion", Description: "删除版本"},
 		{ApiGroup: "版本控制", Method: "DELETE", Path: "/sysVersion/deleteSysVersionByIds", Description: "批量删除版本"},
+
+		{ApiGroup: "积分记录管理", Method: "POST", Path: "/cpr/createPointRecord", Description: "新增积分记录管理"},
+		{ApiGroup: "积分记录管理", Method: "DELETE", Path: "/cpr/deletePointRecord", Description: "删除积分记录管理"},
+		{ApiGroup: "积分记录管理", Method: "DELETE", Path: "/cpr/deletePointRecordByIds", Description: "批量删除积分记录管理"},
+		{ApiGroup: "积分记录管理", Method: "PUT", Path: "/cpr/updatePointRecord", Description: "更新积分记录管理"},
+		{ApiGroup: "积分记录管理", Method: "GET", Path: "/cpr/findPointRecord", Description: "根据ID获取积分记录管理"},
+		{ApiGroup: "积分记录管理", Method: "GET", Path: "/cpr/getPointRecordList", Description: "获取积分记录管理列表"},
+		{ApiGroup: "积分记录管理", Method: "GET", Path: "/cpr/getPointRecordList", Description: "获取积分记录管理列表"},
 	}
 	if err := db.Create(&entities).Error; err != nil {
 		return ctx, errors.Wrap(err, sysModel.SysApi{}.TableName()+"表数据初始化失败!")

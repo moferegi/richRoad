@@ -1,13 +1,17 @@
 package shop
 
 import (
+	"context"
 	"errors"
+	"strconv"
+	"time"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
+	clientService "github.com/flipped-aurora/gin-vue-admin/server/service/client"
 	"gorm.io/gorm"
-	"time"
 )
 
 type OrderService struct {
@@ -61,7 +65,7 @@ func (orderService *OrderService) ChangeOrderCoupon(userID uint, orderID string,
 		}
 		order.TotalPrice = 0
 		if order.OriginPrice > coupon.Discount {
-			order.TotalPrice = order.OriginPrice - coupon.Discount
+			order.TotalPrice = int(order.OriginPrice - coupon.Discount)
 		}
 		order.CouponNum = couponNum
 		order.Discount = coupon.Discount
@@ -75,6 +79,108 @@ func (orderService *OrderService) ChangeOrderCoupon(userID uint, orderID string,
 		}
 		// 使用新的券
 		err = tx.Model(&shop.CouponOrderUser{}).Where("coupon_num = ?", couponNum).Update("order_id", order.ID).Error
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return
+}
+
+// ChangeOrderPoints 变更订单积分抵扣
+func (orderService *OrderService) ChangeOrderPoints(userID uint, orderID string, usePoints bool) (err error) {
+	var order shop.Order
+	err = global.GVA_DB.Where("id = ? and user_id = ?", orderID, userID).Preload("Detail").First(&order).Error
+	if err != nil {
+		return err
+	}
+
+	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		// 1. 如果之前使用了积分，需要先恢复积分
+		if order.UsePoints && order.PointsUsed > 0 {
+			pointRecordService := clientService.PointRecordService{}
+			userID := int(order.UserID)
+			pointChange := int(order.PointsUsed) // 恢复积分，正数
+			changeType := "increase"
+			operationType := "point_exchange"
+			reason := "取消积分抵扣，恢复积分"
+			relatedOrderId := int(order.ID)
+
+			pointRecord := client.PointRecord{
+				UserId:         &userID,
+				PointChange:    &pointChange,
+				ChangeType:     &changeType,
+				OperationType:  &operationType,
+				Reason:         &reason,
+				RelatedOrderId: &relatedOrderId,
+			}
+			// 将事务挂在context上传递
+			ctxWithTx := context.WithValue(context.Background(), "tx", tx)
+			err = pointRecordService.CreatePointRecord(ctxWithTx, &pointRecord)
+			if err != nil {
+				return err
+			}
+		}
+
+		// 2. 重新计算订单价格
+		order.TotalPrice = int(order.OriginPrice - order.Discount)
+		order.UsePoints = usePoints
+		order.PointsUsed = 0
+
+		// 3. 如果现在要使用积分，进行积分扣除
+		if usePoints {
+			var user client.ClientUser
+			err = tx.Where("id = ?", order.UserID).First(&user).Error
+			if err != nil {
+				return err
+			}
+			// 计算可抵扣的积分数（不能超过订单金额）
+			maxPointsCanUse := order.TotalPrice
+			pointsToUse := user.Point
+			if pointsToUse > maxPointsCanUse {
+				pointsToUse = maxPointsCanUse
+			}
+			if pointsToUse > 0 {
+				// 扣除积分
+				pointRecordService := clientService.PointRecordService{}
+				userID := int(order.UserID)
+				pointChange := -int(pointsToUse) // 扣除积分，负数
+				changeType := "decrease"
+				operationType := "point_exchange"
+				reason := "订单积分抵扣"
+				relatedOrderId := int(order.ID)
+
+				pointRecord := client.PointRecord{
+					UserId:         &userID,
+					PointChange:    &pointChange,
+					ChangeType:     &changeType,
+					OperationType:  &operationType,
+					Reason:         &reason,
+					RelatedOrderId: &relatedOrderId,
+				}
+				// 将事务挂在context上传递
+				ctxWithTx := context.WithValue(context.Background(), "tx", tx)
+				err = pointRecordService.CreatePointRecord(ctxWithTx, &pointRecord)
+				if err != nil {
+					return err
+				}
+				// 更新订单价格和积分使用信息
+				order.TotalPrice -= pointsToUse
+				order.PointsUsed = uint(pointsToUse)
+			}
+		}
+
+		// 4. 确保订单金额不为负数
+		if order.TotalPrice < 0 {
+			order.TotalPrice = 0
+		}
+
+		// 5. 更新订单信息
+		err = tx.Model(&order).
+			Update("total_price", order.TotalPrice).
+			Update("use_points", order.UsePoints).
+			Update("points_used", order.PointsUsed).
+			Error
 		if err != nil {
 			return err
 		}
@@ -104,7 +210,7 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 			order.OriginPrice += order.Detail[i].Quantity * order.Detail[i].Price
 			// 减扣库存
 		}
-		order.TotalPrice = order.OriginPrice
+		order.TotalPrice = int(order.OriginPrice)
 		if order.CouponNum != "" {
 			var couponOrderUser shop.CouponOrderUser
 			err = tx.Where("coupon_num = ? and order_id IS NULL", order.CouponNum).First(&couponOrderUser).Error
@@ -130,9 +236,14 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 			}
 			order.TotalPrice = 0
 			if order.OriginPrice > coupon.Discount {
-				order.TotalPrice = order.OriginPrice - coupon.Discount
+				order.TotalPrice = int(order.OriginPrice - coupon.Discount)
 			}
 			order.Discount = coupon.Discount
+		}
+
+		// 如果订单金额为0或负数，确保设置为0（0元购）
+		if order.TotalPrice <= 0 {
+			order.TotalPrice = 0
 		}
 		order.Status = "0"
 
@@ -161,7 +272,7 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 }
 
 // 购物车下单
-func (orderService *OrderService) PlaceOrderByCart(userID uint) (OrderID uint, err error) {
+func (orderService *OrderService) PlaceOrderByCart(userID uint, req shopReq.PlaceOrderByCartRequest) (OrderID uint, err error) {
 	// 1. 获取购物车中的商品
 	var carts []shop.Cart
 	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
@@ -213,7 +324,12 @@ func (orderService *OrderService) PlaceOrderByCart(userID uint) (OrderID uint, e
 
 		// 3. 创建订单详情
 
-		order.TotalPrice = order.OriginPrice
+		order.TotalPrice = int(order.OriginPrice)
+
+		// 如果订单金额为0或负数，确保设置为0（0元购）
+		if order.TotalPrice <= 0 {
+			order.TotalPrice = 0
+		}
 
 		err = tx.Create(&order).Error
 		if err != nil {
@@ -258,7 +374,60 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 					return err
 				}
 			}
-			err = tx.Model(user).Update("point", gorm.Expr("point - ?", totalPrice)).Error
+			// 1. 如果订单使用了积分，先返还已使用的积分
+			if order.UsePoints && order.PointsUsed > 0 {
+				pointRecordService := &clientService.PointRecordService{}
+				userIdInt := int(user.ID)
+				changeType := "increase"
+				pointChange := int(order.PointsUsed) // 返还积分，正数
+				operationType := "point_refund"
+				reason := "订单取消，返还已使用积分"
+				orderIdStr := strconv.Itoa(int(order.ID))
+				orderIdInt, _ := strconv.Atoi(orderIdStr)
+				remark := "订单ID: " + orderIdStr
+
+				pointRecord := &client.PointRecord{
+					UserId:         &userIdInt,
+					ChangeType:     &changeType,
+					PointChange:    &pointChange,
+					OperationType:  &operationType,
+					Reason:         &reason,
+					RelatedOrderId: &orderIdInt,
+					Remark:         &remark,
+				}
+
+				// 将事务挂在context上传递
+				ctxWithTx := context.WithValue(context.Background(), "tx", tx)
+				err = pointRecordService.CreatePointRecord(ctxWithTx, pointRecord)
+				if err != nil {
+					return err
+				}
+			}
+
+			// 2. 扣除已获得的积分奖励
+			pointRecordService := &clientService.PointRecordService{}
+			userIdInt := int(user.ID)
+			changeType := "decrease"
+			pointChange := int(totalPrice / 100)
+			operationType := "refund_return"
+			reason := "订单取消，扣除已获得积分"
+			orderIdStr := strconv.Itoa(int(order.ID))
+			orderIdInt, _ := strconv.Atoi(orderIdStr)
+			remark := "订单ID: " + orderIdStr
+
+			pointRecord := &client.PointRecord{
+				UserId:         &userIdInt,
+				ChangeType:     &changeType,
+				PointChange:    &pointChange,
+				OperationType:  &operationType,
+				Reason:         &reason,
+				RelatedOrderId: &orderIdInt,
+				Remark:         &remark,
+			}
+
+			// 将事务挂在context上传递
+			ctxWithTx := context.WithValue(context.Background(), "tx", tx)
+			err = pointRecordService.CreatePointRecord(ctxWithTx, pointRecord)
 			if err != nil {
 				return err
 			}
@@ -270,7 +439,28 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 		}
 
 		if status == "1" && !order.Pointed {
-			err = tx.Model(user).Update("point", gorm.Expr("point + ?", totalPrice)).Error
+			// 创建积分增加记录
+			pointRecordService := &clientService.PointRecordService{}
+			userIdInt := int(user.ID)
+			changeType := "increase"
+			pointChange := int(totalPrice / 100)
+			operationType := "order_complete"
+			reason := "订单完成，获得积分奖励"
+			orderIdStr := strconv.Itoa(int(order.ID))
+			orderIdInt, _ := strconv.Atoi(orderIdStr)
+			remark := "订单ID: " + orderIdStr
+
+			pointRecord := &client.PointRecord{
+				UserId:         &userIdInt,
+				ChangeType:     &changeType,
+				PointChange:    &pointChange,
+				OperationType:  &operationType,
+				Reason:         &reason,
+				RelatedOrderId: &orderIdInt,
+				Remark:         &remark,
+			}
+
+			err = pointRecordService.CreatePointRecord(context.Background(), pointRecord)
 			if err != nil {
 				return err
 			}

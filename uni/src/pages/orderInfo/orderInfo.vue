@@ -61,6 +61,18 @@
         <text>优惠金额</text>
         <text>-¥{{ data.discount / 100 }}</text>
       </view>
+      <!-- 积分抵扣选项 -->
+      <view class="price-row points-row">
+        <view class="points-left">
+          <checkbox-group @change="onPointsChange">
+            <view class="flex-aic">
+              <checkbox value="points" :checked="usePoints" color="#fa436a" style="transform: scale(0.8); margin-right: 8rpx;"/> <text>积分抵扣</text>
+            </view>
+          </checkbox-group>
+         
+        </view>
+        <text class="points-amount">可抵扣 ¥{{ Math.min(availablePointsAmount, (data.originPrice - data.discount)) / 100 }}</text>
+      </view>
       <!-- <view class="price-row">
         <text>运费</text>
         <text>免运费</text>
@@ -92,12 +104,14 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, nextTick, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { selfOrder,changeOrderCoupon } from '@/api/order.js'
 import { claimCouponByUser } from '@/api/coupon.js'
 import { getPayParams, getOrderById,checkNeedPay } from '@/api/base.js'
+import { getUserInfo } from '@/api/base.js'
 import { getUrl } from "@/utils/url.js"
+import { changeOrderPoints } from '@/api/order.js'
 
 const toAddress = () => {
   uni.navigateTo({
@@ -109,6 +123,9 @@ const toAddress = () => {
 
 const totalPrice = ref(475)
 const hasAddress = ref(false)
+const usePoints = ref(false)
+const availablePointsAmount = ref(0)
+const userPoints = ref(0)
 const data = ref({
   name: '许小贤',
   phone: '13685395563',
@@ -190,10 +207,68 @@ const opencoupon = () => {
         }
 			}
 
+// 注意：价格计算现在由后端处理，前端只需要显示从后端获取的价格
+
+// 获取用户积分信息
+const getUserPoints = async () => {
+  try {
+    const res = await getUserInfo()
+    if (res.code === 0) {
+      userPoints.value = res.data.point || 0
+      // 计算可抵扣金额（积分按1:1抵扣分，即100积分=1元）
+      // 积分不能超过商品价格，需要在计算总价时动态限制
+      availablePointsAmount.value = userPoints.value
+
+    }
+  } catch (error) {
+    console.error('获取用户积分失败:', error)
+  }
+}
+
 onLoad((options) => {
   orderID.value = options.orderID
   initSingleOrder()
+  getUserPoints()
 })
+
+// 处理积分抵扣checkbox变化
+const onPointsChange = async (e) => {
+  console.log('checkbox change event:', e)
+  const isChecked = e.detail.value.includes('points')
+  usePoints.value = isChecked
+  console.log('usePoints updated to:', usePoints.value)
+  
+  // 调用后端接口变更积分抵扣
+  try {
+    const res = await changeOrderPoints({
+      orderID: orderID.value,
+      usePoints: usePoints.value
+    })
+    
+    if (res.code === 0) {
+      // 重新获取订单信息以更新价格
+      await initSingleOrder()
+      console.log('积分抵扣状态更新成功')
+    } else {
+      uni.showToast({
+        title: '积分抵扣更新失败',
+        icon: 'none'
+      })
+      // 恢复checkbox状态
+      usePoints.value = !isChecked
+    }
+  } catch (error) {
+    console.error('积分抵扣更新失败:', error)
+    uni.showToast({
+      title: '积分抵扣更新失败',
+      icon: 'none'
+    })
+    // 恢复checkbox状态
+    usePoints.value = !isChecked
+  }
+}
+
+
 
 const initSingleOrder = async () => {
   const order = await selfOrder(orderID.value)
@@ -203,6 +278,7 @@ const initSingleOrder = async () => {
     if (order.data.city) {
       hasAddress.value = true
     }
+
   }
 }
 
@@ -243,6 +319,7 @@ const tapPay = async () => {
     })*/
     return
   }
+
   // 获取参数
   const params = {
     "orderID": Number(orderID.value),
@@ -251,14 +328,19 @@ const tapPay = async () => {
 
   const needPayRes = await checkNeedPay(params)
   if (!needPayRes.data) {
-    // uni.showToast({
-    //   title: '订单已支付！',
-    //   icon: 'none'
-    // })
-    uni.navigateTo({
+    // 0元购成功，显示成功提示
+    uni.showToast({
+      title: '订单提交成功！',
+      icon: 'success',
+      duration: 2000
+    })
+    // 延迟跳转到订单页面
+    setTimeout(() => {
+      uni.navigateTo({
         url: `/pages/order/order?orderID=${orderID.value}`,
       })
-      return
+    }, 2000)
+    return
   }
 
   console.log(params)

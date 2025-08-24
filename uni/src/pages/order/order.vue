@@ -79,7 +79,7 @@
         <view class="order-summary">
           <view class="total-count">共 {{ item.detail ? item.detail.length : 0 }} 件商品 实付款</view>
           <view class="total-price">¥ {{
-              item.detail ? item.detail.reduce((total, curr) => total + (curr.quantity * curr.price / 100), 0).toFixed(2) : 0
+              item.totalPrice/100
             }}</view>
         </view>
 

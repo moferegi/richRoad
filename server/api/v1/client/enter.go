@@ -6,6 +6,10 @@ type ApiGroup struct {
 	ClientUserApi
 	AddressApi
 	CollectApi
+	PointRecordApi
 }
 
-var jwtService = service.ServiceGroupApp.SystemServiceGroup.JwtService
+var (
+	jwtService = service.ServiceGroupApp.SystemServiceGroup.JwtService
+	cprService = service.ServiceGroupApp.ClientServiceGroup.PointRecordService
+)

@@ -12,3 +12,8 @@ type OrderSearch struct {
 	UserID         *int       `json:"userID" form:"userID" `
 	request.PageInfo
 }
+
+// PlaceOrderByCartRequest 购物车下单请求
+type PlaceOrderByCartRequest struct {
+	UsePoints bool `json:"usePoints" form:"usePoints"` // 是否使用积分抵扣
+}
