@@ -169,6 +169,7 @@ func GetPayConf(ctx context.Context, client *payment.Payment, order model.Order)
 			Update("payer_total", int(b)).
 			Update("currency", "CNY").
 			Update("payer_currency", "CNY").
+			Update("customer_id", order.CustomerID).
 			Error
 		if perr != nil {
 			return perr
@@ -243,7 +244,15 @@ func queryOrderByOutTradeNo(ctx context.Context, client *payment.Payment, orderI
 		order.TradeState = result.TradeState
 		if order.TradeState == "SUCCESS" {
 			var payOrder model.Order
-			poe := global.GVA_DB.First(&payOrder, "out_trade_no = ?", result.OutTradeNo).Update("trade_state", "SUCCESS").Error
+			poe := global.GVA_DB.First(&payOrder, "out_trade_no = ?", result.OutTradeNo).
+				Update("trade_state", result.TradeState).
+				Update("trade_state_desc", result.TradeStateDesc).
+				Update("success_time", result.SuccessTime).
+				Update("trade_type", result.TradeType).
+				Update("transaction_id", result.TransactionID).
+				Update("bank_type", result.BankType).
+				Update("attach", result.Attach).
+				Error
 			if poe != nil {
 				return poe, order
 			}
@@ -297,7 +306,15 @@ func (e *WxpayService) PayAction(pay model.PayAction) error {
 		}
 		if payOrder.TradeState == "SUCCESS" {
 			var shopOrder shop.Order
-			err = tx.First(&shopOrder, "pay_order_id = ?", payOrder.OutTradeNo).Error
+			err = tx.First(&shopOrder, "pay_order_id = ?", payOrder.OutTradeNo).
+				Update("trade_state", payOrder.TradeState).
+				Update("trade_state_desc", payOrder.TradeStateDesc).
+				Update("success_time", payOrder.SuccessTime).
+				Update("trade_type", payOrder.TradeType).
+				Update("transaction_id", payOrder.TransactionId).
+				Update("bank_type", payOrder.BankType).
+				Update("attach", payOrder.Attach).
+				Error
 			if err != nil {
 				return err
 			}
