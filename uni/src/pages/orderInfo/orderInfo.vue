@@ -282,29 +282,43 @@ const initSingleOrder = async () => {
   }
 }
 
-let timer = null
-const clreatTimer = () => {
-  clearInterval(timer)
-  timer = null
+let isChecking = false
+const stopChecking = () => {
+  isChecking = false
 }
 
 const checkOrder = () => {
-  timer = setInterval(async () => {
+  isChecking = true
+  checkOrderRecursive()
+}
+
+const checkOrderRecursive = async () => {
+  if (!isChecking) return
+  
+  try {
     const res = await getOrderById(orderID.value)
     if (res.data.TradeState === "SUCCESS") {
       // uni.showToast({
       //   title: "支付成功",
       //   icon: "none"
       // });
-      clreatTimer()
+      stopChecking()
       // 这里要重新获取当前订单信息改变状态
       await selfOrder(orderID.value)
       // 更新成功后跳转到订单页
       uni.navigateTo({
         url: `/pages/order/order?orderID=${orderID.value}`,
       })
+      return
     }
-  }, 1000)
+  } catch (error) {
+    console.error('检查订单状态失败:', error)
+  }
+  
+  // 如果还在检查中，1秒后继续检查
+  if (isChecking) {
+    setTimeout(checkOrderRecursive, 1000)
+  }
 }
 
 const tapPay = async () => {
