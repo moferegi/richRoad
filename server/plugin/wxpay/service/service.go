@@ -154,8 +154,6 @@ func GetPayConf(ctx context.Context, client *payment.Payment, order model.Order)
 		prepayID = response.PrepayID
 
 		var payOrder model.Order
-		payOrder.Appid = wx_global.GlobalConfig.AppID
-		payOrder.Mchid = wx_global.GlobalConfig.MchID
 		payOrder.OutTradeNo = payOrderID
 		payOrder.CustomerID = order.CustomerID
 		payOrder.TradeState = "NOTPAY"
@@ -164,7 +162,17 @@ func GetPayConf(ctx context.Context, client *payment.Payment, order model.Order)
 		payOrder.PayerTotal = int(b)
 		payOrder.Currency = "CNY"
 		payOrder.PayerCurrency = "CNY"
-		perr := tx.Create(&payOrder).Error
+		perr := tx.First(&shopOrder, "id = ?", order.OrderID).
+			Update("out_trade_no", payOrderID).
+			Update("trade_state", "NOTPAY").
+			Update("total", int(b)).
+			Update("payer_total", int(b)).
+			Update("currency", "CNY").
+			Update("payer_currency", "CNY").
+			Error
+		if perr != nil {
+			return perr
+		}
 		return perr
 	})
 
@@ -302,4 +310,3 @@ func (e *WxpayService) PayAction(pay model.PayAction) error {
 	})
 	return err
 }
-
