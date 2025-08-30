@@ -54,7 +54,7 @@ func (orderService *OrderService) ChangeOrderCoupon(userID uint, orderID string,
 		if coupon.ProductID != nil {
 			hasGoods := false
 			for _, detail := range order.Detail {
-				if int(detail.ID) == *coupon.ProductID {
+				if int(detail.GoodID) == *coupon.ProductID {
 					hasGoods = true
 					break
 				}
