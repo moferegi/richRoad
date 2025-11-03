@@ -41,7 +41,11 @@ type ApiCreator struct{}
 // New 创建API创建工具
 func (a *ApiCreator) New() mcp.Tool {
 	return mcp.NewTool("create_api",
-		mcp.WithDescription("创建后端API记录，用于在生成后端接口时自动创建对应的API权限记录，只要创建了API层，router下的文件产生了路径变化等，都需要调用此mcp。"),
+		mcp.WithDescription(`创建后端API记录，用于AI编辑器自动添加API接口时自动创建对应的API权限记录。
+
+**重要限制：**
+- 当使用gva_auto_generate工具且needCreatedModules=true时，模块创建会自动生成API权限，不应调用此工具
+- 仅在以下情况使用：1) 单独创建API（不涉及模块创建）；2) AI编辑器自动添加API；3) router下的文件产生路径变化时`),
 		mcp.WithString("path",
 			mcp.Required(),
 			mcp.Description("API路径，如：/user/create"),
@@ -176,21 +180,11 @@ func (a *ApiCreator) Handle(ctx context.Context, request mcp.CallToolRequest) (*
 		return nil, fmt.Errorf("序列化结果失败: %v", err)
 	}
 
-	// 添加权限分配提醒
-	permissionReminder := "\n\n⚠️ 重要提醒：\n" +
-		"API创建完成后，请前往【系统管理】->【角色管理】中为相关角色分配新创建的API权限，" +
-		"以确保用户能够正常访问新接口。\n" +
-		"具体步骤：\n" +
-		"1. 进入角色管理页面\n" +
-		"2. 选择需要授权的角色\n" +
-		"3. 在API权限中勾选新创建的API接口\n" +
-		"4. 保存权限配置"
-
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			mcp.TextContent{
 				Type: "text",
-				Text: fmt.Sprintf("API创建结果：\n\n%s%s", string(resultJSON), permissionReminder),
+				Text: fmt.Sprintf("API创建结果：\n\n%s", string(resultJSON)),
 			},
 		},
 	}, nil
