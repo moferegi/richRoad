@@ -20,7 +20,8 @@ export const useAppStore = defineStore('app', () => {
     show_watermark: true,
     side_mode: 'normal',
     // 页面过渡动画配置
-    transition_type: 'slide'
+    transition_type: 'slide',
+    global_size: 'default'
   })
 
   const isDark = useDark({
@@ -100,6 +101,10 @@ export const useAppStore = defineStore('app', () => {
     config.transition_type = e
   }
 
+  const toggleGlobalSize = (e) => {
+    config.global_size = e
+  }
+
   const baseCoinfg = {
     weakness: false,
     grey: false,
@@ -112,7 +117,8 @@ export const useAppStore = defineStore('app', () => {
     show_watermark: true,
     side_mode: 'normal',
     // 页面过渡动画配置
-    transition_type: 'slide'
+    transition_type: 'slide',
+    global_size: 'default'
   }
 
   const resetConfig = () => {
@@ -151,6 +157,7 @@ export const useAppStore = defineStore('app', () => {
     toggleConfigWatermark,
     toggleSideMode,
     toggleTransition,
-    resetConfig
+    resetConfig,
+    toggleGlobalSize
   }
 })
