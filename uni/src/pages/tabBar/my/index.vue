@@ -85,7 +85,14 @@
     <!-- 其他功能区域 -->
     <view class="tools-section" v-if="columns.length >=1">
       <template v-for="(item, index) in columns.filter(c=>!c.hidden)">
-        <view class="tool-item" @tap="toPages(item.pages)" :class="columns.length-1 == index ? '' : 'border-bottom'">
+        <button v-if="item.pages === 'contact'" class="tool-item contact-btn" open-type="contact" :class="columns.length-1 == index ? '' : 'border-bottom'">
+          <view class="tool-left">
+            <image :src="item.icon" mode="aspectFit"></image>
+            <text>{{item.title}}</text>
+          </view>
+          <uni-icons color="#999999" type="forward" size="14"></uni-icons>
+        </button>
+        <view v-else class="tool-item" @tap="toPages(item.pages)" :class="columns.length-1 == index ? '' : 'border-bottom'">
           <view class="tool-left">
             <image :src="item.icon" mode="aspectFit"></image>
             <text>{{item.title}}</text>
@@ -117,6 +124,10 @@ const columns = ref([
     title: '我的收藏',
     pages: '/pages/collect/collect',
     icon: '/static/MYcollect.png'
+  },{
+    title: '在线客服',
+    pages: 'contact',
+    icon: '/static/wx.png'
   },{
     title: '退出登录',
     pages: 'exit',
@@ -614,5 +625,18 @@ page {
   font-size: 24rpx;
   color: #999;
   margin-right: 10rpx;
+}
+
+.contact-btn {
+  background: transparent;
+  margin: 0;
+  padding: 30rpx 0;
+  line-height: normal;
+  border-radius: 0;
+  text-align: left;
+  font-size: inherit;
+  &::after {
+    border: none;
+  }
 }
 </style>
