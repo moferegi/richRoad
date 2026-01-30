@@ -257,6 +257,8 @@ func (i *initApi) InitializeData(ctx context.Context) (context.Context, error) {
 		{ApiGroup: "订单", Method: "POST", Path: "/order/updateOrderStatus", Description: "变更订单状态"},
 		{ApiGroup: "订单", Method: "GET", Path: "/order/selfOrderComment", Description: "获取单商品评价"},
 		{ApiGroup: "订单", Method: "GET", Path: "/order/checkRouters", Description: "获取快递路径"},
+		{ApiGroup: "订单", Method: "POST", Path: "/order/applyRefund", Description: "申请退款"},
+		{ApiGroup: "订单", Method: "POST", Path: "/order/refundOrder", Description: "退款处理"},
 		{ApiGroup: "订单", Method: "POST", Path: "/order/updateOrder", Description: "更新订单"},
 
 		{ApiGroup: "城市管理", Method: "GET", Path: "/geo/getGeos", Description: "获取城市列表"},

@@ -258,6 +258,8 @@ func (i *initCasbin) InitializeData(ctx context.Context) (context.Context, error
 		{Ptype: "p", V0: "888", V1: "/order/updateOrderStatus", V2: "POST"},
 		{Ptype: "p", V0: "888", V1: "/order/selfOrderComment", V2: "GET"},
 		{Ptype: "p", V0: "888", V1: "/order/checkRouters", V2: "GET"},
+		{Ptype: "p", V0: "888", V1: "/order/applyRefund", V2: "POST"},
+		{Ptype: "p", V0: "888", V1: "/order/refundOrder", V2: "POST"},
 		{Ptype: "p", V0: "888", V1: "/order/updateOrder", V2: "POST"},
 
 		{Ptype: "p", V0: "888", V1: "/geo/getGeos", V2: "GET"},
@@ -435,6 +437,8 @@ func (i *initCasbin) InitializeData(ctx context.Context) (context.Context, error
 		{Ptype: "p", V0: "8080", V1: "/order/selfOrderList", V2: "GET"},
 		{Ptype: "p", V0: "8080", V1: "/order/updateOrderStatus", V2: "POST"},
 		{Ptype: "p", V0: "8080", V1: "/order/updateOrder", V2: "POST"},
+		{Ptype: "p", V0: "8080", V1: "/order/applyRefund", V2: "POST"},
+		{Ptype: "p", V0: "8080", V1: "/order/refundOrder", V2: "POST"},
 		{Ptype: "p", V0: "8080", V1: "/cou/claimCouponByUser", V2: "POST"},
 		{Ptype: "p", V0: "8080", V1: "/cou/getAllClaimCoupon", V2: "POST"},
 		{Ptype: "p", V0: "8080", V1: "/order/changeOrderCoupon", V2: "POST"},
