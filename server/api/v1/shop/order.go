@@ -281,7 +281,7 @@ func (orderApi *OrderApi) UpdateOrder(c *gin.Context) {
 		order.Express = ""
 		order.Status = ""
 		order.Detail = nil
-		order.PayOrderID = ""
+		order.OutTradeNo = ""
 		order.Comment = nil
 	}
 

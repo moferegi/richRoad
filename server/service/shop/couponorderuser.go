@@ -113,7 +113,7 @@ func (couService *CouponOrderUserService) GetCouponOrderUserDataSource(ctx conte
 	res["couponID"] = couponID
 	orderID := make([]map[string]any, 0)
 
-	global.GVA_DB.Table("shop_order").Where("deleted_at IS NULL").Select("pay_order_id as label,id as value").Scan(&orderID)
+	global.GVA_DB.Table("shop_order").Where("deleted_at IS NULL").Select("out_trade_no as label,id as value").Scan(&orderID)
 	res["orderID"] = orderID
 	return
 }

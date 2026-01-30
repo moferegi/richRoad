@@ -8,6 +8,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	sysModel "github.com/flipped-aurora/gin-vue-admin/server/model/system"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/announcement/model"
+	wxpayModel "github.com/flipped-aurora/gin-vue-admin/server/plugin/wxpay/model"
 	"github.com/flipped-aurora/gin-vue-admin/server/service/system"
 	"gorm.io/gorm"
 )
@@ -75,6 +76,7 @@ func (e *ensureTables) MigrateTable(ctx context.Context) (context.Context, error
 		shop.OrderDetail{},
 
 		model.Info{},
+		wxpayModel.Order{},
 	}
 	for _, t := range tables {
 		_ = db.AutoMigrate(&t)
@@ -125,6 +127,8 @@ func (e *ensureTables) TableCreated(ctx context.Context) bool {
 		shop.Cart{},
 		shop.Order{},
 		shop.OrderDetail{},
+
+		wxpayModel.Order{},
 	}
 	yes := true
 	for _, t := range tables {

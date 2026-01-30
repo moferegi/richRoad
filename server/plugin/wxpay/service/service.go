@@ -122,7 +122,7 @@ func GetPayConf(ctx context.Context, client *payment.Payment, order model.Order)
 		snowflakeID := utils.GenerateSnowflakeID() // 获取雪花id
 		b := o.TotalPrice                          // 产品价格  分
 		Name := "订单支付"
-		payOrderID := fmt.Sprintf("%d", snowflakeID)
+		outTradeNo := fmt.Sprintf("%d", snowflakeID)
 
 		options := &request.RequestJSAPIPrepay{
 			Amount: &request.JSAPIAmount{
@@ -131,7 +131,7 @@ func GetPayConf(ctx context.Context, client *payment.Payment, order model.Order)
 			},
 			Attach:      "自定义数据说明",
 			Description: Name,
-			OutTradeNo:  payOrderID,
+			OutTradeNo:  outTradeNo,
 			Payer: &request.JSAPIPayer{
 				OpenID: order.Openid, // 用户的openid， 记得也是动态的。
 			},
@@ -146,35 +146,30 @@ func GetPayConf(ctx context.Context, client *payment.Payment, order model.Order)
 			global.GVA_LOG.Error("微信支付下单失败：" + response.ResponseBase.Message)
 			return errors.New(response.ResponseBase.Message)
 		}
-		var shopOrder shop.Order
-		sfe := tx.First(&shopOrder, "id = ?", order.OrderID).Update("pay_order_id", payOrderID).Error
-		if sfe != nil {
-			return sfe
-		}
 		prepayID = response.PrepayID
-
-		var payOrder model.Order
-		payOrder.OutTradeNo = payOrderID
-		payOrder.CustomerID = order.CustomerID
-		payOrder.TradeState = "NOTPAY"
-		payOrder.Openid = order.Openid
-		payOrder.Total = int(b)
-		payOrder.PayerTotal = int(b)
-		payOrder.Currency = "CNY"
-		payOrder.PayerCurrency = "CNY"
-		perr := tx.First(&shopOrder, "id = ?", order.OrderID).
-			Update("out_trade_no", payOrderID).
-			Update("trade_state", "NOTPAY").
-			Update("total", int(b)).
-			Update("payer_total", int(b)).
-			Update("currency", "CNY").
-			Update("payer_currency", "CNY").
-			Update("customer_id", order.CustomerID).
-			Error
-		if perr != nil {
-			return perr
+		if err := tx.Model(&shop.Order{}).Where("id = ?", order.OrderID).Update("out_trade_no", outTradeNo).Error; err != nil {
+			return err
 		}
-		return perr
+
+		wxOrder := model.Order{
+			CustomerID:    order.CustomerID,
+			OrderID:       order.OrderID,
+			PrepayID:      prepayID,
+			OutTradeNo:    outTradeNo,
+			TradeState:    "NOTPAY",
+			Openid:        order.Openid,
+			Total:         int(b),
+			PayerTotal:    int(b),
+			Currency:      "CNY",
+			PayerCurrency: "CNY",
+			Appid:         wx_global.GlobalConfig.AppID,
+			Mchid:         wx_global.GlobalConfig.MchID,
+			Attach:        options.Attach,
+		}
+		if err := tx.Create(&wxOrder).Error; err != nil {
+			return err
+		}
+		return nil
 	})
 
 	payConf, err = client.JSSDK.BridgeConfig(prepayID, false)
@@ -193,7 +188,10 @@ func (e *WxpayService) ClosePayCode(order model.Order) (err error) {
 }
 
 func closeOrder(ctx context.Context, client *payment.Payment, order model.Order) error {
-	no := strconv.Itoa(int(order.ID))
+	no := order.OutTradeNo
+	if no == "" {
+		no = strconv.Itoa(int(order.ID))
+	}
 	result, err := client.Order.Close(ctx, no)
 	if err != nil {
 		// 处理错误
@@ -217,57 +215,94 @@ func (e *WxpayService) GetOrderById(orderID string) (error, model.Order) {
 
 func queryOrderByOutTradeNo(ctx context.Context, client *payment.Payment, orderID string) (err error, order model.Order) {
 
-	var o shop.Order
-
-	err = global.GVA_DB.First(&o, "id = ?", orderID).Error
-
+	var shopOrder shop.Order
+	err = global.GVA_DB.First(&shopOrder, "id = ?", orderID).Error
 	if err != nil {
 		return err, model.Order{}
 	}
+	if shopOrder.OutTradeNo == "" {
+		return errors.New("订单未生成支付单号"), model.Order{}
+	}
 
-	result, err := client.Order.QueryByOutTradeNumber(ctx, o.PayOrderID)
+	outTradeNo := shopOrder.OutTradeNo
+	var wxOrder model.Order
+	wxErr := global.GVA_DB.First(&wxOrder, "out_trade_no = ?", outTradeNo).Error
+	if wxErr != nil {
+		if errors.Is(wxErr, gorm.ErrRecordNotFound) {
+			// 兼容历史数据：shop_order 里可能存的是 prepay_id
+			legacyErr := global.GVA_DB.First(&wxOrder, "prepay_id = ?", outTradeNo).Error
+			if legacyErr == nil {
+				outTradeNo = wxOrder.OutTradeNo
+				order.PrepayID = wxOrder.PrepayID
+				wxErr = nil
+			} else if !errors.Is(legacyErr, gorm.ErrRecordNotFound) {
+				return legacyErr, model.Order{}
+			}
+		} else {
+			return wxErr, model.Order{}
+		}
+	} else {
+		order.PrepayID = wxOrder.PrepayID
+	}
+
+	result, err := client.Order.QueryByOutTradeNumber(ctx, outTradeNo)
 	if err != nil {
 		// 错误处理
 		log.Printf("call QueryOrderByOutTradeNo err:%s", err)
 		return err, order
-	} else {
-
-		// TradeState
-		//SUCCESS：支付成功
-		//REFUND：转入退款
-		//NOTPAY：未支付
-		//CLOSED：已关闭
-		//REVOKED：已撤销（仅付款码支付会返回）
-		//USERPAYING：用户支付中（仅付款码支付会返回）
-		//PAYERROR：支付失败（仅付款码支付会返回）
-
-		order.TradeState = result.TradeState
-		if order.TradeState == "SUCCESS" {
-			var payOrder model.Order
-			poe := global.GVA_DB.First(&payOrder, "out_trade_no = ?", result.OutTradeNo).
-				Update("trade_state", result.TradeState).
-				Update("trade_state_desc", result.TradeStateDesc).
-				Update("success_time", result.SuccessTime).
-				Update("trade_type", result.TradeType).
-				Update("transaction_id", result.TransactionID).
-				Update("bank_type", result.BankType).
-				Update("attach", result.Attach).
-				Error
-			if poe != nil {
-				return poe, order
-			}
-			soe := shopService.UpdateOrderStatus(nil, orderID, "1")
-			if soe != nil {
-				return soe, order
-			}
-		}
-
-		// 处理错误
-		// 可以根据订单返回的结果做一些业务逻辑
-
-		log.Printf("status=%d resp=%s", result.TradeState, result)
-		return err, order
 	}
+
+	// TradeState
+	//SUCCESS：支付成功
+	//REFUND：转入退款
+	//NOTPAY：未支付
+	//CLOSED：已关闭
+	//REVOKED：已撤销（仅付款码支付会返回）
+	//USERPAYING：用户支付中（仅付款码支付会返回）
+	//PAYERROR：支付失败（仅付款码支付会返回）
+
+	order.TradeState = result.TradeState
+	order.TradeStateDesc = result.TradeStateDesc
+	order.TradeType = result.TradeType
+	order.TransactionId = result.TransactionID
+	order.OutTradeNo = result.OutTradeNo
+
+	if wxErr == nil {
+		update := map[string]any{
+			"trade_state":      result.TradeState,
+			"trade_state_desc": result.TradeStateDesc,
+			"success_time":     result.SuccessTime,
+			"trade_type":       result.TradeType,
+			"transaction_id":   result.TransactionID,
+			"bank_type":        result.BankType,
+			"attach":           result.Attach,
+			"mchid":            result.MchID,
+			"appid":            result.AppID,
+		}
+		if result.Amount != nil {
+			update["total"] = int(result.Amount.Total)
+			update["payer_total"] = int(result.Amount.PayerTotal)
+			update["currency"] = result.Amount.Currency
+			update["payer_currency"] = result.Amount.PayerCurrency
+		}
+		if result.Payer != nil {
+			update["openid"] = result.Payer.OpenID
+		}
+		if err := global.GVA_DB.Model(&model.Order{}).Where("out_trade_no = ?", outTradeNo).Updates(update).Error; err != nil {
+			return err, order
+		}
+	}
+
+	if order.TradeState == "SUCCESS" {
+		soe := shopService.UpdateOrderStatus(nil, orderID, "1")
+		if soe != nil {
+			return soe, order
+		}
+	}
+
+	// 可以根据订单返回的结果做一些业务逻辑
+	log.Printf("status=%s resp=%v", result.TradeState, result)
+	return err, order
 }
 
 func (e *WxpayService) PayAction(pay model.PayAction) error {
@@ -292,29 +327,37 @@ func (e *WxpayService) PayAction(pay model.PayAction) error {
 	}
 
 	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
-		err = tx.First(&model.Order{}, "out_trade_no = ?", payOrder.OutTradeNo).
-			Update("trade_state", payOrder.TradeState).
-			Update("trade_state_desc", payOrder.TradeStateDesc).
-			Update("transaction_id", payOrder.TransactionId).
-			Update("trade_type", payOrder.TradeType).
-			Update("bank_type", payOrder.BankType).
-			Update("attach", payOrder.Attach).
-			Update("success_time", payOrder.SuccessTime).
-			Error
-		if err != nil {
+		update := map[string]any{
+			"trade_state":      payOrder.TradeState,
+			"trade_state_desc": payOrder.TradeStateDesc,
+			"transaction_id":   payOrder.TransactionId,
+			"trade_type":       payOrder.TradeType,
+			"bank_type":        payOrder.BankType,
+			"attach":           payOrder.Attach,
+			"success_time":     payOrder.SuccessTime,
+			"mchid":            payOrder.Mchid,
+			"appid":            payOrder.Appid,
+			"openid":           payOrder.Payer.Openid,
+			"total":            payOrder.Amount.Total,
+			"payer_total":      payOrder.Amount.PayerTotal,
+			"currency":         payOrder.Amount.Currency,
+			"payer_currency":   payOrder.Amount.PayerCurrency,
+		}
+		if err := tx.Model(&model.Order{}).Where("out_trade_no = ?", payOrder.OutTradeNo).Updates(update).Error; err != nil {
 			return err
 		}
 		if payOrder.TradeState == "SUCCESS" {
+			var wxOrder model.Order
+			wxErr := tx.First(&wxOrder, "out_trade_no = ?", payOrder.OutTradeNo).Error
+			if wxErr != nil && !errors.Is(wxErr, gorm.ErrRecordNotFound) {
+				return wxErr
+			}
 			var shopOrder shop.Order
-			err = tx.First(&shopOrder, "pay_order_id = ?", payOrder.OutTradeNo).
-				Update("trade_state", payOrder.TradeState).
-				Update("trade_state_desc", payOrder.TradeStateDesc).
-				Update("success_time", payOrder.SuccessTime).
-				Update("trade_type", payOrder.TradeType).
-				Update("transaction_id", payOrder.TransactionId).
-				Update("bank_type", payOrder.BankType).
-				Update("attach", payOrder.Attach).
-				Error
+			err = tx.First(&shopOrder, "out_trade_no = ?", payOrder.OutTradeNo).Error
+			if err != nil && errors.Is(err, gorm.ErrRecordNotFound) && wxErr == nil && wxOrder.PrepayID != "" {
+				// 兼容历史数据：shop_order 里可能存的是 prepay_id
+				err = tx.First(&shopOrder, "out_trade_no = ?", wxOrder.PrepayID).Error
+			}
 			if err != nil {
 				return err
 			}

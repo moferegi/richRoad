@@ -8,48 +8,26 @@ import (
 
 type CreateOrder struct {
 	global.GVA_MODEL
-	CouponNum   string        `json:"couponNum" form:"couponNum" gorm:"column:coupon_num;comment:优惠券编号;"`      //优惠券编号
-	UserID      uint          `json:"userID" form:"userID" gorm:"column:user_id;comment:购买者ID;"`               //购买者ID
-	OriginPrice uint          `json:"originPrice" form:"originPrice" gorm:"column:origin_price;comment:原价;"`   //原价（分）
-	TotalPrice  uint          `json:"totalPrice" form:"totalPrice" gorm:"column:total_price;comment:订单价格;"`    //订单价格（分）
-	Discount    uint          `json:"discount" form:"discount" gorm:"column:discount;comment:优惠金额;"`           //优惠金额（分）
-	UsePoints   bool          `json:"usePoints" form:"usePoints" gorm:"column:use_points;comment:是否使用积分;"`     //是否使用积分
-	PointsUsed  uint          `json:"pointsUsed" form:"pointsUsed" gorm:"column:points_used;comment:使用的积分数;"`  //使用的积分数
-	Express     string        `json:"express" form:"express" gorm:"column:express;comment:快递单号;"`              //快递单号
-	Status      string        `json:"status" form:"status" gorm:"column:status;comment:订单状态;"`                 //订单状态
-	Detail      []OrderDetail `json:"detail" gorm:"foreignKey:OrderID;references:ID"`                          //订单详情
-	PayOrderID  string        `json:"payOrderID" form:"payOrderID" gorm:"column:pay_order_id;comment:支付订单ID;"` //支付订单ID
-	Phone       string        `json:"phone" form:"phone" gorm:"column:phone;comment:收件人电话;"`                   //收件人电话
-	Name        string        `json:"name" form:"name" gorm:"column:name;comment:收件人姓名;"`                      //收件人姓名
-	Province    string        `json:"province" form:"province" gorm:"column:province;comment:收件省份（回显）;"`       //收件省份
-	City        string        `json:"city" form:"city" gorm:"column:city;comment:收件城市（回显）;"`                   //收件城市
-	Area        string        `json:"area" form:"area" gorm:"column:area;comment:收件区（回显）;"`                    //收件区域
-	Street      string        `json:"street" form:"street" gorm:"column:street;comment:收件详细地址;"`               //收件详细地址
-	CloseTime   time.Time     `json:"closeTime" form:"closeTime" gorm:"column:close_time;comment:关闭时间;"`       //关闭时间
+	CouponNum   string        `json:"couponNum" form:"couponNum" gorm:"column:coupon_num;comment:优惠券编号;"`     //优惠券编号
+	UserID      uint          `json:"userID" form:"userID" gorm:"column:user_id;comment:购买者ID;"`              //购买者ID
+	OriginPrice uint          `json:"originPrice" form:"originPrice" gorm:"column:origin_price;comment:原价;"`  //原价（分）
+	TotalPrice  uint          `json:"totalPrice" form:"totalPrice" gorm:"column:total_price;comment:订单价格;"`   //订单价格（分）
+	Discount    uint          `json:"discount" form:"discount" gorm:"column:discount;comment:优惠金额;"`          //优惠金额（分）
+	UsePoints   bool          `json:"usePoints" form:"usePoints" gorm:"column:use_points;comment:是否使用积分;"`    //是否使用积分
+	PointsUsed  uint          `json:"pointsUsed" form:"pointsUsed" gorm:"column:points_used;comment:使用的积分数;"` //使用的积分数
+	Express     string        `json:"express" form:"express" gorm:"column:express;comment:快递单号;"`             //快递单号
+	Status      string        `json:"status" form:"status" gorm:"column:status;comment:订单状态;"`                //订单状态
+	Detail      []OrderDetail `json:"detail" gorm:"foreignKey:OrderID;references:ID"`                         //订单详情
+	OutTradeNo  string        `json:"outTradeNo" form:"outTradeNo" gorm:"column:out_trade_no;comment:商户订单号;"` //商户订单号
+	Phone       string        `json:"phone" form:"phone" gorm:"column:phone;comment:收件人电话;"`                  //收件人电话
+	Name        string        `json:"name" form:"name" gorm:"column:name;comment:收件人姓名;"`                     //收件人姓名
+	Province    string        `json:"province" form:"province" gorm:"column:province;comment:收件省份（回显）;"`      //收件省份
+	City        string        `json:"city" form:"city" gorm:"column:city;comment:收件城市（回显）;"`                  //收件城市
+	Area        string        `json:"area" form:"area" gorm:"column:area;comment:收件区（回显）;"`                   //收件区域
+	Street      string        `json:"street" form:"street" gorm:"column:street;comment:收件详细地址;"`              //收件详细地址
+	CloseTime   time.Time     `json:"closeTime" form:"closeTime" gorm:"column:close_time;comment:关闭时间;"`      //关闭时间
 	Comment     *Comment      `json:"comment" gorm:"->;foreignKey:OrderID;references:ID"`
 	Pointed     bool          `json:"pointed" form:"pointed" gorm:"column:pointed;comment:是否已积分;"` //是否已积分
-	CustomerID  uint          `json:"customerID" form:"customerID"`                                // 会员ID
-	OrderID     uint          `json:"orderID" form:"orderID"`                                      // 订单ID
-	// Transaction
-	TradeState     string // 订单状态
-	TradeStateDesc string // 订单状态详情
-	TradeType      string // 订单状态类型
-	TransactionId  string // 预下单ID
-
-	// 下面为微信的附加信息
-	Mchid       string    `json:"mchid"`
-	Appid       string    `json:"appid"`
-	OutTradeNo  string    `json:"out_trade_no"`
-	BankType    string    `json:"bank_type"`
-	Attach      string    `json:"attach"`
-	SuccessTime time.Time `json:"success_time"`
-
-	Openid string `json:"openid" form:"openid"`
-
-	Total         int    `json:"total"`
-	PayerTotal    int    `json:"payer_total"`
-	Currency      string `json:"currency"`
-	PayerCurrency string `json:"payer_currency"`
 }
 
 // TableName 订单 Order自定义表名 shop_order
@@ -60,24 +38,24 @@ func (CreateOrder) TableName() string {
 // 订单 结构体  Order
 type Order struct {
 	global.GVA_MODEL
-	CouponNum   string        `json:"couponNum" form:"couponNum" gorm:"column:coupon_num;comment:优惠券编号;"`      //优惠券编号
-	UserID      uint          `json:"userID" form:"userID" gorm:"column:user_id;comment:购买者ID;"`               //购买者ID
-	OriginPrice uint          `json:"originPrice" form:"originPrice" gorm:"column:origin_price;comment:原价;"`   //原价（分）
-	TotalPrice  int           `json:"totalPrice" form:"totalPrice" gorm:"column:total_price;comment:订单价格;"`    //订单价格（分）
-	Discount    uint          `json:"discount" form:"discount" gorm:"column:discount;comment:优惠金额;"`           //优惠金额（分）
-	UsePoints   bool          `json:"usePoints" form:"usePoints" gorm:"column:use_points;comment:是否使用积分;"`     //是否使用积分
-	PointsUsed  uint          `json:"pointsUsed" form:"pointsUsed" gorm:"column:points_used;comment:使用的积分数;"`  //使用的积分数
-	Express     string        `json:"express" form:"express" gorm:"column:express;comment:快递单号;"`              //快递单号
-	Status      string        `json:"status" form:"status" gorm:"column:status;comment:订单状态;"`                 //订单状态
-	Detail      []OrderDetail `json:"detail" gorm:"foreignKey:OrderID;references:ID"`                          //订单详情
-	PayOrderID  string        `json:"payOrderID" form:"payOrderID" gorm:"column:pay_order_id;comment:支付订单ID;"` //支付订单ID
-	Phone       string        `json:"phone" form:"phone" gorm:"column:phone;comment:收件人电话;"`                   //收件人电话
-	Name        string        `json:"name" form:"name" gorm:"column:name;comment:收件人姓名;"`                      //收件人姓名
-	Province    string        `json:"province" form:"province" gorm:"column:province;comment:收件省份（回显）;"`       //收件省份
-	City        string        `json:"city" form:"city" gorm:"column:city;comment:收件城市（回显）;"`                   //收件城市
-	Area        string        `json:"area" form:"area" gorm:"column:area;comment:收件区（回显）;"`                    //收件区域
-	Street      string        `json:"street" form:"street" gorm:"column:street;comment:收件详细地址;"`               //收件详细地址
-	CloseTime   time.Time     `json:"closeTime" form:"closeTime" gorm:"column:close_time;comment:关闭时间;"`       //关闭时间
+	CouponNum   string        `json:"couponNum" form:"couponNum" gorm:"column:coupon_num;comment:优惠券编号;"`     //优惠券编号
+	UserID      uint          `json:"userID" form:"userID" gorm:"column:user_id;comment:购买者ID;"`              //购买者ID
+	OriginPrice uint          `json:"originPrice" form:"originPrice" gorm:"column:origin_price;comment:原价;"`  //原价（分）
+	TotalPrice  int           `json:"totalPrice" form:"totalPrice" gorm:"column:total_price;comment:订单价格;"`   //订单价格（分）
+	Discount    uint          `json:"discount" form:"discount" gorm:"column:discount;comment:优惠金额;"`          //优惠金额（分）
+	UsePoints   bool          `json:"usePoints" form:"usePoints" gorm:"column:use_points;comment:是否使用积分;"`    //是否使用积分
+	PointsUsed  uint          `json:"pointsUsed" form:"pointsUsed" gorm:"column:points_used;comment:使用的积分数;"` //使用的积分数
+	Express     string        `json:"express" form:"express" gorm:"column:express;comment:快递单号;"`             //快递单号
+	Status      string        `json:"status" form:"status" gorm:"column:status;comment:订单状态;"`                //订单状态
+	Detail      []OrderDetail `json:"detail" gorm:"foreignKey:OrderID;references:ID"`                         //订单详情
+	OutTradeNo  string        `json:"outTradeNo" form:"outTradeNo" gorm:"column:out_trade_no;comment:商户订单号;"` //商户订单号
+	Phone       string        `json:"phone" form:"phone" gorm:"column:phone;comment:收件人电话;"`                  //收件人电话
+	Name        string        `json:"name" form:"name" gorm:"column:name;comment:收件人姓名;"`                     //收件人姓名
+	Province    string        `json:"province" form:"province" gorm:"column:province;comment:收件省份（回显）;"`      //收件省份
+	City        string        `json:"city" form:"city" gorm:"column:city;comment:收件城市（回显）;"`                  //收件城市
+	Area        string        `json:"area" form:"area" gorm:"column:area;comment:收件区（回显）;"`                   //收件区域
+	Street      string        `json:"street" form:"street" gorm:"column:street;comment:收件详细地址;"`              //收件详细地址
+	CloseTime   time.Time     `json:"closeTime" form:"closeTime" gorm:"column:close_time;comment:关闭时间;"`      //关闭时间
 	Comment     *Comment      `json:"comment" gorm:"->;foreignKey:OrderID;references:ID"`
 	Pointed     bool          `json:"pointed" form:"pointed" gorm:"column:pointed;comment:是否已积分;"` //是否已积分
 }
