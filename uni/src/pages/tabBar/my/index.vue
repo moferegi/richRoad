@@ -54,7 +54,7 @@
           <image src="../../../static/wait.png" mode="aspectFit"></image>
           <text>待收货</text>
         </view>
-        <view class="order-item" @tap="toNav(`/pages/order/order?status=${3}`)">
+        <view class="order-item" @tap="toNav(`/pages/order/order?status=${6}`)">
           <image src="../../../static/refound.png" mode="aspectFit"></image>
           <text>退款/售后</text>
         </view>

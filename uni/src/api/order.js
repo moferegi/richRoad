@@ -167,6 +167,15 @@ export const checkRouters = (params) => {
   })
 }
 
+// 申请退款
+export const applyRefund = (data) => {
+  return request({
+    url: '/order/applyRefund',
+    method: 'post',
+    data
+  })
+}
+
 // 获取浏览信息
 export const getGoodHistory = (params) => {
   return request({

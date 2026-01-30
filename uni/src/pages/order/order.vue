@@ -37,7 +37,7 @@
         <!-- 订单时间和状态 -->
         <view class="order-header">
           <view class="order-time">{{ item.CreatedAt.split('T')[0] }}</view>
-          <view class="order-status" :class="{'status-pending': item.status === '0', 'status-closed': item.status === '4'}">
+          <view class="order-status" :class="{'status-pending': item.status === '0', 'status-closed': item.status === '4', 'status-refund': item.status === '6', 'status-refunded': item.status === '5'}">
             {{ tabColumns.find(tab=>tab.id === item.status)?.title }}
           </view>
         </view>
@@ -107,6 +107,13 @@
                 class="action-btn track-btn"
                 @tap="trackLogistics(item)"
             >查看物流</view>
+            <view
+                v-if="canApplyRefund(item)"
+                class="action-btn refund-btn"
+                @tap="openRefund(item)"
+            >申请退款</view>
+            <view v-else-if="item.status==='6'" class="action-btn refunding-btn">退款中</view>
+            <view v-else-if="item.status==='5'" class="action-btn refunded-btn">已退款</view>
             <!-- 智能评价按钮 -->
             <view v-if="item.status==='3'||item.status==='7'">
               <!-- 多个商品时显示统一评价按钮 -->
@@ -129,6 +136,12 @@
         </view>
       </view>
     </view>
+
+    <refund-apply-popup
+      v-model:visible="refundVisible"
+      :order-id="refundOrderId"
+      @success="onRefundSuccess"
+    />
   </view>
 </template>
 
@@ -137,6 +150,7 @@ import { ref } from 'vue'
 import {onLoad} from '@dcloudio/uni-app'
 import {updateOrderStatus, SelfOrderList} from "../../api/order";
 import {getUrl} from "@/utils/url.js"
+import RefundApplyPopup from '@/components/refund-apply-popup/refund-apply-popup.vue'
 const activeSataus = ref("")
 
 const tabColumns = ref([{
@@ -155,6 +169,12 @@ const tabColumns = ref([{
   title: '待评价',
   id: '3'
 },  {
+  title: '退款中',
+  id: '6'
+}, {
+  title: '已退款',
+  id: '5'
+}, {
   title: '取消',
   id: '4'
 }, {
@@ -163,6 +183,8 @@ const tabColumns = ref([{
 }])
 // 获取订单列表
 const orderList = ref([])
+const refundVisible = ref(false)
+const refundOrderId = ref('')
 const init = async (params) => {
   activeSataus.value = params || ''
   const res = await SelfOrderList(activeSataus.value)
@@ -212,6 +234,19 @@ const trackLogistics = async (item) => {
     url: `/pages/logistics/logistics?express=${item.express}`
   })
 
+}
+
+const canApplyRefund = (item) => {
+  return ['1', '2', '3', '7'].includes(item.status)
+}
+
+const openRefund = (item) => {
+  refundOrderId.value = item.ID
+  refundVisible.value = true
+}
+
+const onRefundSuccess = () => {
+  init(activeSataus.value)
 }
 
 // 确认收货
@@ -396,6 +431,14 @@ page {
   color: #999;
 }
 
+.status-refund {
+  color: #fa8c16;
+}
+
+.status-refunded {
+  color: #999;
+}
+
 /* 商品图片滑动区域 */
 .goods-images-scroll {
   padding: 20rpx;
@@ -508,6 +551,24 @@ page {
   border: 1rpx solid #fe5572;
   background-color: #fe5572;
   color: #fff;
+}
+
+.refund-btn {
+  border: 1rpx solid #fa8c16;
+  color: #fa8c16;
+  background-color: #fff7e6;
+}
+
+.refunding-btn {
+  border: 1rpx solid #fa8c16;
+  color: #fa8c16;
+  background-color: #fff7e6;
+}
+
+.refunded-btn {
+  border: 1rpx solid #ccc;
+  color: #999;
+  background-color: #fff;
 }
 
 /* 评价按钮样式 */

@@ -104,6 +104,8 @@ func (i *initDictDetail) InitializeData(ctx context.Context) (context.Context, e
 		{Label: "待发货", Value: "1", Extend: "", Status: &True},
 		{Label: "待收货", Value: "2", Extend: "", Status: &True},
 		{Label: "已确认收货", Value: "3", Extend: "", Status: &True},
+		{Label: "退款中", Value: "6", Extend: "", Status: &True},
+		{Label: "已退款", Value: "5", Extend: "", Status: &True},
 		{Label: "已评价", Value: "7", Extend: "", Status: &True},
 		{Label: "取消", Value: "4", Extend: "", Status: &True},
 	}

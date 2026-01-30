@@ -103,3 +103,11 @@ export const checkRouters = (params) => {
     params
   })
 }
+
+export const refundOrder = (data) => {
+  return service({
+    url: '/order/refundOrder',
+    method: 'post',
+    data
+  })
+}
