@@ -23,7 +23,7 @@ export const getGoodList = (params) => {
     return request({
 		url:`/good/getGoodList`,
         method: 'get',
-        params
+        params: { ...params, status: true } 
     })
 }
 

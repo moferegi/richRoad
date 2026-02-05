@@ -2,11 +2,12 @@ package shop
 
 import (
 	"errors"
+	"strconv"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
 	"gorm.io/gorm"
-	"strconv"
 )
 
 type GoodService struct {
@@ -128,6 +129,10 @@ func (goodService *GoodService) GetGoodInfoList(info shopReq.GoodSearch) (list [
 
 	if info.Recommend != nil {
 		db = db.Where("recommend = ?", info.Recommend)
+	}
+
+	if info.Status != nil {
+		db = db.Where("status = ?", info.Status)
 	}
 
 	err = db.Count(&total).Error

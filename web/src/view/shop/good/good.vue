@@ -36,6 +36,13 @@
           />
         </el-form-item>
 
+        <el-form-item label="状态" prop="status">
+          <el-select v-model="searchInfo.status" clearable placeholder="请选择">
+            <el-option label="启用" :value="true" />
+            <el-option label="禁用" :value="false" />
+          </el-select>
+        </el-form-item>
+
         <el-form-item>
           <el-button
             type="primary"
@@ -161,7 +168,15 @@
           prop="status"
           width="120"
         >
-          <template #default="scope">{{ formatBoolean(scope.row.status) }}</template>
+          <template #default="scope">
+            <el-switch
+              v-model="scope.row.status"
+              inline-prompt
+              :active-value="true"
+              :inactive-value="false"
+              @change="onStatusChange(scope.row)"
+            />
+          </template>
         </el-table-column>
 
         <el-table-column
@@ -819,6 +834,17 @@ const enterDialog = async() => {
   })
 }
 
+const onStatusChange = async(row) => {
+  const res = await updateGood(row)
+  if (res.code === 0) {
+    ElMessage({
+      type: 'success',
+      message: '状态更新成功'
+    })
+  } else {
+    row.status = !row.status
+  }
+}
 </script>
 
 <style>
