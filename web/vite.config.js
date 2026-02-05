@@ -78,6 +78,13 @@ export default ({ mode }) => {
           changeOrigin: true,
           rewrite: (path) =>
             path.replace(new RegExp('^' + process.env.VITE_BASE_API), '')
+        },
+         "/plugin": {
+          // 需要代理的路径   例如 '/api'
+          target: `https://plugin.gin-vue-admin.com/api/`, // 代理到 目标路径
+          changeOrigin: true,
+          rewrite: (path) =>
+            path.replace(new RegExp("^/plugin"), '')
         }
       }
     },
@@ -99,7 +106,7 @@ export default ({ mode }) => {
     optimizeDeps,
     plugins: [
       process.env.VITE_POSITION === 'open' &&
-        vueDevTools({ launchEditor: process.env.VITE_EDITOR }),
+      vueDevTools({ launchEditor: process.env.VITE_EDITOR }),
       legacyPlugin({
         targets: [
           'Android > 39',

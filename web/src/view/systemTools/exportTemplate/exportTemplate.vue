@@ -139,7 +139,7 @@
               icon="edit-pen"
               class="table-button"
               @click="showCode(scope.row)"
-              >代码</el-button
+              >代码和SQL预览</el-button
             >
             <el-button
               type="primary"
@@ -313,35 +313,107 @@
           />
         </el-form-item>
 
-        <el-form-item label="关联条件:">
-          <div
-            v-for="(join, key) in formData.joinTemplate"
-            :key="key"
-            class="flex gap-4 w-full mb-2"
-          >
-            <el-select v-model="join.joins" placeholder="请选择关联方式">
-              <el-option label="LEFT JOIN" value="LEFT JOIN" />
-              <el-option label="INNER JOIN" value="INNER JOIN" />
-              <el-option label="RIGHT JOIN" value="RIGHT JOIN" />
-            </el-select>
-            <el-input v-model="join.table" placeholder="请输入关联表" />
-            <el-input
-              v-model="join.on"
-              placeholder="关联条件 table1.a = table2.b"
-            />
-            <el-button
-              type="danger"
-              icon="delete"
-              @click="() => formData.joinTemplate.splice(key, 1)"
-              >删除</el-button
-            >
-          </div>
-          <div class="flex justify-end w-full">
-            <el-button type="primary" icon="plus" @click="addJoin"
-              >添加条件</el-button
-            >
-          </div>
-        </el-form-item>
+        <el-tabs v-model="activeName">
+          <el-tab-pane label="自动构建" name="auto" class="pt-2">
+            <el-form-item label="关联条件:">
+              <div
+                v-for="(join, key) in formData.joinTemplate"
+                :key="key"
+                class="flex gap-4 w-full mb-2"
+              >
+                <el-select v-model="join.joins" placeholder="请选择关联方式">
+                  <el-option label="LEFT JOIN" value="LEFT JOIN" />
+                  <el-option label="INNER JOIN" value="INNER JOIN" />
+                  <el-option label="RIGHT JOIN" value="RIGHT JOIN" />
+                </el-select>
+                <el-input v-model="join.table" placeholder="请输入关联表" />
+                <el-input
+                  v-model="join.on"
+                  placeholder="关联条件 table1.a = table2.b"
+                />
+                <el-button
+                  type="danger"
+                  icon="delete"
+                  @click="() => formData.joinTemplate.splice(key, 1)"
+                  >删除</el-button
+                >
+              </div>
+              <div class="flex justify-end w-full">
+                <el-button type="primary" icon="plus" @click="addJoin"
+                  >添加条件</el-button
+                >
+              </div>
+            </el-form-item>
+
+            <el-form-item label="默认导出条数:">
+              <el-input-number
+                v-model="formData.limit"
+                :step="1"
+                :step-strictly="true"
+                :precision="0"
+              />
+            </el-form-item>
+            <el-form-item label="默认排序条件:">
+              <el-input v-model="formData.order" placeholder="例:id desc" />
+            </el-form-item>
+            <el-form-item label="导出条件:">
+              <div
+                v-for="(condition, key) in formData.conditions"
+                :key="key"
+                class="flex gap-4 w-full mb-2"
+              >
+                <el-input
+                  v-model="condition.from"
+                  placeholder="需要从查询条件取的json key"
+                />
+                <el-input v-model="condition.column" placeholder="表对应的column" />
+                <el-select
+                  v-model="condition.operator"
+                  placeholder="请选择查询条件"
+                >
+                  <el-option
+                    v-for="item in typeSearchOptions"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  />
+                </el-select>
+                <el-button
+                  type="danger"
+                  icon="delete"
+                  @click="() => formData.conditions.splice(key, 1)"
+                  >删除</el-button
+                >
+              </div>
+              <div class="flex justify-end w-full">
+                <el-button type="primary" icon="plus" @click="addCondition"
+                  >添加条件</el-button
+                >
+              </div>
+            </el-form-item>
+          </el-tab-pane>
+          <el-tab-pane label="自定义SQL" name="sql"  class="pt-2">
+            <el-form-item label="导出SQL:" prop="sql">
+              <el-input
+                v-model="formData.sql"
+                type="textarea"
+                :rows="10"
+                placeholder="请输入导出SQL语句，支持GORM命名参数模式，例如：SELECT * FROM sys_apis WHERE id = @id"
+              />
+            </el-form-item>
+            <el-form-item label="导入SQL:" prop="importSql">
+              <el-input
+                v-model="formData.importSql"
+                type="textarea"
+                :rows="10"
+                placeholder="请输入导入SQL语句，支持GORM命名参数模式，例如：INSERT INTO sys_apis (path, description ,api_group, method) VALUES (@path, @description, @api_group, @method)。参数名对应模板信息中的key。"
+              />
+            </el-form-item>
+            <el-form-item label="导出条件:">
+              此时导出条件的key必然为 condition = {key1:"value1",key2:"value2"}，这里需要和你传入sql语句@key占位符的key一致。
+            </el-form-item>
+          </el-tab-pane>
+        </el-tabs>
 
         <el-form-item label="模板信息:" prop="templateInfo">
           <el-input
@@ -352,77 +424,82 @@
             :placeholder="templatePlaceholder"
           />
         </el-form-item>
-        <el-form-item label="默认导出条数:">
-          <el-input-number
-            v-model="formData.limit"
-            :step="1"
-            :step-strictly="true"
-            :precision="0"
-          />
-        </el-form-item>
-        <el-form-item label="默认排序条件:">
-          <el-input v-model="formData.order" placeholder="例:id desc" />
-        </el-form-item>
-        <el-form-item label="导出条件:">
-          <div
-            v-for="(condition, key) in formData.conditions"
-            :key="key"
-            class="flex gap-4 w-full mb-2"
-          >
-            <el-input
-              v-model="condition.from"
-              placeholder="需要从查询条件取的json key"
-            />
-            <el-input v-model="condition.column" placeholder="表对应的column" />
-            <el-select
-              v-model="condition.operator"
-              placeholder="请选择查询条件"
-            >
-              <el-option
-                v-for="item in typeSearchOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </el-select>
-            <el-button
-              type="danger"
-              icon="delete"
-              @click="() => formData.conditions.splice(key, 1)"
-              >删除</el-button
-            >
-          </div>
-          <div class="flex justify-end w-full">
-            <el-button type="primary" icon="plus" @click="addCondition"
-              >添加条件</el-button
-            >
-          </div>
-        </el-form-item>
       </el-form>
     </el-drawer>
 
+    <!-- 合并：代码模板 + SQL预览 抽屉 -->
     <el-drawer
-      v-model="codeVisible"
-      size="60%"
-      :before-close="closeDialog"
-      :title="type === 'create' ? '添加' : '修改'"
-      :show-close="false"
+      v-model="drawerVisible"
+      size="70%"
+      :title="'模板与预览'"
+      :show-close="true"
       destroy-on-close
     >
       <template #header>
         <div class="flex justify-between items-center">
-          <span class="text-lg">模板</span>
+          <span class="text-lg">模板与预览</span>
           <div>
-            <el-button type="primary" @click="closeDialog">确 定</el-button>
+            <el-button @click="drawerVisible = false">关 闭</el-button>
+            <el-button v-if="activeTab === 'sql'" type="primary" @click="runPreview">生 成</el-button>
           </div>
         </div>
       </template>
-      <v-ace-editor
-        v-model:value="webCode"
-        lang="vue"
-        theme="github_dark"
-        class="h-full"
-      />
+      <el-tabs v-model="activeTab" type="border-card">
+        <el-tab-pane label="代码模板" name="code">
+          <v-ace-editor
+            v-model:value="webCode"
+            lang="vue"
+            theme="github_dark"
+            class="w-full h-96"
+            :options="{ showPrintMargin: false, fontSize: 14 }"
+          />
+        </el-tab-pane>
+        <el-tab-pane label="SQL预览" name="sql">
+          <div class="flex flex-col gap-4">
+            <div class="w-full">
+              <el-form :model="previewForm" label-width="120px">
+                <el-form-item label="过滤已删除">
+                  <el-switch v-model="previewForm.filterDeleted" />
+                </el-form-item>
+                <el-form-item label="默认排序">
+                  <el-input v-model="previewForm.order" placeholder="例如: id desc" />
+                </el-form-item>
+                <el-form-item label="限制条数">
+                  <el-input-number v-model="previewForm.limit" :min="0" />
+                </el-form-item>
+                <el-form-item label="偏移量">
+                  <el-input-number v-model="previewForm.offset" :min="0" />
+                </el-form-item>
+
+                <el-divider content-position="left">查询条件</el-divider>
+                <div v-if="previewConditions.length === 0" class="text-gray">该模板暂无条件</div>
+                <template v-for="(cond, idx) in previewConditions" :key="idx">
+                  <el-form-item :label="cond.column + ' ' + cond.operator">
+                    <template v-if="cond.operator === 'BETWEEN'">
+                      <div class="flex gap-2 w-full">
+                        <el-input v-model="previewForm['start' + cond.from]" placeholder="开始值: start{{cond.from}}" />
+                        <el-input v-model="previewForm['end' + cond.from]" placeholder="结束值: end{{cond.from}}" />
+                      </div>
+                    </template>
+                    <template v-else>
+                      <el-input v-model="previewForm[cond.from]" :placeholder="'变量: ' + cond.from" />
+                    </template>
+                  </el-form-item>
+                </template>
+              </el-form>
+            </div>
+            <div class="w-full">
+              <v-ace-editor
+                v-model:value="previewSQLCode"
+                lang="sql"
+                theme="github_dark"
+                class="w-full h-96"
+                :options="aceOptions"
+              />
+            </div>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
     </el-drawer>
   </div>
 </template>
@@ -436,6 +513,7 @@
     findSysExportTemplate,
     getSysExportTemplateList
   } from '@/api/exportTemplate.js'
+  import { previewSQL } from '@/api/exportTemplate.js'
 
   // 全量引入格式化工具 请按需保留
   import { formatDate } from '@/utils/format'
@@ -448,6 +526,7 @@
 
   import 'ace-builds/src-noconflict/mode-vue'
   import 'ace-builds/src-noconflict/theme-github_dark'
+  import 'ace-builds/src-noconflict/mode-sql'
 
   defineOptions({
     name: 'ExportTemplate'
@@ -460,6 +539,7 @@
   "table_column4":"第四列",
   "\`rows\`":"我属于数据库关键字或函数",
 }
+如果使用是sql模式，您自行构建的sql的key就是需要写在json的key，例如您写了xxx as k1，那么模板信息中就写{"k1":"对应列名称"}
 如果增加了JOINS导出key应该列为 {table_name1.table_column1:"第一列",table_name2.table_column2:"第二列"}
 如果有重复的列名导出格式应为 {table_name1.table_column1 as key:"第一列",table_name2.table_column2 as key2:"第二列"}
 JOINS模式下不支持导入
@@ -475,8 +555,12 @@ JOINS模式下不支持导入
     limit: 0,
     order: '',
     conditions: [],
-    joinTemplate: []
+    joinTemplate: [],
+    sql: '',
+    importSql: ''
   })
+
+  const activeName = ref('auto')
 
   const prompt = ref('')
   const tables = ref([])
@@ -863,6 +947,12 @@ JOINS模式下不支持导入
       if (!copyData.joinTemplate) {
         copyData.joinTemplate = []
       }
+      if (!copyData.sql) {
+        copyData.sql = ''
+      }
+      if (!copyData.importSql) {
+        copyData.importSql = ''
+      }
       delete copyData.ID
       delete copyData.CreatedAt
       delete copyData.UpdatedAt
@@ -885,6 +975,17 @@ JOINS模式下不支持导入
       if (!formData.value.joinTemplate) {
         formData.value.joinTemplate = []
       }
+      if (!formData.value.sql) {
+        formData.value.sql = ''
+      }
+      if (!formData.value.importSql) {
+        formData.value.importSql = ''
+      }
+      if (formData.value.sql || formData.value.importSql) {
+        activeName.value = 'sql'
+      } else {
+        activeName.value = 'auto'
+      }
       dialogFormVisible.value = true
     }
   }
@@ -903,7 +1004,8 @@ JOINS模式下不支持导入
       getTableData()
     }
   }
-  const codeVisible = ref(false)
+  const drawerVisible = ref(false)
+  const activeTab = ref('code')
   // 弹窗控制标记
   const dialogFormVisible = ref(false)
 
@@ -911,7 +1013,56 @@ JOINS模式下不支持导入
 
   const showCode = (row) => {
     webCode.value = getCode(row.templateID)
-    codeVisible.value = true
+    activeTab.value = 'code'
+    drawerVisible.value = true
+  }
+
+  // 预览 SQL
+  const previewForm = ref({ filterDeleted: true, order: '', limit: 0, offset: 0 })
+  const previewSQLCode = ref('')
+  const previewTemplate = ref(null)
+  const previewConditions = ref([])
+  const aceOptions = { wrap: true, showPrintMargin: false, fontSize: 14 }
+
+  const openPreview = async (row) => {
+    // 获取模板完整信息以展示条件输入项
+    const res = await findSysExportTemplate({ ID: row.ID })
+    if (res.code === 0) {
+      previewTemplate.value = res.data.resysExportTemplate
+      previewConditions.value = (previewTemplate.value.conditions || []).map((c) => ({
+        from: c.from,
+        column: c.column,
+        operator: c.operator
+      }))
+      // 预填默认的排序与限制
+      previewForm.value.order = previewTemplate.value.order || ''
+      previewForm.value.limit = previewTemplate.value.limit || 0
+      previewForm.value.offset = 0
+      previewSQLCode.value = ''
+      activeTab.value = 'sql'
+      drawerVisible.value = true
+    }
+  }
+
+  const runPreview = async () => {
+    if (!previewTemplate.value) return
+    // 组装 params，与导出组件保持一致
+    const paramsCopy = JSON.parse(JSON.stringify(previewForm.value))
+    // 将布尔与数值等按照导出组件规则编码
+    if (paramsCopy.filterDeleted) paramsCopy.filterDeleted = 'true'
+    const entries = Object.entries(paramsCopy).filter(([key, v]) => {
+      if (v === '' || v === null || v === undefined) return false
+      if ((key === 'limit' || key === 'offset') && Number(v) === 0) return false
+      return true
+    })
+    const params = entries
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+      .join('&')
+
+    const res = await previewSQL({ templateID: previewTemplate.value.templateID, params })
+    if (res.code === 0) {
+      previewSQLCode.value = res.data.sql || ''
+    }
   }
 
   // 打开弹窗
@@ -922,7 +1073,6 @@ JOINS模式下不支持导入
 
   // 关闭弹窗
   const closeDialog = () => {
-    codeVisible.value = false
     dialogFormVisible.value = false
     formData.value = {
       name: '',
@@ -932,8 +1082,11 @@ JOINS模式下不支持导入
       limit: 0,
       order: '',
       conditions: [],
-      joinTemplate: []
+      joinTemplate: [],
+      sql: '',
+      importSql: ''
     }
+    activeName.value = 'auto'
   }
   // 弹窗确定
   const enterDialog = async () => {
@@ -949,6 +1102,16 @@ JOINS模式下不支持导入
     }
 
     const reqData = JSON.parse(JSON.stringify(formData.value))
+    if (activeName.value === 'sql') {
+      reqData.conditions = []
+      reqData.joinTemplate = []
+      reqData.limit = 0
+      reqData.order = ''
+    } else {
+      reqData.sql = ''
+      reqData.importSql = ''
+    }
+
     for (let i = 0; i < reqData.conditions.length; i++) {
       if (
         !reqData.conditions[i].from ||

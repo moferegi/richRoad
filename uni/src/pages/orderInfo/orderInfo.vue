@@ -79,6 +79,12 @@
       </view> -->
     </view>
 
+    <!-- 退款操作 -->
+    <view class="refund-section" v-if="canApplyRefund || isRefunding || isRefunded">
+      <view v-if="canApplyRefund" class="refund-btn" @tap="openRefund">申请退款</view>
+      <view v-else class="refund-status">{{ isRefunding ? '退款处理中' : '已退款' }}</view>
+    </view>
+
     <!-- 底部支付栏 -->
     <view class="footer">
       <view class="total-container">
@@ -100,11 +106,16 @@
 			</scroll-view>
 		</view>
 
+    <refund-apply-popup
+      v-model:visible="refundVisible"
+      :order-id="orderID"
+      @success="initSingleOrder"
+    />
   </view>
 </template>
 
 <script setup>
-import { ref, nextTick, watch } from 'vue'
+import { ref, nextTick, watch, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { selfOrder,changeOrderCoupon } from '@/api/order.js'
 import { claimCouponByUser } from '@/api/coupon.js'
@@ -112,6 +123,7 @@ import { getPayParams, getOrderById,checkNeedPay } from '@/api/base.js'
 import { getUserInfo } from '@/api/base.js'
 import { getUrl } from "@/utils/url.js"
 import { changeOrderPoints } from '@/api/order.js'
+import RefundApplyPopup from '@/components/refund-apply-popup/refund-apply-popup.vue'
 
 const toAddress = () => {
   uni.navigateTo({
@@ -155,6 +167,7 @@ const data = ref({
   ]
 })
 const orderID = ref("")
+const refundVisible = ref(false)
 
 const couponshow = ref(false)
 
@@ -230,6 +243,18 @@ onLoad((options) => {
   initSingleOrder()
   getUserPoints()
 })
+
+const canApplyRefund = computed(() => {
+  const status = String(data.value.status || '')
+  return ['1', '2', '3', '7'].includes(status)
+})
+
+const isRefunding = computed(() => String(data.value.status || '') === '6')
+const isRefunded = computed(() => String(data.value.status || '') === '5')
+
+const openRefund = () => {
+  refundVisible.value = true
+}
 
 // 处理积分抵扣checkbox变化
 const onPointsChange = async (e) => {
@@ -587,6 +612,33 @@ page {
   margin-top: 20rpx;
   background-color: #fff;
   padding: 0 32rpx;
+}
+
+.refund-section {
+  margin-top: 20rpx;
+  background-color: #fff;
+  padding: 20rpx 32rpx;
+  display: flex;
+  justify-content: flex-end;
+  border-radius: 12rpx;
+}
+
+.refund-btn {
+  padding: 12rpx 28rpx;
+  border-radius: 30rpx;
+  border: 1rpx solid #fa8c16;
+  color: #fa8c16;
+  background-color: #fff7e6;
+  font-size: 26rpx;
+}
+
+.refund-status {
+  padding: 12rpx 28rpx;
+  border-radius: 30rpx;
+  border: 1rpx solid #ccc;
+  color: #999;
+  background-color: #fff;
+  font-size: 26rpx;
 }
 
 .price-row {

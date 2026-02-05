@@ -174,13 +174,11 @@
         </div>
       </template>
     </el-dialog>
-    
+
     <el-drawer
       v-model="addUserDialog"
       :size="appStore.drawerSize"
       :show-close="false"
-      :close-on-press-escape="false"
-      :close-on-click-modal="false"
     >
       <template #header>
         <div class="flex justify-between items-center">
@@ -356,6 +354,12 @@
     }
   )
 
+  const authOptions = ref([])
+  const setOptions = (authData) => {
+    authOptions.value = []
+    setAuthorityOptions(authData, authOptions.value)
+  }
+
   const initPage = async () => {
     getTableData()
     const res = await getAuthorityList()
@@ -373,7 +377,7 @@
     nickName: '',
     password: ''
   })
-  
+
   // 生成随机密码
   const generateRandomPassword = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
@@ -395,7 +399,7 @@
       })
     })
   }
-  
+
   // 打开重置密码对话框
   const resetPasswordFunc = (row) => {
     resetPwdInfo.value.ID = row.ID
@@ -404,7 +408,7 @@
     resetPwdInfo.value.password = ''
     resetPwdDialog.value = true
   }
-  
+
   // 确认重置密码
   const confirmResetPassword = async () => {
     if (!resetPwdInfo.value.password) {
@@ -414,12 +418,12 @@
       })
       return
     }
-    
+
     const res = await resetPassword({
       ID: resetPwdInfo.value.ID,
       password: resetPwdInfo.value.password
     })
-    
+
     if (res.code === 0) {
       ElMessage({
         type: 'success',
@@ -433,7 +437,7 @@
       })
     }
   }
-  
+
   // 关闭重置密码对话框
   const closeResetPwdDialog = () => {
     resetPwdInfo.value.password = ''
@@ -448,12 +452,6 @@
             return i.authorityId
           })
       })
-  }
-
-  const authOptions = ref([])
-  const setOptions = (authData) => {
-    authOptions.value = []
-    setAuthorityOptions(authData, authOptions.value)
   }
 
   const deleteUserFunc = async (row) => {

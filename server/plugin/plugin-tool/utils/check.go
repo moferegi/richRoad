@@ -1,50 +1,83 @@
 package utils
 
 import (
-	"fmt"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/system"
 )
 
 func RegisterApis(apis ...system.SysApi) {
-	var count int64
-	var apiPaths []string
-	for i := range apis {
-		apiPaths = append(apiPaths, apis[i].Path)
-	}
-	global.GVA_DB.Find(&[]system.SysApi{}, "path in (?)", apiPaths).Count(&count)
-	if count > 0 {
-		return
-	}
-	err := global.GVA_DB.Create(&apis).Error
+	err := global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		for _, api := range apis {
+			err := tx.Model(system.SysApi{}).Where("path = ? AND method = ? AND api_group = ? ", api.Path, api.Method, api.ApiGroup).FirstOrCreate(&api).Error
+			if err != nil {
+				zap.L().Error("注册API失败", zap.Error(err), zap.String("api", api.Path), zap.String("method", api.Method), zap.String("apiGroup", api.ApiGroup))
+				return err
+			}
+		}
+		return nil
+	})
 	if err != nil {
-		fmt.Println(err)
+		zap.L().Error("注册API失败", zap.Error(err))
 	}
 }
 
 func RegisterMenus(menus ...system.SysBaseMenu) {
-	var count int64
-	var menuNames []string
 	parentMenu := menus[0]
 	otherMenus := menus[1:]
-	for i := range menus {
-		menuNames = append(menuNames, menus[i].Name)
-	}
-	global.GVA_DB.Find(&[]system.SysBaseMenu{}, "name in (?)", menuNames).Count(&count)
-	if count > 0 {
-		return
-	}
-	err := global.GVA_DB.Create(&parentMenu).Error
-	if err != nil {
-		fmt.Println(err)
-	}
-	for i := range otherMenus {
+	err := global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		err := tx.Model(system.SysBaseMenu{}).Where("name = ? ", parentMenu.Name).FirstOrCreate(&parentMenu).Error
+		if err != nil {
+			zap.L().Error("注册菜单失败", zap.Error(err))
+			return errors.Wrap(err, "注册菜单失败")
+		}
 		pid := parentMenu.ID
-		otherMenus[i].ParentId = pid
-	}
-	err = global.GVA_DB.Create(&otherMenus).Error
+		for i := range otherMenus {
+			otherMenus[i].ParentId = pid
+			err = tx.Model(system.SysBaseMenu{}).Where("name = ? ", otherMenus[i].Name).FirstOrCreate(&otherMenus[i]).Error
+			if err != nil {
+				zap.L().Error("注册菜单失败", zap.Error(err))
+				return errors.Wrap(err, "注册菜单失败")
+			}
+		}
+
+		return nil
+	})
 	if err != nil {
-		fmt.Println(err)
+		zap.L().Error("注册菜单失败", zap.Error(err))
 	}
+
+}
+
+func RegisterDictionaries(dictionaries ...system.SysDictionary) {
+	err := global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		for _, dict := range dictionaries {
+			details := dict.SysDictionaryDetails
+			dict.SysDictionaryDetails = nil
+			err := tx.Model(system.SysDictionary{}).Where("type = ?", dict.Type).FirstOrCreate(&dict).Error
+			if err != nil {
+				zap.L().Error("注册字典失败", zap.Error(err), zap.String("type", dict.Type))
+				return err
+			}
+			for _, detail := range details {
+				detail.SysDictionaryID = int(dict.ID)
+				err = tx.Model(system.SysDictionaryDetail{}).Where("sys_dictionary_id = ? AND value = ?", dict.ID, detail.Value).FirstOrCreate(&detail).Error
+				if err != nil {
+					zap.L().Error("注册字典详情失败", zap.Error(err), zap.String("value", detail.Value))
+					return err
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		zap.L().Error("注册字典失败", zap.Error(err))
+	}
+}
+
+func Pointer[T any](in T) *T {
+	return &in
 }

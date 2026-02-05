@@ -1,6 +1,6 @@
 <template>
   <div
-    class="relative h-full bg-white text-slate-700 dark:text-slate-300 dark:bg-slate-900 border-r shadow dark:shadow-gray-700"
+    class="relative h-full bg-white text-slate-700 dark:text-slate-300 dark:bg-slate-900 shadow dark:shadow-gray-700"
     :class="isCollapse ? '' : '  px-2'"
     :style="{
       width: layoutSideWidth + 'px'
@@ -65,7 +65,7 @@
     }
   })
   watchEffect(() => {
-    if (route.name === 'Iframe') {
+    if (route.name === 'gvaLayoutIframe') {
       active.value = decodeURIComponent(route.query.url)
       return
     }
@@ -95,18 +95,8 @@
       })
     if (index === route.name) return
     if (index.indexOf('http://') > -1 || index.indexOf('https://') > -1) {
-      if (index === 'Iframe') {
-        query.url = decodeURIComponent(index)
-        router.push({
-          name: 'Iframe',
-          query,
-          params
-        })
-        return
-      } else {
         window.open(index, '_blank')
         return
-      }
     } else {
       router.push({ name: index, query, params })
     }

@@ -56,12 +56,13 @@
           </el-table-column>
           <el-table-column align="left" label="快递单号" prop="express" width="160" />
 
-        <el-table-column align="left" label="操作" fixed="right" min-width="240">
+          <el-table-column align="left" label="操作" fixed="right" min-width="240">
             <template #default="scope">
             <el-button type="primary" link class="table-button" @click="getDetails(scope.row)">
                 <el-icon style="margin-right: 5px"><InfoFilled /></el-icon>
                 查看详情
             </el-button>
+              <el-button v-if="scope.row.status === '6'" type="danger" link class="table-button" @click="refundOrderFunc(scope.row)">同意退款</el-button>
               <el-button v-if="scope.row.status === '1'" type="primary" link icon="van" class="table-button" @click="sendOut(scope.row)">发货</el-button>
               <el-button v-if="scope.row.status === '2'" type="primary" link icon="van" class="table-button" @click="checkRoutersFunc(scope.row)">查看物流</el-button>
             <el-button type="primary" link icon="edit" class="table-button" @click="updateOrderFunc(scope.row)">变更</el-button>
@@ -217,6 +218,65 @@
           </el-row>
         </el-card>
 
+        <!-- 退款信息 -->
+        <el-card v-if="orderDetail?.refundReason || orderDetail?.status === '6' || orderDetail?.status === '5'" class="mb-4" shadow="never">
+          <template #header>
+            <span class="text-base font-medium">退款信息</span>
+          </template>
+          <el-row :gutter="20">
+            <el-col :span="8">
+              <div class="detail-item">
+                <span class="label">退款状态:</span>
+                <el-tag :type="getStatusType(orderDetail.status)">
+                  {{ filterDict(orderDetail.status, orderStatusOptions) }}
+                </el-tag>
+              </div>
+            </el-col>
+            <el-col :span="16">
+              <div class="detail-item">
+                <span class="label">退款原因:</span>
+                <span class="value">{{ orderDetail.refundReason || '无' }}</span>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="detail-item">
+                <span class="label">申请时间:</span>
+                <span class="value">{{ orderDetail.refundAppliedAt ? formatDate(orderDetail.refundAppliedAt) : '无' }}</span>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="detail-item">
+                <span class="label">处理时间:</span>
+                <span class="value">{{ orderDetail.refundHandledAt ? formatDate(orderDetail.refundHandledAt) : '未处理' }}</span>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="detail-item">
+                <span class="label">处理备注:</span>
+                <span class="value">{{ orderDetail.refundRemark || '无' }}</span>
+              </div>
+            </el-col>
+            <el-col :span="24" v-if="getRefundImages(orderDetail.refundImages).length">
+              <div class="detail-item">
+                <span class="label">退款图片:</span>
+                <div class="refund-images">
+                  <el-image
+                    v-for="(img, index) in getRefundImages(orderDetail.refundImages)"
+                    :key="index"
+                    :src="img"
+                    style="width: 60px; height: 60px; margin-right: 8px"
+                    fit="cover"
+                    :preview-src-list="getRefundImages(orderDetail.refundImages)"
+                  />
+                </div>
+              </div>
+            </el-col>
+          </el-row>
+          <div v-if="orderDetail.status === '6'" class="refund-action">
+            <el-button type="danger" @click="refundOrderFunc(orderDetail)">同意退款</el-button>
+          </div>
+        </el-card>
+
         <!-- 商品详情 -->
         <el-card shadow="never">
           <template #header>
@@ -285,7 +345,7 @@ import {
   deleteOrder,
   updateOrder,
   findOrder,
-  getOrderList, checkRouters
+  getOrderList, checkRouters, refundOrder
 } from '@/api/shop/order'
 
 // 全量引入格式化工具 请按需保留
@@ -497,6 +557,39 @@ const checkRoutersFunc = async (row) =>{
   console.log(res)
 }
 
+const getRefundImages = (images) => {
+  if (!images) return []
+  let parsed = images
+  if (typeof images === 'string') {
+    try {
+      parsed = JSON.parse(images)
+    } catch (e) {
+      parsed = [images]
+    }
+  }
+  return ReturnArrImg(parsed)
+}
+
+const refundOrderFunc = (row) => {
+  ElMessageBox.prompt('请输入退款备注（可选）', '退款处理', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    inputPlaceholder: '退款备注'
+  }).then(async({ value }) => {
+    const res = await refundOrder({ orderID: row.ID, remark: value })
+    if (res.code === 0) {
+      ElMessage({
+        type: 'success',
+        message: '退款成功'
+      })
+      if (detailDialogVisible.value && orderDetail.value?.ID === row.ID) {
+        await getDetails(row)
+      }
+      getTableData()
+    }
+  })
+}
+
 // 订单详情相关
 const detailDialogVisible = ref(false)
 const orderDetail = ref(null)
@@ -531,7 +624,8 @@ const getStatusType = (status) => {
     '2': 'primary',  // 已发货
     '3': 'success',  // 已完成
     '4': 'danger',   // 已取消
-    '5': 'danger'    // 已退款
+    '5': 'danger',   // 已退款
+    '6': 'warning'   // 退款中
   }
   return statusMap[status] || 'info'
 }
@@ -604,5 +698,15 @@ const getStatusType = (status) => {
 :deep(.el-image) {
   border-radius: 4px;
   border: 1px solid #DCDFE6;
+}
+
+.refund-images {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.refund-action {
+  margin-top: 12px;
+  text-align: right;
 }
 </style>

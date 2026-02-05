@@ -162,7 +162,6 @@ export const butler = (data) => {
   })
 }
 
-
 export const eye = (data) => {
   return service({
     url: '/autoCode/llmAuto',
@@ -203,6 +202,14 @@ export const initMenu = (data) => {
 export const initAPI = (data) => {
   return service({
     url: '/autoCode/initAPI',
+    method: 'post',
+    data
+  })
+}
+
+export const initDictionary = (data) => {
+  return service({
+    url: '/autoCode/initDictionary',
     method: 'post',
     data
   })

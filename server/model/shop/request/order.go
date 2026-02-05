@@ -13,6 +13,17 @@ type OrderSearch struct {
 	request.PageInfo
 }
 
+type RefundApplyReq struct {
+	OrderID uint     `json:"orderID" binding:"required"`
+	Reason  string   `json:"reason" binding:"required"`
+	Images  []string `json:"images"`
+}
+
+type RefundHandleReq struct {
+	OrderID uint   `json:"orderID" binding:"required"`
+	Remark  string `json:"remark"`
+}
+
 // PlaceOrderByCartRequest 购物车下单请求
 type PlaceOrderByCartRequest struct {
 	UsePoints bool `json:"usePoints" form:"usePoints"` // 是否使用积分抵扣

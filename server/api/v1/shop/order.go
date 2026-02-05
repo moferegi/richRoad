@@ -136,6 +136,58 @@ func (orderApi *OrderApi) ChangeOrderPoints(c *gin.Context) {
 	}
 }
 
+// ApplyRefund 申请退款
+// @Tags Order
+// @Summary 申请退款
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data body shopReq.RefundApplyReq true "退款申请"
+// @Success 200 {object} response.Response{msg=string} "申请成功"
+// @Router /order/applyRefund [post]
+func (orderApi *OrderApi) ApplyRefund(c *gin.Context) {
+	userID := utils.GetUserID(c)
+	var req shopReq.RefundApplyReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	if err := orderService.ApplyRefund(userID, req); err != nil {
+		global.GVA_LOG.Error("退款申请失败!", zap.Error(err))
+		response.FailWithMessage(err.Error(), c)
+	} else {
+		response.OkWithMessage("申请成功", c)
+	}
+}
+
+// RefundOrder 后台退款处理
+// @Tags Order
+// @Summary 后台退款处理
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data body shopReq.RefundHandleReq true "退款处理"
+// @Success 200 {object} response.Response{msg=string} "退款成功"
+// @Router /order/refundOrder [post]
+func (orderApi *OrderApi) RefundOrder(c *gin.Context) {
+	var req shopReq.RefundHandleReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	authorityID := utils.GetUserAuthorityId(c)
+	if authorityID != 888 {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
+	if err := orderService.RefundOrder(req.OrderID, req.Remark); err != nil {
+		global.GVA_LOG.Error("退款失败!", zap.Error(err))
+		response.FailWithMessage(err.Error(), c)
+	} else {
+		response.OkWithMessage("退款成功", c)
+	}
+}
+
 // UpdateOrderStatus 更新订单状态
 // @Tags Order
 // @Summary 更新订单状态
@@ -281,7 +333,7 @@ func (orderApi *OrderApi) UpdateOrder(c *gin.Context) {
 		order.Express = ""
 		order.Status = ""
 		order.Detail = nil
-		order.PayOrderID = ""
+		order.OutTradeNo = ""
 		order.Comment = nil
 	}
 

@@ -13,7 +13,8 @@ type Order struct {
 	TradeState     string // 订单状态
 	TradeStateDesc string // 订单状态详情
 	TradeType      string // 订单状态类型
-	TransactionId  string // 预下单ID
+	TransactionId  string // 微信支付订单号
+	PrepayID       string `json:"prepay_id"` // 预下单ID
 
 	// 下面为微信的附加信息
 	Mchid       string    `json:"mchid"`
@@ -32,7 +33,7 @@ type Order struct {
 }
 
 func (*Order) TableName() string {
-	return "shop_order"
+	return "wechat_order"
 }
 
 // 微信回调的结构体

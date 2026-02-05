@@ -2,6 +2,7 @@ package shop
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strconv"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
 	clientService "github.com/flipped-aurora/gin-vue-admin/server/service/client"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -575,4 +577,73 @@ func (orderService *OrderService) GetDefaultAddress(UserID uint) (address client
 		err = global.GVA_DB.Where("user_id = ?", UserID).Order("created_at desc").First(&address).Error
 	}
 	return address, nil
+}
+
+// ApplyRefund 用户申请退款
+func (orderService *OrderService) ApplyRefund(userID uint, req shopReq.RefundApplyReq) (err error) {
+	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		var order shop.Order
+		if err := tx.Where("id = ? and user_id = ?", req.OrderID, userID).First(&order).Error; err != nil {
+			return errors.New("订单不存在")
+		}
+		switch order.Status {
+		case "0":
+			return errors.New("订单未支付，无法申请退款")
+		case "4":
+			return errors.New("订单已取消，无法申请退款")
+		case "5":
+			return errors.New("订单已退款")
+		case "6":
+			return errors.New("退款申请处理中")
+		}
+		allowStatus := map[string]bool{"1": true, "2": true, "3": true, "7": true}
+		if !allowStatus[order.Status] {
+			return errors.New("当前订单状态不允许退款")
+		}
+
+		imagesJSON := []byte("[]")
+		if len(req.Images) > 0 {
+			if bytes, marshalErr := json.Marshal(req.Images); marshalErr == nil {
+				imagesJSON = bytes
+			}
+		}
+		now := time.Now()
+		updates := map[string]interface{}{
+			"refund_reason":     req.Reason,
+			"refund_images":     datatypes.JSON(imagesJSON),
+			"refund_applied_at": &now,
+			"status":            "6",
+		}
+		if err := tx.Model(&shop.Order{}).Where("id = ?", order.ID).Updates(updates).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	return err
+}
+
+// RefundOrder 后台处理退款
+func (orderService *OrderService) RefundOrder(orderID uint, remark string) (err error) {
+	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		var order shop.Order
+		if err := tx.First(&order, "id = ?", orderID).Error; err != nil {
+			return errors.New("订单不存在")
+		}
+		if order.Status != "6" {
+			return errors.New("订单未处于退款申请中")
+		}
+		if err := orderService.UpdateOrderStatus(tx, strconv.Itoa(int(orderID)), "5"); err != nil {
+			return err
+		}
+		now := time.Now()
+		updates := map[string]interface{}{
+			"refund_remark":     remark,
+			"refund_handled_at": &now,
+		}
+		if err := tx.Model(&shop.Order{}).Where("id = ?", orderID).Updates(updates).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	return err
 }
