@@ -58,6 +58,8 @@ func (e *ensureTables) MigrateTable(ctx context.Context) (context.Context, error
 		sysModel.SysParams{},
 		sysModel.SysVersion{},
 		sysModel.SysError{},
+		sysModel.SysLoginLog{},
+		sysModel.SysApiToken{},
 		adapter.CasbinRule{},
 
 		example.ExaFile{},
