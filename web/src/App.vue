@@ -14,7 +14,7 @@
   import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
   import Application from '@/components/application/index.vue'
   import { useAppStore } from '@/pinia'
-
+  //测试第一次提交
   const appStore = useAppStore()
   defineOptions({
     name: 'App'
