@@ -16,7 +16,7 @@ func initBizRouter(routers ...*gin.RouterGroup) {
 		clientRouter := router.RouterGroupApp.Client
 		clientRouter.InitClientUserRouter(privateGroup, publicGroup)
 		clientRouter.InitAddressRouter(privateGroup, publicGroup)
-		clientRouter.InitCollectRouter(privateGroup, publicGroup) // 占位方法，保证文件可以正确加载，避免go空变量检测报错，请勿删除。
+		clientRouter.InitCollectRouter(privateGroup, publicGroup)
 		clientRouter.InitPointRecordRouter(privateGroup, publicGroup)
 	}
 	{
@@ -31,7 +31,8 @@ func initBizRouter(routers ...*gin.RouterGroup) {
 		shopRouter.InitTagRouter(privateGroup, publicGroup)
 		shopRouter.InitCouponRouter(privateGroup, publicGroup)
 		shopRouter.InitCouponOrderUserRouter(privateGroup, publicGroup)
-		shopRouter.InitPromotionRouter(privateGroup, publicGroup)
+		shopRouter.InitPromotionRouter(privateGroup, publicGroup) // 占位方法，保证文件可以正确加载，避免go空变量检测报错，请勿删除。
+		shopRouter.InitKefuRouter(privateGroup, publicGroup)
 	}
 	holder(publicGroup, privateGroup)
 }

@@ -14,6 +14,7 @@ type RouterGroup struct {
 	CouponRouter
 	CouponOrderUserRouter
 	PromotionRouter
+	KefuRouter
 }
 
 var (
@@ -22,4 +23,5 @@ var (
 	CouApi     = api.ApiGroupApp.ShopApiGroup.CouponApi
 	couApi     = api.ApiGroupApp.ShopApiGroup.CouponOrderUserApi
 	PromoApi   = api.ApiGroupApp.ShopApiGroup.PromotionApi
+	kefuApi    = api.ApiGroupApp.ShopApiGroup.KefuApi
 )

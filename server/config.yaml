@@ -10,7 +10,7 @@ autocode:
     root: D:\my-project\richRoad
     server: server
     module: github.com/flipped-aurora/gin-vue-admin/server
-    ai-path: ""
+    ai-path: "https://plugin.gin-vue-admin.com/api/app/K0GWMD088hl2YyRt84gmvEPxdKv-C_LjfBQ6ZIBEXD_yO_snS9nhIAEFWizc42cJ/{FUNC}"
 aws-s3:
     bucket: xxxxx-10005608
     region: ap-shanghai

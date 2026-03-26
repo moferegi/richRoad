@@ -12,4 +12,5 @@ type ServiceGroup struct {
 	CouponService
 	CouponOrderUserService
 	PromotionService
+	KefuService
 }

@@ -14,6 +14,7 @@ type ApiGroup struct {
 	CouponApi
 	CouponOrderUserApi
 	PromotionApi
+	KefuApi
 }
 
 var (
@@ -22,4 +23,5 @@ var (
 	couponService  = service.ServiceGroupApp.ShopServiceGroup.CouponService
 	couService     = service.ServiceGroupApp.ShopServiceGroup.CouponOrderUserService
 	promoService   = service.ServiceGroupApp.ShopServiceGroup.PromotionService
+	kefuService    = service.ServiceGroupApp.ShopServiceGroup.KefuService
 )
