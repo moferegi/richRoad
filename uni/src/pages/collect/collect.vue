@@ -1,420 +1,409 @@
 <template>
-	<view v-if="collectList.length">
+  <view class="nf-collect">
+    <view class="nf-collect-bg"></view>
 
-    <view class="goods-list">
-      <view class="goods-item" v-for="(item, index) in collectList" :key="index" @tap="goTo(item)">
-        <image class="goods-image" :src="getUrl(item.imageUrl)" mode="aspectFill" />
-        <view class="goods-info">
-          <text class="goods-name">{{ item.title }}</text>
-          <view class="merchant-tags">
-            <text class="merchant-tag self-operated">自营</text>
-            <text class="merchant-tag quality-assured">放心购</text>
-            <text class="merchant-tag plus-delivery">Plus免邮</text>
-          </view>
-          <view class="price-container">
-            <text class="discount-price">¥{{ item.price/100 }}</text>
-            <text class="discount-tag">{{ getDiscountText(item.discount) }}</text>
-          </view>
-          <view class="goods-extra">
-            <view class="rating">
-              <text class="rating-score">{{ item.rating }}</text>
-              <text class="rating-stars">★★★★★</text>
-              <text class="rating-count">({{ item.ratingCount || 0 }})</text>
+    <!-- 自定义导航栏 -->
+    <view class="nf-navbar">
+      <view class="nf-navbar-status"></view>
+      <view class="nf-navbar-content">
+        <view style="width: 64rpx;"></view>
+        <text class="nf-navbar-title">{{ $t('myCollection') }}</text>
+        <view style="width: 64rpx;"></view>
+      </view>
+    </view>
+
+    <!-- 商品列表 -->
+    <scroll-view
+      scroll-y
+      :show-scrollbar="false"
+      class="nf-collect-scroll"
+      @scrolltolower="debouncedLower"
+    >
+      <view v-if="collectList.length" class="nf-goods-list">
+        <view
+          class="nf-goods-card"
+          v-for="(item, index) in collectList"
+          :key="index"
+          @tap="goTo(item)"
+        >
+          <view class="nf-goods-img-wrap">
+            <image class="nf-goods-img" :src="getUrl(item.imageUrl)" mode="aspectFill" />
+            <view class="nf-goods-img-overlay"></view>
+            <view class="nf-goods-badge" v-if="item.discount && item.discount < 10">
+              <text class="nf-goods-badge-text">{{ getDiscountText(item.discount) }}</text>
             </view>
-            <view class="sales">
-              <text>已售 {{ item.saleNum }}</text>
+          </view>
+          <view class="nf-goods-info">
+            <text class="nf-goods-title">{{ item.title }}</text>
+            <view class="nf-goods-tags">
+              <text class="nf-tag nf-tag-red">{{ $t('selfOperated') }}</text>
+              <text class="nf-tag nf-tag-blue">{{ $t('qualityAssured') }}</text>
+              <text class="nf-tag nf-tag-green">{{ $t('freeShipping') }}</text>
+            </view>
+            <view class="nf-goods-bottom">
+              <view class="nf-price-row">
+                <text class="nf-price">¥{{ formatPrice(item.price) }}</text>
+              </view>
+              <view class="nf-goods-meta">
+                <text class="nf-rating-stars">★</text>
+                <text class="nf-rating-score">{{ item.rating || '5.0' }}</text>
+                <text class="nf-sold">{{ $t('sold') }} {{ item.saleNum || 0 }}</text>
+              </view>
             </view>
           </view>
         </view>
       </view>
-    </view>
-	</view>
-  <view v-if="!collectList.length" class="empty-state">
-      <view class="empty-image-container">
-        <image class="empty-image-placeholder" src="./../../static/emptyStatus.jpg"></image>
+
+      <!-- 底部加载状态 -->
+      <view class="nf-collect-footer" v-if="collectList.length > 0">
+        <text class="nf-collect-footer-text">{{ isBottom ? $t('reachedBottom') : $t('loading') }}</text>
       </view>
-      <view class="empty-text">暂无订单数据</view>
+
+      <!-- 空状态 -->
+      <view class="nf-collect-empty" v-if="!collectList.length">
+        <view class="nf-collect-empty-icon">
+          <uni-icons type="heart" size="48" color="rgba(229,9,20,0.4)" />
+        </view>
+        <text class="nf-collect-empty-text">{{ $t('noCollectData') }}</text>
+      </view>
+    </scroll-view>
+
   </view>
 </template>
 
 <script setup>
-	import { ref } from 'vue'
-  import { onShow } from '@dcloudio/uni-app'
-  import { getCollectList } from '@/api/collect'
-  import {useUserStore} from "@/pinia/modules/user";
-  import {findCollect, createCollect} from '@/api/collect.js'
-  	import {getUrl} from "@/utils/url.js"
-	const options = ref([{
-		text: '删除',
-		style: {
-			backgroundColor: '#F56C6C'
-		}
-	}])
+import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { getCollectList, findCollect, createCollect } from '@/api/collect'
+import { useUserStore } from '@/pinia/modules/user'
+import { getUrl } from '@/utils/url.js'
+import { useLangStore } from '@/pinia/modules/lang.js'
 
-  const userStore = useUserStore()
-  const token = userStore.token || ''
-  const collectList = ref([])
-  const collectionFlag = ref('')
-  const init = async () => {
-    const pageInfo = {
-      page: 1,
-      pageSize: 10
-    }
-    const res = await getCollectList(pageInfo)
-    if(res.code === 0) {
-      collectList.value = res.data.list
-    }
+const langStore = useLangStore()
+const $t = computed(() => langStore.$t)
+
+const userStore = useUserStore()
+const token = userStore.token || ''
+const collectList = ref([])
+const collectionFlag = ref('')
+
+const formatPrice = (priceInCents) => {
+  if (!priceInCents && priceInCents !== 0) return '0.00'
+  const cents = parseInt(priceInCents)
+  if (isNaN(cents)) return '0.00'
+  return (cents / 100).toFixed(2)
+}
+
+const init = async () => {
+  const pageInfo = { page: 1, pageSize: 10 }
+  const res = await getCollectList(pageInfo)
+  if (res.code === 0) {
+    collectList.value = res.data.list || []
   }
+}
 
-  onShow(() => {
-    init()
-  })
-  // 防抖函数
-  const debounce = (func, delay) => {
-    let debounceTimer;
-    return function(...args) {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        func.apply(this, args);
-      }, delay);
-    };
-  };
+onShow(() => { init() })
 
-  let params = {
-    page: 1,
-    pageSize: 10
+const debounce = (func, delay) => {
+  let timer
+  return function (...args) {
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(() => func.apply(this, args), delay)
   }
-  const isBottom = ref(false)
-  const lower = async (e) => {
-    if(isBottom.value) {
+}
+
+let params = { page: 1, pageSize: 10 }
+const isBottom = ref(false)
+const lower = async () => {
+  if (isBottom.value) return
+  params.page += 1
+  const res = await getCollectList(params)
+  if (res.code === 0 && res.data.list && res.data.list.length) {
+    collectList.value.push(...res.data.list)
+  } else {
+    isBottom.value = true
+  }
+}
+const debouncedLower = debounce(lower, 300)
+
+const cancelCollect = async (ID) => {
+  if (token) {
+    const status = await findCollect({ goodID: ID })
+    if (status.code === 0) collectionFlag.value = status.data
+    const res = await createCollect({ goodID: Number(ID) })
+    if (res.code === 0) {
+      collectionFlag.value = !collectionFlag.value
+      init()
       uni.showToast({
-        title: '没有更多数据了',
-        icon: 'none'
-      })
-      return
-    } else {
-      // 滑动到底了，然后每次给page+1 调接口继续加载下一页 如果接口已经没有数据了，给出提示并且不允许再次加载
-      params.page += 1
-      const res = await getCollectList(params)
-      if (res.code === 0 && res.data.list.length) {
-        collectList.value.push(...res.data.list)
-        isBottom.value = false
-      } else {
-        isBottom.value = true
-      }
-    }
-  }
-  // 防抖包装的 lower 方法
-  const debouncedLower = debounce(lower, 300);
-
-
-  const cancelCollect = async (ID) => {
-    if (token) {
-      // 先查看当前商品收藏状态
-      const status = await findCollect({
-        goodID: ID
-      })
-      status.code === 0 ? collectionFlag.value = status.data : ''
-      // 如果已登录并且未收藏 则允许进行收藏操作
-      const res = await createCollect({
-        goodID: Number(ID)
-      })
-      if (res.code === 0) {
-        collectionFlag.value = !collectionFlag.value
-        init()
-        uni.showToast({
-          title: collectionFlag.value ? '已收藏' : '已取消收藏',
-          mask: true,
-          icon: 'none'
-        });
-      }
-    } else {
-      uni.showToast({
-        title: '请登录后进行操作',
+        title: collectionFlag.value ? $t.value('collected') : $t.value('uncollected'),
         mask: true,
         icon: 'none'
-      });
-      uni.redirectTo({
-        url: '/pages/user/login'
       })
     }
+  } else {
+    uni.showToast({ title: $t.value('loginFirst'), mask: true, icon: 'none' })
+    uni.redirectTo({ url: '/pages/user/login' })
   }
+}
 
-  const goTo = (item) => {
-    uni.navigateTo({
-      url: `/pages/goodsDetails/goodsDetails?id=${item.ID}`,
-    })
-  }
+const goTo = (item) => {
+  uni.navigateTo({ url: `/pages/goodsDetails/goodsDetails?id=${item.ID}` })
+}
 
-  const getDiscountText = (discount) => {
-    if (discount >= 9.5) return '小降'
-    if (discount >= 9.0) return '优惠'
-    if (discount >= 8.0) return '特惠'
-    if (discount >= 7.0) return '好价'
-    if (discount >= 6.0) return '低价'
-    if (discount >= 5.0) return '特价'
-    return '折扣'
-  }
+const getDiscountText = (discount) => {
+  const t = $t.value
+  if (discount >= 9.5) return t('priceDrop')
+  if (discount >= 9.0) return t('discount')
+  if (discount >= 8.0) return t('specialOffer')
+  if (discount >= 7.0) return t('goodPrice')
+  if (discount >= 6.0) return t('lowPrice')
+  if (discount >= 5.0) return t('bargain')
+  return t('saleTag')
+}
 </script>
 
 <style lang="scss" scoped>
-	.collect_nav_view {
-		width: 100%;
-		height: 124rpx;
-	}
+page { background: #000; }
 
-  /* Netflix风格空状态样式 */
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: calc(100vh - 88rpx);
-    background-color: #000; // Netflix纯黑背景
-    /* #ifdef H5 */
-    height: calc(100vh - 88rpx - var(--window-top));
-    /* #endif */
-  }
+.nf-collect {
+  min-height: 100vh;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
 
-  .empty-image-container {
-    margin-bottom: 30rpx;
-  }
+.nf-collect-bg {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 400rpx;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(229, 9, 20, 0.12) 0%, transparent 60%);
+}
 
-  .empty-image-placeholder {
-    width: 280rpx;
-    height: 280rpx;
-    border-radius: 16rpx;
-    opacity: 0.6;
-  }
+/* ===== 导航栏 ===== */
+.nf-navbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+}
 
-  .empty-text {
-    font-size: 28rpx;
-    color: rgba(255, 255, 255, 0.6); // 半透明白色
-  }
+.nf-navbar-status {
+  height: var(--status-bar-height, 44px);
+}
 
-  .scroll-Y {
-    height: 100vh;
-    background-color: #000; // Netflix纯黑背景
-  }
-	.collect_nav_box {
-		width: 100%;
-		height: 124rpx;
-		z-index: 1;
-		/* #ifdef H5 */
-		top: var(--window-top);
-		/* #endif */
-		/* #ifndef H5 */
-		top: 0;
-		/* #endif */
-		left: 0;
-		right: 0;
-	}
+.nf-navbar-content {
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24rpx;
+}
 
-	.collect_search_box {
-		width: 100%;
-		padding: 24rpx 32rpx;
-	}
+.nf-navbar-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 2rpx;
+}
 
-	.search_icon {
-		top: 42rpx;
-		left: 64rpx;
-		width: 40rpx;
-		height: 40rpx;
-	}
+/* ===== 滚动区域 ===== */
+.nf-collect-scroll {
+  flex: 1;
+  margin-top: calc(var(--status-bar-height, 44px) + 88rpx);
+  min-height: calc(100vh - var(--status-bar-height, 44px) - 88rpx);
+}
 
-	.search_input {
-		width: 100%;
-		display: block;
-		height: 76rpx;
-		border-radius: 76rpx;
-		padding-left: 88rpx;
-	}
-  .collect_goods {
-    padding: 24rpx 32rpx 0;
-  }
-  .collect_goods_img {
-    width: 200rpx;
-    height: 172rpx;
-    border-radius: 12rpx;
-    overflow: hidden;
-  }
-	.non-collect{
-    height: 100vh;
-  }
+/* ===== 商品列表 ===== */
+.nf-goods-list {
+  padding: 20rpx 24rpx;
+}
 
-  .desc{
-    width: 100%;
-    margin-top: 20rpx;
-  }
+.nf-goods-card {
+  display: flex;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  border-radius: 20rpx;
+  margin-bottom: 20rpx;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: transform 0.3s;
 
-  page {
-    background: #000; // Netflix纯黑背景
-  }
+  &:active { transform: scale(0.98); }
+}
 
-  .goods-list {
-    padding: 24rpx;
-    background: #000; // Netflix纯黑背景
-  }
+.nf-goods-img-wrap {
+  position: relative;
+  width: 220rpx;
+  height: 220rpx;
+  flex-shrink: 0;
+}
 
-  .goods-item {
-    display: flex;
-    flex-direction: row; // 改回水平布局
-    background: #1a1a1a; // Netflix深灰黑
-    margin-bottom: 24rpx;
-    border-radius: 16rpx;
-    padding: 24rpx;
-    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.3); // Netflix风格阴影
-    overflow: hidden;
+.nf-goods-img {
+  width: 100%;
+  height: 100%;
+}
 
-    &:active {
-      transform: scale(0.98);
-    }
+.nf-goods-img-overlay {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 40%;
+  background: linear-gradient(to left, rgba(0,0,0,0.3), transparent);
+  pointer-events: none;
+}
 
-    .goods-image {
-      width: 200rpx;
-      height: 200rpx;
-      border-radius: 12rpx;
-      margin-right: 24rpx;
-      flex-shrink: 0;
-    }
-  }
+.nf-goods-badge {
+  position: absolute;
+  top: 12rpx;
+  left: 12rpx;
+  background: linear-gradient(135deg, #e50914, #b20710);
+  padding: 4rpx 14rpx;
+  border-radius: 10rpx;
+  box-shadow: 0 4rpx 12rpx rgba(229, 9, 20, 0.4);
+}
 
-  .goods-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start; // 从顶部开始排列
-    height: 200rpx; // 与图片高度一致
-    min-width: 0;
+.nf-goods-badge-text {
+  font-size: 20rpx;
+  color: #fff;
+  font-weight: 700;
+}
 
-    .goods-name {
-      font-size: 32rpx; // 增大字体
-      color: #fff; // Netflix白色文字
-      line-height: 1.4;
-      margin-bottom: 8rpx; // 减少底部间距
-      overflow: hidden;
-      text-overflow: ellipsis;
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2; // 限制为2行
-      font-weight: 500; // 稍微加粗
-      flex-shrink: 0; // 防止被压缩
-    }
-  }
+.nf-goods-info {
+  flex: 1;
+  padding: 16rpx 20rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+}
 
-  .merchant-tags {
-    display: flex;
-    flex-wrap: wrap;
-    margin: 2rpx 0; // 减少上下间距
-    flex-shrink: 0; // 防止被压缩
+.nf-goods-title {
+  font-size: 28rpx;
+  color: #fff;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
 
-    .merchant-tag {
-      font-size: 16rpx; // 稍微减小字体
-      padding: 0 4rpx; // 减少左右内边距
-      border-radius: 4rpx;
-      height: 24rpx; // 减少高度
-      line-height: 24rpx;
-      margin-right: 4rpx;
-      margin-bottom: 2rpx; // 减少底部间距
+.nf-goods-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6rpx;
+  margin: 8rpx 0;
+}
 
-      &.self-operated {
-        color: #ff6b6b;
-        background: rgba(255, 107, 107, 0.1);
-        border: 1px solid rgba(255, 107, 107, 0.2);
-      }
+.nf-tag {
+  font-size: 18rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 6rpx;
+  border: 1rpx solid;
+  font-weight: 500;
+}
 
-      &.quality-assured {
-        color: #2196f3;
-        background: rgba(33, 150, 243, 0.1);
-        border: 1px solid rgba(33, 150, 243, 0.2);
-      }
+.nf-tag-red {
+  color: #e50914;
+  border-color: rgba(229, 9, 20, 0.3);
+  background: rgba(229, 9, 20, 0.1);
+}
 
-      &.plus-delivery {
-        color: #4caf50;
-        background: rgba(76, 175, 80, 0.1);
-        border: 1px solid rgba(76, 175, 80, 0.2);
-      }
-    }
-  }
+.nf-tag-blue {
+  color: #4a9eff;
+  border-color: rgba(74, 158, 255, 0.3);
+  background: rgba(74, 158, 255, 0.1);
+}
 
-  .price-container {
-    display: flex;
-    align-items: center;
-    margin: 8rpx 0; // 减少上下间距
-    flex-shrink: 0; // 防止被压缩
+.nf-tag-green {
+  color: #4caf50;
+  border-color: rgba(76, 175, 80, 0.3);
+  background: rgba(76, 175, 80, 0.1);
+}
 
-    .discount-price {
-      font-size: 36rpx; // 增大价格字体
-      color: #e50914; // Netflix红色
-      font-weight: bold;
-      margin-right: 12rpx;
-    }
+.nf-goods-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 
-    .original-price {
-      font-size: 24rpx;
-      color: rgba(255, 255, 255, 0.5); // 半透明白色
-      text-decoration: line-through;
-      margin-right: 12rpx;
-    }
+.nf-price-row {
+  display: flex;
+  align-items: baseline;
+}
 
-    .discount-tag {
-      font-size: 24rpx;
-      color: #fff;
-      background: #e50914; // Netflix红色背景
-      padding: 4rpx 12rpx;
-      border-radius: 12rpx;
-      font-weight: 500;
-    }
-  }
+.nf-price {
+  font-size: 34rpx;
+  color: #e50914;
+  font-weight: 800;
+}
 
-  .goods-extra {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 22rpx;
-    color: rgba(255, 255, 255, 0.7); // 半透明白色
-    margin-top: auto; // 推到底部
-    flex-shrink: 0; // 防止被压缩
+.nf-goods-meta {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+}
 
-    .rating {
-      display: flex;
-      align-items: center;
+.nf-rating-stars {
+  font-size: 20rpx;
+  color: #ffd700;
+}
 
-      .rating-score {
-        color: #e50914; // Netflix红色
-        font-weight: bold;
-        margin-right: 4rpx;
-      }
+.nf-rating-score {
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 600;
+  margin-right: 8rpx;
+}
 
-      .rating-stars {
-        color: #ffd700; // 金色星星
-        font-size: 20rpx;
-        margin-right: 4rpx;
-      }
+.nf-sold {
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.35);
+}
 
-      .rating-count {
-        color: rgba(255, 255, 255, 0.5);
-      }
-    }
+/* ===== 底部状态 ===== */
+.nf-collect-footer {
+  padding: 40rpx;
+  text-align: center;
+}
 
-    .sales {
-      color: rgba(255, 255, 255, 0.5);
-    }
-  }
+.nf-collect-footer-text {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.25);
+  letter-spacing: 2rpx;
+}
 
-  .goods-tags {
-    display: flex;
-    flex-wrap: wrap;
-    margin: 4rpx 0;
+/* ===== 空状态 ===== */
+.nf-collect-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 200rpx 0;
+}
 
-    .tag {
-      font-size: 18rpx;
-      color: #666;
-      background: #f7f7f7;
-      padding: 0 6rpx;
-      border-radius: 2rpx;
-      margin-right: 4rpx;
-      margin-bottom: 4rpx;
-    }
-  }
+.nf-collect-empty-icon {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: rgba(229, 9, 20, 0.08);
+  border: 1rpx solid rgba(229, 9, 20, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24rpx;
+}
+
+.nf-collect-empty-text {
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 2rpx;
+}
 </style>

@@ -2,7 +2,7 @@
   <view class="flash-sale">
     <view class="flash-header">
       <image class="top-sell" src="@/static/top.png" mode="aspectFill"></image>
-      <text class="flash-title">近期热销</text>
+      <text class="flash-title">{{ $t('hotSelling') }}</text>
     </view>
 
     <view class="product-list">
@@ -18,7 +18,12 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import {getUrl} from "@/utils/url";
+import { useLangStore } from '@/pinia/modules/lang.js'
+
+const langStore = useLangStore()
+const $t = computed(() => langStore.$t)
 
 const props = defineProps({
   productData: {
@@ -58,86 +63,81 @@ setTimeout(() => {
 </script>
 
 <style scoped lang="scss">
-// 限时秒杀区域
 .flash-sale {
-  margin: 24rpx;
-  background-color: #1a1a1a;
-  border-radius: 24rpx;
-  padding: 24rpx;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.3);
+  margin: 16rpx 28rpx;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  border-radius: 28rpx;
+  padding: 28rpx;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .flash-header {
   display: flex;
   align-items: center;
   margin-bottom: 24rpx;
-  .top-sell{
+  gap: 16rpx;
+
+  .top-sell {
     width: 40rpx;
     height: 40rpx;
-    margin-right: 20rpx;
   }
 }
 
 .flash-title {
   font-size: 32rpx;
-  font-weight: bold;
+  font-weight: 800;
   color: #e50914;
+  letter-spacing: 2rpx;
   margin-right: auto;
-}
-
-.flash-countdown {
-  font-size: 24rpx;
-  color: #666;
-  margin-right: 8rpx;
 }
 
 .product-list {
   display: flex;
   overflow-x: auto;
-  padding-bottom: 16rpx;
-  &::-webkit-scrollbar {
-    display: none;
-  }
-  .desc{
-    padding: 12rpx;
+  padding-bottom: 8rpx;
+  gap: 20rpx;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+
+  .desc {
+    padding: 12rpx 4rpx;
     display: flex;
     flex-direction: column;
-    gap: 8rpx;
+    gap: 6rpx;
   }
 }
 
 .product-item {
   width: 240rpx;
-  margin-right: 24rpx;
   flex-shrink: 0;
+  transition: transform 0.3s;
+
+  &:active { transform: scale(0.97); }
 }
 
 .product-image {
   width: 240rpx;
   height: 300rpx;
-  background-color: #f5f5f5;
+  background: #111;
   border-radius: 16rpx;
-  margin-bottom: 12rpx;
-  box-shadow: 0 6rpx 6rpx rgba(0, 0, 0, 0.1);
-
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.4);
 }
 
 .product-title {
-  font-size: 28rpx;
+  font-size: 26rpx;
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
-  min-width: 0;
+  font-weight: 500;
 }
 
 .product-price {
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: #e50914;
-  font-weight: bold;
-  white-space: nowrap;
-  flex-shrink: 0;
+  font-weight: 800;
 }
 </style>
 

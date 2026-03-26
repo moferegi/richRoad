@@ -1,139 +1,146 @@
 <template>
-  <view class="my-page">
+  <view class="nf-my">
+    <!-- 背景光效 -->
+    <view class="nf-my-bg"></view>
+
     <!-- 头部个人信息区域 -->
-    <view class="header-section">
-      <!-- 已登录状态 -->
-      <view class="user-info" v-if="isShow">
-        <button class="avatar-wrapper" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
-          <image class="avatar" :src="info.avatar || avatarUrl"></image>
-        </button>
-        <view class="user-details">
-          <text class="username">{{ info.nickname || '默认用户' }}</text>
-          <input name="nickName" type="nickname" placeholder="请填写昵称" class="nickname-input" @change="onInputNickName" v-model="info.nickname" />
+    <view class="nf-profile">
+      <view class="nf-profile-glow"></view>
+
+      <!-- 已登录 -->
+      <view class="nf-user" v-if="isShow">
+        <view class="nf-avatar-wrap">
+          <button class="nf-avatar-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
+            <image class="nf-avatar" :src="info.avatar || avatarUrl"></image>
+          </button>
+          <view class="nf-avatar-ring"></view>
+        </view>
+        <view class="nf-user-info">
+          <text class="nf-username">{{ info.nickname || $t('defaultUser') }}</text>
+          <input name="nickName" type="nickname" :placeholder="$t('nicknamePlaceholder')" class="nf-nickname-input" @change="onInputNickName" v-model="info.nickname" />
         </view>
       </view>
 
-      <!-- 未登录状态 -->
-      <view class="unlogin-box" v-if="!isShow" @tap="logins">
-        <text class="login-prompt">请登录后查看</text>
+      <!-- 未登录 -->
+      <view class="nf-unlogin" v-if="!isShow" @tap="logins">
+        <view class="nf-unlogin-icon">
+          <text class="nf-unlogin-icon-text">→</text>
+        </view>
+        <text class="nf-unlogin-text">{{ $t('loginPrompt') }}</text>
       </view>
 
-      <!-- 账户信息 -->
-      <view class="account-info">
-        <view class="account-item">
-          <text class="account-value">0</text>
-          <text class="account-label">优惠券</text>
+      <!-- 数据统计 -->
+      <view class="nf-stats">
+        <view class="nf-stat-item">
+          <text class="nf-stat-value">0</text>
+          <text class="nf-stat-label">{{ $t('coupon') }}</text>
         </view>
-        <view class="account-item">
-          <text class="account-value">20</text>
-          <text class="account-label">积分</text>
+        <view class="nf-stat-divider"></view>
+        <view class="nf-stat-item">
+          <text class="nf-stat-value">20</text>
+          <text class="nf-stat-label">{{ $t('points') }}</text>
         </view>
       </view>
     </view>
 
-    <!-- 我的订单区域 -->
-    <!-- <view class="order-section">
-      <view class="order-title">
-        <text>我的订单</text>
-        <view class="view-all" @tap="toOrder('all')">
-          <text>查看全部</text>
-          <uni-icons color="#999999" type="forward" size="14"></uni-icons>
-        </view>
-      </view>
-
-      <view class="order-items">
-        <view class="order-item" @tap="toNav(`/pages/order/order?status=${0}`)">
-          <image src="../../../static/pay.png" mode="aspectFit"></image>
-          <text>待付款</text>
-        </view>
-        <view class="order-item" @tap="toNav(`/pages/order/order?status=${1}`)">
-          <image src="../../../static/delivery.png" mode="aspectFit"></image>
-          <text>待发货</text>
-        </view>
-        <view class="order-item" @tap="toNav(`/pages/order/order?status=${2}`)">
-          <image src="../../../static/wait.png" mode="aspectFit"></image>
-          <text>待收货</text>
-        </view>
-        <view class="order-item" @tap="toNav(`/pages/order/order?status=${6}`)">
-          <image src="../../../static/refound.png" mode="aspectFit"></image>
-          <text>退款/售后</text>
-        </view>
-      </view>
-    </view> -->
-
     <!-- 浏览历史 -->
-    <view class="history-section">
-      <view class="section-header">
-        <image class="history-icon" src="/static/history.png" mode="aspectFill" />
-        <text class="title">浏览历史</text>
+    <view class="nf-section">
+      <view class="nf-section-header">
+        <view class="nf-section-icon">
+          <image class="nf-section-icon-img" src="/static/history.png" mode="aspectFill" />
+        </view>
+        <text class="nf-section-title">{{ $t('browseHistory') }}</text>
+        <view class="nf-section-line"></view>
       </view>
-      <scroll-view class="history-scroll" scroll-x>
-        <view class="history-list">
+      <scroll-view class="nf-history-scroll" scroll-x>
+        <view class="nf-history-list">
           <view
-              class="history-item"
+              class="nf-history-item"
               v-for="(item, index) in historyList"
               :key="index"
+              @tap="goto(item)"
           >
-            <view class="history-image" @tap="goto(item)">
-              <img class="history-image-img" :src="item && item.imageUrl ? getUrl(item.imageUrl) : ''" alt="">
-            </view>
+            <image class="nf-history-img" :src="item && item.imageUrl ? getUrl(item.imageUrl) : ''" mode="aspectFill"></image>
+            <view class="nf-history-overlay"></view>
           </view>
         </view>
       </scroll-view>
     </view>
 
-    <!-- 其他功能区域 -->
-    <view class="tools-section" v-if="columns.length >=1">
-      <template v-for="(item, index) in columns.filter(c=>!c.hidden)">
-        <button v-if="item.pages === 'contact'" class="tool-item contact-btn" open-type="contact" :class="columns.length-1 == index ? '' : 'border-bottom'">
-          <view class="tool-left">
-            <image :src="item.icon" mode="aspectFit"></image>
-            <text>{{item.title}}</text>
+    <!-- 功能菜单 -->
+    <view class="nf-menu" v-if="columns.length >= 1">
+      <template v-for="(item, index) in columns.filter(c => !c.hidden)" :key="index">
+        <button v-if="item.pages === 'contact'" class="nf-menu-item nf-contact-btn" open-type="contact">
+          <view class="nf-menu-left">
+            <view class="nf-menu-icon-wrap">
+              <image class="nf-menu-icon" :src="item.icon" mode="aspectFit"></image>
+            </view>
+            <text class="nf-menu-text">{{ item.title }}</text>
           </view>
-          <uni-icons color="#999999" type="forward" size="14"></uni-icons>
+          <view class="nf-menu-arrow">
+            <uni-icons color="rgba(255,255,255,0.3)" type="forward" size="14"></uni-icons>
+          </view>
         </button>
-        <view v-else class="tool-item" @tap="toPages(item.pages)" :class="columns.length-1 == index ? '' : 'border-bottom'">
-          <view class="tool-left">
-            <image :src="item.icon" mode="aspectFit"></image>
-            <text>{{item.title}}</text>
+        <view v-else class="nf-menu-item" @tap="toPages(item.pages)">
+          <view class="nf-menu-left">
+            <view class="nf-menu-icon-wrap">
+              <image class="nf-menu-icon" :src="item.icon" mode="aspectFit"></image>
+            </view>
+            <text class="nf-menu-text">{{ item.title }}</text>
           </view>
-          <uni-icons color="#999999" type="forward" size="14"></uni-icons>
+          <view class="nf-menu-arrow">
+            <uni-icons color="rgba(255,255,255,0.3)" type="forward" size="14"></uni-icons>
+          </view>
         </view>
       </template>
     </view>
+
+    <!-- 底部留白 -->
+    <view style="height: 60rpx;"></view>
+
+    <!-- 语言切换弹窗 -->
+    <lang-switch v-model="showLangPicker" @change="onLangChange" />
   </view>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import {getUrl} from "@/utils/url";
 import { myRouter } from "@/utils/permission";
 import { setClientUserInfo } from "@/api/base";
 import {useUserStore} from "@/pinia/modules/user.js"
+import { useLangStore } from '@/pinia/modules/lang.js'
 import { onShow } from '@dcloudio/uni-app'
 import { getGoodHistory } from '@/api/order.js'
+import langSwitch from '@/components/lang-switch/lang-switch.vue'
+
+const langStore = useLangStore()
+const $t = computed(() => langStore.$t)
+
+const showLangPicker = ref(false)
+const onLangChange = () => {}
+const openLangPicker = () => { showLangPicker.value = true }
 
 const isShow = ref(false)
 
-const columns = ref([
-  // {
-  //   title: '地址管理',
-  //   pages: '/pages/address/address',
-  //   icon: '/static/address.png'
-  // },
+const columns = computed(() => [
   {
-    title: '我的收藏',
+    title: $t.value('myCollection'),
     pages: '/pages/collect/collect',
     icon: '/static/MYcollect.png'
   },{
-    title: '在线客服',
+    title: $t.value('onlineService'),
     pages: 'contact',
     icon: '/static/wx.png'
   },{
-    title: '退出登录',
+    title: $t.value('logout'),
     pages: 'exit',
     icon: '/static/images/exit.png',
-    hidden: true
+    hidden: !isShow.value
+  },{
+    title: $t.value('switchLang'),
+    pages: 'lang',
+    icon: '/static/images/exit.png'
   }
 ])
 // 浏览历史
@@ -152,10 +159,6 @@ onShow(() => {
     info.value = uni.getStorageSync("userInfo")
   } else {
     isShow.value = false
-  }
-  const c = columns.value.find(item=>item.pages==='exit')
-  if(c){
-    c.hidden = !isShow.value
   }
   getHistory()
 })
@@ -178,7 +181,7 @@ const goto = (item) => {
   console.log(item);
   if (!item || !item.ID) {
     uni.showToast({
-      title: '商品信息不完整',
+      title: $t.value('goodsInfoIncomplete'),
       icon: 'none'
     })
     return
@@ -237,11 +240,15 @@ const onInputNickName = async (e) => {
 
 
 const toPages = (pages) => {
+  if(pages === 'lang'){
+    openLangPicker()
+    return
+  }
   if(pages === 'exit'){
     userStore.loginOut()
     uni.showToast({
       icon: 'none',
-      title: '退出成功'
+      title: $t.value('logoutSuccess')
     })
 
     return
@@ -249,7 +256,7 @@ const toPages = (pages) => {
   if (!pages) {
     uni.showToast({
       icon: 'none',
-      title: '正在开发中...'
+      title: $t.value('developing')
     })
   } else {
     // 如果是收藏页面，使用switchTab切换到tab
@@ -282,386 +289,367 @@ const toRetreatOrder = () => {
 
 <style lang="scss">
 page {
-  background-color: #000; // Netflix纯黑背景
+  background-color: #000;
 }
 
-.my-page {
+.nf-my {
   width: 100%;
   min-height: 100vh;
-  background-color: #000; // Netflix纯黑背景
-}
-
-/* Netflix风格头部样式 */
-.header-section {
+  background: #000;
   position: relative;
-  padding: 60rpx 30rpx;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%); // Netflix深色渐变
-  border-radius: 0 0 20rpx 20rpx;
-  overflow: hidden;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.3); // Netflix风格阴影
 }
 
-/* 用户信息样式 */
-.user-info {
+/* ===== 背景光效 ===== */
+.nf-my-bg {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 600rpx;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(229, 9, 20, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 30%, rgba(229, 9, 20, 0.08) 0%, transparent 45%);
+}
+
+/* ===== 个人信息头部 ===== */
+.nf-profile {
+  position: relative;
+  z-index: 1;
+  margin: 0 28rpx;
+  padding: 60rpx 36rpx 40rpx;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  border-radius: 32rpx;
+  margin-top: calc(var(--status-bar-height, 44px) + 20rpx);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden;
+}
+
+.nf-profile-glow {
+  position: absolute;
+  top: -60rpx; left: 50%;
+  transform: translateX(-50%);
+  width: 300rpx;
+  height: 300rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(229, 9, 20, 0.2) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* 已登录用户 */
+.nf-user {
   display: flex;
   align-items: center;
-  padding: 20rpx 0;
+  gap: 28rpx;
+  margin-bottom: 36rpx;
 }
 
-.avatar-wrapper {
+.nf-avatar-wrap {
+  position: relative;
+  width: 130rpx;
+  height: 130rpx;
+  flex-shrink: 0;
+}
+
+.nf-avatar-btn {
   padding: 0;
   margin: 0;
   background: none;
   border: none;
-  width: auto;
+  width: 130rpx;
+  height: 130rpx;
   line-height: normal;
-  &::after {
-    border: none;
+  &::after { border: none; }
+}
+
+.nf-avatar {
+  width: 130rpx;
+  height: 130rpx;
+  border-radius: 50%;
+  border: 3rpx solid rgba(229, 9, 20, 0.5);
+}
+
+.nf-avatar-ring {
+  position: absolute;
+  top: -6rpx; left: -6rpx;
+  width: 142rpx;
+  height: 142rpx;
+  border-radius: 50%;
+  border: 2rpx solid rgba(229, 9, 20, 0.3);
+  pointer-events: none;
+}
+
+.nf-user-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  overflow: hidden;
+}
+
+.nf-username {
+  font-size: 38rpx;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 2rpx;
+}
+
+.nf-nickname-input {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 12rpx 16rpx;
+  width: 100%;
+  height: auto;
+  min-height: 56rpx;
+  line-height: 1.4;
+  box-sizing: border-box;
+  overflow: visible;
+  text-overflow: ellipsis;
+  transition: border-color 0.3s;
+
+  &:focus {
+    border-color: rgba(229, 9, 20, 0.4);
   }
 }
 
-.avatar {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 50%;
-  background-color: #fff;
-  margin-right: 20rpx;
-}
-
-.user-details {
+/* 未登录 */
+.nf-unlogin {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+  padding: 20rpx 0;
+  margin-bottom: 36rpx;
 }
 
-.username {
+.nf-unlogin-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e50914, #b20710);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6rpx 24rpx rgba(229, 9, 20, 0.4);
+}
+
+.nf-unlogin-icon-text {
   font-size: 36rpx;
   color: #fff;
   font-weight: bold;
-  margin-bottom: 10rpx;
 }
 
-.nickname-input {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 8rpx;
-  font-size: 24rpx;
+.nf-unlogin-text {
   color: #fff;
-  padding: 6rpx 10rpx;
-  width: 200rpx;
+  font-size: 34rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
 }
 
-/* 未登录样式 */
-.unlogin-box {
-  height: 120rpx;
+/* 数据统计 */
+.nf-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  border-radius: 20rpx;
+  padding: 28rpx 0;
+}
+
+.nf-stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.nf-stat-value {
+  font-size: 40rpx;
+  font-weight: 800;
+  color: #e50914;
+  line-height: 1;
+}
+
+.nf-stat-label {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 2rpx;
+}
+
+.nf-stat-divider {
+  width: 1rpx;
+  height: 56rpx;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ===== 通用板块 ===== */
+.nf-section {
+  position: relative;
+  z-index: 1;
+  margin: 24rpx 28rpx;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  border-radius: 28rpx;
+  padding: 32rpx;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.nf-section-header {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 28rpx;
+}
+
+.nf-section-icon {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 12rpx;
+  background: rgba(229, 9, 20, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.nf-section-icon-img {
+  width: 32rpx;
+  height: 32rpx;
+}
+
+.nf-section-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 2rpx;
+}
+
+.nf-section-line {
+  flex: 1;
+  height: 1rpx;
+  background: linear-gradient(90deg, rgba(229, 9, 20, 0.3), transparent);
+}
+
+/* 浏览历史 */
+.nf-history-scroll {
+  width: 100%;
+}
+
+.nf-history-list {
+  display: flex;
+  gap: 16rpx;
+  padding: 4rpx 0;
+}
+
+.nf-history-item {
+  position: relative;
+  flex-shrink: 0;
+  width: 200rpx;
+  height: 260rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+  transition: transform 0.3s;
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.nf-history-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.nf-history-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 50%;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+}
+
+/* ===== 功能菜单 ===== */
+.nf-menu {
+  position: relative;
+  z-index: 1;
+  margin: 24rpx 28rpx;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  border-radius: 28rpx;
+  padding: 8rpx 32rpx;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.nf-menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 32rpx 0;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+  transition: background 0.3s;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:active {
+    background: rgba(255, 255, 255, 0.03);
+  }
+}
+
+.nf-menu-left {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.nf-menu-icon-wrap {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 12rpx;
+  background: rgba(255, 255, 255, 0.06);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.login-prompt {
-  color: #fff;
-  font-size: 32rpx;
-  font-weight: bold;
-}
-
-/* VIP卡片样式 */
-.vip-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: rgba(0, 0, 0, 0.15);
-  border-radius: 12rpx;
-  padding: 16rpx 24rpx;
-  margin-top: 20rpx;
-}
-
-.vip-title {
-  display: flex;
-  align-items: center;
-}
-
-.vip-icon {
-  width: 40rpx;
-  height: 40rpx;
-  margin-right: 10rpx;
-}
-
-.vip-title text {
-  color: #fff;
-  font-size: 28rpx;
-}
-
-.vip-btn {
-  background-color: #3c3c3c;
-  color: #e9cd77;
-  font-size: 24rpx;
-  padding: 6rpx 16rpx;
-  border-radius: 30rpx;
-  line-height: normal;
-  min-height: 0;
-}
-
-/* Netflix风格账户信息样式 */
-.account-info {
-  display: flex;
-  justify-content: space-between;
-  padding: 30rpx 20rpx;
-  margin-top: 20rpx;
-  background-color: #1a1a1a; // Netflix深灰黑
-  border-radius: 12rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.2); // Netflix风格阴影
-}
-
-.account-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-}
-
-.account-value {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #e50914; // Netflix红色
-  margin-bottom: 8rpx;
-}
-
-.account-label {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.7); // 半透明白色
-}
-
-/* Netflix风格订单区域样式 */
-.order-section {
-  margin: 20rpx;
-  padding: 30rpx;
-  background-color: #1a1a1a; // Netflix深灰黑
-  border-radius: 12rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.2); // Netflix风格阴影
-}
-
-.order-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30rpx;
-}
-
-.order-title text {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #fff; // Netflix白色
-}
-
-.view-all {
-  display: flex;
-  align-items: center;
-}
-
-.view-all text {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.6); // 半透明白色
-  margin-right: 8rpx;
-}
-
-.order-items {
-  display: flex;
-  justify-content: space-between;
-}
-
-.order-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-  padding: 20rpx;
-  border-radius: 8rpx;
-  transition: all 0.3s ease;
-
-  &:active {
-    background-color: rgba(255, 255, 255, 0.05); // 点击效果
-    transform: scale(0.95);
-  }
-}
-
-.order-item image {
-  width: 60rpx;
-  height: 60rpx;
-  margin-bottom: 16rpx;
+.nf-menu-icon {
+  width: 28rpx;
+  height: 28rpx;
   opacity: 0.8;
 }
 
-.order-item text {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.8); // 半透明白色
-}
-
-/* Netflix风格浏览历史样式 */
-.history-section {
-  margin: 20rpx;
-  background-color: #1a1a1a; // Netflix深灰黑
-  border-radius: 20rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.2); // Netflix风格阴影
-}
-
-.history-section {
-  padding: 30rpx;
-}
-
-.history-icon {
-  width: 50rpx;
-  height: 50rpx;
-  border-radius: 50%;
-  margin-right: 20rpx;
-  background-color: rgba(255, 255, 255, 0.1);
-  padding: 8rpx;
-}
-
-.section-header {
-  display: flex;
-  margin-bottom: 30rpx;
-}
-
-.title {
-  font-size: 32rpx;
-  color: #fff; // Netflix白色
-  font-weight: bold;
-}
-
-.more {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.6); // 半透明白色
-}
-
-.history-scroll {
-  width: 100%;
-}
-
-.history-list {
-  display: flex;
-  padding: 10rpx 0;
-}
-
-.history-item {
-  margin-right: 20rpx;
-  flex-shrink: 0;
-  transition: all 0.3s ease;
-
-  &:active {
-    transform: scale(0.95);
-  }
-}
-
-.history-image {
-  width: 200rpx;
-  height: 220rpx;
-  border-radius: 12rpx;
-  overflow: hidden;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.3);
-
-  .history-image-img {
-    width: 100%;
-    height: 100%;
-    border-radius: 12rpx;
-    transition: all 0.3s ease;
-
-    &:active {
-      transform: scale(1.05);
-    }
-  }
-}
-.history-items {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-}
-
-.history-items image {
-  width: 150rpx;
-  height: 150rpx;
-  margin-bottom: 10rpx;
-  border-radius: 8rpx;
-}
-
-/* 钱包区域样式 */
-.wallet-section {
-  margin: 20rpx;
-  padding: 30rpx;
-  background-color: #fff;
-  border-radius: 12rpx;
-  box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.05);
-}
-
-.wallet-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20rpx 0 0;
-}
-
-.wallet-info text {
-  font-size: 26rpx;
-  color: #666;
-}
-
-/* Netflix风格工具区域样式 */
-.tools-section {
-  margin: 20rpx;
-  padding: 0 30rpx;
-  background-color: #1a1a1a; // Netflix深灰黑
-  border-radius: 12rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.2); // Netflix风格阴影
-}
-
-.tool-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 30rpx 0;
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.1); // Netflix风格分割线
-  transition: all 0.3s ease;
-
-  &:active {
-    background-color: rgba(255, 255, 255, 0.05); // 点击效果
-  }
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
-
-.border-bottom {
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.1); // Netflix风格分割线
-}
-
-.tool-left {
-  display: flex;
-  align-items: center;
-}
-
-.tool-left image {
-  width: 40rpx;
-  height: 40rpx;
-  margin-right: 20rpx;
-  opacity: 0.8;
-}
-
-.tool-left text {
-  font-size: 28rpx;
-  color: #fff; // Netflix白色
+.nf-menu-text {
+  font-size: 30rpx;
+  color: #fff;
   font-weight: 500;
+  letter-spacing: 1rpx;
 }
 
-.contact-btn {
+.nf-menu-arrow {
+  opacity: 0.5;
+}
+
+.nf-contact-btn {
   background: transparent;
   margin: 0;
-  padding: 30rpx 0;
+  padding: 32rpx 0;
   line-height: normal;
   border-radius: 0;
   text-align: left;
   font-size: inherit;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
 
-  &::after {
-    border: none;
-  }
+  &::after { border: none; }
+  &:last-child { border-bottom: none; }
 }
 </style>

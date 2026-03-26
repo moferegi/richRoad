@@ -26,7 +26,8 @@
 		},{
 			"path": "pages/tabBar/components/category-page",
 			"style": {
-				"navigationBarTitleText": "商品分类详情页",
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
 				"enablePullDownRefresh": false
 			}
 		},
@@ -41,7 +42,8 @@
 		{
 			"path": "pages/user/login",
 			"style": {
-				"navigationBarTitleText": "用户登录"
+				"navigationStyle": "custom",
+				"navigationBarTitleText": ""
 			}
 		},
 		{
@@ -150,9 +152,10 @@
 		{
 			"path": "pages/collect/collect",
 			"style": {
-				"navigationBarTitleText": "我的收藏",
-				"navigationBarBackgroundColor": "#000", // Netflix纯黑背景
-				"navigationBarTextStyle": "white", // 白色文字
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
 				"enablePullDownRefresh": false,
 				"app-plus": {
 					"bounce": "none"
@@ -163,7 +166,8 @@
 		{
 			"path": "pages/user/register",
 			"style": {
-				"navigationBarTitleText": "用户注册"
+				"navigationStyle": "custom",
+				"navigationBarTitleText": ""
 			}
 		}
 	],

@@ -1,45 +1,45 @@
 <template>
-  <view class="content">
-    <!-- 顶部搜索栏  -->
-    <view class="status-bar-placeholder"></view>
-    <view class="status-bar">
-      <view class="test">
-        <!-- 左侧客服按钮 -->
-        <view class="message-icon">
-          <button class="contact-action-button" open-type="contact" :session-from="sessionFrom">
-            <uni-icons type="chat" size="20" color="#fff"></uni-icons>
-          </button>
+  <view class="nf-home">
+    <!-- 背景光晕 -->
+    <view class="nf-home-bg"></view>
+
+    <!-- 顶部搜索栏 -->
+    <view class="nf-topbar">
+      <view class="nf-topbar-status"></view>
+      <view class="nf-topbar-row">
+        <!-- 左侧语言切换 -->
+        <view class="nf-topbar-btn" @click="showLangPicker = true">
+          <text class="nf-topbar-btn-text">{{ langLabel }}</text>
         </view>
 
-        <!-- 中间搜索框 -->
-        <view class="search-bar">
-          <view class="search-icon">
-            <uni-icons type="search" size="18" color="#999"></uni-icons>
-          </view>
+        <!-- 搜索框 -->
+        <view class="nf-search">
+          <uni-icons type="search" size="16" color="rgba(255,255,255,0.4)"></uni-icons>
           <input
-            class="search-input"
-            placeholder="请输入您想搜索的商品"
+            class="nf-search-input"
+            :placeholder="$t('searchPlaceholder')"
             v-model="searchKeyword"
             @confirm="goToSearchWithKeyword"
             @click.stop
           />
         </view>
 
-        <!-- 右侧搜索按钮 -->
-        <view class="search-button" @click="goToSearchWithKeyword">
-          <uni-icons type="search" size="20" color="#fff"></uni-icons>
+        <!-- 搜索按钮 -->
+        <view class="nf-topbar-btn nf-topbar-btn-red" @click="goToSearchWithKeyword">
+          <uni-icons type="search" size="18" color="#fff"></uni-icons>
         </view>
       </view>
     </view>
-    <scroll-view scroll-y="true" class="scroll-Y" @scrolltolower="debouncedLower">
+
+    <scroll-view scroll-y="true" :show-scrollbar="false" class="nf-scroll" @scrolltolower="debouncedLower">
       <!-- 轮播图区域 -->
       <swpiers :lists="list"></swpiers>
-      <!-- 分类导航 -->
-      <categories :categoriesData="gridList"></categories>
       <!-- 限时秒杀区域 -->
       <seckilling v-if="products.length > 0" :productData="products"></seckilling>
+      <!-- 分类导航 -->
+      <categories :categoriesData="gridList" v-model="activeCategoryID" @change="onCategoryChange"></categories>
       <!-- 商品展示区 -->
-      <view class="goods-section">
+      <view class="nf-goods-section" :class="{ 'nf-goods-fade': switching }">
         <noPaginRowGoodList
             :goodsList="flowData"
             :current-page="params.page"
@@ -49,25 +49,43 @@
         />
       </view>
       <!-- 底部加载状态 -->
-      <view class="loading-status" v-if="flowData.length > 0">
-        <gva-divider :text="isBottom ? '已经到底啦' : '加载中...'"></gva-divider>
+      <view class="nf-loading-status" v-if="flowData.length > 0">
+        <gva-divider :text="isBottom ? $t('reachedBottom') : $t('loading')"></gva-divider>
       </view>
       <!-- 空状态 -->
-      <view class="empty-state" v-if="flowData.length === 0 && !isLoading">
-        <uni-icons type="shop" size="60" color="#ddd" />
-        <text>暂无商品</text>
+      <view class="nf-empty" v-if="flowData.length === 0 && !isLoading">
+        <view class="nf-empty-icon">
+          <uni-icons type="shop" size="48" color="rgba(229,9,20,0.4)" />
+        </view>
+        <text class="nf-empty-text">{{ $t('noGoods') }}</text>
       </view>
     </scroll-view>
+
+    <!-- 语言切换弹窗 -->
+    <lang-switch v-model="showLangPicker" />
   </view>
 </template>
 <script setup>
-import  { ref } from 'vue';
+import  { ref, computed } from 'vue';
 import { getCategoryMobile, getGoodList } from '@/api/homePage.js'
 import { getBannerList } from '@/api/homePage.js'
 import noPaginRowGoodList from '@/components/good-list/no-pagin-row-good-list.vue'
 import swpiers from './components/swiper.vue'
 import categories from './components/categories.vue'
 import seckilling from './components/seckilling.vue';
+import langSwitch from '@/components/lang-switch/lang-switch.vue'
+import { useLangStore } from '@/pinia/modules/lang.js'
+
+const langStore = useLangStore()
+const $t = computed(() => langStore.$t)
+const langLabel = computed(() => {
+  const map = { zh: '中', en: 'EN', mn: 'MN' }
+  return map[langStore.locale] || '中'
+})
+const showLangPicker = ref(false)
+
+// 启动时恢复 tabBar 语言
+langStore.updateTabBar(langStore.locale)
 
 // 轮播图相关业务逻辑
 const list = ref([])
@@ -81,6 +99,7 @@ initBanner()
 
  const products = ref ([])
 // 商品相关属性
+const activeCategoryID = ref(0)
 const params = ref({
   page: 1,
   pageSize: 10,
@@ -90,8 +109,8 @@ const params = ref({
 const flowData = ref([])
 const isBottom = ref(false)
 const isLoading = ref(true)
+const switching = ref(false)
 
-const sessionFrom = ref('');
 // 清空搜索关键词
 searchKeyword.value = ''
 // 带关键词跳转到搜索页面
@@ -99,7 +118,7 @@ const goToSearchWithKeyword = () => {
   const keyword = searchKeyword.value.trim()
   if (!keyword) {
     uni.showToast({
-      title: '请输入搜索关键词',
+      title: $t.value('searchEmpty'),
       icon: 'none'
     })
     return
@@ -156,7 +175,11 @@ getRecommend()
 const lower = async (isRefresh = false) => {
   if (isBottom.value && !isRefresh) return
   isLoading.value = true
-  if (!isRefresh) params.value.page += 1
+  if (isRefresh) {
+    params.value.page = 1
+  } else {
+    params.value.page += 1
+  }
 
   try {
     const res = await getGoodList(params.value)
@@ -193,36 +216,44 @@ const handleAutoLoadMore = () => {
 }
 
 
-const selectTab = ref("全部")
-
-// 切换tabs
-const changeTabs = async (index) => {
-  params.value.categoryID = tabsMap.value[index]
-  params.value.page = 0
+// 分类切换（带淡入淡出）
+const onCategoryChange = async (categoryID) => {
+  params.value.categoryID = categoryID || 0
+  // 淡出（保留旧数据撑高度）
+  switching.value = true
+  await new Promise(r => setTimeout(r, 220))
+  // 请求新数据
+  params.value.page = 1
   isBottom.value = false
-  flowData.value = []
-  // 拿到index.id作为categoryID去调用/good/getGoodList接口
-  lower()
+  try {
+    const res = await getGoodList(params.value)
+    if (res.code === 0) {
+      const listData = res.data.list || []
+      flowData.value = listData
+      totalCount.value = res.data.total ?? listData.length
+      isBottom.value = listData.length < params.value.pageSize
+    } else {
+      flowData.value = []
+      isBottom.value = true
+    }
+  } catch (e) {
+    flowData.value = []
+  }
+  // 淡入
+  switching.value = false
 }
 
 // 分类tabs相关业务逻辑
 const gridList = ref([])
-const tabsMap = ref({'全部': 0})
-const tabs = ref([])
 const initCategory = async () => {
   const res = await getCategoryMobile()
   if (res.code === 0 && res.data.length) {
     gridList.value = res.data
-    // 赋值给新数组，新数组清洗数据改变desc为name{ name: '电影' },{ name: '科技' }的格式
-    res.data.forEach(item => {
-      tabsMap.value[item.title] = item.id
-      tabs.value.push(item.title)
-    })
-    tabs.value.unshift('全部')
   }
 }
 initCategory()
-changeTabs("全部")
+// 初始加载全部商品
+lower(true)
 
 
 // 防抖函数
@@ -248,110 +279,107 @@ page {
   background-color: #000;
 }
 
-.content {
+.nf-home {
   width: 100%;
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: #000;
+  background: #000;
+  position: relative;
 }
 
-// ===== Netflix 风格顶部状态栏 =====
-.status-bar-placeholder {
+/* 背景装饰光晕 */
+.nf-home-bg {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 500rpx;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(229, 9, 20, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 10%, rgba(229, 9, 20, 0.08) 0%, transparent 50%);
+}
+
+/* ===== 顶部栏 ===== */
+.nf-topbar {
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+  padding: 0 28rpx 16rpx;
+  position: sticky;
+  top: 0;
+  z-index: 99;
+}
+
+.nf-topbar-status {
   width: 100%;
   height: var(--status-bar-height, 0px);
-  background-color: #000;
 }
 
 /* #ifdef MP-WEIXIN */
-.status-bar-placeholder {
+.nf-topbar-status {
   height: var(--status-bar-height, 44px);
 }
 /* #endif */
 
-.status-bar {
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.8) 100%);
-  backdrop-filter: blur(10px);
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.1);
-  padding: 12rpx 24rpx;
-  box-sizing: border-box;
-  position: sticky;
-  top: 0;
-  z-index: 99;
-  width: 100%;
+.nf-topbar-row {
   display: flex;
   align-items: center;
+  gap: 16rpx;
+  margin-top: 12rpx;
 }
 
-.test {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  margin-top: 20rpx;
-}
-
-// ===== Netflix 风格按钮 =====
-.message-icon,
-.search-button {
-  width: 60rpx;
-  height: 60rpx;
+.nf-topbar-btn {
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1rpx solid rgba(255, 255, 255, 0.15);
-  transition: all 0.3s ease;
+  flex-shrink: 0;
+  transition: all 0.3s;
 
   &:active {
-    background-color: rgba(255, 255, 255, 0.2);
-    transform: scale(0.95);
+    background: rgba(255, 255, 255, 0.12);
+    transform: scale(0.93);
   }
 }
 
-.contact-action-button {
-  background: none;
+.nf-topbar-btn-red {
+  background: linear-gradient(135deg, #e50914, #b20710);
   border: none;
-  padding: 0;
-  margin: 0;
-  width: 60rpx;
-  height: 60rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: all 0.3s ease;
+  box-shadow: 0 4rpx 16rpx rgba(229, 9, 20, 0.35);
 
   &:active {
-    background-color: rgba(255, 255, 255, 0.1);
-    transform: scale(0.95);
-  }
-
-  &::after {
-    border: none;
+    box-shadow: 0 2rpx 8rpx rgba(229, 9, 20, 0.5);
   }
 }
 
-// ===== Netflix 风格搜索框 =====
-.search-bar {
+.nf-topbar-btn-text {
+  font-size: 22rpx;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0;
+}
+
+/* ===== 搜索框 ===== */
+.nf-search {
   flex: 1;
-  background-color: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1rpx solid rgba(255, 255, 255, 0.15);
   height: 72rpx;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
   border-radius: 36rpx;
   display: flex;
   align-items: center;
   padding: 0 24rpx;
   gap: 12rpx;
+  transition: border-color 0.3s;
 }
 
-.search-icon {
-  margin-right: 0;
-}
-
-.search-input {
+.nf-search-input {
   flex: 1;
   color: #fff;
   font-size: 28rpx;
@@ -360,51 +388,59 @@ page {
   background: transparent;
 
   &::placeholder {
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.35);
   }
 }
 
-// ===== 滚动区域 =====
-.scroll-Y {
+/* ===== 滚动区域 ===== */
+.nf-scroll {
   flex: 1;
   width: 100%;
-  background-color: #000;
-  // padding-top: 116rpx; // 为sticky头部留出足够空间 (status-bar高度约116rpx + 额外缓冲)
+  background: #000;
 }
 
-// ===== 商品展示区 =====
-.goods-section {
-  background-color: #000;
-  padding: 0;
+/* ===== 商品区块 ===== */
+.nf-goods-section {
+  background: #000;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
-// ===== Netflix 风格加载和空状态 =====
-.loading-status {
+.nf-goods-fade {
+  opacity: 0;
+  transform: translateY(8rpx);
+}
+
+/* ===== 加载状态 ===== */
+.nf-loading-status {
   padding: 40rpx 0;
-  background-color: #000;
+  background: #000;
 }
 
-.empty-state {
+/* ===== 空状态 ===== */
+.nf-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 80rpx 0;
-  background-color: #000;
+  padding: 120rpx 0 80rpx;
 }
 
-.empty-state text {
+.nf-empty-icon {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: rgba(229, 9, 20, 0.08);
+  border: 1rpx solid rgba(229, 9, 20, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24rpx;
+}
+
+.nf-empty-text {
   font-size: 28rpx;
-  color: rgba(255, 255, 255, 0.4);
-  margin-top: 24rpx;
-}
-
-// ===== 移除不需要的样式 =====
-.promo-right,
-.promo-image-container,
-.promo-text,
-.promo-tag {
-  // 这些样式在子组件中处理
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 2rpx;
 }
 </style>
 

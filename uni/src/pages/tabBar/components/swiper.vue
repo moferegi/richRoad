@@ -32,35 +32,41 @@ const handleSwiperClick = (item) => {
 </script>
 
 <style scoped lang="scss">
-// 轮播图区域
-.scroll-Y {
-  flex: 1;
-  width: 100%;
-}
-
 .swiper-section {
-  padding: 24rpx;
-  background-color: #000;
+  padding: 24rpx 28rpx;
+  background: #000;
 }
 
 .swiper {
-  height: 320rpx;
-  border-radius: 16rpx;
+  height: 340rpx;
+  border-radius: 20rpx;
   overflow: hidden;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.3);
+  box-shadow: 0 12rpx 48rpx rgba(0, 0, 0, 0.5), 0 0 60rpx rgba(229, 9, 20, 0.06);
 }
 
 .swiper-item {
   width: 100%;
   height: 100%;
   position: relative;
-  background-color: #1a1a1a;
+  background: #111;
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40%;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.5));
+    pointer-events: none;
+    z-index: 1;
+  }
 }
 
 .swiper-image {
   width: 100%;
   height: 100%;
   display: block;
-  border-radius: 16rpx;
+  border-radius: 20rpx;
 }
 </style>

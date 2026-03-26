@@ -30,7 +30,7 @@
             <text class="rating-count">({{ item.ratingCount || 0 }})</text>
           </view>
           <view class="sales">
-            <text>售出 {{ item.saleNum }} 件</text>
+            <text>{{ $t('sold') }} {{ item.saleNum }} {{ $t('unit') }}</text>
           </view>
         </view>
       </view>
@@ -51,6 +51,10 @@
 import {ref, computed, onMounted, onUnmounted, nextTick, watch} from 'vue'
 import {getUrl} from "@/utils/url.js"
 import { onReachBottom } from '@dcloudio/uni-app'
+import { useLangStore } from '@/pinia/modules/lang.js'
+
+const langStore = useLangStore()
+const $t = computed(() => langStore.$t)
 
 const goodsList = ref([])
 const props = defineProps({
@@ -77,13 +81,13 @@ const props = defineProps({
   }
 })
 const getDiscountText = (discount) => {
-  if (discount >= 9.5) return '小降'
-  if (discount >= 9.0) return '优惠'
-  if (discount >= 8.0) return '特惠'
-  if (discount >= 7.0) return '好价'
-  if (discount >= 6.0) return '低价'
-  if (discount >= 5.0) return '特价'
-  return '折扣'
+  if (discount >= 9.5) return $t.value('discountSmall')
+  if (discount >= 9.0) return $t.value('discountNormal')
+  if (discount >= 8.0) return $t.value('discountGood')
+  if (discount >= 7.0) return $t.value('discountGreat')
+  if (discount >= 6.0) return $t.value('discountLow')
+  if (discount >= 5.0) return $t.value('discountSpecial')
+  return $t.value('discountDefault')
 }
 const queryList = async (pageNo, pageSize) => {
 
@@ -208,33 +212,30 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
-page {
-  background: #000;
-}
-
 .goods-list {
-  padding: 24rpx;
+  padding: 12rpx 28rpx;
   background: #000;
 }
 
 .goods-item {
   display: flex;
-  flex-direction: column; // 改为垂直布局
-  background: #1a1a1a; // Netflix深灰黑背景
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
   margin-bottom: 24rpx;
-  border-radius: 16rpx;
-  padding: 0;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.3); // Netflix风格阴影
+  border-radius: 24rpx;
   overflow: hidden;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: transform 0.3s;
 
   &:active {
-    transform: scale(0.98);
+    transform: scale(0.985);
   }
 
   .goods-image {
     width: 100%;
-    height: 400rpx; // 增加图片高度
-    border-radius: 0; // 移除圆角，与卡片圆角配合
+    height: 420rpx;
   }
 }
 
@@ -242,12 +243,12 @@ page {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 24rpx; // 增加内边距
+  padding: 24rpx 28rpx;
   min-width: 0;
 
   .goods-name {
-    font-size: 32rpx; // 增大字体
-    color: #fff; // Netflix白色文字
+    font-size: 32rpx;
+    color: #fff;
     line-height: 1.4;
     margin-bottom: 12rpx;
     overflow: hidden;
@@ -255,7 +256,8 @@ page {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
-    font-weight: 500;
+    font-weight: 600;
+    letter-spacing: 1rpx;
   }
 }
 
@@ -266,7 +268,7 @@ page {
 
   .merchant-tag {
     font-size: 20rpx;
-    padding: 4rpx 12rpx;
+    padding: 4rpx 14rpx;
     border-radius: 20rpx;
     height: 32rpx;
     line-height: 24rpx;
@@ -282,15 +284,15 @@ page {
   margin: 12rpx 0;
 
   .discount-price {
-    font-size: 36rpx; // 增大价格字体
-    color: #e50914; // Netflix红色
-    font-weight: bold;
+    font-size: 38rpx;
+    color: #e50914;
+    font-weight: 800;
     margin-right: 12rpx;
   }
 
   .original-price {
     font-size: 24rpx;
-    color: rgba(255, 255, 255, 0.5); // 半透明白色
+    color: rgba(255, 255, 255, 0.35);
     text-decoration: line-through;
     margin-right: 12rpx;
   }
@@ -298,10 +300,10 @@ page {
   .discount-tag {
     font-size: 20rpx;
     color: #fff;
-    background: #e50914; // Netflix红色背景
-    padding: 4rpx 12rpx;
+    background: linear-gradient(135deg, #e50914, #b20710);
+    padding: 4rpx 14rpx;
     border-radius: 12rpx;
-    font-weight: 500;
+    font-weight: 600;
   }
 }
 
@@ -310,70 +312,50 @@ page {
   justify-content: space-between;
   align-items: center;
   font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.7); // 半透明白色
+  color: rgba(255, 255, 255, 0.5);
   margin-top: 12rpx;
 
   .rating {
     display: flex;
     align-items: center;
+    gap: 4rpx;
 
     .rating-score {
-      color: #e50914; // Netflix红色
-      font-weight: bold;
-      margin-right: 4rpx;
+      color: #e50914;
+      font-weight: 700;
     }
 
     .rating-stars {
-      color: #ffd700; // 金色星星
+      color: #ffd700;
       font-size: 20rpx;
-      margin-right: 4rpx;
     }
 
     .rating-count {
-      color: rgba(255, 255, 255, 0.5);
+      color: rgba(255, 255, 255, 0.35);
     }
   }
 
   .sales {
-    color: rgba(255, 255, 255, 0.5);
-  }
-}
-
-.goods-tags {
-  display: flex;
-  flex-wrap: wrap;
-  margin: 4rpx 0;
-
-  .tag {
-    font-size: 18rpx;
-    color: #666;
-    background: #f7f7f7;
-    padding: 0 6rpx;
-    border-radius: 2rpx;
-    margin-right: 4rpx;
-    margin-bottom: 4rpx;
+    color: rgba(255, 255, 255, 0.4);
   }
 }
 
 .scroll-trigger {
   height: 1rpx;
   width: 100%;
-  // 这个区域用于触发滚动检测，不需要可见
 }
 
 .loading-indicator {
   padding: 40rpx;
   text-align: center;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.5);
   font-size: 28rpx;
-  background: #000;
 }
 
 .no-more-data {
   padding: 40rpx;
   text-align: center;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.3);
   font-size: 24rpx;
-  background: #000;
 }
 </style>
