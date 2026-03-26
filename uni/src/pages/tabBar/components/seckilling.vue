@@ -61,9 +61,10 @@ setTimeout(() => {
 // 限时秒杀区域
 .flash-sale {
   margin: 24rpx;
-  background-color: #fff;
+  background-color: #1a1a1a;
   border-radius: 24rpx;
   padding: 24rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.3);
 }
 
 .flash-header {
@@ -80,7 +81,7 @@ setTimeout(() => {
 .flash-title {
   font-size: 32rpx;
   font-weight: bold;
-  color: #FF4500;
+  color: #e50914;
   margin-right: auto;
 }
 
@@ -123,7 +124,7 @@ setTimeout(() => {
 
 .product-title {
   font-size: 28rpx;
-  color: #333;
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -133,7 +134,7 @@ setTimeout(() => {
 
 .product-price {
   font-size: 24rpx;
-  color: #FF4500;
+  color: #e50914;
   font-weight: bold;
   white-space: nowrap;
   flex-shrink: 0;

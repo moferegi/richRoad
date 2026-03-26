@@ -40,25 +40,27 @@ const handleSwiperClick = (item) => {
 
 .swiper-section {
   padding: 24rpx;
-  background-color: #fff;
+  background-color: #000;
 }
 
 .swiper {
   height: 320rpx;
   border-radius: 16rpx;
   overflow: hidden;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.3);
 }
 
 .swiper-item {
   width: 100%;
   height: 100%;
   position: relative;
-  background-color: #FF7E7E; // 桃红色背景
+  background-color: #1a1a1a;
 }
 
 .swiper-image {
   width: 100%;
   height: 100%;
   display: block;
+  border-radius: 16rpx;
 }
 </style>

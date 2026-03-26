@@ -245,7 +245,7 @@ const debouncedLower = debounce(()=>lower(false), 300);
 
 <style lang="scss">
 page {
-  background-color: #f8f8f8;
+  background-color: #000;
 }
 
 .content {
@@ -253,42 +253,45 @@ page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: #f8f8f8;
+  background-color: #000;
 }
 
-// 刘海屏适配
+// ===== Netflix 风格顶部状态栏 =====
 .status-bar-placeholder {
   width: 100%;
   height: var(--status-bar-height, 0px);
-  background-color: #ff4c7d;
+  background-color: #000;
 }
 
-// 微信小程序刘海屏兼容
 /* #ifdef MP-WEIXIN */
 .status-bar-placeholder {
   height: var(--status-bar-height, 44px);
 }
 /* #endif */
 
-.test {
-  display: flex;
-  margin-top: 64rpx; // 原 2rem ≈ 64rpx
-  width: 100%;
-}
-
-// 顶部状态栏
 .status-bar {
-  background-color: #ff4c7d;
-  display: flex;
-  align-items: center;
-  padding: 16rpx 24rpx;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.8) 100%);
+  backdrop-filter: blur(10px);
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.1);
+  padding: 12rpx 24rpx;
   box-sizing: border-box;
   position: sticky;
   top: 0;
   z-index: 99;
   width: 100%;
+  display: flex;
+  align-items: center;
 }
 
+.test {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 20rpx;
+}
+
+// ===== Netflix 风格按钮 =====
 .message-icon,
 .search-button {
   width: 60rpx;
@@ -297,15 +300,16 @@ page {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1rpx solid rgba(255, 255, 255, 0.15);
   transition: all 0.3s ease;
 
   &:active {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.2);
     transform: scale(0.95);
   }
 }
 
-// 客服按钮样式
 .contact-action-button {
   background: none;
   border: none;
@@ -329,68 +333,55 @@ page {
   }
 }
 
+// ===== Netflix 风格搜索框 =====
 .search-bar {
   flex: 1;
-  background-color: #fff;
+  background-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1rpx solid rgba(255, 255, 255, 0.15);
   height: 72rpx;
   border-radius: 36rpx;
-  margin: 0 20rpx;
   display: flex;
   align-items: center;
   padding: 0 24rpx;
+  gap: 12rpx;
 }
 
 .search-icon {
-  margin-right: 12rpx;
+  margin-right: 0;
 }
 
 .search-input {
   flex: 1;
-  color: #333;
+  color: #fff;
   font-size: 28rpx;
   border: none;
   outline: none;
   background: transparent;
 
   &::placeholder {
-    color: #999;
+    color: rgba(255, 255, 255, 0.5);
   }
 }
 
-// 促销横幅
-.promo-right {
-  background-color: #FFD700;
+// ===== 滚动区域 =====
+.scroll-Y {
+  flex: 1;
+  width: 100%;
+  background-color: #000;
+  // padding-top: 116rpx; // 为sticky头部留出足够空间 (status-bar高度约116rpx + 额外缓冲)
 }
 
-
-
-// 右侧图片容器
-.promo-image-container {
-  position: absolute;
-  right: 40rpx;
-  display: flex;
-  align-items: center;
+// ===== 商品展示区 =====
+.goods-section {
+  background-color: #000;
+  padding: 0;
 }
 
-.promo-text {
-  color: white;
-  font-size: 28rpx;
-  font-weight: bold;
-}
-
-.promo-tag {
-  display: inline-block;
-  background-color: #ff4a4a;
-  color: white;
-  font-size: 20rpx;
-  padding: 2rpx 8rpx;
-  border-radius: 8rpx;
-  margin-top: 8rpx;
-}
-
-// 底部加载及空状态
+// ===== Netflix 风格加载和空状态 =====
 .loading-status {
   padding: 40rpx 0;
+  background-color: #000;
 }
 
 .empty-state {
@@ -399,12 +390,21 @@ page {
   align-items: center;
   justify-content: center;
   padding: 80rpx 0;
+  background-color: #000;
 }
 
 .empty-state text {
   font-size: 28rpx;
-  color: #999;
+  color: rgba(255, 255, 255, 0.4);
   margin-top: 24rpx;
+}
+
+// ===== 移除不需要的样式 =====
+.promo-right,
+.promo-image-container,
+.promo-text,
+.promo-tag {
+  // 这些样式在子组件中处理
 }
 </style>
 

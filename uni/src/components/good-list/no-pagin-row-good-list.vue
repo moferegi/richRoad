@@ -209,31 +209,32 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 page {
-  background: #f5f7fa;
+  background: #000;
 }
 
 .goods-list {
-  padding: 12rpx;
-  background: #f5f7fa;
+  padding: 24rpx;
+  background: #000;
 }
 
 .goods-item {
   display: flex;
-  background: #ffffff;
-  margin-bottom: 12rpx;
-  border-radius: 12rpx;
-  padding: 12rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+  flex-direction: column; // 改为垂直布局
+  background: #1a1a1a; // Netflix深灰黑背景
+  margin-bottom: 24rpx;
+  border-radius: 16rpx;
+  padding: 0;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.3); // Netflix风格阴影
+  overflow: hidden;
 
   &:active {
     transform: scale(0.98);
   }
 
   .goods-image {
-    width: 240rpx;
-    height: 240rpx;
-    border-radius: 8rpx;
-    margin-right: 16rpx;
+    width: 100%;
+    height: 400rpx; // 增加图片高度
+    border-radius: 0; // 移除圆角，与卡片圆角配合
   }
 }
 
@@ -241,81 +242,66 @@ page {
   flex: 1;
   display: flex;
   flex-direction: column;
+  padding: 24rpx; // 增加内边距
   min-width: 0;
-  justify-content: space-around;
 
   .goods-name {
-    font-size: 28rpx;
-    color: #333;
+    font-size: 32rpx; // 增大字体
+    color: #fff; // Netflix白色文字
     line-height: 1.4;
-    margin-bottom: 8rpx;
+    margin-bottom: 12rpx;
     overflow: hidden;
     text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+    font-weight: 500;
   }
 }
 
 .merchant-tags {
   display: flex;
   flex-wrap: wrap;
-  margin: 4rpx 0;
+  margin: 8rpx 0;
 
   .merchant-tag {
-    font-size: 18rpx;
-    padding: 0 6rpx;
-    border-radius: 4rpx;
-    height: 26rpx;
-    line-height: 26rpx;
-    margin-right: 4rpx;
-    margin-bottom: 4rpx;
-
-    &.self-operated {
-      color: #ff6b6b;
-      background: rgba(255, 107, 107, 0.1);
-      border: 1px solid rgba(255, 107, 107, 0.2);
-    }
-
-    &.quality-assured {
-      color: #2196f3;
-      background: rgba(33, 150, 243, 0.1);
-      border: 1px solid rgba(33, 150, 243, 0.2);
-    }
-
-    &.plus-delivery {
-      color: #4caf50;
-      background: rgba(76, 175, 80, 0.1);
-      border: 1px solid rgba(76, 175, 80, 0.2);
-    }
+    font-size: 20rpx;
+    padding: 4rpx 12rpx;
+    border-radius: 20rpx;
+    height: 32rpx;
+    line-height: 24rpx;
+    margin-right: 8rpx;
+    margin-bottom: 8rpx;
+    font-weight: 500;
   }
 }
 
 .price-container {
   display: flex;
   align-items: center;
-  margin: 8rpx 0;
+  margin: 12rpx 0;
 
   .discount-price {
-    font-size: 32rpx;
-    color: #ff4444;
+    font-size: 36rpx; // 增大价格字体
+    color: #e50914; // Netflix红色
     font-weight: bold;
-    margin-right: 8rpx;
+    margin-right: 12rpx;
   }
 
   .original-price {
-    font-size: 22rpx;
-    color: #999;
+    font-size: 24rpx;
+    color: rgba(255, 255, 255, 0.5); // 半透明白色
     text-decoration: line-through;
-    margin-right: 8rpx;
+    margin-right: 12rpx;
   }
 
   .discount-tag {
     font-size: 20rpx;
     color: #fff;
-    background: #ff4444;
-    padding: 2rpx 8rpx;
-    border-radius: 4rpx;
+    background: #e50914; // Netflix红色背景
+    padding: 4rpx 12rpx;
+    border-radius: 12rpx;
+    font-weight: 500;
   }
 }
 
@@ -323,33 +309,33 @@ page {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 20rpx;
-  color: #666;
-  margin-top: 8px;
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.7); // 半透明白色
+  margin-top: 12rpx;
 
   .rating {
     display: flex;
     align-items: center;
 
     .rating-score {
-      color: #ff4444;
+      color: #e50914; // Netflix红色
       font-weight: bold;
-      margin-right: 2rpx;
+      margin-right: 4rpx;
     }
 
     .rating-stars {
-      color: #ffd700;
-      font-size: 18rpx;
-      margin-right: 2rpx;
+      color: #ffd700; // 金色星星
+      font-size: 20rpx;
+      margin-right: 4rpx;
     }
 
     .rating-count {
-      color: #999;
+      color: rgba(255, 255, 255, 0.5);
     }
   }
 
   .sales {
-    color: #999;
+    color: rgba(255, 255, 255, 0.5);
   }
 }
 
@@ -376,16 +362,18 @@ page {
 }
 
 .loading-indicator {
-  padding: 30rpx;
+  padding: 40rpx;
   text-align: center;
-  color: #666;
+  color: rgba(255, 255, 255, 0.6);
   font-size: 28rpx;
+  background: #000;
 }
 
 .no-more-data {
-  padding: 30rpx;
+  padding: 40rpx;
   text-align: center;
-  color: #999;
+  color: rgba(255, 255, 255, 0.4);
   font-size: 24rpx;
+  background: #000;
 }
 </style>

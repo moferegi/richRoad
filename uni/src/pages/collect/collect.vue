@@ -163,13 +163,14 @@
 		height: 124rpx;
 	}
 
-  /* 空状态样式 */
+  /* Netflix风格空状态样式 */
   .empty-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     height: calc(100vh - 88rpx);
+    background-color: #000; // Netflix纯黑背景
     /* #ifdef H5 */
     height: calc(100vh - 88rpx - var(--window-top));
     /* #endif */
@@ -182,16 +183,18 @@
   .empty-image-placeholder {
     width: 280rpx;
     height: 280rpx;
-    border-radius: 8rpx;
+    border-radius: 16rpx;
+    opacity: 0.6;
   }
 
   .empty-text {
     font-size: 28rpx;
-    color: #999;
+    color: rgba(255, 255, 255, 0.6); // 半透明白色
   }
 
   .scroll-Y {
     height: 100vh;
+    background-color: #000; // Netflix纯黑背景
   }
 	.collect_nav_box {
 		width: 100%;
@@ -245,31 +248,34 @@
   }
 
   page {
-    background: #f5f7fa;
+    background: #000; // Netflix纯黑背景
   }
 
   .goods-list {
-    padding: 12rpx;
-    background: #f5f7fa;
+    padding: 24rpx;
+    background: #000; // Netflix纯黑背景
   }
 
   .goods-item {
     display: flex;
-    background: #ffffff;
-    margin-bottom: 12rpx;
-    border-radius: 12rpx;
-    padding: 12rpx;
-    box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+    flex-direction: row; // 改回水平布局
+    background: #1a1a1a; // Netflix深灰黑
+    margin-bottom: 24rpx;
+    border-radius: 16rpx;
+    padding: 24rpx;
+    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.3); // Netflix风格阴影
+    overflow: hidden;
 
     &:active {
       transform: scale(0.98);
     }
 
     .goods-image {
-      width: 240rpx;
-      height: 240rpx;
-      border-radius: 8rpx;
-      margin-right: 16rpx;
+      width: 200rpx;
+      height: 200rpx;
+      border-radius: 12rpx;
+      margin-right: 24rpx;
+      flex-shrink: 0;
     }
   }
 
@@ -277,34 +283,39 @@
     flex: 1;
     display: flex;
     flex-direction: column;
+    justify-content: flex-start; // 从顶部开始排列
+    height: 200rpx; // 与图片高度一致
     min-width: 0;
 
     .goods-name {
-      font-size: 28rpx;
-      color: #333;
+      font-size: 32rpx; // 增大字体
+      color: #fff; // Netflix白色文字
       line-height: 1.4;
-      margin-bottom: 8rpx;
+      margin-bottom: 8rpx; // 减少底部间距
       overflow: hidden;
       text-overflow: ellipsis;
       display: -webkit-box;
       -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
+      -webkit-line-clamp: 2; // 限制为2行
+      font-weight: 500; // 稍微加粗
+      flex-shrink: 0; // 防止被压缩
     }
   }
 
   .merchant-tags {
     display: flex;
     flex-wrap: wrap;
-    margin: 4rpx 0;
+    margin: 2rpx 0; // 减少上下间距
+    flex-shrink: 0; // 防止被压缩
 
     .merchant-tag {
-      font-size: 18rpx;
-      padding: 0 6rpx;
+      font-size: 16rpx; // 稍微减小字体
+      padding: 0 4rpx; // 减少左右内边距
       border-radius: 4rpx;
-      height: 26rpx;
-      line-height: 26rpx;
+      height: 24rpx; // 减少高度
+      line-height: 24rpx;
       margin-right: 4rpx;
-      margin-bottom: 4rpx;
+      margin-bottom: 2rpx; // 减少底部间距
 
       &.self-operated {
         color: #ff6b6b;
@@ -329,28 +340,30 @@
   .price-container {
     display: flex;
     align-items: center;
-    margin: 8rpx 0;
+    margin: 8rpx 0; // 减少上下间距
+    flex-shrink: 0; // 防止被压缩
 
     .discount-price {
-      font-size: 32rpx;
-      color: #ff4444;
+      font-size: 36rpx; // 增大价格字体
+      color: #e50914; // Netflix红色
       font-weight: bold;
-      margin-right: 8rpx;
+      margin-right: 12rpx;
     }
 
     .original-price {
-      font-size: 22rpx;
-      color: #999;
+      font-size: 24rpx;
+      color: rgba(255, 255, 255, 0.5); // 半透明白色
       text-decoration: line-through;
-      margin-right: 8rpx;
+      margin-right: 12rpx;
     }
 
     .discount-tag {
       font-size: 24rpx;
       color: #fff;
-      background: #ff4444;
-      padding: 2rpx 8rpx;
-      border-radius: 4rpx;
+      background: #e50914; // Netflix红色背景
+      padding: 4rpx 12rpx;
+      border-radius: 12rpx;
+      font-weight: 500;
     }
   }
 
@@ -358,32 +371,34 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 24rpx;
-    color: #666;
-    margin-top: 8px;
+    font-size: 22rpx;
+    color: rgba(255, 255, 255, 0.7); // 半透明白色
+    margin-top: auto; // 推到底部
+    flex-shrink: 0; // 防止被压缩
+
     .rating {
       display: flex;
       align-items: center;
 
       .rating-score {
-        color: #ff4444;
+        color: #e50914; // Netflix红色
         font-weight: bold;
-        margin-right: 2rpx;
+        margin-right: 4rpx;
       }
 
       .rating-stars {
-        color: #ffd700;
-        font-size: 18rpx;
-        margin-right: 2rpx;
+        color: #ffd700; // 金色星星
+        font-size: 20rpx;
+        margin-right: 4rpx;
       }
 
       .rating-count {
-        color: #999;
+        color: rgba(255, 255, 255, 0.5);
       }
     }
 
     .sales {
-      color: #999;
+      color: rgba(255, 255, 255, 0.5);
     }
   }
 

@@ -32,7 +32,7 @@
     </view>
 
     <!-- 我的订单区域 -->
-    <view class="order-section">
+    <!-- <view class="order-section">
       <view class="order-title">
         <text>我的订单</text>
         <view class="view-all" @tap="toOrder('all')">
@@ -59,7 +59,7 @@
           <text>退款/售后</text>
         </view>
       </view>
-    </view>
+    </view> -->
 
     <!-- 浏览历史 -->
     <view class="history-section">
@@ -116,11 +116,12 @@ import { getGoodHistory } from '@/api/order.js'
 const isShow = ref(false)
 
 const columns = ref([
+  // {
+  //   title: '地址管理',
+  //   pages: '/pages/address/address',
+  //   icon: '/static/address.png'
+  // },
   {
-    title: '地址管理',
-    pages: '/pages/address/address',
-    icon: '/static/address.png'
-  },{
     title: '我的收藏',
     pages: '/pages/collect/collect',
     icon: '/static/MYcollect.png'
@@ -251,9 +252,16 @@ const toPages = (pages) => {
       title: '正在开发中...'
     })
   } else {
-    uni.navigateTo({
-      url: pages
-    })
+    // 如果是收藏页面，使用switchTab切换到tab
+    if (pages === '/pages/collect/collect') {
+      uni.switchTab({
+        url: pages
+      })
+    } else {
+      uni.navigateTo({
+        url: pages
+      })
+    }
   }
 }
 
@@ -274,21 +282,23 @@ const toRetreatOrder = () => {
 
 <style lang="scss">
 page {
-  background-color: #f8f8f8;
+  background-color: #000; // Netflix纯黑背景
 }
 
 .my-page {
   width: 100%;
   min-height: 100vh;
+  background-color: #000; // Netflix纯黑背景
 }
 
-/* 头部样式 */
+/* Netflix风格头部样式 */
 .header-section {
   position: relative;
   padding: 60rpx 30rpx;
-  background: #ff4c7d;
+  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%); // Netflix深色渐变
   border-radius: 0 0 20rpx 20rpx;
   overflow: hidden;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.3); // Netflix风格阴影
 }
 
 /* 用户信息样式 */
@@ -390,14 +400,15 @@ page {
   min-height: 0;
 }
 
-/* 账户信息样式 */
+/* Netflix风格账户信息样式 */
 .account-info {
   display: flex;
   justify-content: space-between;
   padding: 30rpx 20rpx;
   margin-top: 20rpx;
-  background-color: #ffffff;
+  background-color: #1a1a1a; // Netflix深灰黑
   border-radius: 12rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.2); // Netflix风格阴影
 }
 
 .account-item {
@@ -410,22 +421,22 @@ page {
 .account-value {
   font-size: 32rpx;
   font-weight: bold;
-  color: #333;
+  color: #e50914; // Netflix红色
   margin-bottom: 8rpx;
 }
 
 .account-label {
   font-size: 24rpx;
-  color: #999;
+  color: rgba(255, 255, 255, 0.7); // 半透明白色
 }
 
-/* 订单区域样式 */
+/* Netflix风格订单区域样式 */
 .order-section {
   margin: 20rpx;
   padding: 30rpx;
-  background-color: #fff;
+  background-color: #1a1a1a; // Netflix深灰黑
   border-radius: 12rpx;
-  box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.2); // Netflix风格阴影
 }
 
 .order-title {
@@ -438,7 +449,7 @@ page {
 .order-title text {
   font-size: 32rpx;
   font-weight: bold;
-  color: #333;
+  color: #fff; // Netflix白色
 }
 
 .view-all {
@@ -448,7 +459,7 @@ page {
 
 .view-all text {
   font-size: 24rpx;
-  color: #999;
+  color: rgba(255, 255, 255, 0.6); // 半透明白色
   margin-right: 8rpx;
 }
 
@@ -462,34 +473,49 @@ page {
   flex-direction: column;
   align-items: center;
   flex: 1;
+  padding: 20rpx;
+  border-radius: 8rpx;
+  transition: all 0.3s ease;
+
+  &:active {
+    background-color: rgba(255, 255, 255, 0.05); // 点击效果
+    transform: scale(0.95);
+  }
 }
 
 .order-item image {
   width: 60rpx;
   height: 60rpx;
   margin-bottom: 16rpx;
+  opacity: 0.8;
 }
 
 .order-item text {
   font-size: 24rpx;
-  color: #333;
+  color: rgba(255, 255, 255, 0.8); // 半透明白色
 }
 
-/* 浏览历史样式 */
+/* Netflix风格浏览历史样式 */
 .history-section {
   margin: 20rpx;
-  background-color: #fff;
+  background-color: #1a1a1a; // Netflix深灰黑
   border-radius: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.2); // Netflix风格阴影
 }
-.history-section{
+
+.history-section {
   padding: 30rpx;
 }
-.history-icon{
+
+.history-icon {
   width: 50rpx;
   height: 50rpx;
   border-radius: 50%;
   margin-right: 20rpx;
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 8rpx;
 }
+
 .section-header {
   display: flex;
   margin-bottom: 30rpx;
@@ -497,31 +523,15 @@ page {
 
 .title {
   font-size: 32rpx;
-  color: #333;
+  color: #fff; // Netflix白色
   font-weight: bold;
 }
+
 .more {
   font-size: 24rpx;
-  color: #999;
+  color: rgba(255, 255, 255, 0.6); // 半透明白色
 }
 
-
-.section-title {
-  display: flex;
-  align-items: center;
-  margin-bottom: 20rpx;
-}
-
-.title-icon {
-  width: 40rpx;
-  height: 40rpx;
-  margin-right: 10rpx;
-}
-
-.section-title text {
-  font-size: 30rpx;
-  color: #333;
-}
 .history-scroll {
   width: 100%;
 }
@@ -534,16 +544,29 @@ page {
 .history-item {
   margin-right: 20rpx;
   flex-shrink: 0;
+  transition: all 0.3s ease;
+
+  &:active {
+    transform: scale(0.95);
+  }
 }
 
 .history-image {
   width: 200rpx;
   height: 220rpx;
   border-radius: 12rpx;
-  .history-image-img{
+  overflow: hidden;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.3);
+
+  .history-image-img {
     width: 100%;
     height: 100%;
-    border-radius: 30rpx;
+    border-radius: 12rpx;
+    transition: all 0.3s ease;
+
+    &:active {
+      transform: scale(1.05);
+    }
   }
 }
 .history-items {
@@ -580,13 +603,13 @@ page {
   color: #666;
 }
 
-/* 工具区域样式 */
+/* Netflix风格工具区域样式 */
 .tools-section {
   margin: 20rpx;
   padding: 0 30rpx;
-  background-color: #fff;
+  background-color: #1a1a1a; // Netflix深灰黑
   border-radius: 12rpx;
-  box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.2); // Netflix风格阴影
 }
 
 .tool-item {
@@ -594,10 +617,20 @@ page {
   justify-content: space-between;
   align-items: center;
   padding: 30rpx 0;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.1); // Netflix风格分割线
+  transition: all 0.3s ease;
+
+  &:active {
+    background-color: rgba(255, 255, 255, 0.05); // 点击效果
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
 }
 
 .border-bottom {
-  border-bottom: 1rpx solid #f0f0f0;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.1); // Netflix风格分割线
 }
 
 .tool-left {
@@ -609,22 +642,13 @@ page {
   width: 40rpx;
   height: 40rpx;
   margin-right: 20rpx;
+  opacity: 0.8;
 }
 
 .tool-left text {
   font-size: 28rpx;
-  color: #333;
-}
-
-.tool-right {
-  display: flex;
-  align-items: center;
-}
-
-.share-info {
-  font-size: 24rpx;
-  color: #999;
-  margin-right: 10rpx;
+  color: #fff; // Netflix白色
+  font-weight: 500;
 }
 
 .contact-btn {
@@ -635,6 +659,7 @@ page {
   border-radius: 0;
   text-align: left;
   font-size: inherit;
+
   &::after {
     border: none;
   }

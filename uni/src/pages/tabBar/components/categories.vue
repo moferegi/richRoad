@@ -9,7 +9,7 @@
   </view>
 
   <!-- 促销横幅 -->
-  <view class="promo-banner">
+  <!-- <view class="promo-banner">
     <view
         class="promo-left"
         :style="promotionData && promotionData.promotionImage ?
@@ -21,7 +21,7 @@
         <text class="promo-subtitle">{{ promotionData?.description || '敬请期待' }}</text>
       </view>
     </view>
-  </view>
+  </view> -->
 </template>
 
 <script setup>
@@ -45,7 +45,7 @@ const init = async () => {
     console.error('获取促销信息失败:', error);
   }
 };
-init();
+// init();
 
 const props = defineProps({
   categoriesData: {
@@ -64,11 +64,11 @@ const goto = (item) => {
 </script>
 
 <style scoped lang="scss">
-/* 分类导航 - 横向滚动版本 */
+/* 分类导航 - Netflix风格横向滚动版本 */
 .category-section {
   display: flex;
   padding: 36rpx 0;
-  background-color: #fff;
+  background-color: #000; // Netflix纯黑背景
   overflow-x: auto;
   overflow-y: hidden;
   white-space: nowrap;
@@ -89,6 +89,14 @@ const goto = (item) => {
   flex-shrink: 0; /* 防止项目被压缩 */
   min-width: 120rpx; /* 设置最小宽度确保内容完整显示 */
   margin: 0 24rpx; /* 左右间距 */
+  padding: 16rpx 12rpx; /* 添加内边距 */
+  border-radius: 12rpx; /* 圆角 */
+  transition: all 0.3s ease; /* 过渡效果 */
+
+  &:active {
+    background-color: rgba(255, 255, 255, 0.05); /* 点击效果 */
+    transform: scale(0.95);
+  }
 }
 
 /* 第一个和最后一个项目的特殊间距处理 */
@@ -105,22 +113,31 @@ const goto = (item) => {
   height: 88rpx;
   border-radius: 50%;
   margin-bottom: 16rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.1); // Netflix风格边框
+  background-color: rgba(255, 255, 255, 0.05); // 轻微背景
+  transition: all 0.3s ease;
+
+  &:active {
+    border-color: #e50914; // 点击时边框变为Netflix红色
+    background-color: rgba(229, 9, 20, 0.1);
+  }
 }
 
 .category-title {
   font-size: 24rpx;
-  color: #333;
+  color: #fff; // Netflix白色文字
   text-align: center;
   white-space: nowrap; /* 防止文字换行 */
   overflow: hidden;
   text-overflow: ellipsis; /* 文字过长时显示省略号 */
   max-width: 120rpx; /* 限制文字最大宽度 */
+  font-weight: 500; // 稍微加粗
 }
 
-// 胶囊形状的促销横幅
+// Netflix风格胶囊形状的促销横幅
 .promo-banner {
   padding: 24rpx;
-  background-color: #fff;
+  background-color: #000; // Netflix纯黑背景
 }
 
 .promo-left {
@@ -134,6 +151,7 @@ const goto = (item) => {
   background-position: center;
   background-repeat: no-repeat;
   overflow: hidden;
+  background: linear-gradient(90deg, #e50914 0%, #b20710 100%); // Netflix红色渐变
 
   // 添加一个半透明遮罩，确保文字清晰可见
   &::before {
@@ -143,7 +161,7 @@ const goto = (item) => {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.4); // 稍微加深遮罩
     border-radius: 80rpx;
     z-index: 1;
   }
