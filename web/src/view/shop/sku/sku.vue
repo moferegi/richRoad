@@ -245,32 +245,56 @@
             placeholder="请输入余量"
           />
         </el-form-item>
-        <h4>规格配置</h4>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:12px 0 8px;">
+          <h4 style="margin:0;">规格配置</h4>
+          <el-button type="primary" size="small" @click="addAttr">添加规格</el-button>
+        </div>
         <el-form-item
-            v-for="(attr,index) in formData.attrs "
-            :key="index"
+            v-for="(attr,index) in formData.attrs"
+            :key="'attr'+index"
             :label="attr.label+':'"
-            prop="inventory"
         >
-          <el-input
-              v-model.number="attr.value"
-              :clearable="true"
-              :placeholder="'请输入'+attr.label"
-          />
+          <div style="display:flex;gap:8px;width:100%;">
+            <el-input
+                v-model="attr.label"
+                :clearable="true"
+                placeholder="规格名称"
+                style="width:140px;flex-shrink:0;"
+            />
+            <el-input
+                v-model="attr.value"
+                :clearable="true"
+                :placeholder="'请输入'+attr.label"
+                style="flex:1;"
+            />
+            <el-button type="danger" link @click="formData.attrs.splice(index,1)">删除</el-button>
+          </div>
         </el-form-item>
 
-        <h4>属性配置</h4>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:12px 0 8px;">
+          <h4 style="margin:0;">属性配置</h4>
+          <el-button type="primary" size="small" @click="addSpec">添加属性</el-button>
+        </div>
         <el-form-item
-          v-for="(spec,index) in formData.specs "
-          :key="index"
+          v-for="(spec,index) in formData.specs"
+          :key="'spec'+index"
           :label="spec.label+':'"
-          prop="inventory"
         >
-          <el-input
-            v-model="spec.value"
-            :clearable="true"
-            :placeholder="'请输入'+spec.label"
-          />
+          <div style="display:flex;gap:8px;width:100%;">
+            <el-input
+                v-model="spec.label"
+                :clearable="true"
+                placeholder="属性名称"
+                style="width:140px;flex-shrink:0;"
+            />
+            <el-input
+                v-model="spec.value"
+                :clearable="true"
+                :placeholder="'请输入'+spec.label"
+                style="flex:1;"
+            />
+            <el-button type="danger" link @click="formData.specs.splice(index,1)">删除</el-button>
+          </div>
         </el-form-item>
       </el-form>
     </el-drawer>
@@ -610,6 +634,18 @@ const closeDialog = () => {
     goodID: Number(route.query.id),
   }
 }
+// 添加规格
+const addAttr = () => {
+  if (!formData.value.attrs) formData.value.attrs = []
+  formData.value.attrs.push({ label: '', value: '' })
+}
+
+// 添加属性
+const addSpec = () => {
+  if (!formData.value.specs) formData.value.specs = []
+  formData.value.specs.push({ label: '', value: '' })
+}
+
 // 弹窗确定
 const enterDialog = async() => {
   elFormRef.value?.validate(async(valid) => {

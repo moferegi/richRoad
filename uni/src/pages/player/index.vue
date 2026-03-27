@@ -15,20 +15,44 @@
         </view>
         <!-- 视频播放器 -->
         <view class="nf-theater-video-wrap">
-          <video
-            v-if="videoUrl && showTheater"
-            id="nfVideo"
-            :src="videoUrl"
-            class="nf-theater-video"
-            :poster="getUrl(data.imageUrl)"
-            :title="currentEpisode.name || $lt(data.title)"
-            :autoplay="true"
-            :show-fullscreen-btn="true"
-            :show-play-btn="true"
-            :enable-progress-gesture="true"
-            object-fit="contain"
-            @ended="onVideoEnded"
-          />
+          <!-- 自定义视频播放器 -->
+          <div v-if="videoUrl && showTheater" ref="playerRef" class="nf-vp">
+            <video ref="videoRef" class="nf-vp-video"
+              :src="videoUrl" :poster="getUrl(data.imageUrl)"
+              playsinline webkit-playsinline x5-video-player-type="h5" preload="auto"
+              :style="brtStyle"
+              @timeupdate="vpTimeUpdate" @play="isPlaying = true" @pause="isPlaying = false"
+              @ended="vpEnded"
+            ></video>
+            <!-- 手势层 -->
+            <div class="nf-vp-touch" @touchstart.prevent="vpTouchStart" @touchmove.prevent="vpTouchMove" @touchend.prevent="vpTouchEnd"></div>
+            <!-- 提示 -->
+            <div class="nf-vp-tip" v-if="vpTip">{{ vpTip }}</div>
+            <!-- 加载中 -->
+            <div class="nf-vp-loading" v-if="isBuffering"><div class="nf-vp-spinner"></div></div>
+            <!-- 控制栏 -->
+            <div class="nf-vp-ctrl" :class="{ 'nf-vp-ctrl-show': vpCtrlVis }">
+              <div class="nf-vp-prog" ref="vpProgRef" @click.stop="vpProgClick">
+                <div class="nf-vp-prog-bar"><div class="nf-vp-prog-fill" :style="{ width: vpProg + '%' }"></div></div>
+                <div class="nf-vp-prog-dot" :style="{ left: vpProg + '%' }"></div>
+              </div>
+              <div class="nf-vp-btns">
+                <div class="nf-vp-btn" @click.stop="vpTogglePlay">{{ isPlaying ? '⏸' : '▶' }}</div>
+                <span class="nf-vp-time">{{ fmtTime(currentTime) }} / {{ fmtTime(duration) }}</span>
+                <div class="nf-vp-spacer"></div>
+                <div class="nf-vp-btn nf-vp-spd" @click.stop="vpCycleSpeed">{{ playbackSpeed === 1 ? $t('playerSpeed') : playbackSpeed + 'x' }}</div>
+                <div class="nf-vp-btn nf-vp-fs" @click.stop="vpToggleFs">{{ vpFs ? $t('playerExitFs') : $t('playerFullscreen') }}</div>
+                <div class="nf-vp-btn nf-vp-ori" v-if="vpFs" @click.stop="vpToggleOri">{{ vpLand ? $t('playerPortrait') : $t('playerLandscape') }}</div>
+              </div>
+            </div>
+          </div>
+          <!-- 无视频时占位 -->
+          <view v-else-if="showTheater" class="nf-theater-poster-wrap">
+            <image class="nf-theater-poster" :src="getUrl(data.imageUrl)" mode="aspectFill" />
+            <view class="nf-theater-no-video">
+              <text class="nf-theater-no-video-text">{{ $t('playerNoVideo') }}</text>
+            </view>
+          </view>
         </view>
         <!-- 当前集信息 -->
         <view class="nf-theater-info">
@@ -64,7 +88,6 @@
       <view class="nf-hero-back" @tap="goBack">
         <uni-icons type="left" size="20" color="#fff" />
       </view>
-
     </view>
 
     <!-- 内容区域 -->
@@ -112,7 +135,7 @@
         <text class="nf-section-title">{{ $t('playerDesc') }}</text>
         <text class="nf-desc-text" :class="{ 'nf-desc-expand': descExpand }">{{ $lt(data.description) }}</text>
         <text class="nf-desc-toggle" @tap="descExpand = !descExpand">
-          {{ descExpand ? '收起' : '展开' }}
+          {{ descExpand ? $t('playerCollapse') : $t('playerExpand') }}
         </text>
       </view>
 
@@ -120,7 +143,7 @@
       <view class="nf-episodes-section" v-if="episodes.length">
         <view class="nf-section-header">
           <text class="nf-section-title">{{ $t('playerEpisodes') }}</text>
-          <text class="nf-episode-count">{{ episodes.length }}集</text>
+          <text class="nf-episode-count">{{ epCountLabel }}</text>
         </view>
         <scroll-view scroll-x :show-scrollbar="false" class="nf-episodes-scroll">
           <view class="nf-episodes-list">
@@ -169,13 +192,14 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, onUnmounted, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { findGood } from '@/api/product.js'
 import { findCollect, createCollect } from '@/api/collect.js'
 import { getUrl } from '@/utils/url.js'
 import { useUserStore } from '@/pinia/modules/user'
 import { useLangStore } from '@/pinia/modules/lang.js'
+
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
@@ -195,10 +219,18 @@ const descExpand = ref(false)
 const goodID = ref(0)
 const showTheater = ref(false)
 const theaterReady = ref(false)
+const isPlaying = ref(false)
+const currentTime = ref(0)
+const duration = ref(0)
+const playbackSpeed = ref(1.0)
 
 const epLabel = (n) => {
   return $t.value('playerEp').replace('{{n}}', n)
 }
+
+const epCountLabel = computed(() => {
+  return $t.value('playerEpCount').replace('{{n}}', episodes.value.length)
+})
 
 const formatNum = (num) => {
   if (!num) return '0'
@@ -226,7 +258,7 @@ const init = async () => {
       if (status.code === 0) collectionFlag.value = status.data
     }
   } catch (e) {
-    console.error('加载失败', e)
+    console.error($t.value('playerLoadFail'), e)
   } finally {
     isLoading.value = false
   }
@@ -235,32 +267,450 @@ const init = async () => {
 const openTheater = () => {
   showTheater.value = true
   nextTick(() => {
-    setTimeout(() => { theaterReady.value = true }, 50)
+    setTimeout(() => {
+      theaterReady.value = true
+      initPlayer()
+    }, 80)
   })
 }
 
 const closeTheater = () => {
   theaterReady.value = false
+  isPlaying.value = false
+  destroyPlayer()
   setTimeout(() => {
     showTheater.value = false
     videoUrl.value = ''
+    currentTime.value = 0
+    duration.value = 0
   }, 300)
 }
 
+// === 自定义播放器 ===
+const videoRef = ref(null)
+const playerRef = ref(null)
+const vpProgRef = ref(null)
+const isBuffering = ref(false)
+const vpFs = ref(false)
+const vpLand = ref(true)
+const vpCtrlVis = ref(true)
+const vpTip = ref('')
+const brightnessVal = ref(1)
+const usingCssRotation = ref(false)
+const brtStyle = computed(() => ({ filter: `brightness(${brightnessVal.value})` }))
+const vpProg = computed(() => duration.value > 0 ? (currentTime.value / duration.value * 100) : 0)
+
+// 检测是否支持原生屏幕方向锁定（Android 支持，iOS 不支持）
+const canNativeLock = () => {
+  try {
+    return typeof screen !== 'undefined' && screen.orientation && typeof screen.orientation.lock === 'function'
+  } catch (e) {
+    return false
+  }
+}
+
+// 获取原生 video DOM 元素（uni-app H5 ref 可能是组件实例）
+const getVideo = () => {
+  const v = videoRef.value
+  if (!v) return null
+  if (v instanceof HTMLVideoElement) return v
+  if (v.$el instanceof HTMLVideoElement) return v.$el
+  return v.$el?.querySelector?.('video') || null
+}
+
+let ctrlTimer = null
+let longTimer = null
+let tipTimer = null
+let tStartX = 0, tStartY = 0, tStartTime = 0
+let tDir = '', tSeeking = false, seekTarget = 0, seekStart = 0
+let speedBoosting = false, prevRate = 1
+const SPEEDS = [1, 1.25, 1.5, 2, 0.5, 0.75]
+
+const fmtTime = (s) => {
+  if (!s || isNaN(s)) return '0:00'
+  const m = Math.floor(s / 60)
+  const sec = Math.floor(s % 60)
+  return m + ':' + (sec < 10 ? '0' : '') + sec
+}
+
+const showTip = (text, ms = 800) => {
+  vpTip.value = text
+  clearTimeout(tipTimer)
+  tipTimer = setTimeout(() => { vpTip.value = '' }, ms)
+}
+
+const showCtrlBriefly = () => {
+  vpCtrlVis.value = true
+  clearTimeout(ctrlTimer)
+  if (isPlaying.value) {
+    ctrlTimer = setTimeout(() => { vpCtrlVis.value = false }, 4000)
+  }
+}
+
+watch(isPlaying, (val) => {
+  if (!val) {
+    vpCtrlVis.value = true
+    clearTimeout(ctrlTimer)
+  } else {
+    showCtrlBriefly()
+  }
+})
+
+const onWaiting = () => { isBuffering.value = true }
+const onCanPlay = () => { isBuffering.value = false }
+
+const initPlayer = () => {
+  destroyPlayer()
+  if (!videoUrl.value) return
+  nextTick(() => {
+    const v = getVideo()
+    if (!v) return
+    // 原生监听 buffering 事件（Vue 模板绑定在 uni-app 中可能不可靠）
+    v.addEventListener('waiting', onWaiting)
+    v.addEventListener('playing', onCanPlay)
+    v.addEventListener('canplay', onCanPlay)
+    v.addEventListener('loadeddata', onCanPlay)
+    v.playbackRate = playbackSpeed.value
+    v.play().catch(() => {})
+    showCtrlBriefly()
+    document.addEventListener('fullscreenchange', onFsChange)
+    document.addEventListener('webkitfullscreenchange', onFsChange)
+  })
+}
+
+const destroyPlayer = () => {
+  clearTimeout(ctrlTimer)
+  clearTimeout(longTimer)
+  clearTimeout(tipTimer)
+  clearTimeout(switchTimer)
+  switchingEpisode = false
+  seekingByClick = false
+  // 移除原生 video 事件
+  const v = getVideo()
+  if (v) {
+    v.removeEventListener('waiting', onWaiting)
+    v.removeEventListener('playing', onCanPlay)
+    v.removeEventListener('canplay', onCanPlay)
+    v.removeEventListener('loadeddata', onCanPlay)
+  }
+  isBuffering.value = false
+  document.removeEventListener('fullscreenchange', onFsChange)
+  document.removeEventListener('webkitfullscreenchange', onFsChange)
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    try { (document.exitFullscreen || document.webkitExitFullscreen)?.call(document) } catch(e) {}
+  }
+  try { screen.orientation?.unlock?.() } catch(e) {}
+  // 清理 CSS 全屏
+  removeCssOrientation(playerRef.value)
+  playerRef.value?.classList.remove('nf-vp-css-fs', 'nf-vp-css-fs-portrait')
+  vpFs.value = false
+  vpLand.value = true
+}
+
+const onFsChange = () => {
+  const isNativeFs = !!(document.fullscreenElement || document.webkitFullscreenElement)
+  if (!isNativeFs && vpFs.value && !playerRef.value?.classList.contains('nf-vp-css-fs')) {
+    vpFs.value = false
+    removeCssOrientation(playerRef.value)
+    try { screen.orientation?.unlock?.() } catch(e) {}
+  }
+  if (isNativeFs) vpFs.value = true
+  if (!vpFs.value) {
+    vpLand.value = true
+    showCtrlBriefly()
+  }
+}
+
+const vpTogglePlay = () => {
+  const v = getVideo()
+  if (!v) return
+  v.paused ? v.play().catch(() => {}) : v.pause()
+  showCtrlBriefly()
+}
+
+const vpCycleSpeed = () => {
+  const idx = SPEEDS.indexOf(playbackSpeed.value)
+  playbackSpeed.value = SPEEDS[(idx + 1) % SPEEDS.length]
+  if (getVideo()) getVideo().playbackRate = playbackSpeed.value
+  showTip(playbackSpeed.value + 'x')
+  showCtrlBriefly()
+}
+
+const vpToggleFs = () => {
+  const el = playerRef.value
+  if (!el) return
+  if (vpFs.value) {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      (document.exitFullscreen || document.webkitExitFullscreen)?.call(document)
+      try { screen.orientation?.unlock?.() } catch(e) {}
+    } else {
+      // CSS 全屏回退
+      vpFs.value = false
+      removeCssOrientation(el)
+      el.classList.remove('nf-vp-css-fs', 'nf-vp-css-fs-portrait')
+    }
+  } else {
+    const fn = el.requestFullscreen || el.webkitRequestFullscreen
+    if (fn) {
+      fn.call(el).then(() => {
+        vpLand.value = true
+        if (canNativeLock()) {
+          // Android：使用原生方向锁定
+          screen.orientation.lock('landscape').catch(() => {
+            applyCssLandscape(el, true)
+          })
+        } else {
+          // iOS：使用 CSS transform 模拟横屏
+          applyCssLandscape(el, true)
+        }
+      }).catch(() => {
+        enterCssFs(el)
+      })
+    } else {
+      enterCssFs(el)
+    }
+  }
+}
+
+const enterCssFs = (el) => {
+  el.classList.add('nf-vp-css-fs')
+  vpFs.value = true
+  vpLand.value = true
+  applyCssLandscape(el, true)
+}
+
+// 用 CSS transform 模拟横屏（iOS 不支持 screen.orientation.lock）
+const applyCssLandscape = (el, landscape) => {
+  if (!el) return
+  if (landscape) {
+    el.classList.add('nf-vp-landscape')
+    el.classList.remove('nf-vp-portrait')
+    usingCssRotation.value = true
+  } else {
+    el.classList.remove('nf-vp-landscape')
+    el.classList.add('nf-vp-portrait')
+    usingCssRotation.value = false
+  }
+}
+
+const removeCssOrientation = (el) => {
+  if (!el) return
+  el.classList.remove('nf-vp-landscape', 'nf-vp-portrait')
+  usingCssRotation.value = false
+}
+
+const vpToggleOri = () => {
+  if (!vpFs.value) return
+  vpLand.value = !vpLand.value
+  const el = playerRef.value
+  if (canNativeLock() && (document.fullscreenElement || document.webkitFullscreenElement)) {
+    // Android：使用原生方向锁定
+    screen.orientation.lock(vpLand.value ? 'landscape' : 'portrait').catch(() => {
+      applyCssLandscape(el, vpLand.value)
+    })
+  } else {
+    // iOS / CSS 全屏：使用 CSS transform
+    applyCssLandscape(el, vpLand.value)
+  }
+}
+
+let seekingByClick = false
+let seekPrevTime = 0
+let switchingEpisode = false
+let switchTimer = null
+
+const vpProgClick = (e) => {
+  const bar = vpProgRef.value
+  const v = getVideo()
+  if (!bar || !v) return
+  const rect = bar.getBoundingClientRect()
+  let pct
+  if (usingCssRotation.value) {
+    pct = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height))
+  } else {
+    pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+  }
+  const targetTime = pct * duration.value
+  seekPrevTime = currentTime.value
+  // 立即更新进度条视觉位置
+  currentTime.value = targetTime
+  isBuffering.value = true
+  seekingByClick = true
+  v.currentTime = targetTime
+  // 监听 seek 结果
+  const cleanupSeek = () => {
+    v.removeEventListener('seeked', onSeeked)
+    v.removeEventListener('error', onSeekErr)
+    clearTimeout(seekTimeout)
+  }
+  const onSeeked = () => {
+    cleanupSeek()
+    seekingByClick = false
+  }
+  const onSeekErr = () => {
+    cleanupSeek()
+    // seek 失败，回退到之前的位置
+    currentTime.value = seekPrevTime
+    v.currentTime = seekPrevTime
+    seekingByClick = false
+    isBuffering.value = false
+  }
+  // iOS 可能不触发 seeked，5秒超时兜底
+  const seekTimeout = setTimeout(() => {
+    cleanupSeek()
+    seekingByClick = false
+    // 用 video 实际位置同步
+    currentTime.value = v.currentTime
+  }, 5000)
+  v.addEventListener('seeked', onSeeked)
+  v.addEventListener('error', onSeekErr)
+  showCtrlBriefly()
+}
+
+const vpTimeUpdate = () => {
+  const v = getVideo()
+  if (!v) return
+  // seek 过程中不让 timeupdate 覆盖视觉进度和 buffering 状态
+  if (seekingByClick) return
+  currentTime.value = v.currentTime
+  duration.value = v.duration || 0
+  // timeupdate 说明在播放，清除加载状态
+  if (isBuffering.value && !switchingEpisode) isBuffering.value = false
+}
+
+const vpEnded = () => {
+  isPlaying.value = false
+  vpCtrlVis.value = true
+  if (currentIndex.value < episodes.value.length - 1) {
+    switchEpisode(currentIndex.value + 1)
+  }
+}
+
+// === 手势控制 ===
+const vpTouchStart = (e) => {
+  const t = e.touches[0]
+  if (!t) return
+  tStartX = t.clientX
+  tStartY = t.clientY
+  tStartTime = Date.now()
+  tDir = ''
+  tSeeking = false
+  seekStart = currentTime.value
+  longTimer = setTimeout(() => {
+    speedBoosting = true
+    prevRate = getVideo()?.playbackRate || 1
+    if (getVideo()) getVideo().playbackRate = 2
+    showTip($t.value('playerFastFwd'), 60000)
+  }, 500)
+}
+
+const vpTouchMove = (e) => {
+  const t = e.touches[0]
+  if (!t) return
+  clearTimeout(longTimer)
+  longTimer = null
+  if (speedBoosting) return
+
+  let dx = t.clientX - tStartX
+  let dy = t.clientY - tStartY
+
+  // CSS rotate(90deg) 后坐标系需要旋转映射：
+  // 视觉水平(快进) = 屏幕竖直方向，视觉竖直(亮度/音量) = 屏幕水平方向(反向)
+  if (usingCssRotation.value) {
+    const rawDx = dx
+    dx = dy
+    dy = -rawDx
+  }
+
+  if (!tDir) {
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+      tDir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'
+    } else return
+  }
+
+  const rect = playerRef.value?.getBoundingClientRect()
+  if (!rect) return
+
+  // CSS 旋转后 getBoundingClientRect 的宽高互换
+  const visualWidth = usingCssRotation.value ? rect.height : rect.width
+  const visualHeight = usingCssRotation.value ? rect.width : rect.height
+
+  if (tDir === 'h') {
+    tSeeking = true
+    const seekDelta = (dx / visualWidth) * duration.value * 0.5
+    seekTarget = Math.max(0, Math.min(duration.value, seekStart + seekDelta))
+    showTip(`${seekDelta >= 0 ? '+' : ''}${Math.round(seekDelta)}s → ${fmtTime(seekTarget)}`, 60000)
+  } else {
+    const delta = -dy / (visualHeight * 0.7)
+    // CSS 旋转后：视频左半边 = 屏幕上半边
+    const isLeftHalf = usingCssRotation.value
+      ? (tStartY < rect.top + rect.height / 2)
+      : (tStartX < rect.left + rect.width / 2)
+    if (isLeftHalf) {
+      brightnessVal.value = Math.max(0.2, Math.min(1.5, brightnessVal.value + delta * 0.01))
+      showTip(`☀ ${Math.round(brightnessVal.value * 100)}%`, 60000)
+    } else {
+      if (getVideo()) {
+        const v = Math.max(0, Math.min(1, getVideo().volume + delta * 0.01))
+        getVideo().volume = v
+        showTip(`🔊 ${Math.round(v * 100)}%`, 60000)
+      }
+    }
+  }
+}
+
+const vpTouchEnd = () => {
+  clearTimeout(longTimer)
+  longTimer = null
+  if (speedBoosting) {
+    speedBoosting = false
+    if (getVideo()) getVideo().playbackRate = prevRate
+    vpTip.value = ''
+    return
+  }
+  if (tSeeking) {
+    if (getVideo()) getVideo().currentTime = seekTarget
+    tSeeking = false
+    setTimeout(() => { vpTip.value = '' }, 400)
+    return
+  }
+  vpTip.value = ''
+  if (tDir) return
+  if (Date.now() - tStartTime < 300) {
+    if (vpCtrlVis.value) {
+      vpCtrlVis.value = false
+      clearTimeout(ctrlTimer)
+    } else {
+      showCtrlBriefly()
+    }
+  }
+}
+
 const resolveVideoUrl = (ep) => {
-  let url = ''
-  if (ep.specs) {
+  const sources = [ep.attrs, ep.specs]
+  for (const raw of sources) {
+    if (!raw) continue
     try {
-      const specs = typeof ep.specs === 'string' ? JSON.parse(ep.specs) : ep.specs
-      url = specs.videoUrl || specs.video_url || specs.url || ''
+      const d = typeof raw === 'string' ? JSON.parse(raw) : raw
+      if (Array.isArray(d)) {
+        const found = d.find(s =>
+          s.label && /^(videoUrl|video_url|url|视频链接|视频地址|视频)$/i.test(s.label)
+        )
+        if (found && found.value) return found.value
+      } else if (d && typeof d === 'object') {
+        const url = d.videoUrl || d.video_url || d.url || ''
+        if (url) return url
+      }
     } catch (e) {}
   }
-  return url
+  return ''
 }
 
 const playFirst = () => {
   if (episodes.value.length > 0) {
     playEpisode(0)
+  } else {
+    openTheater()
   }
 }
 
@@ -279,12 +729,48 @@ const switchEpisode = (idx) => {
   currentIndex.value = idx
   currentEpisode.value = ep
   videoUrl.value = resolveVideoUrl(ep)
-}
-
-const onVideoEnded = () => {
-  // 自动播放下一集
-  if (currentIndex.value < episodes.value.length - 1) {
-    switchEpisode(currentIndex.value + 1)
+  currentTime.value = 0
+  duration.value = 0
+  isBuffering.value = true
+  switchingEpisode = true
+  clearTimeout(switchTimer)
+  showTip($t.value('playerSwitchEp').replace('{{n}}', idx + 1), 2000)
+  const v = getVideo()
+  if (v) {
+    v.src = videoUrl.value
+    v.playbackRate = playbackSpeed.value
+    const cleanup = () => {
+      v.removeEventListener('canplay', onReady)
+      v.removeEventListener('error', onSwitchErr)
+      clearTimeout(switchTimer)
+    }
+    const onReady = () => {
+      cleanup()
+      switchingEpisode = false
+      isBuffering.value = false
+      v.play().catch(() => {})
+    }
+    const onSwitchErr = () => {
+      cleanup()
+      switchingEpisode = false
+      isBuffering.value = false
+      showTip($t.value('playerLoadFail') + '，' + $t.value('playerTapRetry'), 5000)
+    }
+    v.addEventListener('canplay', onReady)
+    v.addEventListener('error', onSwitchErr)
+    // 15秒超时：可能网络极差，canplay 不触发
+    switchTimer = setTimeout(() => {
+      cleanup()
+      switchingEpisode = false
+      // 如果 duration 有了说明其实已在播放
+      if (v.duration > 0 && !v.paused) {
+        isBuffering.value = false
+        return
+      }
+      isBuffering.value = false
+      showTip($t.value('playerLoadSlow'), 5000)
+    }, 15000)
+    v.load()
   }
 }
 
@@ -311,6 +797,10 @@ const shareVideo = () => {
 const goBack = () => {
   uni.navigateBack()
 }
+
+onUnmounted(() => {
+  destroyPlayer()
+})
 </script>
 
 <style lang="scss">
@@ -354,20 +844,17 @@ page {
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transform: scale(0.92);
-  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .nf-theater-fade-in {
   opacity: 1;
-  transform: scale(1);
 }
 
 .nf-theater-close {
   position: absolute;
   top: 0;
   right: 0;
-  padding-top: var(--status-bar-height, 0px);
   width: 88rpx;
   height: 88rpx;
   display: flex;
@@ -382,12 +869,6 @@ page {
     transform: scale(0.9);
   }
 }
-
-/* #ifdef MP-WEIXIN */
-.nf-theater-close {
-  padding-top: var(--status-bar-height, 44px);
-}
-/* #endif */
 
 .nf-theater-badge {
   display: flex;
@@ -419,16 +900,41 @@ page {
 
 .nf-theater-video-wrap {
   width: 100%;
-  height: 422rpx;
   background: #000;
   border-radius: 0;
-  overflow: hidden;
   box-shadow: 0 20rpx 80rpx rgba(0, 0, 0, 0.6);
+  position: relative;
 }
 
 .nf-theater-video {
   width: 100%;
   height: 100%;
+}
+
+.nf-theater-poster-wrap {
+  width: 100%;
+  height: 56.25vw;
+  position: relative;
+}
+
+.nf-theater-poster {
+  width: 100%;
+  height: 100%;
+}
+
+.nf-theater-no-video {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.nf-theater-no-video-text {
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 2rpx;
 }
 
 .nf-theater-info {
@@ -518,12 +1024,6 @@ page {
   z-index: 5;
 }
 
-/* #ifdef MP-WEIXIN */
-.nf-hero-status {
-  height: var(--status-bar-height, 44px);
-}
-/* #endif */
-
 .nf-hero-img {
   width: 100%;
   height: 100%;
@@ -560,14 +1060,6 @@ page {
     transform: scale(0.92);
   }
 }
-
-/* #ifdef MP-WEIXIN */
-.nf-hero-back {
-  top: var(--status-bar-height, 44px);
-}
-/* #endif */
-
-
 
 /* ===== 内容滚动区 ===== */
 .nf-content-scroll {
@@ -849,5 +1341,235 @@ page {
 .nf-no-episodes-text {
   font-size: 28rpx;
   color: rgba(255, 255, 255, 0.3);
+}
+
+/* ===== 自定义视频播放器 ===== */
+.nf-vp {
+  position: relative;
+  width: 100%;
+  background: #000;
+  line-height: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.nf-vp-video {
+  width: 100%;
+  display: block;
+}
+
+.nf-vp:fullscreen,
+.nf-vp:-webkit-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+}
+
+.nf-vp:fullscreen .nf-vp-video,
+.nf-vp:-webkit-full-screen .nf-vp-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.nf-vp-touch {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 2;
+}
+
+.nf-vp-tip {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 15;
+  padding: 8px 18px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.nf-vp-loading {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 15;
+  pointer-events: none;
+}
+
+.nf-vp-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid rgba(255,255,255,0.2);
+  border-top-color: #e50914;
+  border-radius: 50%;
+  animation: vpSpin 0.8s linear infinite;
+}
+
+@keyframes vpSpin { to { transform: rotate(360deg); } }
+
+.nf-vp-ctrl {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  z-index: 10;
+  background: linear-gradient(transparent, rgba(0,0,0,0.85));
+  padding: 20px 10px calc(6px + env(safe-area-inset-bottom, 0px));
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+}
+
+.nf-vp-ctrl-show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.nf-vp-prog {
+  position: relative;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.nf-vp-prog-bar {
+  width: 100%;
+  height: 3px;
+  background: rgba(255,255,255,0.25);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.nf-vp-prog-fill {
+  height: 100%;
+  background: #e50914;
+  border-radius: 2px;
+}
+
+.nf-vp-prog-dot {
+  position: absolute;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #e50914;
+  box-shadow: 0 0 4px rgba(229,9,20,0.5);
+  top: 50%;
+  margin-left: -6px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.nf-vp-btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nf-vp-btn {
+  min-width: 36px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 15px;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+
+  &:active { opacity: 0.6; }
+}
+
+.nf-vp-time {
+  font-size: 12px;
+  color: rgba(255,255,255,0.65);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.nf-vp-spacer { flex: 1; }
+
+.nf-vp-spd,
+.nf-vp-fs,
+.nf-vp-ori {
+  font-size: 12px;
+  padding: 0 8px;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 4px;
+  height: 26px;
+}
+
+.nf-vp-ori {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.2);
+}
+
+/* CSS 全屏（iOS Safari 回退） */
+.nf-vp-css-fs {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  z-index: 999999 !important;
+  border-radius: 0 !important;
+  background: #000 !important;
+}
+
+.nf-vp-css-fs .nf-vp-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* CSS 全屏时控制栏额外底部安全距离 */
+.nf-vp-css-fs .nf-vp-ctrl {
+  padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px) + 10px);
+}
+
+/* CSS 全屏竖屏方向 */
+.nf-vp-css-fs-portrait {
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+}
+
+/* CSS transform 模拟横屏（兼容所有浏览器） */
+.nf-vp-landscape {
+  transform: rotate(90deg) !important;
+  transform-origin: center center !important;
+  width: 100vh !important;
+  width: 100dvh !important;
+  height: 100vw !important;
+  /* 居中修正：旋转后需要平移 */
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  margin: 0 !important;
+  translate: -50% -50% !important;
+}
+
+.nf-vp-landscape .nf-vp-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.nf-vp-landscape .nf-vp-ctrl {
+  padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px) + 10px);
+}
+
+/* 竖屏模式（全屏下切换到竖屏） */
+.nf-vp-portrait {
+  transform: rotate(0deg) !important;
+  transform-origin: center center !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
 }
 </style>
