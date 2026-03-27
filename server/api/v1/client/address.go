@@ -7,6 +7,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -38,9 +39,9 @@ func (addressApi *AddressApi) CreateAddress(c *gin.Context) {
 	}
 	if err := addressService.CreateAddress(&address); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage("创建失败", c)
+		response.FailWithMessage(i18n.T(c, "createFail"), c)
 	} else {
-		response.OkWithMessage("创建成功", c)
+		response.OkWithMessage(i18n.T(c, "createSuccess"), c)
 	}
 }
 
@@ -62,9 +63,9 @@ func (addressApi *AddressApi) DeleteAddress(c *gin.Context) {
 	}
 	if err := addressService.DeleteAddress(ID, UserID); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败", c)
+		response.FailWithMessage(i18n.T(c, "deleteFail"), c)
 	} else {
-		response.OkWithMessage("删除成功", c)
+		response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
 	}
 }
 
@@ -85,9 +86,9 @@ func (addressApi *AddressApi) DeleteAddressByIds(c *gin.Context) {
 	}
 	if err := addressService.DeleteAddressByIds(IDs, UserID); err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
-		response.FailWithMessage("批量删除失败", c)
+		response.FailWithMessage(i18n.T(c, "batchDeleteFail"), c)
 	} else {
-		response.OkWithMessage("批量删除成功", c)
+		response.OkWithMessage(i18n.T(c, "batchDeleteSuccess"), c)
 	}
 }
 
@@ -115,9 +116,9 @@ func (addressApi *AddressApi) UpdateAddress(c *gin.Context) {
 
 	if err := addressService.UpdateAddress(address); err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage("更新失败", c)
+		response.FailWithMessage(i18n.T(c, "updateFail"), c)
 	} else {
-		response.OkWithMessage("更新成功", c)
+		response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
 	}
 }
 
@@ -139,7 +140,7 @@ func (addressApi *AddressApi) FindAddress(c *gin.Context) {
 	}
 	if readdress, err := addressService.GetAddress(ID, UserID); err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage("查询失败", c)
+		response.FailWithMessage(i18n.T(c, "queryFail"), c)
 	} else {
 		response.OkWithData(gin.H{"readdress": readdress}, c)
 	}
@@ -163,7 +164,7 @@ func (addressApi *AddressApi) GetDefaultAddress(c *gin.Context) {
 	address, err := addressService.GetDefaultAddress(UserID) // 接收两个返回值
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 	} else {
 		response.OkWithData(address, c) // 使用返回的地址数据
 	}
@@ -191,14 +192,14 @@ func (addressApi *AddressApi) GetAddressList(c *gin.Context) {
 	}
 	if list, total, err := addressService.GetAddressInfoList(pageInfo); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 	} else {
 		response.OkWithDetailed(response.PageResult{
 			List:     list,
 			Total:    total,
 			Page:     pageInfo.Page,
 			PageSize: pageInfo.PageSize,
-		}, "获取成功", c)
+		}, i18n.T(c, "getSuccess"), c)
 	}
 }
 
@@ -213,7 +214,7 @@ func (addressApi *AddressApi) GetAddressDataSource(c *gin.Context) {
 	// 此接口为获取数据源定义的数据
 	if dataSource, err := addressService.GetAddressDataSource(); err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage("查询失败", c)
+		response.FailWithMessage(i18n.T(c, "queryFail"), c)
 	} else {
 		response.OkWithData(dataSource, c)
 	}

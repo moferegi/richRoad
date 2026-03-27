@@ -2,6 +2,9 @@ package client
 
 import (
 	"errors"
+	"strconv"
+	"time"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/external"
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
@@ -12,12 +15,11 @@ import (
 	systemRes "github.com/flipped-aurora/gin-vue-admin/server/model/system/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"github.com/mojocn/base64Captcha"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
-	"strconv"
-	"time"
 )
 
 type ClientUserApi struct {
@@ -30,13 +32,13 @@ var store = base64Captcha.DefaultMemStore
 func (clientUserApi *ClientUserApi) GetOpenID(c *gin.Context) {
 	code := c.Query("code")
 	if code == "" {
-		response.FailWithMessage("code不能为空", c)
+		response.FailWithMessage(i18n.T(c, "codeEmpty"), c)
 		return
 	}
 	res, err := external.GetOpenID(code)
 	if err != nil {
 		global.GVA_LOG.Error("获取openid失败!", zap.Error(err))
-		response.FailWithMessage("获取openid失败", c)
+		response.FailWithMessage(i18n.T(c, "openidFail"), c)
 		return
 	}
 	response.OkWithData(res, c)
@@ -47,7 +49,7 @@ func (clientUserApi *ClientUserApi) GetUserInfo(c *gin.Context) {
 	id := strconv.Itoa(int(userID))
 	if user, err := clientUserService.GetClientUser(id); err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage("查询失败", c)
+		response.FailWithMessage(i18n.T(c, "queryFail"), c)
 	} else {
 		response.OkWithData(user, c)
 	}
@@ -85,7 +87,7 @@ func (clientUserApi *ClientUserApi) Login(c *gin.Context) {
 			global.GVA_LOG.Error("登陆失败! 用户名不存在或者密码错误!", zap.Error(err))
 			// 验证码次数+1
 			global.BlackCache.Increment(key, 1)
-			response.FailWithMessage("用户名不存在或者密码错误", c)
+			response.FailWithMessage(i18n.T(c, "loginFail"), c)
 			return
 		}
 		clientUserApi.TokenNext(c, user)
@@ -93,7 +95,7 @@ func (clientUserApi *ClientUserApi) Login(c *gin.Context) {
 	}
 	// 验证码次数+1
 	global.BlackCache.Increment(key, 1)
-	response.FailWithMessage("验证码错误", c)
+	response.FailWithMessage(i18n.T(c, "captchaError"), c)
 }
 
 func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
@@ -105,7 +107,7 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 	}
 
 	if register.Password != register.RePassword {
-		response.FailWithMessage("两次输入的密码不一致", c)
+		response.FailWithMessage(i18n.T(c, "passwordMismatch"), c)
 		return
 	}
 
@@ -115,9 +117,9 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 	clientUser.Avatar = "https://qmplusimg.henrongyi.top/gva_header.jpg"
 	if err := clientUserService.CreateClientUser(&clientUser); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage("创建失败", c)
+		response.FailWithMessage(i18n.T(c, "createFail"), c)
 	} else {
-		response.OkWithMessage("创建成功", c)
+		response.OkWithMessage(i18n.T(c, "createSuccess"), c)
 	}
 }
 
@@ -141,9 +143,9 @@ func (clientUserApi *ClientUserApi) CreateClientUser(c *gin.Context) {
 
 	if err := clientUserService.CreateClientUser(&clientUser); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage("创建失败", c)
+		response.FailWithMessage(i18n.T(c, "createFail"), c)
 	} else {
-		response.OkWithMessage("创建成功", c)
+		response.OkWithMessage(i18n.T(c, "createSuccess"), c)
 	}
 }
 
@@ -161,9 +163,9 @@ func (clientUserApi *ClientUserApi) DeleteClientUser(c *gin.Context) {
 	userID := utils.GetUserID(c)
 	if err := clientUserService.DeleteClientUser(ID, userID); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败", c)
+		response.FailWithMessage(i18n.T(c, "deleteFail"), c)
 	} else {
-		response.OkWithMessage("删除成功", c)
+		response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
 	}
 }
 
@@ -180,9 +182,9 @@ func (clientUserApi *ClientUserApi) DeleteClientUserByIds(c *gin.Context) {
 	userID := utils.GetUserID(c)
 	if err := clientUserService.DeleteClientUserByIds(IDs, userID); err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
-		response.FailWithMessage("批量删除失败", c)
+		response.FailWithMessage(i18n.T(c, "batchDeleteFail"), c)
 	} else {
-		response.OkWithMessage("批量删除成功", c)
+		response.OkWithMessage(i18n.T(c, "batchDeleteSuccess"), c)
 	}
 }
 
@@ -206,9 +208,9 @@ func (clientUserApi *ClientUserApi) UpdateClientUser(c *gin.Context) {
 
 	if err := clientUserService.UpdateClientUser(clientUser); err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage("更新失败", c)
+		response.FailWithMessage(i18n.T(c, "updateFail"), c)
 	} else {
-		response.OkWithMessage("更新成功", c)
+		response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
 	}
 }
 
@@ -225,7 +227,7 @@ func (clientUserApi *ClientUserApi) FindClientUser(c *gin.Context) {
 	ID := c.Query("ID")
 	if reclientUser, err := clientUserService.GetClientUser(ID); err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage("查询失败", c)
+		response.FailWithMessage(i18n.T(c, "queryFail"), c)
 	} else {
 		response.OkWithData(gin.H{"reclientUser": reclientUser}, c)
 	}
@@ -249,14 +251,14 @@ func (clientUserApi *ClientUserApi) GetClientUserList(c *gin.Context) {
 	}
 	if list, total, err := clientUserService.GetClientUserInfoList(pageInfo); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 	} else {
 		response.OkWithDetailed(response.PageResult{
 			List:     list,
 			Total:    total,
 			Page:     pageInfo.Page,
 			PageSize: pageInfo.PageSize,
-		}, "获取成功", c)
+		}, i18n.T(c, "getSuccess"), c)
 	}
 }
 
@@ -289,15 +291,15 @@ func (clientUserApi *ClientUserApi) SetClientUserInfo(c *gin.Context) {
 		}
 	}
 	if !inWhiteList {
-		response.FailWithMessage("无法修改："+key, c)
+		response.FailWithMessage(i18n.T(c, "cannotModify")+":"+key, c)
 		return
 	}
 
 	if err := clientUserService.SetClientUserInfo(key, value, userID); err != nil {
 		global.GVA_LOG.Error("设置失败!", zap.Error(err))
-		response.FailWithMessage("设置失败:"+err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "setFail")+":"+err.Error(), c)
 	} else {
-		response.OkWithMessage("设置成功", c)
+		response.OkWithMessage(i18n.T(c, "setSuccess"), c)
 	}
 }
 
@@ -314,7 +316,7 @@ func (clientUserApi *ClientUserApi) TokenNext(c *gin.Context, user client.Client
 	token, err := j.CreateToken(claims)
 	if err != nil {
 		global.GVA_LOG.Error("获取token失败!", zap.Error(err))
-		response.FailWithMessage("获取token失败", c)
+		response.FailWithMessage(i18n.T(c, "tokenFail"), c)
 		return
 	}
 	if !global.GVA_CONFIG.System.UseMultipoint {
@@ -323,14 +325,14 @@ func (clientUserApi *ClientUserApi) TokenNext(c *gin.Context, user client.Client
 			User:      user,
 			Token:     token,
 			ExpiresAt: claims.RegisteredClaims.ExpiresAt.Unix() * 1000,
-		}, "登录成功", c)
+		}, i18n.T(c, "loginSuccess"), c)
 		return
 	}
 
 	if jwtStr, err := jwtService.GetRedisJWT(user.Username); errors.Is(err, redis.Nil) {
 		if err := utils.SetRedisJWT(token, user.Username); err != nil {
 			global.GVA_LOG.Error("设置登录状态失败!", zap.Error(err))
-			response.FailWithMessage("设置登录状态失败", c)
+			response.FailWithMessage(i18n.T(c, "loginStatusFail"), c)
 			return
 		}
 		utils.SetToken(c, token, int(claims.RegisteredClaims.ExpiresAt.Unix()-time.Now().Unix()))
@@ -338,19 +340,19 @@ func (clientUserApi *ClientUserApi) TokenNext(c *gin.Context, user client.Client
 			User:      user,
 			Token:     token,
 			ExpiresAt: claims.RegisteredClaims.ExpiresAt.Unix() * 1000,
-		}, "登录成功", c)
+		}, i18n.T(c, "loginSuccess"), c)
 	} else if err != nil {
 		global.GVA_LOG.Error("设置登录状态失败!", zap.Error(err))
-		response.FailWithMessage("设置登录状态失败", c)
+		response.FailWithMessage(i18n.T(c, "loginStatusFail"), c)
 	} else {
 		var blackJWT system.JwtBlacklist
 		blackJWT.Jwt = jwtStr
 		if err := jwtService.JsonInBlacklist(blackJWT); err != nil {
-			response.FailWithMessage("jwt作废失败", c)
+			response.FailWithMessage(i18n.T(c, "jwtBlacklistFail"), c)
 			return
 		}
 		if err := utils.SetRedisJWT(token, user.Username); err != nil {
-			response.FailWithMessage("设置登录状态失败", c)
+			response.FailWithMessage(i18n.T(c, "loginStatusFail"), c)
 			return
 		}
 		utils.SetToken(c, token, int(claims.RegisteredClaims.ExpiresAt.Unix()-time.Now().Unix()))
@@ -358,7 +360,7 @@ func (clientUserApi *ClientUserApi) TokenNext(c *gin.Context, user client.Client
 			User:      user,
 			Token:     token,
 			ExpiresAt: claims.RegisteredClaims.ExpiresAt.Unix() * 1000,
-		}, "登录成功", c)
+		}, i18n.T(c, "loginSuccess"), c)
 	}
 }
 

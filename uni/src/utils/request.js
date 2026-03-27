@@ -28,7 +28,8 @@ export const request = ({url, data, header, method, params}) => {
             data: data || '',
             method,
             header: {
-                'x-token': uni.getStorageSync('x-token'), //自定义请求头信息
+                'x-token': uni.getStorageSync('x-token'),
+                'Accept-Language': uni.getStorageSync('app-lang') || 'zh',
                 ...header
             },
             success: (res) => {

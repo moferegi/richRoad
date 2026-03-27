@@ -2,6 +2,7 @@ package client
 
 import (
 	"errors"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	clientReq "github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
@@ -20,7 +21,7 @@ func (collectService *CollectService) CreateCollect(collect *client.Collect) (er
 		var s shop.Good
 		sErr := tx.First(&s, "id = ?", collect.GoodID).Error
 		if sErr != nil {
-			return errors.New("商品不存在")
+			return errors.New("seriesNotFound")
 		}
 		ferr := tx.First(&coll, "user_id = ? and good_id = ?", collect.UserID, collect.GoodID).Error
 		if ferr != nil {

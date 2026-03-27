@@ -7,6 +7,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -35,9 +36,9 @@ func (collectApi *CollectApi) CreateCollect(c *gin.Context) {
 	collect.UserID = utils.GetUserID(c)
 	if err := collectService.CreateCollect(&collect); err != nil {
 		global.GVA_LOG.Error("失败!", zap.Error(err))
-		response.FailWithMessage("失败", c)
+		response.FailWithMessage(i18n.T(c, err.Error()), c)
 	} else {
-		response.OkWithMessage("成功", c)
+		response.OkWithMessage(i18n.T(c, "success"), c)
 	}
 }
 
@@ -54,9 +55,9 @@ func (collectApi *CollectApi) DeleteCollect(c *gin.Context) {
 	ID := c.Query("ID")
 	if err := collectService.DeleteCollect(ID); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败", c)
+		response.FailWithMessage(i18n.T(c, "deleteFail"), c)
 	} else {
-		response.OkWithMessage("删除成功", c)
+		response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
 	}
 }
 
@@ -72,9 +73,9 @@ func (collectApi *CollectApi) DeleteCollectByIds(c *gin.Context) {
 	IDs := c.QueryArray("IDs[]")
 	if err := collectService.DeleteCollectByIds(IDs); err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
-		response.FailWithMessage("批量删除失败", c)
+		response.FailWithMessage(i18n.T(c, "batchDeleteFail"), c)
 	} else {
-		response.OkWithMessage("批量删除成功", c)
+		response.OkWithMessage(i18n.T(c, "batchDeleteSuccess"), c)
 	}
 }
 
@@ -97,9 +98,9 @@ func (collectApi *CollectApi) UpdateCollect(c *gin.Context) {
 
 	if err := collectService.UpdateCollect(collect); err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage("更新失败", c)
+		response.FailWithMessage(i18n.T(c, "updateFail"), c)
 	} else {
-		response.OkWithMessage("更新成功", c)
+		response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
 	}
 }
 
@@ -117,7 +118,7 @@ func (collectApi *CollectApi) FindCollect(c *gin.Context) {
 	userID := utils.GetUserID(c)
 	if ok, err := collectService.GetCollect(userID, ID); err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage("查询失败", c)
+		response.FailWithMessage(i18n.T(c, "queryFail"), c)
 	} else {
 		response.OkWithData(ok, c)
 	}
@@ -142,14 +143,14 @@ func (collectApi *CollectApi) GetCollectList(c *gin.Context) {
 	pageInfo.UserID = utils.GetUserID(c)
 	if list, total, err := collectService.GetCollectInfoList(pageInfo); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 	} else {
 		response.OkWithDetailed(response.PageResult{
 			List:     list,
 			Total:    total,
 			Page:     pageInfo.Page,
 			PageSize: pageInfo.PageSize,
-		}, "获取成功", c)
+		}, i18n.T(c, "getSuccess"), c)
 	}
 }
 
@@ -166,5 +167,5 @@ func (collectApi *CollectApi) GetCollectPublic(c *gin.Context) {
 	// 示例为返回了一个固定的消息接口，一般本接口用于C端服务，需要自己实现业务逻辑
 	response.OkWithDetailed(gin.H{
 		"info": "不需要鉴权的收藏接口信息",
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }

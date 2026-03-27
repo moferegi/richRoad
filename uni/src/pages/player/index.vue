@@ -873,7 +873,7 @@ const toggleCollect = async () => {
   if (res.code === 0) {
     collectionFlag.value = !collectionFlag.value
     uni.showToast({
-      title: collectionFlag.value ? $t.value('playerCollected') : $t.value('playerCollect'),
+      title: collectionFlag.value ? $t.value('collected') : $t.value('uncollected'),
       icon: 'none'
     })
   }

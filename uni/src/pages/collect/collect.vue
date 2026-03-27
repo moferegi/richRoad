@@ -68,6 +68,20 @@
       </view>
     </scroll-view>
 
+    <!-- Netflix风格登录弹窗 -->
+    <view v-if="showLoginModal" class="nf-modal-mask" @tap.stop>
+      <view class="nf-modal-box">
+        <text class="nf-modal-title">{{ $t('loginFirst') }}</text>
+        <view class="nf-modal-btns">
+          <view class="nf-modal-btn nf-modal-cancel" @tap="onModalCancel">
+            <text>{{ $t('cancel') }}</text>
+          </view>
+          <view class="nf-modal-btn nf-modal-confirm" @tap="onModalConfirm">
+            <text>{{ $t('goLogin') }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -87,6 +101,7 @@ const userStore = useUserStore()
 const token = userStore.token || ''
 const collectList = ref([])
 const collectionFlag = ref('')
+const showLoginModal = ref(false)
 
 const formatPrice = (priceInCents) => {
   if (!priceInCents && priceInCents !== 0) return '0.00'
@@ -106,7 +121,30 @@ const init = async () => {
   }
 }
 
-onShow(() => { init() })
+onShow(() => {
+  const tk = uni.getStorageSync('x-token')
+  if (!tk) {
+    showLoginModal.value = true
+    return
+  }
+  showLoginModal.value = false
+  init()
+})
+
+const onModalCancel = () => {
+  showLoginModal.value = false
+  const pages = getCurrentPages()
+  if (pages.length > 1) {
+    uni.navigateBack()
+  } else {
+    uni.reLaunch({ url: '/pages/tabBar/index' })
+  }
+}
+
+const onModalConfirm = () => {
+  showLoginModal.value = false
+  uni.redirectTo({ url: '/pages/user/login' })
+}
 
 const debounce = (func, delay) => {
   let timer
@@ -168,6 +206,61 @@ const getDiscountText = (discount) => {
 
 <style lang="scss" scoped>
 page { background: #000; }
+
+/* Netflix风格登录弹窗 */
+.nf-modal-mask {
+  position: fixed;
+  left: 0; top: 0; right: 0; bottom: 0;
+  z-index: 9999;
+  background: rgba(0,0,0,0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nf-modal-box {
+  width: 560rpx;
+  background: #1a1a1a;
+  border-radius: 24rpx;
+  padding: 60rpx 48rpx 48rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 8rpx 40rpx rgba(229,9,20,0.18);
+}
+.nf-modal-title {
+  color: #fff;
+  font-size: 34rpx;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 56rpx;
+  letter-spacing: 1rpx;
+}
+.nf-modal-btns {
+  display: flex;
+  width: 100%;
+  gap: 24rpx;
+}
+.nf-modal-btn {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  font-weight: 500;
+  letter-spacing: 1rpx;
+}
+.nf-modal-cancel {
+  background: #333;
+  color: #ccc;
+}
+.nf-modal-cancel:active { background: #444; }
+.nf-modal-confirm {
+  background: #e50914;
+  color: #fff;
+}
+.nf-modal-confirm:active { background: #b20710; }
 
 .nf-collect {
   min-height: 100vh;
