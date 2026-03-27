@@ -199,6 +199,7 @@ import { findCollect, createCollect } from '@/api/collect.js'
 import { getUrl } from '@/utils/url.js'
 import { useUserStore } from '@/pinia/modules/user'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { usePlayHistoryStore } from '@/pinia/modules/playHistory.js'
 
 
 const langStore = useLangStore()
@@ -207,6 +208,7 @@ const $lt = computed(() => langStore.$lt)
 
 const userStore = useUserStore()
 const token = userStore.token || ''
+const playHistoryStore = usePlayHistoryStore()
 
 const data = ref({})
 const episodes = ref([])
@@ -238,10 +240,13 @@ const formatNum = (num) => {
   return String(num)
 }
 
-onLoad((options) => {
+onLoad(async (options) => {
   if (options.id) {
     goodID.value = options.id
-    init()
+    await init()
+    if (options.autoplay) {
+      playFirst()
+    }
   }
 })
 
@@ -275,6 +280,17 @@ const openTheater = () => {
 }
 
 const closeTheater = () => {
+  // 关闭前立即保存进度
+  if (goodID.value && currentTime.value > 5) {
+    playHistoryStore.saveProgress(goodID.value, {
+      episodeIndex: currentIndex.value,
+      currentTime: currentTime.value,
+      duration: duration.value,
+      episodeName: currentEpisode.value?.name || epLabel(currentIndex.value + 1),
+      imageUrl: data.value.imageUrl,
+      title: data.value.title
+    })
+  }
   theaterReady.value = false
   isPlaying.value = false
   destroyPlayer()
@@ -372,6 +388,29 @@ const initPlayer = () => {
     v.addEventListener('loadeddata', onCanPlay)
     v.playbackRate = playbackSpeed.value
     v.play().catch(() => {})
+    // 恢复历史进度
+    if (pendingResumeTime > 0) {
+      const targetTime = pendingResumeTime
+      const epNum = currentIndex.value + 1
+      pendingResumeTime = 0
+      const doSeek = () => {
+        v.removeEventListener('loadedmetadata', doSeek)
+        v.removeEventListener('canplay', doSeek)
+        v.currentTime = targetTime
+        showTip(
+          $t.value('playerContinueFrom')
+            .replace('{{ep}}', epNum)
+            .replace('{{time}}', fmtTime(targetTime)),
+          3000
+        )
+      }
+      if (v.readyState >= 1) {
+        doSeek()
+      } else {
+        v.addEventListener('loadedmetadata', doSeek)
+        v.addEventListener('canplay', doSeek)
+      }
+    }
     showCtrlBriefly()
     document.addEventListener('fullscreenchange', onFsChange)
     document.addEventListener('webkitfullscreenchange', onFsChange)
@@ -518,6 +557,8 @@ let seekingByClick = false
 let seekPrevTime = 0
 let switchingEpisode = false
 let switchTimer = null
+let pendingResumeTime = 0   // 待恢复的播放时间（由 playFirst 设置）
+let lastSaveTime = 0        // 上次保存进度的时间戳（节流用）
 
 const vpProgClick = (e) => {
   const bar = vpProgRef.value
@@ -576,6 +617,19 @@ const vpTimeUpdate = () => {
   duration.value = v.duration || 0
   // timeupdate 说明在播放，清除加载状态
   if (isBuffering.value && !switchingEpisode) isBuffering.value = false
+  // 每10秒节流保存播放进度
+  const now = Date.now()
+  if (goodID.value && currentTime.value > 5 && now - lastSaveTime > 10000) {
+    lastSaveTime = now
+    playHistoryStore.saveProgress(goodID.value, {
+      episodeIndex: currentIndex.value,
+      currentTime: currentTime.value,
+      duration: duration.value,
+      episodeName: currentEpisode.value?.name || epLabel(currentIndex.value + 1),
+      imageUrl: data.value.imageUrl,
+      title: data.value.title
+    })
+  }
 }
 
 const vpEnded = () => {
@@ -708,8 +762,11 @@ const resolveVideoUrl = (ep) => {
 
 const playFirst = () => {
   if (episodes.value.length > 0) {
-    playEpisode(0)
+    const progress = playHistoryStore.getProgress(goodID.value)
+    const epIdx = progress ? Math.min(progress.episodeIndex, episodes.value.length - 1) : 0
+    playEpisode(epIdx)
   } else {
+    pendingResumeTime = 0
     openTheater()
   }
 }
@@ -720,12 +777,27 @@ const playEpisode = (idx) => {
   currentIndex.value = idx
   currentEpisode.value = ep
   videoUrl.value = resolveVideoUrl(ep)
+  // 查询该集的历史进度
+  const epProg = playHistoryStore.getEpisodeProgress(goodID.value, idx)
+  pendingResumeTime = epProg ? epProg.currentTime : 0
+  lastSaveTime = 0  // 新集数，重置节流计时
   openTheater()
 }
 
 const switchEpisode = (idx) => {
   const ep = episodes.value[idx]
   if (!ep) return
+  // 切换前先保存当前集进度
+  if (goodID.value && currentTime.value > 5) {
+    playHistoryStore.saveProgress(goodID.value, {
+      episodeIndex: currentIndex.value,
+      currentTime: currentTime.value,
+      duration: duration.value,
+      episodeName: currentEpisode.value?.name || epLabel(currentIndex.value + 1),
+      imageUrl: data.value.imageUrl,
+      title: data.value.title
+    })
+  }
   currentIndex.value = idx
   currentEpisode.value = ep
   videoUrl.value = resolveVideoUrl(ep)
@@ -733,6 +805,10 @@ const switchEpisode = (idx) => {
   duration.value = 0
   isBuffering.value = true
   switchingEpisode = true
+  // 查询该集的历史进度，有则恢复
+  const epProg = playHistoryStore.getEpisodeProgress(goodID.value, idx)
+  pendingResumeTime = epProg ? epProg.currentTime : 0
+  lastSaveTime = 0       // 新集数重置节流
   clearTimeout(switchTimer)
   showTip($t.value('playerSwitchEp').replace('{{n}}', idx + 1), 2000)
   const v = getVideo()
@@ -748,6 +824,19 @@ const switchEpisode = (idx) => {
       cleanup()
       switchingEpisode = false
       isBuffering.value = false
+      // 如果有历史进度要恢复
+      if (pendingResumeTime > 0) {
+        const targetTime = pendingResumeTime
+        const epNum = currentIndex.value + 1
+        pendingResumeTime = 0
+        v.currentTime = targetTime
+        showTip(
+          $t.value('playerContinueFrom')
+            .replace('{{ep}}', epNum)
+            .replace('{{time}}', fmtTime(targetTime)),
+          3000
+        )
+      }
       v.play().catch(() => {})
     }
     const onSwitchErr = () => {
@@ -815,6 +904,15 @@ page {
   height: 100vh;
   background: #000;
   position: relative;
+}
+
+/* 压制浏览器原生 video 控件条（部分移动端会强制显示加载进度条） */
+.nf-vp-video::-webkit-media-controls,
+.nf-vp-video::-webkit-media-controls-panel,
+.nf-vp-video::-webkit-media-controls-enclosure,
+.nf-vp-video::-webkit-media-controls-overlay-play-button {
+  display: none !important;
+  -webkit-appearance: none;
 }
 
 /* ========== 全屏影院弹层 ========== */

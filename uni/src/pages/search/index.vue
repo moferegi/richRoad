@@ -1,36 +1,48 @@
 <template>
-  <view class="search-page">
-    <!-- 顶部搜索栏 -->
-    <view class="status-bar-placeholder"></view>
-    <view class="search-header">
-      <view class="search-container">
-        <!-- 左侧返回首页按钮 -->
-        <view class="back-home-icon" @click="goToHome">
-          <uni-icons type="home" size="20" color="#fff"></uni-icons>
-        </view>
+  <view class="nf-search">
+    <!-- 状态栏占位 -->
+    <view class="nf-search-status"></view>
 
-        <!-- 中间搜索框 -->
-        <view class="search-input-container">
+    <!-- 搜索栏 -->
+    <view class="nf-search-header">
+      <view class="nf-search-row">
+        <!-- 返回首页 -->
+        <view class="nf-search-back" @tap="goToHome">
+          <uni-icons type="home" size="22" color="#fff" />
+        </view>
+        <!-- 搜索框 -->
+        <view class="nf-search-input-wrap">
+          <uni-icons type="search" size="16" color="rgba(255,255,255,0.4)" />
           <input
-            class="search-input"
+            class="nf-search-input"
             v-model="searchKeyword"
-            placeholder="请输入您想搜索的商品"
+            :placeholder="$t('searchPlaceholder')"
+            placeholder-class="nf-search-ph"
             @confirm="handleSearch"
             confirm-type="search"
             focus
           />
+          <view v-if="searchKeyword" class="nf-search-clear" @tap="searchKeyword = ''">
+            <uni-icons type="closeempty" size="14" color="rgba(255,255,255,0.4)" />
+          </view>
         </view>
-
-        <!-- 右侧搜索按钮 -->
-        <view class="search-button" @click="handleSearch">
-          <uni-icons type="search" size="20" color="#fff"></uni-icons>
+        <!-- 搜索按钮 -->
+        <view class="nf-search-btn" @tap="handleSearch">
+          <text class="nf-search-btn-text">{{ $t('searchBtn') }}</text>
         </view>
       </view>
     </view>
 
-    <!-- 商品列表区域 -->
-    <scroll-view scroll-y="true" class="scroll-container" @scrolltolower="handleLoadMore">
-      <view class="goods-section">
+    <!-- 内容区 -->
+    <scroll-view scroll-y="true" class="nf-search-scroll" @scrolltolower="handleLoadMore">
+
+      <!-- 搜索结果提示条 -->
+      <view class="nf-result-tip" v-if="hasSearched && goodsList.length > 0">
+        <text class="nf-result-tip-text">{{ searchResultLabel }}</text>
+      </view>
+
+      <!-- 商品列表 -->
+      <view class="nf-goods-wrap" v-if="goodsList.length > 0">
         <no-pagin-grid-good-list
           :goodsList="goodsList"
           :loading="isLoading"
@@ -39,25 +51,41 @@
         />
       </view>
 
-      <!-- 底部加载状态 -->
-      <view class="loading-status" v-if="goodsList.length > 0">
-        <gva-divider :text="isBottom ? '已经到底啦' : '加载中...'" />
+      <!-- 已加载全部 -->
+      <view class="nf-load-all" v-if="goodsList.length > 0 && isBottom">
+        <text class="nf-load-all-text">{{ $t('searchLoadAll') }}</text>
       </view>
 
       <!-- 空状态 -->
-      <view class="empty-state" v-if="goodsList.length === 0 && !isLoading && hasSearched">
-        <uni-icons type="search" size="60" color="#ddd" />
-        <text>未找到相关商品</text>
+      <view class="nf-empty" v-if="goodsList.length === 0 && !isLoading && hasSearched">
+        <view class="nf-empty-icon-wrap"><uni-icons type="search" size="72" color="rgba(255,255,255,0.12)" /></view>
+        <text class="nf-empty-title">{{ $t('searchNoResult') }}</text>
+        <text class="nf-empty-desc">{{ $t('searchNoResultTip') }}</text>
       </view>
+
+      <!-- 初始引导 -->
+      <view class="nf-init" v-if="!hasSearched && goodsList.length === 0 && !isLoading">
+        <view class="nf-init-icon-wrap"><uni-icons type="search" size="72" color="rgba(255,255,255,0.12)" /></view>
+        <text class="nf-init-title">{{ $t('searchInitTitle') }}</text>
+        <text class="nf-init-desc">{{ $t('searchInitTip') }}</text>
+      </view>
+
+      <!-- 底部安全区 -->
+      <view style="height: 60rpx;"></view>
     </scroll-view>
   </view>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getGoodList } from '@/api/homePage.js'
 import noPaginGridGoodList from '@/components/good-list/no-pagin-grid-good-list.vue'
+import { useLangStore } from '@/pinia/modules/lang.js'
+
+const langStore = useLangStore()
+const $t = computed(() => langStore.$t)
+const searchResultLabel = computed(() => $t.value('searchResultCount').replace('{' + '{n}}', goodsList.value.length))
 
 // 搜索相关
 const searchKeyword = ref('')
@@ -116,10 +144,7 @@ const goToHome = () => {
 // 执行搜索
 const handleSearch = async () => {
   if (!searchKeyword.value.trim()) {
-    uni.showToast({
-      title: '请输入搜索关键词',
-      icon: 'none'
-    })
+    uni.showToast({ title: $t.value('searchEmpty'), icon: 'none' })
     return
   }
 
@@ -169,18 +194,12 @@ const loadGoodsList = async (isRefresh = false) => {
       }
     } else {
       console.error('搜索API错误:', res)
-      uni.showToast({
-        title: res.msg || '搜索失败',
-        icon: 'none'
-      })
+      uni.showToast({ title: res.msg || $t.value('searchNoResult'), icon: 'none' })
       isBottom.value = true
     }
   } catch (error) {
     console.error('搜索商品失败:', error)
-    uni.showToast({
-      title: '网络错误，请重试',
-      icon: 'none'
-    })
+    uni.showToast({ title: $t.value('playerLoadFail'), icon: 'none' })
   } finally {
     isLoading.value = false
   }
@@ -196,120 +215,193 @@ const handleLoadMore = async () => {
 </script>
 
 <style lang="scss" scoped>
-.search-page {
+page {
+  background-color: #000;
+}
+
+.nf-search {
   width: 100%;
   height: 100vh;
-  background-color: #ffffff;
+  background: #000;
   display: flex;
   flex-direction: column;
 }
 
-// 刘海屏适配
-.status-bar-placeholder {
+/* 状态栏占位 */
+.nf-search-status {
   width: 100%;
   height: var(--status-bar-height, 0px);
-  background-color: #ff4c7d;
+  flex-shrink: 0;
 }
 
-// 微信小程序刘海屏兼容
-/* #ifdef MP-WEIXIN */
-.status-bar-placeholder {
-  height: var(--status-bar-height, 44px);
-}
-/* #endif */
-
-.search-header {
-  background-color: #ff4c7d;
-  padding: 16rpx 24rpx;
-  position: sticky;
-  top: 0;
-  z-index: 99;
+/* 搜索栏 */
+.nf-search-header {
+  flex-shrink: 0;
+  padding: 16rpx 24rpx 20rpx;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
 }
 
-.search-container {
+.nf-search-row {
   display: flex;
   align-items: center;
-  gap: 20rpx;
-  margin-top: 2rem;
+  gap: 16rpx;
 }
 
-
-
-// 返回首页按钮样式
-.back-home-icon {
-  width: 60rpx;
-  height: 60rpx;
+/* 首页按钮 */
+.nf-search-back {
+  flex-shrink: 0;
+  width: 68rpx;
+  height: 68rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.08);
 
   &:active {
-    background-color: rgba(255, 255, 255, 0.1);
-    transform: scale(0.95);
+    background: rgba(255, 255, 255, 0.16);
+    transform: scale(0.92);
   }
 }
 
-.search-input-container {
+/* 输入框容器 */
+.nf-search-input-wrap {
   flex: 1;
-  background-color: #fff;
-  height: 72rpx;
-  border-radius: 36rpx;
+  height: 68rpx;
   display: flex;
   align-items: center;
-  padding: 0 24rpx;
+  gap: 12rpx;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  border-radius: 8rpx;
+  padding: 0 16rpx;
+  transition: border-color 0.2s;
+
+  &:focus-within {
+    border-color: rgba(229, 9, 20, 0.45);
+  }
 }
 
-.search-input {
+.nf-search-input {
   flex: 1;
   font-size: 28rpx;
-  color: #333;
-
-  &::placeholder {
-    color: #999;
-  }
+  color: #fff;
+  background: transparent;
 }
 
-.search-button {
-  width: 60rpx;
-  height: 60rpx;
+.nf-search-ph {
+  color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.nf-search-clear {
+  flex-shrink: 0;
+  width: 44rpx;
+  height: 44rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  transition: all 0.3s ease;
+
+  &:active { opacity: 0.6; transform: scale(0.88); }
+}
+
+/* 搜索按钮 */
+.nf-search-btn {
+  flex-shrink: 0;
+  width: 104rpx;
+  height: 68rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e50914, #b20710);
+  border-radius: 8rpx;
+  box-shadow: 0 4rpx 12rpx rgba(229, 9, 20, 0.3);
 
   &:active {
-    background-color: rgba(255, 255, 255, 0.1);
     transform: scale(0.95);
+    box-shadow: 0 2rpx 6rpx rgba(229, 9, 20, 0.4);
   }
 }
 
-.scroll-container {
+.nf-search-btn-text {
+  color: #fff;
+  font-size: 26rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+}
+
+/* 滚动区 */
+.nf-search-scroll {
   flex: 1;
-  height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar { display: none; width: 0; height: 0; }
 }
 
-.goods-section {
-  padding: 10rpx;
+/* 结果数量提示 */
+.nf-result-tip {
+  padding: 20rpx 32rpx 12rpx;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.05);
+
+  .nf-result-tip-text {
+    font-size: 24rpx;
+    color: rgba(255, 255, 255, 0.45);
+    letter-spacing: 0.5rpx;
+  }
 }
 
-.loading-status {
+/* 商品列表 */
+.nf-goods-wrap {
+  padding: 20rpx 12rpx;
+}
+
+/* 已加载全部 */
+.nf-load-all {
   padding: 40rpx 0;
+  text-align: center;
+
+  .nf-load-all-text {
+    font-size: 24rpx;
+    color: rgba(255, 255, 255, 0.3);
+    letter-spacing: 1rpx;
+  }
 }
 
-.empty-state {
+/* 空状态 & 初始引导 */
+.nf-empty,
+.nf-init {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 120rpx 0;
+  padding: 120rpx 48rpx;
+  min-height: 60vh;
+}
 
-  text {
-    font-size: 28rpx;
-    color: #999;
-    margin-top: 24rpx;
-  }
+.nf-empty-icon-wrap,
+.nf-init-icon-wrap {
+  margin-bottom: 36rpx;
+}
+
+.nf-empty-title,
+.nf-init-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 1rpx;
+  margin-bottom: 12rpx;
+  text-align: center;
+}
+
+.nf-empty-desc,
+.nf-init-desc {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.28);
+  text-align: center;
+  line-height: 1.6;
 }
 </style>

@@ -49,7 +49,7 @@
         <view class="nf-section-icon">
           <image class="nf-section-icon-img" src="/static/history.png" mode="aspectFill" />
         </view>
-        <text class="nf-section-title">{{ $t('browseHistory') }}</text>
+        <text class="nf-section-title">{{ $t('playHistory') }}</text>
         <view class="nf-section-line"></view>
       </view>
       <scroll-view class="nf-history-scroll" scroll-x>
@@ -62,6 +62,13 @@
           >
             <image class="nf-history-img" :src="item && item.imageUrl ? getUrl(item.imageUrl) : ''" mode="aspectFill"></image>
             <view class="nf-history-overlay"></view>
+            <!-- 播放进度条 -->
+            <view class="nf-history-prog-wrap" v-if="getItemProgressPct(item) > 0">
+              <text class="nf-history-ep-text">{{ epProgressLabel(item) }}</text>
+              <view class="nf-history-prog-bar">
+                <view class="nf-history-prog-fill" :style="{ width: getItemProgressPct(item) + '%' }"></view>
+              </view>
+            </view>
           </view>
         </view>
       </scroll-view>
@@ -99,12 +106,43 @@ import { myRouter } from "@/utils/permission";
 import { setClientUserInfo } from "@/api/base";
 import {useUserStore} from "@/pinia/modules/user.js"
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { usePlayHistoryStore } from '@/pinia/modules/playHistory.js'
 import { onShow } from '@dcloudio/uni-app'
 import { getGoodHistory } from '@/api/order.js'
 import langSwitch from '@/components/lang-switch/lang-switch.vue'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
+const playHistoryStore = usePlayHistoryStore()
+
+// 播放历史进度 —— computed 自动追踪 historyList 和 store.histories 的变化
+const historyProgData = computed(() => {
+  const map = {}
+  for (const item of historyList.value) {
+    if (!item || !item.ID) continue
+    const prog = playHistoryStore.getProgress(item.ID)
+    if (prog && prog.duration > 0) {
+      const pct = Math.min(100, Math.round(prog.currentTime / prog.duration * 100))
+      const s = prog.currentTime || 0
+      const m = Math.floor(s / 60)
+      const sec = Math.floor(s % 60)
+      const timeStr = m + ':' + (sec < 10 ? '0' : '') + sec
+      const ep = (prog.episodeIndex || 0) + 1
+      map[item.ID] = { pct, label: 'EP' + ep + ' · ' + timeStr }
+    }
+  }
+  return map
+})
+
+const getItemProgressPct = (item) => {
+  if (!item || !item.ID) return 0
+  return (historyProgData.value[item.ID] || {}).pct || 0
+}
+
+const epProgressLabel = (item) => {
+  if (!item || !item.ID) return ''
+  return (historyProgData.value[item.ID] || {}).label || ''
+}
 
 const showLangPicker = ref(false)
 const onLangChange = () => {}
@@ -149,25 +187,31 @@ onShow(() => {
   } else {
     isShow.value = false
   }
+  playHistoryStore.reload()
   getHistory()
 })
 
 // 获取浏览历史的方法
 const getHistory = async () => {
-  const res = await getGoodHistory()
-  if (res.code === 0) {
-    historyList.value = res.data
-  } else {
-    uni.showToast({
-      title: res.msg,
-      icon: 'none'
-    })
+  const token = userStore.token || ''
+  if (token) {
+    try {
+      const res = await getGoodHistory()
+      if (res.code === 0 && res.data && res.data.length) {
+        historyList.value = res.data
+        return
+      }
+    } catch (e) {}
+  }
+  // 未登录或API无数据时，用本地播放历史
+  const localList = playHistoryStore.getRecentList(10)
+  if (localList.length) {
+    historyList.value = localList
   }
 }
 
-// 跳转到商品详情页
+// 跳转到播放页并自动播放
 const goto = (item) => {
-  console.log(item);
   if (!item || !item.ID) {
     uni.showToast({
       title: $t.value('goodsInfoIncomplete'),
@@ -175,7 +219,7 @@ const goto = (item) => {
     })
     return
   }
-  myRouter(`/pages/player/index?id=${item.ID}`, true)
+  myRouter(`/pages/player/index?id=${item.ID}&autoplay=1`, true)
 }
 
 const logins = () => {
@@ -561,8 +605,35 @@ page {
   position: absolute;
   bottom: 0; left: 0; right: 0;
   height: 50%;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
   pointer-events: none;
+}
+
+/* 播放进度条 */
+.nf-history-prog-wrap {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  pointer-events: none;
+}
+
+.nf-history-ep-text {
+  display: block;
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.85);
+  padding: 0 10rpx 6rpx;
+  line-height: 1;
+}
+
+.nf-history-prog-bar {
+  height: 6rpx;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+
+.nf-history-prog-fill {
+  height: 100%;
+  background: #e50914;
+  min-width: 6rpx;
 }
 
 /* ===== 功能菜单 ===== */
