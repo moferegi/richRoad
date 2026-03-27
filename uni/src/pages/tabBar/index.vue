@@ -34,8 +34,6 @@
     <scroll-view scroll-y="true" :show-scrollbar="false" class="nf-scroll" @scrolltolower="debouncedLower">
       <!-- 轮播图区域 -->
       <swpiers :lists="list"></swpiers>
-      <!-- 限时秒杀区域 -->
-      <seckilling v-if="products.length > 0" :productData="products"></seckilling>
       <!-- 分类导航 -->
       <categories :categoriesData="gridList" v-model="activeCategoryID" @change="onCategoryChange"></categories>
       <!-- 商品展示区 -->
@@ -49,8 +47,8 @@
         />
       </view>
       <!-- 底部加载状态 -->
-      <view class="nf-loading-status" v-if="flowData.length > 0">
-        <gva-divider :text="isBottom ? $t('reachedBottom') : $t('loading')"></gva-divider>
+      <view class="nf-footer" v-if="flowData.length > 0">
+        <text class="nf-footer-text">{{ isBottom ? $t('reachedBottom') : $t('loading') }}</text>
       </view>
       <!-- 空状态 -->
       <view class="nf-empty" v-if="flowData.length === 0 && !isLoading">
@@ -411,9 +409,15 @@ page {
 }
 
 /* ===== 加载状态 ===== */
-.nf-loading-status {
-  padding: 40rpx 0;
-  background: #000;
+.nf-footer {
+  padding: 40rpx;
+  text-align: center;
+}
+
+.nf-footer-text {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.25);
+  letter-spacing: 2rpx;
 }
 
 /* ===== 空状态 ===== */

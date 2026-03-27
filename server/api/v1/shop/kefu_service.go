@@ -172,19 +172,18 @@ func (kefuApi *KefuApi) GetKefuList(c *gin.Context) {
 
 // GetKefuPublic 不需要鉴权的客服接口
 // @Tags Kefu
-// @Summary 不需要鉴权的客服接口
+// @Summary 获取客服列表（公开）
 // @Accept application/json
 // @Produce application/json
-// @Success 200 {object} response.Response{data=object,msg=string} "获取成功"
+// @Success 200 {object} response.Response{data=[]shop.Kefu,msg=string} "获取成功"
 // @Router /kefu/getKefuPublic [get]
 func (kefuApi *KefuApi) GetKefuPublic(c *gin.Context) {
-    // 创建业务用Context
     ctx := c.Request.Context()
-
-    // 此接口不需要鉴权
-    // 示例为返回了一个固定的消息接口，一般本接口用于C端服务，需要自己实现业务逻辑
-    kefuService.GetKefuPublic(ctx)
-    response.OkWithDetailed(gin.H{
-       "info": "不需要鉴权的客服接口信息",
-    }, "获取成功", c)
+    list, err := kefuService.GetKefuPublic(ctx)
+    if err != nil {
+        global.GVA_LOG.Error("获取失败!", zap.Error(err))
+        response.FailWithMessage("获取失败:"+err.Error(), c)
+        return
+    }
+    response.OkWithDetailed(list, "获取成功", c)
 }

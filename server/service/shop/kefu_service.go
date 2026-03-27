@@ -80,7 +80,7 @@ func (kefuService *KefuService)GetKefuInfoList(ctx context.Context, info shopReq
 	err = db.Find(&kefus).Error
 	return  kefus, total, err
 }
-func (kefuService *KefuService)GetKefuPublic(ctx context.Context) {
-    // 此方法为获取数据源定义的数据
-    // 请自行实现
+func (kefuService *KefuService)GetKefuPublic(ctx context.Context) (list []shop.Kefu, err error) {
+	err = global.GVA_DB.Find(&list).Error
+	return
 }

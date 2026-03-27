@@ -9,7 +9,7 @@
       <view class="product-item" v-for="(item, index) in productData" :key="index" @click="goto(item)">
           <image class="product-image" :src="getUrl(item.imageUrl)" mode="aspectFill"></image>
         <view class="desc">
-          <text class="product-title">{{ item.title }}</text>
+          <text class="product-title">{{ $lt(item.title) }}</text>
           <text class="product-price">¥ {{ formatPrice(item.price) }}</text>
         </view>
       </view>
@@ -24,6 +24,7 @@ import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
+const $lt = computed(() => langStore.$lt)
 
 const props = defineProps({
   productData: {
@@ -50,7 +51,7 @@ const formatPrice = (priceInCents) => {
 
 const goto = (item) => {
   uni.navigateTo({
-    url: '/pages/goodsDetails/goodsDetails?id=' + item.ID
+    url: '/pages/player/index?id=' + item.ID
   })
 }
 const init = () => {

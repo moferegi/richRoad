@@ -34,7 +34,7 @@
             </view>
           </view>
           <view class="nf-goods-info">
-            <text class="nf-goods-title">{{ item.title }}</text>
+            <text class="nf-goods-title">{{ $lt(item.title) }}</text>
             <view class="nf-goods-tags">
               <text class="nf-tag nf-tag-red">{{ $t('selfOperated') }}</text>
               <text class="nf-tag nf-tag-blue">{{ $t('qualityAssured') }}</text>
@@ -81,6 +81,7 @@ import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
+const $lt = computed(() => langStore.$lt)
 
 const userStore = useUserStore()
 const token = userStore.token || ''
@@ -95,10 +96,13 @@ const formatPrice = (priceInCents) => {
 }
 
 const init = async () => {
-  const pageInfo = { page: 1, pageSize: 10 }
-  const res = await getCollectList(pageInfo)
+  params = { page: 1, pageSize: 10 }
+  isBottom.value = false
+  const res = await getCollectList(params)
   if (res.code === 0) {
-    collectList.value = res.data.list || []
+    const list = res.data.list || []
+    collectList.value = list
+    isBottom.value = list.length < params.pageSize
   }
 }
 
@@ -147,7 +151,7 @@ const cancelCollect = async (ID) => {
 }
 
 const goTo = (item) => {
-  uni.navigateTo({ url: `/pages/goodsDetails/goodsDetails?id=${item.ID}` })
+  uni.navigateTo({ url: `/pages/player/index?id=${item.ID}` })
 }
 
 const getDiscountText = (discount) => {

@@ -70,18 +70,7 @@
     <!-- 功能菜单 -->
     <view class="nf-menu" v-if="columns.length >= 1">
       <template v-for="(item, index) in columns.filter(c => !c.hidden)" :key="index">
-        <button v-if="item.pages === 'contact'" class="nf-menu-item nf-contact-btn" open-type="contact">
-          <view class="nf-menu-left">
-            <view class="nf-menu-icon-wrap">
-              <image class="nf-menu-icon" :src="item.icon" mode="aspectFit"></image>
-            </view>
-            <text class="nf-menu-text">{{ item.title }}</text>
-          </view>
-          <view class="nf-menu-arrow">
-            <uni-icons color="rgba(255,255,255,0.3)" type="forward" size="14"></uni-icons>
-          </view>
-        </button>
-        <view v-else class="nf-menu-item" @tap="toPages(item.pages)">
+        <view class="nf-menu-item" @tap="toPages(item.pages)">
           <view class="nf-menu-left">
             <view class="nf-menu-icon-wrap">
               <image class="nf-menu-icon" :src="item.icon" mode="aspectFit"></image>
@@ -130,7 +119,7 @@ const columns = computed(() => [
     icon: '/static/MYcollect.png'
   },{
     title: $t.value('onlineService'),
-    pages: 'contact',
+    pages: '/pages/kefu/index',
     icon: '/static/wx.png'
   },{
     title: $t.value('logout'),
@@ -186,7 +175,7 @@ const goto = (item) => {
     })
     return
   }
-  myRouter(`/pages/goodsDetails/goodsDetails?id=${item.ID}`, true)
+  myRouter(`/pages/player/index?id=${item.ID}`, true)
 }
 
 const logins = () => {

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import messages, { t } from '@/utils/i18n.js'
+import messages, { t, localText } from '@/utils/i18n.js'
 
 export const useLangStore = defineStore('lang', () => {
   const locale = ref(uni.getStorageSync('app-lang') || 'zh')
@@ -29,5 +29,10 @@ export const useLangStore = defineStore('lang', () => {
     return (key) => t(key, locale.value)
   })
 
-  return { locale, setLocale, updateTabBar, $t }
+  // 解析多语言数据库字段（响应式，语言切换自动更新）
+  const $lt = computed(() => {
+    return (value) => localText(value, locale.value)
+  })
+
+  return { locale, setLocale, updateTabBar, $t, $lt }
 })

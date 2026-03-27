@@ -169,6 +169,24 @@
 				"navigationStyle": "custom",
 				"navigationBarTitleText": ""
 			}
+		},
+		{
+			"path": "pages/kefu/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/player/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white"
+			}
 		}
 	],
 	"uniIdRouter": {},

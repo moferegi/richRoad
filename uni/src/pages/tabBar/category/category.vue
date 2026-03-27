@@ -17,7 +17,7 @@
           :class="['category-item', { 'active': activeindex === index }]"
           @tap="checkitem(index, item)"
         >
-          <view class="category-text">{{ item.title }}</view>
+          <view class="category-text">{{ $lt(item.title) }}</view>
           <view v-if="activeindex === index" class="active-indicator"></view>
         </view>
       </scroll-view>
@@ -32,7 +32,7 @@
         <!-- 分类标题 -->
         <view v-if="currentCategory" class="content-header">
           <view class="category-banner">
-            <view class="banner-title">{{ currentCategory.title }}</view>
+            <view class="banner-title">{{ $lt(currentCategory.title) }}</view>
             <view class="banner-subtitle">精选好物 · 品质保证</view>
           </view>
         </view>
@@ -42,7 +42,7 @@
           <view v-if="category.goods && category.goods.length > 0" class="category-section">
             <view class="section-title">
               <view class="title-line"></view>
-              <text class="title-text">{{ category.title }}</text>
+              <text class="title-text">{{ $lt(category.title) }}</text>
               <view class="title-line"></view>
             </view>
 
@@ -75,8 +75,8 @@
                 </view>
 
                 <view class="card-content">
-                  <view class="goods-title">{{ item.title }}</view>
-                  <view class="goods-desc">{{ item.description }}</view>
+                  <view class="goods-title">{{ $lt(item.title) }}</view>
+                  <view class="goods-desc">{{ $lt(item.description) }}</view>
 
                   <view class="price-section">
                     <view class="current-price">
@@ -114,9 +114,13 @@
 </template>
 
 <script setup>
-import {ref, onMounted} from 'vue'
+import {ref, computed, onMounted} from 'vue'
 import {getUrl} from '@/utils/url'
 import {getCategoryMobile, getChildrenCategoryAndProduct} from '@/api/homePage.js'
+import { useLangStore } from '@/pinia/modules/lang.js'
+
+const langStore = useLangStore()
+const $lt = computed(() => langStore.$lt)
 
 // 分类数据
 const catelist = ref([])
@@ -217,7 +221,7 @@ const getgoods = (item) => {
 
 const goto = (item) => {
   uni.navigateTo({
-    url: '/pages/goodsDetails/goodsDetails?id=' + item.ID
+    url: '/pages/player/index?id=' + item.ID
   })
 }
 // 页面加载时执行

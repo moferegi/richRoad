@@ -26,7 +26,7 @@
             @tap="goto(item, index)"
           >
             <image class="nf-cate-tab-icon" :src="getUrl(item.icons)" mode="aspectFill"></image>
-            <text class="nf-cate-tab-text">{{ item.title }}</text>
+            <text class="nf-cate-tab-text">{{ $lt(item.title) }}</text>
           </view>
         </view>
       </scroll-view>
@@ -51,7 +51,7 @@
             </view>
           </view>
           <view class="nf-grid-info">
-            <text class="nf-grid-title">{{ item.title }}</text>
+            <text class="nf-grid-title">{{ $lt(item.title) }}</text>
             <view class="nf-grid-price-row">
               <text class="nf-grid-price">¥{{ formatPrice(item.price) }}</text>
               <text class="nf-grid-sales">{{ $t('sold') }} {{ item.saleNum || 0 }}</text>
@@ -98,6 +98,7 @@ import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
+const $lt = computed(() => langStore.$lt)
 
 const selectedIndex = ref(0)
 const currentCategoryID = ref('')
@@ -198,7 +199,7 @@ const goto = async (item, index) => {
 
 const handleGoodsClick = (item) => {
   uni.navigateTo({
-    url: '/pages/goodsDetails/goodsDetails?id=' + item.ID
+    url: '/pages/player/index?id=' + item.ID
   })
 }
 </script>

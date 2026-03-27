@@ -4,7 +4,7 @@
       <view v-for="(item, index) in props.goodsList" :key="index" class="goods-item" @tap="handleGoodsClick(item)">
         <image :src="getUrl(item.imageUrl)" class="goods-image" mode="aspectFill"></image>
         <view class="goods-info">
-          <text class="goods-name">{{ item.title }}</text>
+          <text class="goods-name">{{ $lt(item.title) }}</text>
           <view class="price-container">
             <text class="discount-price">¥{{ item.price / 100 }}</text>
             <text class="original-price">¥{{ item.originalPrice }}</text>
@@ -48,8 +48,12 @@
 </template>
 
 <script setup>
-import {ref, onMounted, onUnmounted} from 'vue'
+import {ref, computed, onMounted, onUnmounted} from 'vue'
 import {getUrl} from "@/utils/url";
+import { useLangStore } from '@/pinia/modules/lang.js'
+
+const langStore = useLangStore()
+const $lt = computed(() => langStore.$lt)
 
 const props = defineProps({
   goodsList: {
@@ -97,7 +101,7 @@ const getRatingStars = (rating) => {
 // 跳转到商品详情页
 const handleGoodsClick = (item) => {
   uni.navigateTo({
-    url: '/pages/goodsDetails/goodsDetails?id=' + item.ID
+    url: '/pages/player/index?id=' + item.ID
   })
 }
 

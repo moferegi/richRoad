@@ -28,6 +28,27 @@ const messages = {
     developing: '正在开发中...',
     switchLang: '切换语言',
 
+    // kefu page
+    kefuTitle: '在线客服',
+    kefuOnline: '在线',
+    kefuOffline: '离线',
+    kefuBusy: '忙碌',
+    kefuContact: '联系客服',
+    kefuEmpty: '暂无客服',
+
+    // player page
+    playerEpisodes: '选集',
+    playerDesc: '简介',
+    playerRating: '评分',
+    playerViews: '播放',
+    playerCollect: '收藏',
+    playerCollected: '已收藏',
+    playerShare: '分享',
+    playerFree: '免费',
+    playerNowPlaying: '正在播放',
+    playerNoEpisodes: '暂无剧集',
+    playerEp: '第{{n}}集',
+
     // seckilling.vue
     hotSelling: '近期热销',
 
@@ -123,6 +144,25 @@ const messages = {
     developing: 'Coming soon...',
     switchLang: 'Language',
 
+    kefuTitle: 'Customer Service',
+    kefuOnline: 'Online',
+    kefuOffline: 'Offline',
+    kefuBusy: 'Busy',
+    kefuContact: 'Contact',
+    kefuEmpty: 'No agents available',
+
+    playerEpisodes: 'Episodes',
+    playerDesc: 'Description',
+    playerRating: 'Rating',
+    playerViews: 'Views',
+    playerCollect: 'Collect',
+    playerCollected: 'Collected',
+    playerShare: 'Share',
+    playerFree: 'Free',
+    playerNowPlaying: 'Now Playing',
+    playerNoEpisodes: 'No episodes',
+    playerEp: 'EP {{n}}',
+
     hotSelling: 'Hot Selling',
 
     sold: 'Sold',
@@ -212,6 +252,25 @@ const messages = {
     developing: 'Тун удахгүй...',
     switchLang: 'Хэл солих',
 
+    kefuTitle: 'Онлайн зөвлөгөө',
+    kefuOnline: 'Онлайн',
+    kefuOffline: 'Оффлайн',
+    kefuBusy: 'Завгүй',
+    kefuContact: 'Холбоо барих',
+    kefuEmpty: 'Зөвлөгөө байхгүй',
+
+    playerEpisodes: 'Анги',
+    playerDesc: 'Танилцуулга',
+    playerRating: 'Үнэлгээ',
+    playerViews: 'Үзсэн',
+    playerCollect: 'Хадгалах',
+    playerCollected: 'Хадгалсан',
+    playerShare: 'Хуваалцах',
+    playerFree: 'Үнэгүй',
+    playerNowPlaying: 'Тоглож байна',
+    playerNoEpisodes: 'Анги байхгүй',
+    playerEp: '{{n}}-р анги',
+
     hotSelling: 'Шилдэг борлуулалт',
 
     sold: 'Зарагдсан',
@@ -290,6 +349,37 @@ const messages = {
 export function t(key, lang) {
   const locale = lang || uni.getStorageSync('app-lang') || 'zh'
   return (messages[locale] && messages[locale][key]) || messages.zh[key] || key
+}
+
+/**
+ * 解析多语言字段值
+ * 支持两种格式：
+ * 1. 普通字符串 → 原样返回
+ * 2. JSON对象 {"zh":"中文","en":"English","mn":"Монгол"} → 按当前语言返回
+ * @param {string|object} value - 字段值（可能是字符串或JSON对象）
+ * @param {string} [lang] - 语言代码，不传则自动获取当前语言
+ * @returns {string}
+ */
+export function localText(value, lang) {
+  if (!value) return ''
+  const locale = lang || uni.getStorageSync('app-lang') || 'zh'
+  // 已经是对象
+  if (typeof value === 'object') {
+    return value[locale] || value['zh'] || Object.values(value)[0] || ''
+  }
+  // 字符串，尝试解析 JSON
+  if (typeof value === 'string') {
+    if (value.charAt(0) === '{') {
+      try {
+        const obj = JSON.parse(value)
+        return obj[locale] || obj['zh'] || Object.values(obj)[0] || value
+      } catch (e) {
+        return value
+      }
+    }
+    return value
+  }
+  return String(value)
 }
 
 export default messages

@@ -1,36 +1,35 @@
 <template>
   <view class="goods-list" ref="goodsListRef">
-    <view v-for="(item, index) in props.goodsList" :key="index" class="goods-item" @tap="handleGoodsClick(item)">
-      <image :src="getUrl(item.imageUrl)" class="goods-image" mode="aspectFill"></image>
-      <view class="goods-info">
-        <text class="goods-name">{{ item.title }}</text>
-        <view v-if="item.tags && item.tags.length > 0" class="merchant-tags">
-          <text
-              v-for="tag in item.tags"
-              :key="tag.ID"
-              :style="{
-            color: tag.color,
-            background: `${tag.color}1A`,
-            border: `1px solid ${tag.color}33`
-        }"
-              class="merchant-tag"
-          >
-            {{ tag.name }}
-          </text>
-        </view>
-        <view class="price-container">
-          <text class="discount-price">¥{{ item.price / 100 }}</text>
-          <text class="original-price">¥{{ item.originalPrice }}</text>
-          <text class="discount-tag">{{ getDiscountText(item.discount) }}</text>
-        </view>
-        <view class="goods-extra">
-          <view class="rating">
-            <text class="rating-score">{{ item.rating }}</text>
-            <text class="rating-stars">{{ getRatingStars(item.rating) }}</text>
-            <text class="rating-count">({{ item.ratingCount || 0 }})</text>
+    <view class="goods-grid">
+      <view v-for="(item, index) in props.goodsList" :key="index" class="goods-item" @tap="handleGoodsClick(item)">
+        <image :src="getUrl(item.imageUrl)" class="goods-image" mode="aspectFill"></image>
+        <view class="goods-info">
+          <text class="goods-name">{{ $lt(item.title) }}</text>
+          <view v-if="item.tags && item.tags.length > 0" class="merchant-tags">
+            <text
+                v-for="tag in item.tags"
+                :key="tag.ID"
+                :style="{
+              color: tag.color,
+              background: `${tag.color}1A`,
+              border: `1px solid ${tag.color}33`
+          }"
+                class="merchant-tag"
+            >
+              {{ tag.name }}
+            </text>
           </view>
-          <view class="sales">
-            <text>{{ $t('sold') }} {{ item.saleNum }} {{ $t('unit') }}</text>
+          <view class="price-container">
+            <text class="discount-price">¥{{ item.price / 100 }}</text>
+            <text class="original-price">¥{{ item.originalPrice }}</text>
+          </view>
+          <view class="goods-extra">
+            <view class="rating">
+              <text class="rating-stars">{{ getRatingStars(item.rating) }}</text>
+            </view>
+            <view class="sales">
+              <text>{{ $t('sold') }} {{ item.saleNum }}</text>
+            </view>
           </view>
         </view>
       </view>
@@ -42,7 +41,6 @@
       ref="scrollTriggerRef"
       v-if="!isLastPage && goodsList.length > 0"
     >
-      <!-- 这个区域用于触发滚动检测，当它进入可视区域时自动加载下一页 -->
     </view>
   </view>
 </template>
@@ -55,6 +53,7 @@ import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
+const $lt = computed(() => langStore.$lt)
 
 const goodsList = ref([])
 const props = defineProps({
@@ -146,7 +145,7 @@ const getRatingStars = (rating) => {
 // 跳转到商品详情页
 const handleGoodsClick = (item) => {
   uni.navigateTo({
-    url: '/pages/goodsDetails/goodsDetails?id=' + item.ID
+    url: '/pages/player/index?id=' + item.ID
   })
 }
 
@@ -213,29 +212,37 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .goods-list {
-  padding: 12rpx 28rpx;
+  padding: 12rpx 20rpx;
   background: #000;
 }
 
+.goods-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
 .goods-item {
+  width: 49%;
+  box-sizing: border-box;
+  margin-bottom: 16rpx;
   display: flex;
   flex-direction: column;
   background: rgba(255, 255, 255, 0.04);
   border: 1rpx solid rgba(255, 255, 255, 0.06);
-  margin-bottom: 24rpx;
-  border-radius: 24rpx;
+  border-radius: 20rpx;
   overflow: hidden;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   transition: transform 0.3s;
 
   &:active {
-    transform: scale(0.985);
+    transform: scale(0.97);
   }
 
   .goods-image {
     width: 100%;
-    height: 420rpx;
+    height: 340rpx;
   }
 }
 
@@ -243,67 +250,58 @@ onUnmounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 24rpx 28rpx;
+  padding: 16rpx 18rpx;
   min-width: 0;
 
   .goods-name {
-    font-size: 32rpx;
+    font-size: 26rpx;
     color: #fff;
-    line-height: 1.4;
-    margin-bottom: 12rpx;
+    line-height: 1.35;
+    margin-bottom: 8rpx;
     overflow: hidden;
     text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     font-weight: 600;
-    letter-spacing: 1rpx;
+    letter-spacing: 0.5rpx;
   }
 }
 
 .merchant-tags {
   display: flex;
   flex-wrap: wrap;
-  margin: 8rpx 0;
+  margin: 4rpx 0;
 
   .merchant-tag {
-    font-size: 20rpx;
-    padding: 4rpx 14rpx;
-    border-radius: 20rpx;
-    height: 32rpx;
-    line-height: 24rpx;
-    margin-right: 8rpx;
-    margin-bottom: 8rpx;
+    font-size: 18rpx;
+    padding: 2rpx 10rpx;
+    border-radius: 16rpx;
+    height: 28rpx;
+    line-height: 22rpx;
+    margin-right: 6rpx;
+    margin-bottom: 6rpx;
     font-weight: 500;
   }
 }
 
 .price-container {
   display: flex;
-  align-items: center;
-  margin: 12rpx 0;
+  align-items: baseline;
+  margin: 8rpx 0 4rpx;
+  flex-wrap: wrap;
+  gap: 6rpx;
 
   .discount-price {
-    font-size: 38rpx;
+    font-size: 32rpx;
     color: #e50914;
     font-weight: 800;
-    margin-right: 12rpx;
   }
 
   .original-price {
-    font-size: 24rpx;
-    color: rgba(255, 255, 255, 0.35);
+    font-size: 22rpx;
+    color: rgba(255, 255, 255, 0.3);
     text-decoration: line-through;
-    margin-right: 12rpx;
-  }
-
-  .discount-tag {
-    font-size: 20rpx;
-    color: #fff;
-    background: linear-gradient(135deg, #e50914, #b20710);
-    padding: 4rpx 14rpx;
-    border-radius: 12rpx;
-    font-weight: 600;
   }
 }
 
@@ -311,51 +309,28 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.5);
-  margin-top: 12rpx;
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.45);
+  margin-top: 6rpx;
 
   .rating {
     display: flex;
     align-items: center;
-    gap: 4rpx;
-
-    .rating-score {
-      color: #e50914;
-      font-weight: 700;
-    }
 
     .rating-stars {
       color: #ffd700;
-      font-size: 20rpx;
-    }
-
-    .rating-count {
-      color: rgba(255, 255, 255, 0.35);
+      font-size: 18rpx;
     }
   }
 
   .sales {
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 20rpx;
   }
 }
 
 .scroll-trigger {
   height: 1rpx;
   width: 100%;
-}
-
-.loading-indicator {
-  padding: 40rpx;
-  text-align: center;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 28rpx;
-}
-
-.no-more-data {
-  padding: 40rpx;
-  text-align: center;
-  color: rgba(255, 255, 255, 0.3);
-  font-size: 24rpx;
 }
 </style>

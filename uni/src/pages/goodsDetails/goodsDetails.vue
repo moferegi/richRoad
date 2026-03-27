@@ -12,8 +12,8 @@
         </view>
       </view>
       <view class="title-section">
-        <text class="product-title">{{ data.title }}</text>
-        <text class="product-desc">{{ data.description }}</text>
+        <text class="product-title">{{ $lt(data.title) }}</text>
+        <text class="product-desc">{{ $lt(data.description) }}</text>
       </view>
       <view class="sales-info">
         <text v-if="data.saleCount && data.saleCount>0">销量: {{ data.saleCount }}</text>
@@ -147,7 +147,7 @@
 import goodsSwiper from './components/goods-swiper.vue'
 import goodsSku from './components/goods-sku.vue'
 import goodsDetail from './components/goods-detail.vue';
-import {ref} from "vue";
+import {ref, computed} from "vue";
 import {onLoad} from '@dcloudio/uni-app'
 import {findGood} from '@/api/product.js'
 import {myRouter} from '@/utils/permission';
@@ -158,6 +158,11 @@ import {findComment} from "@/api/comment.js"
 import {formatTimeToStr} from "@/utils/date.js"
 import evaluateGridImg from '@/pages/evaluate/evaluate-img.vue'
 import {getUrl} from "@/utils/url.js"
+import { useLangStore } from '@/pinia/modules/lang.js'
+
+const langStore = useLangStore()
+const $lt = computed(() => langStore.$lt)
+
 const data = ref({})
 const collectionFlag = ref('')
 const hasContent = ref(false)

@@ -32,6 +32,7 @@ import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
+const $lt = computed(() => langStore.$lt)
 
 const props = defineProps({
   categoriesData: {
@@ -50,7 +51,7 @@ const activeIndex = ref(0)
 
 const tabList = computed(() => {
   const allItem = { ID: 0, title: '', icons: '', _label: $t.value('all') }
-  return [allItem, ...props.categoriesData.map(item => ({ ...item, _label: item.title }))]
+  return [allItem, ...props.categoriesData.map(item => ({ ...item, _label: $lt.value(item.title) }))]
 })
 
 const selectCategory = (item, index) => {
