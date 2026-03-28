@@ -125,7 +125,13 @@ const copyCode = () => {
 const shareLink = () => {
   const code = inviteInfo.value.inviteCode
   if (!code) return
-  const link = `/pages/user/register?inviteCode=${code}`
+  // #ifdef H5
+  const origin = window.location.origin
+  // #endif
+  // #ifndef H5
+  const origin = 'https://your-domain.com'
+  // #endif
+  const link = `${origin}/#/pages/user/register?inviteCode=${code}`
   uni.setClipboardData({
     data: link,
     success: () => {
