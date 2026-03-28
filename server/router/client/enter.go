@@ -7,6 +7,8 @@ type RouterGroup struct {
 	AddressRouter
 	CollectRouter
 	PointRecordRouter
+	VisitorRouter
+	SysConfigRouter
 }
 
 var cprApi = api.ApiGroupApp.ClientApiGroup.PointRecordApi

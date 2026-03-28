@@ -18,6 +18,8 @@ func initBizRouter(routers ...*gin.RouterGroup) {
 		clientRouter.InitAddressRouter(privateGroup, publicGroup)
 		clientRouter.InitCollectRouter(privateGroup, publicGroup)
 		clientRouter.InitPointRecordRouter(privateGroup, publicGroup)
+		clientRouter.InitVisitorRouter(privateGroup, publicGroup)
+		clientRouter.InitSysConfigRouter(privateGroup, publicGroup)
 	}
 	{
 		shopRouter := router.RouterGroupApp.Shop

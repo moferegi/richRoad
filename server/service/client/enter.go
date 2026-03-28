@@ -5,4 +5,6 @@ type ServiceGroup struct {
 	AddressService
 	CollectService
 	PointRecordService
+	VisitorService
+	SysConfigService
 }

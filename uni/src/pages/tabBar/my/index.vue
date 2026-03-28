@@ -156,6 +156,11 @@ const columns = computed(() => [
     pages: '/pages/collect/collect',
     icon: '/static/MYcollect.png'
   },{
+    title: $t.value('inviteFriends') || '邀请好友',
+    pages: '/pages/invite/index',
+    icon: '/static/MYcollect.png',
+    hidden: !isShow.value
+  },{
     title: $t.value('onlineService'),
     pages: '/pages/kefu/index',
     icon: '/static/wx.png'

@@ -83,5 +83,9 @@ func RegisterTables() {
 		global.GVA_LOG.Error("register biz_table failed", zap.Error(err))
 		os.Exit(0)
 	}
+
+	InitVisitorData() // 自动注册访客统计模块数据
+	InitInviteData()  // 自动注册邀请系统模块数据
+
 	global.GVA_LOG.Info("register table success")
 }

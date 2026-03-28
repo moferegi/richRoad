@@ -52,6 +52,11 @@
 </template>
 <script setup>
 	import {
+		onLoad,
+		onReady
+	} from '@dcloudio/uni-app';
+
+	import {
 		reactive,
 		ref,
 		computed
@@ -90,7 +95,15 @@
 	const form = reactive({
 		username: "",
 		password: "",
-		rePassword: ""
+		rePassword: "",
+		inviteCode: ""
+	})
+
+	// 从URL参数获取邀请码
+	onLoad((options) => {
+		if (options && options.inviteCode) {
+			form.inviteCode = options.inviteCode
+		}
 	})
 
 	const toLogin = () => {

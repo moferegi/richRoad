@@ -1,7 +1,10 @@
 package client
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	clientReq "github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
@@ -36,8 +39,16 @@ func (clientUserService *ClientUserService) CreateClientUser(clientUser *client.
 	}
 	clientUser.UUID, _ = uuid.NewUUID()
 	clientUser.Password = utils.BcryptHash(clientUser.Password)
+	clientUser.InviteCode = generateInviteCode()
 	err = global.GVA_DB.Create(clientUser).Error
 	return err
+}
+
+// generateInviteCode 生成8位随机邀请码
+func generateInviteCode() string {
+	b := make([]byte, 4)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 // DeleteClientUser 删除客户端用户记录
@@ -119,4 +130,24 @@ func (clientUserService *ClientUserService) GetClientUserInfoList(info clientReq
 func (clientUserService *ClientUserService) SetClientUserInfo(key string, value string, userID uint) (err error) {
 	err = global.GVA_DB.Model(&client.ClientUser{}).Where("id = ?", userID).Update(key, value).Error
 	return err
+}
+
+// GetSubordinates 获取用户的直接下级列表
+func (clientUserService *ClientUserService) GetSubordinates(userID uint, page, pageSize int) (list []client.ClientUser, total int64, err error) {
+	db := global.GVA_DB.Model(&client.ClientUser{}).Where("invited_by = ?", userID)
+	err = db.Count(&total).Error
+	if err != nil {
+		return
+	}
+	offset := pageSize * (page - 1)
+	err = db.Select("id, username, nickname, avatar, created_at, invite_code").
+		Order("created_at desc").Limit(pageSize).Offset(offset).Find(&list).Error
+	return
+}
+
+// GetSubordinateCount 获取下级总数（含间接下级）
+func (clientUserService *ClientUserService) GetSubordinateCount(userID uint) (int64, error) {
+	var count int64
+	err := global.GVA_DB.Model(&client.ClientUser{}).Where("invited_by = ?", userID).Count(&count).Error
+	return count, err
 }

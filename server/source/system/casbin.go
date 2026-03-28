@@ -503,6 +503,15 @@ func (i *initCasbin) InitializeData(ctx context.Context) (context.Context, error
 		{Ptype: "p", V0: "9528", V1: "/customer/customerList", V2: "GET"},
 		{Ptype: "p", V0: "9528", V1: "/autoCode/createTemp", V2: "POST"},
 		{Ptype: "p", V0: "9528", V1: "/user/getUserInfo", V2: "GET"},
+
+		{Ptype: "p", V0: "888", V1: "/visitor/getVisitorLogList", V2: "GET"},
+		{Ptype: "p", V0: "888", V1: "/visitor/getVisitorSummaryList", V2: "GET"},
+		{Ptype: "p", V0: "888", V1: "/visitor/getTodayStats", V2: "GET"},
+		{Ptype: "p", V0: "888", V1: "/visitor/aggregateDailySummary", V2: "POST"},
+		{Ptype: "p", V0: "8881", V1: "/visitor/getVisitorLogList", V2: "GET"},
+		{Ptype: "p", V0: "8881", V1: "/visitor/getVisitorSummaryList", V2: "GET"},
+		{Ptype: "p", V0: "8881", V1: "/visitor/getTodayStats", V2: "GET"},
+		{Ptype: "p", V0: "8881", V1: "/visitor/aggregateDailySummary", V2: "POST"},
 	}
 	if err := db.Create(&entities).Error; err != nil {
 		return ctx, errors.Wrap(err, "Casbin 表 ("+i.InitializerName()+") 数据初始化失败!")

@@ -2,6 +2,7 @@ package initialize
 
 import (
 	"fmt"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/task"
 
 	"github.com/robfig/cron/v3"
@@ -22,6 +23,17 @@ func Timer() {
 		}, "定时清理数据库【日志，黑名单】内容", option...)
 		if err != nil {
 			fmt.Println("add timer error:", err)
+		}
+
+		// 访客日志：每天凌晨2点自动聚合昨日数据 + 清理90天前日志
+		_, err = global.GVA_Timer.AddTaskByFunc("VisitorDailyTask", "0 0 2 * * *", func() {
+			if global.GVA_DB == nil {
+				return
+			}
+			task.VisitorDailyTask(global.GVA_DB)
+		}, "访客统计日聚合+日志清理", option...)
+		if err != nil {
+			fmt.Println("add visitor timer error:", err)
 		}
 
 		// 其他定时任务定在这里 参考上方使用方法

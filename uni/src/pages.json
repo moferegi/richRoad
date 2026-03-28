@@ -171,6 +171,13 @@
 			}
 		},
 		{
+			"path": "pages/invite/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": ""
+			}
+		},
+		{
 			"path": "pages/kefu/index",
 			"style": {
 				"navigationStyle": "custom",

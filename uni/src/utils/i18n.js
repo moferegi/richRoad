@@ -139,6 +139,19 @@ const messages = {
     bargain: '特价',
     saleTag: '折扣',
 
+    // 邀请好友
+    inviteFriends: '邀请好友',
+    myInviteCode: '我的邀请码',
+    copyInviteCode: '复制邀请码',
+    shareLink: '分享链接',
+    inviteCodeCopied: '已复制邀请码',
+    shareLinkCopied: '分享链接已复制',
+    invited: '已邀请',
+    myPoints: '我的积分',
+    myFriends: '我的好友',
+    noInviteRecord: '暂无邀请记录，快去分享吧！',
+    loadMore: '加载更多',
+
     // 语言选择弹窗
     selectLanguage: '选择语言',
     langZh: '中文',
@@ -272,6 +285,19 @@ const messages = {
     bargain: 'Sale',
     saleTag: 'Off',
 
+    // invite
+    inviteFriends: 'Invite Friends',
+    myInviteCode: 'My Invite Code',
+    copyInviteCode: 'Copy Code',
+    shareLink: 'Share Link',
+    inviteCodeCopied: 'Invite code copied',
+    shareLinkCopied: 'Share link copied',
+    invited: 'Invited',
+    myPoints: 'My Points',
+    myFriends: 'My Friends',
+    noInviteRecord: 'No invites yet, share now!',
+    loadMore: 'Load More',
+
     selectLanguage: 'Select Language',
     langZh: '中文',
     langEn: 'English',
@@ -403,6 +429,19 @@ const messages = {
     lowPrice: 'Хөнгө',
     bargain: 'Хямдрал',
     saleTag: 'Хөнгөлөлт',
+
+    // invite
+    inviteFriends: 'Найзаа урих',
+    myInviteCode: 'Миний урилгын код',
+    copyInviteCode: 'Код хуулах',
+    shareLink: 'Холбоос хуваалцах',
+    inviteCodeCopied: 'Урилгын код хуулагдлаа',
+    shareLinkCopied: 'Холбоос хуулагдлаа',
+    invited: 'Урьсан',
+    myPoints: 'Миний оноо',
+    myFriends: 'Миний найзууд',
+    noInviteRecord: 'Урилга байхгүй, хуваалцаарай!',
+    loadMore: 'Цааш үзэх',
 
     selectLanguage: 'Хэл сонгох',
     langZh: '中文',

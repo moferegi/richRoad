@@ -379,6 +379,11 @@ func (i *initApi) InitializeData(ctx context.Context) (context.Context, error) {
 		{ApiGroup: "积分记录管理", Method: "GET", Path: "/cpr/findPointRecord", Description: "根据ID获取积分记录管理"},
 		{ApiGroup: "积分记录管理", Method: "GET", Path: "/cpr/getPointRecordList", Description: "获取积分记录管理列表"},
 		{ApiGroup: "积分记录管理", Method: "GET", Path: "/cpr/getPointRecordList", Description: "获取积分记录管理列表"},
+
+		{ApiGroup: "访客统计", Method: "GET", Path: "/visitor/getVisitorLogList", Description: "获取访客日志列表"},
+		{ApiGroup: "访客统计", Method: "GET", Path: "/visitor/getVisitorSummaryList", Description: "获取访客汇总列表"},
+		{ApiGroup: "访客统计", Method: "GET", Path: "/visitor/getTodayStats", Description: "获取今日实时统计"},
+		{ApiGroup: "访客统计", Method: "POST", Path: "/visitor/aggregateDailySummary", Description: "手动触发日汇总聚合"},
 	}
 	if err := db.Create(&entities).Error; err != nil {
 		return ctx, errors.Wrap(err, sysModel.SysApi{}.TableName()+"表数据初始化失败!")

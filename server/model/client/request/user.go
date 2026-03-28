@@ -1,8 +1,9 @@
 package request
 
 import (
-	"github.com/flipped-aurora/gin-vue-admin/server/model/common/request"
 	"time"
+
+	"github.com/flipped-aurora/gin-vue-admin/server/model/common/request"
 )
 
 type ClientUserSearch struct {
@@ -19,6 +20,7 @@ type CreateUser struct {
 	Username   string `json:"username" form:"username" gorm:"column:username;comment:用户名;" binding:"required"` //用户名
 	Password   string `json:"password" form:"password" gorm:"column:password;comment:密码;" binding:"required"`  //密码
 	RePassword string `json:"rePassword" form:"rePassword" gorm:"-"`                                           // 确认密码
+	InviteCode string `json:"inviteCode" form:"inviteCode"`                                                    // 邀请码（可选）
 }
 
 type Login struct {

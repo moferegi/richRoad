@@ -95,3 +95,16 @@ export const getClientUserList = (params) => {
     params
   })
 }
+
+/**
+ * 获取用户的下级列表
+ * @param {Object} params { userID, page, pageSize }
+ * @returns {Promise}
+ */
+export const getSubordinates = (params) => {
+  return service({
+    url: '/clientUser/getSubordinates',
+    method: 'get',
+    params
+  })
+}

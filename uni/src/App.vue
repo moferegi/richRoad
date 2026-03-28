@@ -2,6 +2,8 @@
 	import {useUserStore} from "@/pinia/modules/user.js"
 	import { getOpenID } from '@/api/base.js'
 	import {myRouter} from '@/utils/permission.js'
+	import { visitorHeartbeat } from '@/api/visitor.js'
+	import { generateFingerprint, getSessionId, getPlatform } from '@/utils/fingerprint.js'
 	export default {
 		onLaunch: function() {
 			const userStore = useUserStore()
@@ -23,12 +25,34 @@
 			  }
 			})
 			myRouter()
+			// 初始化访客指纹
+			generateFingerprint()
 		},
 		onShow: function() {
 			console.log('App Show')
+			this.reportVisitor()
 		},
 		onHide: function() {
 			console.log('App Hide')
+		},
+		methods: {
+			reportVisitor() {
+				try {
+					const info = uni.getSystemInfoSync()
+					visitorHeartbeat({
+						visitorId: generateFingerprint(),
+						sessionId: getSessionId(),
+						platform: getPlatform(),
+						pagePath: getCurrentPages().length > 0 ? '/' + getCurrentPages()[getCurrentPages().length - 1].route : '/',
+						referer: '',
+						screenWidth: info.screenWidth,
+						screenHeight: info.screenHeight,
+						language: uni.getStorageSync('app-lang') || 'zh'
+					}).catch(() => {})
+				} catch (e) {
+					console.log('visitor report error', e)
+				}
+			}
 		}
 	}
 </script>

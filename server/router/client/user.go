@@ -1,7 +1,7 @@
 package client
 
 import (
-	"github.com/flipped-aurora/gin-vue-admin/server/api/v1"
+	v1 "github.com/flipped-aurora/gin-vue-admin/server/api/v1"
 	"github.com/flipped-aurora/gin-vue-admin/server/middleware"
 	"github.com/gin-gonic/gin"
 )
@@ -26,6 +26,9 @@ func (s *ClientUserRouter) InitClientUserRouter(Router *gin.RouterGroup, PublicR
 	{
 		clientUserRouterWithoutRecord.GET("findClientUser", clientUserApi.FindClientUser)       // 根据ID获取客户端用户
 		clientUserRouterWithoutRecord.GET("getClientUserList", clientUserApi.GetClientUserList) // 获取客户端用户列表
+		clientUserRouterWithoutRecord.GET("getSubordinates", clientUserApi.GetSubordinates)     // 获取下级用户列表
+		clientUserRouterWithoutRecord.GET("getMyInviteInfo", clientUserApi.GetMyInviteInfo)     // 获取我的邀请信息
+		clientUserRouterWithoutRecord.GET("getMySubordinates", clientUserApi.GetMySubordinates) // 获取我的下级列表
 	}
 	{
 		clientUserRouterWithoutAuth.GET("getOpenID", clientUserApi.GetOpenID)                  // 获取小程序openid

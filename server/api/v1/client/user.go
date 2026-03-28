@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"time"
@@ -115,12 +116,43 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 	clientUser.Username = register.Username
 	clientUser.Password = register.Password
 	clientUser.Avatar = "https://qmplusimg.henrongyi.top/gva_header.jpg"
+
+	// 处理邀请码
+	if register.InviteCode != "" {
+		var inviter client.ClientUser
+		if err := global.GVA_DB.Where("invite_code = ?", register.InviteCode).First(&inviter).Error; err == nil {
+			clientUser.InvitedBy = inviter.ID
+		}
+	}
+
 	if err := clientUserService.CreateClientUser(&clientUser); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
 		response.FailWithMessage(i18n.T(c, "createFail"), c)
-	} else {
-		response.OkWithMessage(i18n.T(c, "createSuccess"), c)
+		return
 	}
+
+	// 邀请奖励：给邀请人加积分
+	if clientUser.InvitedBy > 0 {
+		rewardPoints := sysConfigService.GetConfigIntByKey("invite_reward_points", 10)
+		if rewardPoints > 0 {
+			inviterID := int(clientUser.InvitedBy)
+			changeType := "increase"
+			operationType := "invite_reward"
+			reason := "邀请用户 " + clientUser.Username + " 注册奖励"
+			record := &client.PointRecord{
+				UserId:        &inviterID,
+				ChangeType:    &changeType,
+				PointChange:   &rewardPoints,
+				OperationType: &operationType,
+				Reason:        &reason,
+			}
+			if err := cprService.CreatePointRecord(context.Background(), record); err != nil {
+				global.GVA_LOG.Error("邀请奖励积分发放失败", zap.Error(err))
+			}
+		}
+	}
+
+	response.OkWithMessage(i18n.T(c, "createSuccess"), c)
 }
 
 // CreateClientUser 创建客户端用户
@@ -373,4 +405,105 @@ func interfaceToInt(v interface{}) (i int) {
 		i = 0
 	}
 	return
+}
+
+// GetSubordinates 获取下级用户列表
+// @Tags ClientUser
+// @Summary 获取用户的下级列表
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param userID query int true "用户ID"
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
+// @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
+// @Router /clientUser/getSubordinates [get]
+func (clientUserApi *ClientUserApi) GetSubordinates(c *gin.Context) {
+	userIDStr := c.Query("userID")
+	if userIDStr == "" {
+		response.FailWithMessage("用户ID不能为空", c)
+		return
+	}
+	userID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil {
+		response.FailWithMessage("用户ID格式错误", c)
+		return
+	}
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+	list, total, err := clientUserService.GetSubordinates(uint(userID), page, pageSize)
+	if err != nil {
+		global.GVA_LOG.Error("获取下级失败!", zap.Error(err))
+		response.FailWithMessage("获取失败", c)
+		return
+	}
+	response.OkWithDetailed(response.PageResult{
+		List:     list,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}, "获取成功", c)
+}
+
+// GetMyInviteInfo 获取当前用户的邀请信息（uni-app端）
+// @Tags ClientUser
+// @Summary 获取我的邀请信息
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Success 200 {object} response.Response{data=object,msg=string} "获取成功"
+// @Router /clientUser/getMyInviteInfo [get]
+func (clientUserApi *ClientUserApi) GetMyInviteInfo(c *gin.Context) {
+	userID := utils.GetUserID(c)
+	user, err := clientUserService.GetClientUser(strconv.Itoa(int(userID)))
+	if err != nil {
+		response.FailWithMessage("获取用户信息失败", c)
+		return
+	}
+	subordinateCount, _ := clientUserService.GetSubordinateCount(userID)
+	response.OkWithDetailed(gin.H{
+		"inviteCode":       user.InviteCode,
+		"subordinateCount": subordinateCount,
+		"point":            user.Point,
+	}, "获取成功", c)
+}
+
+// GetMySubordinates 获取当前用户的下级列表（uni-app端）
+// @Tags ClientUser
+// @Summary 获取我的下级列表
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
+// @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
+// @Router /clientUser/getMySubordinates [get]
+func (clientUserApi *ClientUserApi) GetMySubordinates(c *gin.Context) {
+	userID := utils.GetUserID(c)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+	list, total, err := clientUserService.GetSubordinates(userID, page, pageSize)
+	if err != nil {
+		global.GVA_LOG.Error("获取下级失败!", zap.Error(err))
+		response.FailWithMessage("获取失败", c)
+		return
+	}
+	response.OkWithDetailed(response.PageResult{
+		List:     list,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}, "获取成功", c)
 }

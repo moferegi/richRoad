@@ -72,3 +72,20 @@ export const checkNeedPay  = (data) => {
         data:data
     })
 }
+
+// 获取我的邀请信息
+export const getMyInviteInfo = () => {
+    return request({
+        url: '/clientUser/getMyInviteInfo',
+        method: 'get'
+    })
+}
+
+// 获取我的下级列表
+export const getMySubordinates = (params) => {
+    return request({
+        url: '/clientUser/getMySubordinates',
+        method: 'get',
+        params
+    })
+}

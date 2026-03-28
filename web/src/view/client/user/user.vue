@@ -59,12 +59,20 @@
         </el-table-column>
         <el-table-column align="left" label="手机号" prop="phone" width="120" />
         <el-table-column align="left" label="邮箱" prop="email" width="120" />
-        <el-table-column align="left" label="操作" fixed="right" min-width="240">
+        <el-table-column align="left" label="积分" prop="point" width="80" />
+        <el-table-column align="left" label="邀请码" prop="inviteCode" width="120" />
+        <el-table-column align="left" label="邀请人ID" prop="invitedBy" width="100">
+            <template #default="scope">
+              {{ scope.row.invitedBy > 0 ? scope.row.invitedBy : '-' }}
+            </template>
+        </el-table-column>
+        <el-table-column align="left" label="操作" fixed="right" min-width="290">
             <template #default="scope">
             <el-button type="primary" link class="table-button" @click="getDetails(scope.row)">
                 <el-icon style="margin-right: 5px"><InfoFilled /></el-icon>
                 查看详情
             </el-button>
+            <el-button type="primary" link @click="showSubordinates(scope.row)">下级</el-button>
             <el-button type="primary" link icon="edit" class="table-button" @click="updateClientUserFunc(scope.row)">变更</el-button>
             <el-button type="primary" link icon="delete" @click="deleteRow(scope.row)">删除</el-button>
             </template>
@@ -144,6 +152,27 @@
                 </el-descriptions-item>
         </el-descriptions>
     </el-drawer>
+
+    <!-- 下级用户列表弹窗 -->
+    <el-drawer size="600" v-model="subordinateShow" title="下级用户列表" destroy-on-close>
+      <el-table :data="subordinateList" stripe>
+        <el-table-column prop="ID" label="ID" width="60" />
+        <el-table-column prop="username" label="用户名" width="120" />
+        <el-table-column prop="nickname" label="昵称" width="120" />
+        <el-table-column label="注册时间" min-width="160">
+          <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
+        </el-table-column>
+      </el-table>
+      <div class="gva-pagination">
+        <el-pagination
+          layout="total, prev, pager, next"
+          :current-page="subPage"
+          :page-size="subPageSize"
+          :total="subTotal"
+          @current-change="handleSubPageChange"
+        />
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -154,7 +183,8 @@ import {
   deleteClientUserByIds,
   updateClientUser,
   findClientUser,
-  getClientUserList
+  getClientUserList,
+  getSubordinates
 } from '@/api/client/user'
 
 // 全量引入格式化工具 请按需保留
@@ -444,6 +474,38 @@ const enterDialog = async () => {
                 getTableData()
               }
       })
+}
+
+// ============== 下级用户 ===============
+const subordinateShow = ref(false)
+const subordinateList = ref([])
+const subPage = ref(1)
+const subPageSize = ref(10)
+const subTotal = ref(0)
+const currentSubUserID = ref(0)
+
+const showSubordinates = async (row) => {
+  currentSubUserID.value = row.ID
+  subPage.value = 1
+  await loadSubordinates()
+  subordinateShow.value = true
+}
+
+const loadSubordinates = async () => {
+  const res = await getSubordinates({
+    userID: currentSubUserID.value,
+    page: subPage.value,
+    pageSize: subPageSize.value
+  })
+  if (res.code === 0) {
+    subordinateList.value = res.data.list || []
+    subTotal.value = res.data.total
+  }
+}
+
+const handleSubPageChange = (val) => {
+  subPage.value = val
+  loadSubordinates()
 }
 
 </script>

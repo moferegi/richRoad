@@ -1,0 +1,27 @@
+import service from '@/utils/request'
+
+/**
+ * 获取系统参数列表
+ * @param {Object} data 查询参数
+ * @returns {Promise}
+ */
+export const getSysConfigList = (data) => {
+  return service({
+    url: '/sysConfig/getSysConfigList',
+    method: 'get',
+    params: data
+  })
+}
+
+/**
+ * 更新系统参数
+ * @param {Object} data { id, configValue, remark }
+ * @returns {Promise}
+ */
+export const updateSysConfig = (data) => {
+  return service({
+    url: '/sysConfig/updateSysConfig',
+    method: 'put',
+    data: data
+  })
+}
