@@ -150,30 +150,12 @@
             <view
               v-for="(ep, idx) in episodes"
               :key="ep.ID"
-              class="nf-episode-card"
+              class="nf-episode-card nf-episode-card-nf"
               :class="{ 'nf-episode-active': currentIndex === idx }"
               @tap="playEpisode(idx)"
             >
-              <view class="nf-ep-thumb-wrap">
-                <image
-                  class="nf-ep-thumb"
-                  :src="ep.picture ? getUrl(ep.picture) : getUrl(data.imageUrl)"
-                  mode="aspectFill"
-                />
-                <view class="nf-ep-play-icon" v-if="currentIndex !== idx">
-                  <text class="nf-ep-play-text">▶</text>
-                </view>
-                <view class="nf-ep-playing" v-else>
-                  <view class="nf-eq-bar"></view>
-                  <view class="nf-eq-bar"></view>
-                  <view class="nf-eq-bar"></view>
-                </view>
-              </view>
-              <view class="nf-ep-info">
-                <text class="nf-ep-name">{{ ep.name || epLabel(idx + 1) }}</text>
-                <text class="nf-ep-desc" v-if="ep.description">{{ ep.description }}</text>
-                <text class="nf-ep-price" v-if="ep.price > 0">¥{{ (ep.price / 100).toFixed(2) }}</text>
-                <text class="nf-ep-free" v-else>{{ $t('playerFree') }}</text>
+              <view class="nf-ep-info nf-ep-info-nf">
+                <text class="nf-ep-name nf-ep-name-nf">{{ epLabel(idx + 1) }}</text>
               </view>
             </view>
           </view>
@@ -1329,10 +1311,48 @@ page {
   }
 }
 
-.nf-episode-active {
-  border-color: rgba(229, 9, 20, 0.5);
-  background: rgba(229, 9, 20, 0.08);
-  box-shadow: 0 0 20rpx rgba(229, 9, 20, 0.15);
+.nf-episode-card-nf {
+  width: 180rpx;
+  height: 80rpx;
+  border-radius: 10rpx;
+  background: #1b1b1f;
+  border: 1rpx solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14rpx;
+  box-sizing: border-box;
+}
+
+.nf-episode-card-nf:active {
+  opacity: 0.88;
+  transform: scale(0.98);
+}
+
+.nf-episode-active.nf-episode-card-nf {
+  border-color: #e50914;
+  background: #e50914;
+}
+
+.nf-ep-info-nf {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nf-ep-name-nf {
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nf-episode-active .nf-ep-name-nf {
+  color: #ffffff;
 }
 
 .nf-ep-thumb-wrap {
