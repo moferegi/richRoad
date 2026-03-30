@@ -4,21 +4,11 @@
       <view
         v-for="(item, index) in tabList"
         :key="index"
-        class="nf-cate-tab"
+        class="nf-cate-tab nf-cate-tab-nf"
         :class="{ 'nf-cate-tab-active': activeIndex === index }"
         @tap="selectCategory(item, index)"
       >
-        <image
-          v-if="item.icons"
-          class="nf-cate-icon"
-          :src="getUrl(item.icons)"
-          mode="aspectFill"
-        />
-        <view v-else class="nf-cate-icon nf-cate-icon-all">
-          <text class="nf-cate-icon-all-text">∞</text>
-        </view>
-        <text class="nf-cate-label">{{ item._label || item.title }}</text>
-        <!-- 激活指示条 -->
+        <text class="nf-cate-label-nf">{{ item._label || item.title }}</text>
         <view v-if="activeIndex === index" class="nf-cate-indicator"></view>
       </view>
     </view>
@@ -82,41 +72,34 @@ watch(() => props.modelValue, (val) => {
 
 .nf-cate-tab {
   display: flex;
-  flex-direction: column;
   align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   min-width: 110rpx;
-  padding: 12rpx 14rpx 16rpx;
-  border-radius: 16rpx;
+  height: 72rpx;
+  padding: 0 16rpx;
+  border-radius: 20rpx;
   position: relative;
-  transition: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  border: 1rpx solid transparent;
+  transition: all 0.25s ease;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+}
 
-  &:active {
-    transform: scale(0.92);
-  }
+.nf-cate-tab:active {
+  transform: scale(0.95);
 }
 
 .nf-cate-tab-active {
-  background: rgba(229, 9, 20, 0.1);
-  border-color: rgba(229, 9, 20, 0.2);
-  transform: translateY(-4rpx);
-
-  .nf-cate-icon {
-    border-color: rgba(229, 9, 20, 0.6);
-    box-shadow: 0 0 20rpx rgba(229, 9, 20, 0.3);
-    transform: scale(1.08);
-  }
-
-  .nf-cate-icon-all {
-    background: linear-gradient(135deg, rgba(229, 9, 20, 0.25), rgba(229, 9, 20, 0.1));
-  }
-
-  .nf-cate-label {
-    color: #fff;
-    font-weight: 700;
-  }
+  background: linear-gradient(135deg, rgba(229, 9, 20, 0.95), rgba(224, 0, 19, 0.75));
+  border-color: #e50914;
+  transform: scale(1.03);
 }
+
+.nf-cate-tab-active .nf-cate-label-nf {
+  color: #fff;
+  font-weight: 800;
+}
+
 
 .nf-cate-icon {
   width: 80rpx;
@@ -141,18 +124,24 @@ watch(() => props.modelValue, (val) => {
   font-weight: 300;
 }
 
-.nf-cate-label {
-  font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.55);
+.nf-cate-label-nf {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 110rpx;
-  font-weight: 500;
-  letter-spacing: 1rpx;
-  transition: all 0.3s;
+  max-width: 180rpx;
+  letter-spacing: 1.2rpx;
+  text-transform: capitalize;
+  transition: color 0.2s ease;
 }
+
+.nf-cate-tab-active .nf-cate-label-nf {
+  color: #fff;
+}
+
 
 .nf-cate-indicator {
   position: absolute;
