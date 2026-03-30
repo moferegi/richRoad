@@ -2,15 +2,20 @@ import { myRouter }from  '@/utils/permission.js'
 
 // 定义并导出 baseUrl 变量
 export let baseUrl = '/api'
-// 判断是否为 web 环境
-// #ifdef H5
-baseUrl = '/api'
-// #endif
-
-// 非 web 环境（APP、小程序等）使用完整 URL
-// #ifndef H5
-baseUrl = 'http://localhost:8888'
-// #endif
+if (process.env.NODE_ENV === 'development') {
+    // 开发环境：继续使用 Vite 代理，解决本地跨域
+    // #ifdef H5
+    baseUrl = '/api'
+    // #endif
+    
+    // #ifndef H5
+    baseUrl = 'http://localhost:8888' // 如果本地手机调试，记得改成本机内网IP
+    // #endif
+} else {
+    // 生产环境：直接指向你的公网后端域名
+    // 注意：由于你之前配置的 Nginx 已经处理了转发，这里不需要加端口号
+    baseUrl = 'https://back.mnmovie.icu'
+}
 
 export const request = ({url, data, header, method, params}) => {
     // 处理 params 参数拼接到 url
