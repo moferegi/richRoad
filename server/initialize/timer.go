@@ -38,14 +38,18 @@ func Timer() {
 
 		// 其他定时任务定在这里 参考上方使用方法
 
-		_, err = global.GVA_Timer.AddTaskByFunc("ClearOrder", "* * * * * *", func() {
+		_, err = global.GVA_Timer.AddTaskByFunc("ClearOrder", "0 */5 * * * *", func() {
 			if global.GVA_DB == nil {
 				return
 			}
-			//e := task.ClearOrder(global.GVA_DB) // 定时任务方法定在task文件包中
-			//if e != nil {
-			//	fmt.Println("订单清理失败:", err)
-			//}
+			e := task.ClearOrder(global.GVA_DB)
+			if e != nil {
+				fmt.Println("订单清理失败:", e)
+			}
+			e = task.ClearExpiredOrders(global.GVA_DB)
+			if e != nil {
+				fmt.Println("过期订单清理失败:", e)
+			}
 		}, "定时清理已过期订单", option...)
 		if err != nil {
 			fmt.Println("add timer error:", err)

@@ -52,6 +52,15 @@ func InitInviteSystem() {
 func initDefaultSysConfigs() {
 	defaults := []client.SysConfig{
 		{ConfigKey: "invite_reward_points", ConfigValue: "10", ConfigName: "邀请奖励积分", ConfigGroup: "invite", Remark: "用户邀请好友注册后获得的积分奖励"},
+		{ConfigKey: "payment_qr_code", ConfigValue: "", ConfigName: "收款二维码", ConfigGroup: "payment", Remark: "客户下单后展示的收款二维码图片地址"},
+		{ConfigKey: "payment_contact", ConfigValue: "", ConfigName: "支付联系客服", ConfigGroup: "payment", Remark: "支付页面联系客服的链接或信息"},
+		{ConfigKey: "maintenance_enabled", ConfigValue: "false", ConfigName: "维护模式开关", ConfigGroup: "system", Remark: "是否开启全站维护模式(true/false)"},
+		{ConfigKey: "maintenance_message", ConfigValue: "系统维护中，请稍后再试", ConfigName: "维护提示语", ConfigGroup: "system", Remark: "维护模式下的提示信息"},
+		{ConfigKey: "maintenance_bg_image", ConfigValue: "", ConfigName: "维护背景图", ConfigGroup: "system", Remark: "维护页面的背景图片地址"},
+		{ConfigKey: "points_exchange_rate", ConfigValue: "100", ConfigName: "积分兑换比率", ConfigGroup: "points", Remark: "多少积分兑换1元(分)"},
+		{ConfigKey: "order_close_minutes", ConfigValue: "15", ConfigName: "订单自动关闭时间", ConfigGroup: "order", Remark: "未支付订单自动关闭的分钟数"},
+		{ConfigKey: "currency_symbol", ConfigValue: "¥", ConfigName: "货币符号", ConfigGroup: "system", Remark: "前端展示的货币符号"},
+		{ConfigKey: "currency_unit", ConfigValue: "CNY", ConfigName: "货币单位", ConfigGroup: "system", Remark: "货币单位编码"},
 	}
 	for _, cfg := range defaults {
 		var count int64

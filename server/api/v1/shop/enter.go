@@ -15,6 +15,12 @@ type ApiGroup struct {
 	CouponOrderUserApi
 	PromotionApi
 	KefuApi
+	GoodPurchaseApi
+	QrcodePaymentApi
+	PopupApi
+	MarketingRewardApi
+	DashboardApi
+	PresaleApi
 }
 
 var (

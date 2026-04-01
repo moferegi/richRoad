@@ -152,6 +152,25 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 		}
 	}
 
+	// 注册奖励：给新用户发放营销奖励积分
+	if reward, err := marketingRewardService.GetMarketingRewardByType("register"); err == nil && reward.Points != nil && *reward.Points > 0 {
+		newUserID := int(clientUser.ID)
+		changeType := "increase"
+		points := *reward.Points
+		operationType := "register_reward"
+		reason := "新用户注册奖励"
+		record := &client.PointRecord{
+			UserId:        &newUserID,
+			ChangeType:    &changeType,
+			PointChange:   &points,
+			OperationType: &operationType,
+			Reason:        &reason,
+		}
+		if err := cprService.CreatePointRecord(context.Background(), record); err != nil {
+			global.GVA_LOG.Error("注册奖励积分发放失败", zap.Error(err))
+		}
+	}
+
 	response.OkWithMessage(i18n.T(c, "createSuccess"), c)
 }
 

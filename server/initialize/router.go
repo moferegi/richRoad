@@ -77,6 +77,7 @@ func Routers() *gin.Engine {
 
 	PublicGroup := Router.Group(global.GVA_CONFIG.System.RouterPrefix)
 	PublicGroup.Use(middleware.Locale())
+	PublicGroup.Use(middleware.Maintenance()) // 维护模式拦截（仅拦截客户端业务请求）
 	PrivateGroup := Router.Group(global.GVA_CONFIG.System.RouterPrefix)
 	PrivateGroup.Use(middleware.Locale())
 

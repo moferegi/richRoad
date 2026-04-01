@@ -9,10 +9,14 @@ type ApiGroup struct {
 	PointRecordApi
 	VisitorApi
 	SysConfigApi
+	LanguageApi
+	PhoneAreaCodeApi
+	SignInApi
 }
 
 var (
-	jwtService       = service.ServiceGroupApp.SystemServiceGroup.JwtService
-	cprService       = service.ServiceGroupApp.ClientServiceGroup.PointRecordService
-	sysConfigService = service.ServiceGroupApp.ClientServiceGroup.SysConfigService
+	jwtService              = service.ServiceGroupApp.SystemServiceGroup.JwtService
+	cprService              = service.ServiceGroupApp.ClientServiceGroup.PointRecordService
+	sysConfigService        = service.ServiceGroupApp.ClientServiceGroup.SysConfigService
+	marketingRewardService  = service.ServiceGroupApp.ShopServiceGroup.MarketingRewardService
 )

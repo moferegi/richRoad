@@ -1,6 +1,6 @@
 <template>
-  <scroll-view scroll-x class="nf-cate-bar">
-    <view class="nf-cate-tabs">
+  <scroll-view scroll-x class="nf-cate-bar" :scroll-left="scrollLeft" scroll-with-animation>
+    <view class="nf-cate-tabs" id="nf-cate-tabs">
       <view
         v-for="(item, index) in tabList"
         :key="index"
@@ -16,7 +16,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick, getCurrentInstance } from 'vue'
 import { getUrl } from '@/utils/url'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
@@ -38,6 +38,8 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'change'])
 
 const activeIndex = ref(0)
+const scrollLeft = ref(0)
+const instance = getCurrentInstance()
 
 const tabList = computed(() => {
   const allItem = { ID: 0, title: '', icons: '', _label: $t.value('all') }
@@ -48,6 +50,27 @@ const selectCategory = (item, index) => {
   activeIndex.value = index
   emit('update:modelValue', item.ID || 0)
   emit('change', item.ID || 0)
+  scrollToCenter(index)
+}
+
+// 将选中的tab滚动到中心位置
+const scrollToCenter = (index) => {
+  nextTick(() => {
+    const query = uni.createSelectorQuery().in(instance.proxy)
+    // 获取所有tab和scroll容器的宽度信息
+    query.select('.nf-cate-bar').boundingClientRect()
+    query.selectAll('.nf-cate-tab').boundingClientRect()
+    query.exec((res) => {
+      if (!res || !res[0] || !res[1] || !res[1][index]) return
+      const barWidth = res[0].width
+      const tabs = res[1]
+      const activeTab = tabs[index]
+      // 计算目标tab中心相对于第一个tab左边的偏移
+      const tabCenter = activeTab.left - tabs[0].left + activeTab.width / 2
+      // 滚动使其居中
+      scrollLeft.value = tabCenter - barWidth / 2
+    })
+  })
 }
 
 watch(() => props.modelValue, (val) => {

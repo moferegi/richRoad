@@ -84,8 +84,10 @@ func RegisterTables() {
 		os.Exit(0)
 	}
 
-	InitVisitorData() // 自动注册访客统计模块数据
-	InitInviteData()  // 自动注册邀请系统模块数据
+	InitShopData()       // 自动注册商城核心模块数据（商品、订单、购物车、优惠券等）
+	InitVisitorData()    // 自动注册访客统计模块数据
+	InitInviteData()     // 自动注册邀请系统模块数据
+	InitNewModulesData() // 自动注册新增模块数据（进货、收款码、弹窗、营销、看板、预售、语言、区号、签到）
 
 	global.GVA_LOG.Info("register table success")
 }

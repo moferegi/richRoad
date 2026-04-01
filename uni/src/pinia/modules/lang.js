@@ -14,8 +14,9 @@ export const useLangStore = defineStore('lang', () => {
   const updateTabBar = (lang) => {
     const tabs = [
       { index: 0, key: 'tabHome' },
-      { index: 1, key: 'tabCollect' },
-      { index: 2, key: 'tabMy' },
+      { index: 1, key: 'tabCart' },
+      { index: 2, key: 'tabCollect' },
+      { index: 3, key: 'tabMy' },
     ]
     tabs.forEach(item => {
       uni.setTabBarItem({

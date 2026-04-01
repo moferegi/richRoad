@@ -195,6 +195,58 @@
 				"navigationBarTextStyle": "white",
 				"pageOrientation": "auto"
 			}
+		},
+		{
+			"path": "pages/signIn/signIn",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/user/changePassword",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/maintenance/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/presale/list",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/browseHistory/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/user/profile",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"enablePullDownRefresh": false
+			}
 		}
 	],
 	"uniIdRouter": {},
@@ -214,9 +266,9 @@
 		}
 	},
 	"tabBar": {
-		"color": "rgba(255,255,255,0.6)", // Netflix半透明白色
-		"selectedColor": "#e50914", // Netflix红色
-		"backgroundColor": "#1a1a1a", // Netflix深灰黑
+		"color": "rgba(255,255,255,0.6)",
+		"selectedColor": "#e50914",
+		"backgroundColor": "#1a1a1a",
 		"borderStyle": "white",
 		"list": [{
 				"pagePath": "pages/tabBar/index",
@@ -227,10 +279,16 @@
 				"selectedIconPath": "static/images/tabBar/homes.png"
 			},
 			{
-				"pagePath": "pages/collect/collect",
-				"text": "我的收藏",
+				"pagePath": "pages/tabBar/shop/shop",
+				"text": "购物车",
 				"iconPath": "static/images/tabBar/cart.png",
 				"selectedIconPath": "static/images/tabBar/carts.png"
+			},
+			{
+				"pagePath": "pages/collect/collect",
+				"text": "我的收藏",
+				"iconPath": "static/images/tabBar/find.png",
+				"selectedIconPath": "static/images/tabBar/finds.png"
 			},
 			{
 				"pagePath": "pages/tabBar/my/index",

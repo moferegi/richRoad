@@ -4,7 +4,7 @@
     <view class="nf-home-bg"></view>
 
     <!-- 顶部搜索栏 -->
-    <view class="nf-topbar">
+    <view class="nf-topbar" id="nf-topbar">
       <view class="nf-topbar-status"></view>
       <view class="nf-topbar-row">
         <!-- 左侧语言切换 -->
@@ -31,11 +31,62 @@
       </view>
     </view>
 
-    <scroll-view scroll-y="true" :show-scrollbar="false" class="nf-scroll" @scrolltolower="debouncedLower">
+    <scroll-view
+      scroll-y="true"
+      :show-scrollbar="false"
+      class="nf-scroll"
+      :scroll-top="scrollTopVal"
+      @scroll="onScroll"
+      @scrolltolower="debouncedLower"
+    >
       <!-- 轮播图区域 -->
       <swpiers :lists="list"></swpiers>
-      <!-- 分类导航 -->
-      <categories :categoriesData="gridList" v-model="activeCategoryID" @change="onCategoryChange"></categories>
+
+      <!-- 1. 公告走马灯 -->
+      <announcement-marquee
+        :enabled="announcementConfig.enabled"
+        :text="announcementConfig.text"
+        :textColor="announcementConfig.textColor"
+        :speed="announcementConfig.speed"
+      />
+
+      <!-- 2. 预售商品区域 -->
+      <view class="nf-presale-home" v-if="presaleList.length > 0">
+        <view class="nf-presale-header">
+          <text class="nf-presale-title">🔥 {{ $t('presaleSection') }}</text>
+          <view class="nf-presale-more" @tap="goPresaleList">
+            <text class="nf-presale-more-text">{{ $t('viewMore') }}</text>
+            <uni-icons type="right" size="12" color="rgba(255,255,255,0.5)" />
+          </view>
+        </view>
+        <scroll-view scroll-x class="nf-presale-scroll">
+          <view class="nf-presale-items">
+            <view
+              class="nf-presale-item"
+              v-for="(item, idx) in presaleList"
+              :key="idx"
+              @tap="goGoodsDetail(item)"
+            >
+              <image class="nf-presale-img" :src="getUrl(item.good && item.good.imageUrl)" mode="aspectFill" />
+              <view class="nf-presale-info">
+                <text class="nf-presale-name">{{ $lt(item.good && item.good.title) }}</text>
+                <text class="nf-presale-price">¥{{ formatPrice(item.presalePrice || (item.good && item.good.price)) }}</text>
+              </view>
+              <view class="nf-presale-badge-tag">{{ $t('presale') }}</view>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- 分类导航 (带id用于吸顶检测) -->
+      <view id="nf-category-anchor"></view>
+      <categories
+        ref="categoriesRef"
+        :categoriesData="gridList"
+        v-model="activeCategoryID"
+        @change="onCategoryChange"
+      ></categories>
+
       <!-- 商品展示区 -->
       <view class="nf-goods-section" :class="{ 'nf-goods-fade': switching }">
         <noPaginRowGoodList
@@ -59,25 +110,57 @@
       </view>
     </scroll-view>
 
+    <!-- 5. 吸顶分类栏 (当原始分类滚出视口时显示) -->
+    <view class="nf-sticky-category" v-if="showStickyCategory">
+      <categories
+        :categoriesData="gridList"
+        v-model="activeCategoryID"
+        @change="onCategoryChange"
+      ></categories>
+    </view>
+
+    <!-- 5. 回到顶部按钮 -->
+    <view class="nf-back-top" v-if="showBackTop" @tap="scrollToTop">
+      <uni-icons type="up" size="20" color="#fff" />
+      <text class="nf-back-top-text">{{ $t('backToTop') }}</text>
+    </view>
+
+    <!-- 6. 签到悬浮按钮 -->
+    <view class="nf-sign-float" v-if="signInEnabled" @tap="goSignIn">
+      <text class="nf-sign-float-text">{{ $t('signIn') }}</text>
+    </view>
+
     <!-- 语言切换弹窗 -->
     <lang-switch v-model="showLangPicker" />
+
+    <!-- 首页弹窗 -->
+    <popup-modal position="home" client-type="uni" />
   </view>
 </template>
 <script setup>
-import  { ref, computed } from 'vue';
+import  { ref, computed, onUnmounted } from 'vue';
 import { getCategoryMobile, getGoodList } from '@/api/homePage.js'
 import { getBannerList } from '@/api/homePage.js'
+import { getPresaleGoodList } from '@/api/presale.js'
+import { getAnnouncementConfig, getSignInEnabled, getPresaleHomeCount } from '@/api/sysConfig.js'
+import { doSignIn, getSignInStatus } from '@/api/signIn.js'
 import noPaginRowGoodList from '@/components/good-list/no-pagin-row-good-list.vue'
 import swpiers from './components/swiper.vue'
 import categories from './components/categories.vue'
-import seckilling from './components/seckilling.vue';
+import announcementMarquee from '@/components/announcement-marquee/announcement-marquee.vue'
 import langSwitch from '@/components/lang-switch/lang-switch.vue'
+import popupModal from '@/components/popup-modal/popup-modal.vue'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { useUserStore } from '@/pinia/modules/user.js'
+import { getUrl } from '@/utils/url.js'
+import { onShow } from '@dcloudio/uni-app'
 
 const langStore = useLangStore()
+const userStore = useUserStore()
 const $t = computed(() => langStore.$t)
+const $lt = computed(() => langStore.$lt)
 const langLabel = computed(() => {
-  const map = { zh: '中', en: 'EN', mn: 'MN' }
+  const map = { zh: '中', en: 'EN', mn: 'MN', 'zh-TW': '繁', th: 'ไทย', hi: 'हि', id: 'ID' }
   return map[langStore.locale] || '中'
 })
 const showLangPicker = ref(false)
@@ -85,7 +168,7 @@ const showLangPicker = ref(false)
 // 启动时恢复 tabBar 语言
 langStore.updateTabBar(langStore.locale)
 
-// 轮播图相关业务逻辑
+// ========== 轮播图 ==========
 const list = ref([])
 const searchKeyword = ref('')
 
@@ -95,8 +178,148 @@ const initBanner = async () => {
 }
 initBanner()
 
- const products = ref ([])
-// 商品相关属性
+// ========== 1. 公告走马灯 ==========
+const announcementConfig = ref({
+  enabled: false,
+  text: '',
+  textColor: '#fff',
+  speed: 60
+})
+
+const initAnnouncement = async () => {
+  try {
+    const res = await getAnnouncementConfig()
+    if (res.code === 0 && res.data) {
+      const d = res.data
+      announcementConfig.value = {
+        enabled: d.enabled === true || d.enabled === 'true',
+        text: typeof d.content === 'string' ? (langStore.$lt(d.content) || d.content) : (d.content || ''),
+        textColor: d.textColor || '#fff',
+        speed: parseInt(d.speed) || 60
+      }
+    }
+  } catch (e) {
+    console.error('获取公告失败', e)
+  }
+}
+initAnnouncement()
+
+// ========== 2. 预售商品 ==========
+const presaleList = ref([])
+const presaleHomeCount = ref(4)
+
+const initPresale = async () => {
+  try {
+    // 获取后台配置的首页展示数量
+    const countRes = await getPresaleHomeCount()
+    if (countRes.code === 0 && countRes.data && countRes.data.configValue) {
+      presaleHomeCount.value = parseInt(countRes.data.configValue) || 4
+    }
+  } catch (e) {}
+
+  try {
+    const res = await getPresaleGoodList({ page: 1, pageSize: presaleHomeCount.value })
+    if (res.code === 0 && res.data.list) {
+      presaleList.value = res.data.list
+    }
+  } catch (e) {
+    console.error('获取预售商品失败', e)
+  }
+}
+initPresale()
+
+const formatPrice = (priceInCents) => {
+  if (!priceInCents && priceInCents !== 0) return '0.00'
+  return (parseInt(priceInCents) / 100).toFixed(2)
+}
+
+const goPresaleList = () => {
+  uni.navigateTo({ url: '/pages/presale/list' })
+}
+
+const goGoodsDetail = (item) => {
+  if (item.good && item.good.ID) {
+    uni.navigateTo({ url: '/pages/goodsDetails/goodsDetails?id=' + item.good.ID })
+  }
+}
+
+// ========== 5. 滚动状态：吸顶分类 + 回到顶部 ==========
+const showStickyCategory = ref(false)
+const showBackTop = ref(false)
+const scrollTopVal = ref(0)
+let categoryAnchorTop = 0
+let oldScrollTop = 0
+
+// 获取分类栏位置 (延迟到渲染完成)
+const getCategoryAnchorTop = () => {
+  const query = uni.createSelectorQuery()
+  query.select('#nf-category-anchor').boundingClientRect((rect) => {
+    if (rect) categoryAnchorTop = rect.top + oldScrollTop
+  }).exec()
+}
+
+const onScroll = (e) => {
+  const scrollTop = e.detail.scrollTop
+  oldScrollTop = scrollTop
+  // 分类区是否滚出视口
+  if (categoryAnchorTop > 0) {
+    showStickyCategory.value = scrollTop > categoryAnchorTop
+  }
+  // 回到顶部按钮
+  showBackTop.value = scrollTop > 600
+}
+
+const scrollToTop = () => {
+  scrollTopVal.value = oldScrollTop // 先设一个非0值
+  setTimeout(() => {
+    scrollTopVal.value = 0
+  }, 50)
+}
+
+// ========== 6. 签到悬浮按钮 ==========
+const signInEnabled = ref(false)
+
+const initSignIn = async () => {
+  try {
+    const res = await getSignInEnabled()
+    if (res.code === 0 && res.data && res.data.configValue) {
+      signInEnabled.value = res.data.configValue === 'true'
+    }
+  } catch (e) {}
+}
+initSignIn()
+
+const goSignIn = async () => {
+  const token = userStore.token || ''
+  if (!token) {
+    uni.showToast({ title: $t.value('loginFirst'), icon: 'none' })
+    uni.navigateTo({ url: '/pages/user/login' })
+    return
+  }
+  try {
+    // 检查是否已签到
+    const statusRes = await getSignInStatus()
+    if (statusRes.code === 0 && statusRes.data && statusRes.data.signedToday) {
+      uni.showToast({ title: $t.value('alreadySigned'), icon: 'none' })
+      return
+    }
+    const res = await doSignIn()
+    if (res.code === 0) {
+      const points = res.data && res.data.points ? res.data.points : 0
+      uni.showToast({
+        title: $t.value('signInSuccess') + (points > 0 ? ` +${points}` : ''),
+        icon: 'success'
+      })
+    } else {
+      uni.showToast({ title: res.msg || $t.value('alreadySigned'), icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: $t.value('alreadySigned'), icon: 'none' })
+  }
+}
+
+// ========== 商品列表 ==========
+const products = ref([])
 const activeCategoryID = ref(0)
 const params = ref({
   page: 1,
@@ -109,67 +332,26 @@ const isBottom = ref(false)
 const isLoading = ref(true)
 const switching = ref(false)
 
-// 清空搜索关键词
 searchKeyword.value = ''
-// 带关键词跳转到搜索页面
+
 const goToSearchWithKeyword = () => {
   const keyword = searchKeyword.value.trim()
   if (!keyword) {
-    uni.showToast({
-      title: $t.value('searchEmpty'),
-      icon: 'none'
-    })
+    uni.showToast({ title: $t.value('searchEmpty'), icon: 'none' })
     return
   }
-  
-  // 使用 uni.setStorageSync 临时存储搜索关键词
   uni.setStorageSync('searchKeyword', keyword)
-  uni.navigateTo({
-    url: '/pages/search/index'
-  })
+  uni.navigateTo({ url: '/pages/search/index' })
 }
 
-const getRecommend = async () =>{
-  const res = await getGoodList({
-    recommend:true
-  })
+const getRecommend = async () => {
+  const res = await getGoodList({ recommend: true })
   if (res.code === 0 && res.data.list.length) {
     products.value = res.data.list
   }
 }
-
 getRecommend()
 
-// 修改 lower 函数，确保正确处理页码
-/*const lower = async (isRefresh = false) => {
-  if(isBottom.value && !isRefresh) {
-    return
-  } else {
-    isLoading.value = true
-    if(!isRefresh) {
-      params.value.page += 1  // 这里会正确递增页码
-    }
-
-    try {
-      const res = await getGoodList(params.value)
-      if (res.code === 0 && res.data.list.length) {
-        if(isRefresh) {
-          flowData.value = res.data.list
-        } else {
-          flowData.value.push(...res.data.list)
-        }
-        totalCount.value = res.data.total || flowData.value.length
-        isBottom.value = false
-      } else {
-        isBottom.value = true
-      }
-    } catch (error) {
-      console.error('获取商品列表失败', error)
-    } finally {
-      isLoading.value = false
-    }
-  }
-}*/
 const lower = async (isRefresh = false) => {
   if (isBottom.value && !isRefresh) return
   isLoading.value = true
@@ -183,18 +365,14 @@ const lower = async (isRefresh = false) => {
     const res = await getGoodList(params.value)
     if (res.code === 0) {
       const listData = res.data.list || []
-      // 合并或重置
       if (isRefresh) {
         flowData.value = listData
       } else {
         flowData.value.push(...listData)
       }
-      // 更新总数
       totalCount.value = res.data.total ?? flowData.value.length
-      // 如果返回条数小于 pageSize，说明已经是最后一页
       isBottom.value = listData.length < params.value.pageSize
     } else {
-      // 接口异常也视为无更多
       isBottom.value = true
     }
   } catch (error) {
@@ -206,21 +384,15 @@ const lower = async (isRefresh = false) => {
 
 const totalCount = ref(0)
 
-// 处理自动加载更多
 const handleAutoLoadMore = () => {
-  // 直接调用现有的 lower 方法，不需要修改页码
-  // lower 方法内部会自动处理页码递增
   lower(false)
 }
-
 
 // 分类切换（带淡入淡出）
 const onCategoryChange = async (categoryID) => {
   params.value.categoryID = categoryID || 0
-  // 淡出（保留旧数据撑高度）
   switching.value = true
   await new Promise(r => setTimeout(r, 220))
-  // 请求新数据
   params.value.page = 1
   isBottom.value = false
   try {
@@ -237,11 +409,9 @@ const onCategoryChange = async (categoryID) => {
   } catch (e) {
     flowData.value = []
   }
-  // 淡入
   switching.value = false
 }
 
-// 分类tabs相关业务逻辑
 const gridList = ref([])
 const initCategory = async () => {
   const res = await getCategoryMobile()
@@ -250,11 +420,13 @@ const initCategory = async () => {
   }
 }
 initCategory()
-// 初始加载全部商品
 lower(true)
 
+// 延迟获取分类锚点位置
+onShow(() => {
+  setTimeout(getCategoryAnchorTop, 500)
+})
 
-// 防抖函数
 const debounce = (func, delay) => {
   let debounceTimer;
   return function(...args) {
@@ -265,11 +437,7 @@ const debounce = (func, delay) => {
   };
 };
 
-
-// 防抖包装的 lower 方法
 const debouncedLower = debounce(()=>lower(false), 300);
-
-
 </script>
 
 <style lang="scss">
@@ -445,6 +613,164 @@ page {
   font-size: 28rpx;
   color: rgba(255, 255, 255, 0.3);
   letter-spacing: 2rpx;
+}
+
+/* ===== 预售区域 ===== */
+.nf-presale-home {
+  margin: 16rpx 20rpx 0;
+}
+
+.nf-presale-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.nf-presale-title {
+  font-size: 28rpx;
+  color: #fff;
+  font-weight: 700;
+}
+
+.nf-presale-more {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+}
+
+.nf-presale-more-text {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.nf-presale-scroll {
+  white-space: nowrap;
+}
+
+.nf-presale-items {
+  display: flex;
+  gap: 16rpx;
+  padding-bottom: 8rpx;
+}
+
+.nf-presale-item {
+  flex-shrink: 0;
+  width: 240rpx;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  border-radius: 16rpx;
+  overflow: hidden;
+  position: relative;
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+.nf-presale-img {
+  width: 240rpx;
+  height: 240rpx;
+}
+
+.nf-presale-info {
+  padding: 10rpx 12rpx;
+}
+
+.nf-presale-name {
+  font-size: 22rpx;
+  color: #fff;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nf-presale-price {
+  font-size: 26rpx;
+  color: #e50914;
+  font-weight: 700;
+  display: block;
+  margin-top: 4rpx;
+}
+
+.nf-presale-badge-tag {
+  position: absolute;
+  top: 8rpx;
+  left: 8rpx;
+  background: linear-gradient(135deg, #e50914, #b20710);
+  color: #fff;
+  font-size: 18rpx;
+  padding: 2rpx 12rpx;
+  border-radius: 8rpx;
+  font-weight: 600;
+}
+
+/* ===== 吸顶分类栏 ===== */
+.nf-sticky-category {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 98;
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+  padding-top: calc(var(--status-bar-height, 0px) + 96rpx);
+}
+
+/* ===== 回到顶部按钮 ===== */
+.nf-back-top {
+  position: fixed;
+  right: 28rpx;
+  bottom: 200rpx;
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: rgba(229, 9, 20, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 20rpx rgba(229, 9, 20, 0.4);
+  z-index: 97;
+  transition: all 0.3s;
+
+  &:active {
+    transform: scale(0.9);
+  }
+}
+
+.nf-back-top-text {
+  font-size: 18rpx;
+  color: #fff;
+  margin-top: 2rpx;
+}
+
+/* ===== 签到悬浮按钮 ===== */
+.nf-sign-float {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: linear-gradient(135deg, #e50914, #b20710);
+  padding: 16rpx 12rpx;
+  border-radius: 16rpx 0 0 16rpx;
+  z-index: 96;
+  box-shadow: -4rpx 0 16rpx rgba(229, 9, 20, 0.4);
+  writing-mode: vertical-rl;
+
+  &:active {
+    transform: translateY(-50%) scale(0.95);
+  }
+}
+
+.nf-sign-float-text {
+  font-size: 22rpx;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 4rpx;
 }
 </style>
 

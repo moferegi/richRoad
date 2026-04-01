@@ -15,6 +15,12 @@ type RouterGroup struct {
 	CouponOrderUserRouter
 	PromotionRouter
 	KefuRouter
+	GoodPurchaseRouter
+	QrcodePaymentRouter
+	PopupRouter
+	MarketingRewardRouter
+	DashboardRouter
+	PresaleRouter
 }
 
 var (

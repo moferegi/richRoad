@@ -12,7 +12,7 @@ type Collect struct {
 	GoodID uint `json:"goodID" form:"goodID" gorm:"column:good_id;comment:商品ID;"` //商品ID
 }
 
-// TableName 收藏 Collect自定义表名 clinet_collect
+// TableName 收藏 Collect自定义表名 client_collect
 func (Collect) TableName() string {
-	return "clinet_collect"
+	return "client_collect"
 }

@@ -34,6 +34,12 @@ type CreateOrder struct {
 	CloseTime   time.Time     `json:"closeTime" form:"closeTime" gorm:"column:close_time;comment:关闭时间;"`      //关闭时间
 	Comment     *Comment      `json:"comment" gorm:"->;foreignKey:OrderID;references:ID"`
 	Pointed     bool          `json:"pointed" form:"pointed" gorm:"column:pointed;comment:是否已积分;"` //是否已积分
+	IsPresale   bool          `json:"isPresale" form:"isPresale" gorm:"column:is_presale;default:false;comment:是否预售订单;"`   //是否预售订单
+	PayMethod   string        `json:"payMethod" form:"payMethod" gorm:"column:pay_method;size:20;comment:支付方式(contact/qrcode);"` //支付方式
+	ExpireAt    *time.Time    `json:"expireAt" form:"expireAt" gorm:"column:expire_at;comment:订单过期时间;"`                    //订单过期时间
+	PaidAt      *time.Time    `json:"paidAt" form:"paidAt" gorm:"column:paid_at;comment:确认支付时间;"`                           //确认支付时间
+	ReceivedAt  *time.Time    `json:"receivedAt" form:"receivedAt" gorm:"column:received_at;comment:确认收货时间;"`               //确认收货时间
+	CancelledAt *time.Time    `json:"cancelledAt" form:"cancelledAt" gorm:"column:cancelled_at;comment:取消时间;"`                     //取消时间
 }
 
 // TableName 订单 Order自定义表名 shop_order
@@ -69,6 +75,12 @@ type Order struct {
 	CloseTime   time.Time     `json:"closeTime" form:"closeTime" gorm:"column:close_time;comment:关闭时间;"`      //关闭时间
 	Comment     *Comment      `json:"comment" gorm:"->;foreignKey:OrderID;references:ID"`
 	Pointed     bool          `json:"pointed" form:"pointed" gorm:"column:pointed;comment:是否已积分;"` //是否已积分
+	IsPresale   bool          `json:"isPresale" form:"isPresale" gorm:"column:is_presale;default:false;comment:是否预售订单;"`   //是否预售订单
+	PayMethod   string        `json:"payMethod" form:"payMethod" gorm:"column:pay_method;size:20;comment:支付方式(contact/qrcode);"` //支付方式
+	ExpireAt    *time.Time    `json:"expireAt" form:"expireAt" gorm:"column:expire_at;comment:订单过期时间;"`                    //订单过期时间
+	PaidAt      *time.Time    `json:"paidAt" form:"paidAt" gorm:"column:paid_at;comment:确认支付时间;"`                           //确认支付时间
+	ReceivedAt  *time.Time    `json:"receivedAt" form:"receivedAt" gorm:"column:received_at;comment:确认收货时间;"`               //确认收货时间
+	CancelledAt *time.Time    `json:"cancelledAt" form:"cancelledAt" gorm:"column:cancelled_at;comment:取消时间;"`                     //取消时间
 }
 
 // TableName 订单 Order自定义表名 shop_order
@@ -115,6 +127,12 @@ type OrderRes struct {
 	Street      string           `json:"street" form:"street" gorm:"column:street;comment:收件详细地址;"`             //收件详细地址
 	CloseTime   time.Time        `json:"closeTime" form:"closeTime" gorm:"column:close_time;comment:关闭时间;"`     //关闭时间
 	Comment     *Comment         `json:"comment" gorm:"->;foreignKey:OrderID;references:ID"`
+	IsPresale   bool             `json:"isPresale" form:"isPresale" gorm:"column:is_presale;default:false;comment:是否预售订单;"`   //是否预售订单
+	PayMethod   string           `json:"payMethod" form:"payMethod" gorm:"column:pay_method;size:20;comment:支付方式(contact/qrcode);"` //支付方式
+	ExpireAt    *time.Time       `json:"expireAt" form:"expireAt" gorm:"column:expire_at;comment:订单过期时间;"`                    //订单过期时间
+	PaidAt      *time.Time       `json:"paidAt" form:"paidAt" gorm:"column:paid_at;comment:确认支付时间;"`                           //确认支付时间
+	ReceivedAt  *time.Time       `json:"receivedAt" form:"receivedAt" gorm:"column:received_at;comment:确认收货时间;"`               //确认收货时间
+	CancelledAt *time.Time       `json:"cancelledAt" form:"cancelledAt" gorm:"column:cancelled_at;comment:取消时间;"`                     //取消时间
 }
 
 // TableName 订单 Order自定义表名 shop_order

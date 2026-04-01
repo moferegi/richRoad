@@ -20,6 +20,9 @@ func initBizRouter(routers ...*gin.RouterGroup) {
 		clientRouter.InitPointRecordRouter(privateGroup, publicGroup)
 		clientRouter.InitVisitorRouter(privateGroup, publicGroup)
 		clientRouter.InitSysConfigRouter(privateGroup, publicGroup)
+		clientRouter.InitLanguageRouter(privateGroup, publicGroup)
+		clientRouter.InitPhoneAreaCodeRouter(privateGroup, publicGroup)
+		clientRouter.InitSignInRouter(privateGroup, publicGroup)
 	}
 	{
 		shopRouter := router.RouterGroupApp.Shop
@@ -35,6 +38,12 @@ func initBizRouter(routers ...*gin.RouterGroup) {
 		shopRouter.InitCouponOrderUserRouter(privateGroup, publicGroup)
 		shopRouter.InitPromotionRouter(privateGroup, publicGroup) // 占位方法，保证文件可以正确加载，避免go空变量检测报错，请勿删除。
 		shopRouter.InitKefuRouter(privateGroup, publicGroup)
+		shopRouter.InitGoodPurchaseRouter(privateGroup, publicGroup)
+		shopRouter.InitQrcodePaymentRouter(privateGroup, publicGroup)
+		shopRouter.InitPopupRouter(privateGroup, publicGroup)
+		shopRouter.InitMarketingRewardRouter(privateGroup, publicGroup)
+		shopRouter.InitDashboardRouter(privateGroup, publicGroup)
+		shopRouter.InitPresaleRouter(privateGroup, publicGroup)
 	}
 	holder(publicGroup, privateGroup)
 }

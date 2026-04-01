@@ -13,4 +13,10 @@ type ServiceGroup struct {
 	CouponOrderUserService
 	PromotionService
 	KefuService
+	GoodPurchaseService
+	QrcodePaymentService
+	PopupService
+	MarketingRewardService
+	DashboardService
+	PresaleService
 }

@@ -23,6 +23,11 @@
             <text class="discount-price">¥{{ item.price / 100 }}</text>
             <text class="original-price">¥{{ item.originalPrice }}</text>
           </view>
+          <!-- 优惠券/积分标记 -->
+          <view class="goods-badges" v-if="item.pointsEnabled || hasCoupon(item)">
+            <text class="goods-badge goods-badge-coupon" v-if="hasCoupon(item)">{{ $t('canUseCoupon') }}</text>
+            <text class="goods-badge goods-badge-points" v-if="item.pointsEnabled">{{ $t('canUsePoints') }}</text>
+          </view>
           <view class="goods-extra">
             <view class="rating">
               <text class="rating-stars">{{ getRatingStars(item.rating) }}</text>
@@ -142,10 +147,15 @@ const getRatingStars = (rating) => {
   return '★'.repeat(fullStars) + '☆'.repeat(emptyStars);
 }
 
+// 判断商品是否有可用优惠券
+const hasCoupon = (item) => {
+  return item.couponAvailable || (item.coupons && item.coupons.length > 0)
+}
+
 // 跳转到商品详情页
 const handleGoodsClick = (item) => {
   uni.navigateTo({
-    url: '/pages/player/index?id=' + item.ID
+    url: '/pages/goodsDetails/goodsDetails?id=' + item.ID
   })
 }
 
@@ -326,6 +336,34 @@ onUnmounted(() => {
   .sales {
     color: rgba(255, 255, 255, 0.35);
     font-size: 20rpx;
+  }
+}
+
+.goods-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin: 6rpx 0 2rpx;
+
+  .goods-badge {
+    font-size: 18rpx;
+    padding: 2rpx 10rpx;
+    border-radius: 16rpx;
+    height: 28rpx;
+    line-height: 24rpx;
+    font-weight: 500;
+  }
+
+  .goods-badge-coupon {
+    color: #e50914;
+    background: rgba(229, 9, 20, 0.12);
+    border: 1rpx solid rgba(229, 9, 20, 0.3);
+  }
+
+  .goods-badge-points {
+    color: #ffd700;
+    background: rgba(255, 215, 0, 0.12);
+    border: 1rpx solid rgba(255, 215, 0, 0.3);
   }
 }
 

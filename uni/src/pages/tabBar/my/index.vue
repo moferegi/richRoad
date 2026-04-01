@@ -29,16 +29,57 @@
         <text class="nf-unlogin-text">{{ $t('loginPrompt') }}</text>
       </view>
 
-      <!-- 数据统计 -->
+      <!-- 数据统计 (可点击跳转) -->
       <view class="nf-stats">
-        <view class="nf-stat-item">
-          <text class="nf-stat-value">0</text>
+        <view class="nf-stat-item" @tap="goToCoupon">
+          <text class="nf-stat-value">{{ userCouponCount }}</text>
           <text class="nf-stat-label">{{ $t('coupon') }}</text>
         </view>
         <view class="nf-stat-divider"></view>
-        <view class="nf-stat-item">
-          <text class="nf-stat-value">20</text>
+        <view class="nf-stat-item" @tap="goToPoints">
+          <text class="nf-stat-value">{{ userPoints }}</text>
           <text class="nf-stat-label">{{ $t('points') }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 我的订单区域 -->
+    <view class="nf-section" v-if="isShow">
+      <view class="nf-section-header">
+        <view class="nf-section-icon">
+          <uni-icons type="list" size="18" color="#e50914" />
+        </view>
+        <text class="nf-section-title">{{ $t('myOrders') }}</text>
+        <view class="nf-section-line"></view>
+        <view class="nf-order-all" @tap="goToOrder('')">
+          <text class="nf-order-all-text">{{ $t('viewAll') }}</text>
+          <uni-icons type="right" size="12" color="rgba(255,255,255,0.4)" />
+        </view>
+      </view>
+      <view class="nf-order-tabs">
+        <view class="nf-order-tab" @tap="goToOrder('pending')">
+          <view class="nf-order-tab-icon">
+            <uni-icons type="wallet" size="24" color="#e50914" />
+          </view>
+          <text class="nf-order-tab-text">{{ $t('ordersPending') }}</text>
+        </view>
+        <view class="nf-order-tab" @tap="goToOrder('shipping')">
+          <view class="nf-order-tab-icon">
+            <uni-icons type="paperplane" size="24" color="#e50914" />
+          </view>
+          <text class="nf-order-tab-text">{{ $t('ordersShipping') }}</text>
+        </view>
+        <view class="nf-order-tab" @tap="goToOrder('receiving')">
+          <view class="nf-order-tab-icon">
+            <uni-icons type="box" size="24" color="#e50914" />
+          </view>
+          <text class="nf-order-tab-text">{{ $t('ordersReceiving') }}</text>
+        </view>
+        <view class="nf-order-tab" @tap="goToOrder('completed')">
+          <view class="nf-order-tab-icon">
+            <uni-icons type="checkbox" size="24" color="#e50914" />
+          </view>
+          <text class="nf-order-tab-text">{{ $t('ordersCompleted') }}</text>
         </view>
       </view>
     </view>
@@ -49,7 +90,7 @@
         <view class="nf-section-icon">
           <image class="nf-section-icon-img" src="/static/history.png" mode="aspectFill" />
         </view>
-        <text class="nf-section-title">{{ $t('playHistory') }}</text>
+        <text class="nf-section-title">{{ $t('browseHistory') }}</text>
         <view class="nf-section-line"></view>
       </view>
       <scroll-view class="nf-history-scroll" scroll-x>
@@ -152,6 +193,11 @@ const isShow = ref(false)
 
 const columns = computed(() => [
   {
+    title: $t.value('signIn') || '每日签到',
+    pages: '/pages/signIn/signIn',
+    icon: '/static/MYcollect.png',
+    hidden: !isShow.value
+  },{
     title: $t.value('myCollection'),
     pages: '/pages/collect/collect',
     icon: '/static/MYcollect.png'
@@ -159,6 +205,11 @@ const columns = computed(() => [
     title: $t.value('inviteFriends') || '邀请好友',
     pages: '/pages/invite/index',
     icon: '/static/MYcollect.png',
+    hidden: !isShow.value
+  },{
+    title: $t.value('changePassword') || '修改密码',
+    pages: '/pages/user/changePassword',
+    icon: '/static/images/exit.png',
     hidden: !isShow.value
   },{
     title: $t.value('onlineService'),
@@ -189,6 +240,10 @@ onShow(() => {
   if (token) {
     isShow.value = true
     info.value = uni.getStorageSync("userInfo")
+    // 获取用户积分
+    if (info.value && info.value.point !== undefined) {
+      userPoints.value = info.value.point || 0
+    }
   } else {
     isShow.value = false
   }
@@ -215,7 +270,7 @@ const getHistory = async () => {
   }
 }
 
-// 跳转到播放页并自动播放
+// 跳转到商品详情
 const goto = (item) => {
   if (!item || !item.ID) {
     uni.showToast({
@@ -224,8 +279,35 @@ const goto = (item) => {
     })
     return
   }
-  myRouter(`/pages/player/index?id=${item.ID}&autoplay=1`, true)
+  myRouter(`/pages/goodsDetails/goodsDetails?id=${item.ID}`, true)
 }
+
+// 跳转优惠券页面
+const goToCoupon = () => {
+  myRouter('/pages/coupon/index', true)
+}
+
+// 跳转积分记录页面
+const goToPoints = () => {
+  myRouter('/pages/integral/integral', true)
+}
+
+// 跳转订单页面
+const goToOrder = (status) => {
+  const statusMap = {
+    'pending': '待支付',
+    'shipping': '待发货',
+    'receiving': '待收货',
+    'completed': '已完成',
+    '': ''
+  }
+  const orderStatus = statusMap[status] || ''
+  myRouter(`/pages/order/order${orderStatus ? '?status=' + encodeURIComponent(orderStatus) : ''}`, true)
+}
+
+// 用户积分和优惠券数量
+const userPoints = ref(0)
+const userCouponCount = ref(0)
 
 const logins = () => {
   uni.redirectTo({
@@ -505,6 +587,12 @@ page {
   flex-direction: column;
   align-items: center;
   gap: 8rpx;
+  transition: all 0.2s;
+
+  &:active {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
 }
 
 .nf-stat-value {
@@ -573,6 +661,56 @@ page {
   flex: 1;
   height: 1rpx;
   background: linear-gradient(90deg, rgba(229, 9, 20, 0.3), transparent);
+}
+
+/* 订单区域 */
+.nf-order-all {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  margin-left: auto;
+}
+
+.nf-order-all-text {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.nf-order-tabs {
+  display: flex;
+  justify-content: space-around;
+  padding: 20rpx 0 8rpx;
+}
+
+.nf-order-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  padding: 12rpx 16rpx;
+  border-radius: 16rpx;
+  transition: all 0.2s;
+
+  &:active {
+    background: rgba(255, 255, 255, 0.04);
+    transform: scale(0.95);
+  }
+}
+
+.nf-order-tab-icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: rgba(229, 9, 20, 0.08);
+  border: 1rpx solid rgba(229, 9, 20, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nf-order-tab-text {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 /* 浏览历史 */

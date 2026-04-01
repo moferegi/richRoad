@@ -9,16 +9,21 @@ import (
 // 优惠券 结构体  Coupon
 type Coupon struct {
 	global.GVA_MODEL
-	Name        *string    `json:"name" form:"name" gorm:"comment:优惠券名称;column:name;" binding:"required"`                      //名称
-	Description *string    `json:"description" form:"description" gorm:"comment:优惠券描述;column:description;" binding:"required"` //描述
-	Discount    uint       `json:"discount" form:"discount" gorm:"comment:折扣金额;column:discount;" binding:"required"`           //折扣
-	MinSpend    uint       `json:"minSpend" form:"minSpend" gorm:"comment:最低消费金额;column:min_spend;"`                           //最低消费
-	ProductID   *int       `json:"productID" form:"productID" gorm:"comment:关联商品ID（仅商品券适用）;column:product_id;"`                //商品ID
-	Quantity    *int       `json:"quantity" form:"quantity" gorm:"comment:优惠券总数量;column:quantity;" binding:"required"`         //数量
-	Claimed     *int       `json:"claimed" form:"claimed" gorm:"comment:已领取数量;column:claimed;default:0"`                       //已领取
-	StartTime   *time.Time `json:"startTime" form:"startTime" gorm:"comment:开始时间;column:start_time;" binding:"required"`       //开始时间
-	EndTime     *time.Time `json:"endTime" form:"endTime" gorm:"comment:结束时间;column:end_time;" binding:"required"`             //结束时间
-	Status      bool       `json:"status" form:"status" gorm:"comment:是否启用;column:status;"`                                    //启用
+	Name            *string    `json:"name" form:"name" gorm:"comment:优惠券名称;column:name;" binding:"required"`                      //名称
+	Description     *string    `json:"description" form:"description" gorm:"comment:优惠券描述;column:description;" binding:"required"` //描述
+	Discount        uint       `json:"discount" form:"discount" gorm:"comment:折扣金额;column:discount;" binding:"required"`           //折扣
+	MinSpend        uint       `json:"minSpend" form:"minSpend" gorm:"comment:最低消费金额;column:min_spend;"`                           //最低消费
+	ProductID       *int       `json:"productID" form:"productID" gorm:"comment:关联商品ID（仅商品券适用）;column:product_id;"`                //商品ID
+	Quantity        *int       `json:"quantity" form:"quantity" gorm:"comment:优惠券总数量;column:quantity;" binding:"required"`         //数量
+	Claimed         *int       `json:"claimed" form:"claimed" gorm:"comment:已领取数量;column:claimed;default:0"`                       //已领取
+	StartTime       *time.Time `json:"startTime" form:"startTime" gorm:"comment:开始时间;column:start_time;" binding:"required"`       //开始时间
+	EndTime         *time.Time `json:"endTime" form:"endTime" gorm:"comment:结束时间;column:end_time;" binding:"required"`             //结束时间
+	Status          bool       `json:"status" form:"status" gorm:"comment:是否启用;column:status;"`                                    //启用
+	NameI18n        string     `json:"nameI18n" form:"nameI18n" gorm:"column:name_i18n;type:text;comment:名称多语言JSON;"`               //名称多语言
+	DescriptionI18n string     `json:"descriptionI18n" form:"descriptionI18n" gorm:"column:description_i18n;type:text;comment:描述多语言JSON;"` //描述多语言
+	BackgroundImage string     `json:"backgroundImage" form:"backgroundImage" gorm:"column:background_image;size:500;comment:背景图本地路径;"` //背景图
+	ExternalBgPath  string     `json:"externalBgPath" form:"externalBgPath" gorm:"column:external_bg_path;size:500;comment:背景图外部路径(优先);"` //背景图外部路径
+	ProductIDs      string     `json:"productIDs" form:"productIDs" gorm:"column:product_ids;size:500;comment:可用商品ID(逗号分隔,空=不限);"` //可用商品IDs
 }
 
 // TableName 优惠券 Coupon自定义表名 coupon

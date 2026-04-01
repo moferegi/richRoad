@@ -13,6 +13,9 @@ type GoodSearch struct {
 	Status         *bool      `json:"status" form:"status"`
 	CategoryID     int        `json:"categoryID" form:"categoryID"`
 	Recommend      *bool      `json:"recommend" form:"recommend"`
-	Keyword        string     `json:"keyword" form:"keyword"` // 新增关键词搜索字段
+	Keyword        string     `json:"keyword" form:"keyword"`       // 关键词搜索字段
+	IsPresale      *bool      `json:"isPresale" form:"isPresale"`   // 预售商品筛选
+	OrderBy        string     `json:"orderBy" form:"orderBy"`       // 排序字段: view_num/sale_num/collect_num/price
+	OrderDir       string     `json:"orderDir" form:"orderDir"`     // 排序方向: asc/desc
 	request.PageInfo
 }

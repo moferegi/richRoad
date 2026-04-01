@@ -50,8 +50,12 @@ const currentLang = computed(() => langStore.locale)
 
 const langs = [
   { value: 'zh', label: '中文', native: 'Chinese', flag: '🇨🇳' },
+  { value: 'zh-TW', label: '繁體中文', native: 'Traditional Chinese', flag: '🇹🇼' },
   { value: 'en', label: 'English', native: '英语', flag: '🇬🇧' },
   { value: 'mn', label: 'Монгол', native: '蒙古语', flag: '🇲🇳' },
+  { value: 'th', label: 'ไทย', native: 'Thai', flag: '🇹🇭' },
+  { value: 'hi', label: 'हिन्दी', native: 'Hindi', flag: '🇮🇳' },
+  { value: 'id', label: 'Bahasa', native: 'Indonesian', flag: '🇮🇩' },
 ]
 
 watch(() => props.modelValue, (val) => {

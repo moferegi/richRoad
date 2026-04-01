@@ -7,4 +7,8 @@ type ServiceGroup struct {
 	PointRecordService
 	VisitorService
 	SysConfigService
+	SysLanguageService
+	PhoneAreaCodeService
+	SignInService
+	SecurityService
 }

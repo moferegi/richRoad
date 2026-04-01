@@ -194,6 +194,7 @@ func (orderService *OrderService) ChangeOrderPoints(userID uint, orderID string,
 func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, err error) {
 	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
 		order.OriginPrice = 0
+		presaleService := PresaleService{}
 		for i := range order.Detail {
 			// 判断库存
 			var sku shop.Sku
@@ -204,6 +205,28 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 			if sku.Inventory < order.Detail[i].Quantity {
 				return errors.New("库存不足")
 			}
+
+			// 预售商品检查与防超卖
+			var good shop.Good
+			err = tx.Where("id = ?", sku.GoodID).First(&good).Error
+			if err != nil {
+				return err
+			}
+			if good.IsPresale != nil && *good.IsPresale {
+				available, message, checkErr := presaleService.CheckPresaleAvailable(sku.GoodID)
+				if checkErr != nil {
+					return checkErr
+				}
+				if !available {
+					return errors.New(message)
+				}
+				if err = presaleService.IncrementPresaleSold(tx, sku.GoodID, int(order.Detail[i].Quantity)); err != nil {
+					return err
+				}
+				order.IsPresale = true
+			}
+			order.Detail[i].GoodID = sku.GoodID
+
 			err = tx.Model(&shop.Sku{}).Where("id = ?", order.Detail[i].SKUID).Update("inventory", gorm.Expr("inventory - ?", order.Detail[i].Quantity)).Error
 			if err != nil {
 				return err
@@ -287,10 +310,26 @@ func (orderService *OrderService) PlaceOrderByCart(userID uint, req shopReq.Plac
 		order.OriginPrice = 0
 		// 从购物车设置订单详情
 		order.Detail = make([]shop.OrderDetail, 0)
+		presaleService := PresaleService{}
 		for i := range carts {
 			// 判断当前库存是否充足
 			if carts[i].SKU.Inventory < carts[i].Quantity {
 				return errors.New("库存不足")
+			}
+
+			// 预售商品检查与防超卖
+			if carts[i].Good.IsPresale != nil && *carts[i].Good.IsPresale {
+				available, message, checkErr := presaleService.CheckPresaleAvailable(carts[i].GoodID)
+				if checkErr != nil {
+					return checkErr
+				}
+				if !available {
+					return errors.New(message)
+				}
+				if err = presaleService.IncrementPresaleSold(tx, carts[i].GoodID, int(carts[i].Quantity)); err != nil {
+					return err
+				}
+				order.IsPresale = true
 			}
 
 			order.Detail = append(order.Detail, shop.OrderDetail{
@@ -365,25 +404,68 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 			return err
 		}
 		totalPrice := order.TotalPrice
-		if status == "5" && order.Pointed {
+		// 订单取消（status="5"）时，无论是否已积分，都要恢复库存
+		if status == "5" {
 			err = tx.Preload("Detail").First(&order, "id = ?", orderID).Error
 			if err != nil {
 				return err
 			}
+			// 恢复SKU库存
 			for _, detail := range order.Detail {
 				err = tx.Model(&shop.Sku{}).Where("id = ?", detail.SKUID).Update("inventory", gorm.Expr("inventory + ?", detail.Quantity)).Error
 				if err != nil {
 					return err
 				}
 			}
-			// 1. 如果订单使用了积分，先返还已使用的积分
-			if order.UsePoints && order.PointsUsed > 0 {
+			// 如果是预售商品，恢复预售已售数量
+			if order.IsPresale {
+				for _, detail := range order.Detail {
+					tx.Model(&shop.Good{}).Where("id = ? AND presale_sold > 0", detail.GoodID).
+						Update("presale_sold", gorm.Expr("presale_sold - ?", detail.Quantity))
+				}
+			}
+			// 设置取消时间
+			now := time.Now()
+			tx.Model(&order).Update("cancelled_at", now)
+
+			// 如果订单已积分（Pointed=true），还需要处理积分返还和扣除
+			if order.Pointed {
+				// 1. 如果订单使用了积分，先返还已使用的积分
+				if order.UsePoints && order.PointsUsed > 0 {
+					pointRecordService := &clientService.PointRecordService{}
+					userIdInt := int(user.ID)
+					changeType := "increase"
+					pointChange := int(order.PointsUsed) // 返还积分，正数
+					operationType := "point_refund"
+					reason := "订单取消，返还已使用积分"
+					orderIdStr := strconv.Itoa(int(order.ID))
+					orderIdInt, _ := strconv.Atoi(orderIdStr)
+					remark := "订单ID: " + orderIdStr
+
+					pointRecord := &client.PointRecord{
+						UserId:         &userIdInt,
+						ChangeType:     &changeType,
+						PointChange:    &pointChange,
+						OperationType:  &operationType,
+						Reason:         &reason,
+						RelatedOrderId: &orderIdInt,
+						Remark:         &remark,
+					}
+
+					ctxWithTx := context.WithValue(context.Background(), "tx", tx)
+					err = pointRecordService.CreatePointRecord(ctxWithTx, pointRecord)
+					if err != nil {
+						return err
+					}
+				}
+
+				// 2. 扣除已获得的积分奖励
 				pointRecordService := &clientService.PointRecordService{}
 				userIdInt := int(user.ID)
-				changeType := "increase"
-				pointChange := int(order.PointsUsed) // 返还积分，正数
-				operationType := "point_refund"
-				reason := "订单取消，返还已使用积分"
+				changeType := "decrease"
+				pointChange := int(totalPrice / 100)
+				operationType := "refund_return"
+				reason := "订单取消，扣除已获得积分"
 				orderIdStr := strconv.Itoa(int(order.ID))
 				orderIdInt, _ := strconv.Atoi(orderIdStr)
 				remark := "订单ID: " + orderIdStr
@@ -398,44 +480,15 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 					Remark:         &remark,
 				}
 
-				// 将事务挂在context上传递
 				ctxWithTx := context.WithValue(context.Background(), "tx", tx)
 				err = pointRecordService.CreatePointRecord(ctxWithTx, pointRecord)
 				if err != nil {
 					return err
 				}
-			}
-
-			// 2. 扣除已获得的积分奖励
-			pointRecordService := &clientService.PointRecordService{}
-			userIdInt := int(user.ID)
-			changeType := "decrease"
-			pointChange := int(totalPrice / 100)
-			operationType := "refund_return"
-			reason := "订单取消，扣除已获得积分"
-			orderIdStr := strconv.Itoa(int(order.ID))
-			orderIdInt, _ := strconv.Atoi(orderIdStr)
-			remark := "订单ID: " + orderIdStr
-
-			pointRecord := &client.PointRecord{
-				UserId:         &userIdInt,
-				ChangeType:     &changeType,
-				PointChange:    &pointChange,
-				OperationType:  &operationType,
-				Reason:         &reason,
-				RelatedOrderId: &orderIdInt,
-				Remark:         &remark,
-			}
-
-			// 将事务挂在context上传递
-			ctxWithTx := context.WithValue(context.Background(), "tx", tx)
-			err = pointRecordService.CreatePointRecord(ctxWithTx, pointRecord)
-			if err != nil {
-				return err
-			}
-			err = tx.Model(&order).Update("pointed", false).Error
-			if err != nil {
-				return err
+				err = tx.Model(&order).Update("pointed", false).Error
+				if err != nil {
+					return err
+				}
 			}
 			return nil
 		}

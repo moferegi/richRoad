@@ -135,10 +135,28 @@ func (goodService *GoodService) GetGoodInfoList(info shopReq.GoodSearch) (list [
 		db = db.Where("status = ?", info.Status)
 	}
 
+	if info.IsPresale != nil {
+		db = db.Where("is_presale = ?", info.IsPresale)
+	}
+
 	err = db.Count(&total).Error
 	if err != nil {
 		return
 	}
+
+	// 排序支持
+	orderClause := "id desc"
+	if info.OrderBy != "" {
+		allowedCols := map[string]bool{"price": true, "sales_num": true, "view_num": true, "created_at": true, "sort": true, "presale_sort": true}
+		if allowedCols[info.OrderBy] {
+			dir := "asc"
+			if info.OrderDir == "desc" {
+				dir = "desc"
+			}
+			orderClause = info.OrderBy + " " + dir
+		}
+	}
+	db = db.Order(orderClause)
 
 	if limit != 0 {
 		db = db.Limit(limit).Offset(offset)

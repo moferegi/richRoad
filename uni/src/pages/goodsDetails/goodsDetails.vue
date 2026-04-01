@@ -114,20 +114,24 @@
       <view class="nav-action-buttons">
         <view class="nav-button" @tap="goTo()">
           <image class="nav-icon" src="./../../static/images/tabBar/home.png"></image>
-          <text class="nav-text">首页</text>
+          <text class="nav-text">{{ $t('home') }}</text>
+        </view>
+        <view class="nav-button" @tap="goToKefu">
+          <uni-icons type="headphones" size="22" color="#999"></uni-icons>
+          <text class="nav-text">{{ $t('customerService') }}</text>
         </view>
         <view class="nav-button" @tap="goTo('cart')">
           <image class="nav-icon" src="./../../static/images/tabBar/cart.png"></image>
-          <text class="nav-text">购物车</text>
+          <text class="nav-text">{{ $t('cart') }}</text>
         </view>
         <view class="nav-button" @tap="addCollect">
           <image class="nav-icon" :src="!collectionFlag? './../../static/collection.png' : './../../static/collect.png'"></image>
-          <text class="nav-text">收藏</text>
+          <text class="nav-text">{{ $t('collectText') }}</text>
         </view>
       </view>
       <view class="buy-buttons">
-        <view class="add-cart-btn" @tap="addToCart()">加入购物车</view>
-        <view class="buy-now-btn" @tap="goodsTapPay('pay')">立即购买</view>
+        <view class="add-cart-btn" @tap="addToCart()">{{ $t('addToCart') }}</view>
+        <view class="buy-now-btn" @tap="goodsTapPay('pay')">{{ $t('buyNow') }}</view>
       </view>
     </view>
 
@@ -162,6 +166,7 @@ import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
 const $lt = computed(() => langStore.$lt)
+const $t = computed(() => langStore.$t)
 
 const data = ref({})
 const collectionFlag = ref('')
@@ -236,7 +241,12 @@ const goTo = (path) => {
       url: '/pages/tabBar/index'
     })
   }
+}
 
+const goToKefu = () => {
+  uni.navigateTo({
+    url: '/pages/kefu/index'
+  })
 }
 const toOrder = async () => {
   myRouter(`/pages/orderInfo/orderInfo?skuID=${data.value.skus[0].ID}&goodID=${data.value.skus[0].goodID}`)

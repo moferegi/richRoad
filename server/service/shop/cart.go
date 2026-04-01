@@ -120,8 +120,3 @@ func (cartService *CartService) ClearCart(userID uint) (err error) {
 	err = global.GVA_DB.Delete(&shop.Cart{}, "user_id = ?", userID).Error
 	return
 }
-
-func (cartService *CartService) OrderByCart(ids []uint) (list []shop.Cart, err error) {
-	// TODO:从购物车下单
-	return
-}
