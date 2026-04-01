@@ -42,6 +42,11 @@ var messages = map[string]map[string]string{
 	"passwordMismatch": {LangZh: "两次输入的密码不一致", LangEn: "Passwords do not match", LangMn: "Нууц үг таарахгүй байна"},
 	"cannotModify":     {LangZh: "无法修改", LangEn: "Cannot modify", LangMn: "Өөрчлөх боломжгүй"},
 	"seriesNotFound":   {LangZh: "剧集不存在", LangEn: "Series not found", LangMn: "Цуврал олдсонгүй"},
+	"loginLocked":      {LangZh: "登录失败次数过多，请稍后再试", LangEn: "Too many failed attempts, please try again later", LangMn: "Нэвтрэлт хэт олон удаа амжилтгүй, дараа дахин оролдоно уу"},
+	"registerIPLimit":  {LangZh: "该IP注册次数已达上限", LangEn: "Registration limit reached for this IP", LangMn: "Энэ IP-ээс бүртгэх хязгаарт хүрсэн"},
+	"areaCodeInvalid":  {LangZh: "区号无效或未启用", LangEn: "Invalid or disabled area code", LangMn: "Бүсийн код буруу эсвэл идэвхгүй"},
+	"phoneFormatError": {LangZh: "手机号格式不正确", LangEn: "Invalid phone number format", LangMn: "Утасны дугаарын формат буруу"},
+	"changeSuccess":    {LangZh: "修改成功", LangEn: "Changed successfully", LangMn: "Амжилттай өөрчлөлөө"},
 
 	// ========== JWT 中间件 ==========
 	"notLogin":     {LangZh: "未登录或非法访问，请登录", LangEn: "Please login to continue", LangMn: "Нэвтэрнэ үү"},

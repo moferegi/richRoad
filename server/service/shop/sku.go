@@ -64,6 +64,20 @@ func (skuService *SkuService) GetSkuInfoList(info shopReq.SkuSearch) (list []sho
 		return
 	}
 
+	// 排序支持
+	orderClause := "id desc"
+	if info.OrderBy != "" {
+		allowedCols := map[string]bool{"sale_num": true, "price": true, "inventory": true, "created_at": true}
+		if allowedCols[info.OrderBy] {
+			dir := "asc"
+			if info.OrderDir == "desc" {
+				dir = "desc"
+			}
+			orderClause = info.OrderBy + " " + dir
+		}
+	}
+	db = db.Order(orderClause)
+
 	if limit != 0 {
 		db = db.Limit(limit).Offset(offset)
 	}

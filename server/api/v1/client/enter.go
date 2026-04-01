@@ -12,11 +12,13 @@ type ApiGroup struct {
 	LanguageApi
 	PhoneAreaCodeApi
 	SignInApi
+	ExternalLinkDomainApi
 }
 
 var (
-	jwtService              = service.ServiceGroupApp.SystemServiceGroup.JwtService
-	cprService              = service.ServiceGroupApp.ClientServiceGroup.PointRecordService
-	sysConfigService        = service.ServiceGroupApp.ClientServiceGroup.SysConfigService
-	marketingRewardService  = service.ServiceGroupApp.ShopServiceGroup.MarketingRewardService
+	jwtService             = service.ServiceGroupApp.SystemServiceGroup.JwtService
+	cprService             = service.ServiceGroupApp.ClientServiceGroup.PointRecordService
+	sysConfigService       = service.ServiceGroupApp.ClientServiceGroup.SysConfigService
+	marketingRewardService = service.ServiceGroupApp.ShopServiceGroup.MarketingRewardService
+	extDomainService       = service.ServiceGroupApp.ClientServiceGroup.ExternalLinkDomainService
 )

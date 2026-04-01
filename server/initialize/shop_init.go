@@ -70,6 +70,7 @@ func initShopApis(db *gorm.DB) {
 		{ApiGroup: "订单管理", Method: "POST", Path: "/order/applyRefund", Description: "申请退款"},
 		{ApiGroup: "订单管理", Method: "POST", Path: "/order/refundOrder", Description: "处理退款"},
 		{ApiGroup: "订单管理", Method: "POST", Path: "/order/updateOrderStatus", Description: "更新订单状态"},
+		{ApiGroup: "订单管理", Method: "POST", Path: "/order/confirmPayment", Description: "确认收款"},
 		{ApiGroup: "订单管理", Method: "GET", Path: "/order/selfOrder", Description: "我的订单详情"},
 		{ApiGroup: "订单管理", Method: "GET", Path: "/order/selfOrderList", Description: "我的订单列表"},
 		{ApiGroup: "订单管理", Method: "GET", Path: "/order/selfOrderComment", Description: "我的订单评论"},
@@ -141,11 +142,20 @@ func initShopApis(db *gorm.DB) {
 		{ApiGroup: "系统配置", Method: "PUT", Path: "/sysConfig/updateSysConfig", Description: "更新系统配置"},
 		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getSysConfigList", Description: "获取系统配置列表"},
 		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getConfigByKey", Description: "按key获取配置"},
+		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getSysConfigByGroup", Description: "按分组获取配置"},
+		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getSysConfigByKey", Description: "按key获取单条配置"},
+		// 外部链接域名
+		{ApiGroup: "外部链接域名", Method: "POST", Path: "/extDomain/createExternalLinkDomain", Description: "创建外部链接域名"},
+		{ApiGroup: "外部链接域名", Method: "DELETE", Path: "/extDomain/deleteExternalLinkDomain", Description: "删除外部链接域名"},
+		{ApiGroup: "外部链接域名", Method: "PUT", Path: "/extDomain/updateExternalLinkDomain", Description: "更新外部链接域名"},
+		{ApiGroup: "外部链接域名", Method: "GET", Path: "/extDomain/getExternalLinkDomainList", Description: "获取外部链接域名列表"},
+		{ApiGroup: "外部链接域名", Method: "POST", Path: "/extDomain/setDefaultDomain", Description: "设置默认域名"},
 		// 客户端用户
 		{ApiGroup: "客户端用户", Method: "GET", Path: "/clientUser/getUserInfo", Description: "获取用户信息"},
 		{ApiGroup: "客户端用户", Method: "GET", Path: "/clientUser/getUserList", Description: "获取用户列表"},
 		{ApiGroup: "客户端用户", Method: "PUT", Path: "/clientUser/updateUser", Description: "更新用户"},
 		{ApiGroup: "客户端用户", Method: "DELETE", Path: "/clientUser/deleteUser", Description: "删除用户"},
+		{ApiGroup: "客户端用户", Method: "POST", Path: "/clientUser/changePassword", Description: "修改密码"},
 	}
 	for _, api := range apis {
 		var count int64
@@ -213,6 +223,7 @@ func initShopCasbin(db *gorm.DB) {
 		{"/order/applyRefund", "POST"},
 		{"/order/refundOrder", "POST"},
 		{"/order/updateOrderStatus", "POST"},
+		{"/order/confirmPayment", "POST"},
 		{"/order/selfOrder", "GET"},
 		{"/order/selfOrderList", "GET"},
 		{"/order/selfOrderComment", "GET"},
@@ -284,11 +295,20 @@ func initShopCasbin(db *gorm.DB) {
 		{"/sysConfig/updateSysConfig", "PUT"},
 		{"/sysConfig/getSysConfigList", "GET"},
 		{"/sysConfig/getConfigByKey", "GET"},
+		{"/sysConfig/getSysConfigByGroup", "GET"},
+		{"/sysConfig/getSysConfigByKey", "GET"},
+		// 外部链接域名
+		{"/extDomain/createExternalLinkDomain", "POST"},
+		{"/extDomain/deleteExternalLinkDomain", "DELETE"},
+		{"/extDomain/updateExternalLinkDomain", "PUT"},
+		{"/extDomain/getExternalLinkDomainList", "GET"},
+		{"/extDomain/setDefaultDomain", "POST"},
 		// 客户端用户
 		{"/clientUser/getUserInfo", "GET"},
 		{"/clientUser/getUserList", "GET"},
 		{"/clientUser/updateUser", "PUT"},
 		{"/clientUser/deleteUser", "DELETE"},
+		{"/clientUser/changePassword", "POST"},
 	}
 
 	for _, auth := range authorities {

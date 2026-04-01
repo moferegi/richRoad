@@ -1,7 +1,7 @@
 package shop
 
 import (
-	"github.com/flipped-aurora/gin-vue-admin/server/api/v1"
+	v1 "github.com/flipped-aurora/gin-vue-admin/server/api/v1"
 	"github.com/flipped-aurora/gin-vue-admin/server/middleware"
 	"github.com/gin-gonic/gin"
 )
@@ -29,6 +29,7 @@ func (s *OrderRouter) InitOrderRouter(Router *gin.RouterGroup, PublicRouter *gin
 		orderRouter.POST("applyRefund", orderApi.ApplyRefund)             // 申请退款
 		orderRouter.POST("refundOrder", orderApi.RefundOrder)             // 后台退款处理
 		orderRouter.POST("updateOrderStatus", orderApi.UpdateOrderStatus) // 更新订单状态
+		orderRouter.POST("confirmPayment", orderApi.ConfirmPayment)       // 管理员确认收款
 		orderRouter.GET("selfOrder", orderApi.SelfOrder)                  // 获取单一订单
 		orderRouter.GET("selfOrderList", orderApi.SelfOrderList)          // 获取订单列表
 		orderRouter.GET("selfOrderComment", orderApi.SelfOrderComment)    // 获取评价详情

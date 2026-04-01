@@ -89,3 +89,30 @@ export const getMySubordinates = (params) => {
         params
     })
 }
+
+// 手机号登录
+export const phoneLogin = (data) => {
+    return request({
+        url: '/clientUser/phoneLogin',
+        method: 'post',
+        data
+    })
+}
+
+// 手机号注册
+export const phoneRegister = (data) => {
+    return request({
+        url: '/clientUser/phoneRegister',
+        method: 'post',
+        data
+    })
+}
+
+// 修改密码
+export const changePassword = (data) => {
+    return request({
+        url: '/clientUser/changePassword',
+        method: 'post',
+        data
+    })
+}

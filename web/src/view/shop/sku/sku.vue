@@ -47,6 +47,18 @@
             @click="onReset"
           >重置</el-button>
         </el-form-item>
+
+        <el-form-item label="排序">
+          <el-select v-model="searchInfo.orderBy" clearable placeholder="排序字段" style="width:100px;">
+            <el-option label="销量" value="sale_num" />
+            <el-option label="价格" value="price" />
+            <el-option label="库存" value="inventory" />
+          </el-select>
+          <el-select v-model="searchInfo.orderDir" clearable placeholder="方向" style="width:80px; margin-left:4px;">
+            <el-option label="升序" value="asc" />
+            <el-option label="降序" value="desc" />
+          </el-select>
+        </el-form-item>
       </el-form>
     </div>
     <div class="gva-table-box">
@@ -125,6 +137,12 @@
           label="余量"
           prop="inventory"
           width="120"
+        />
+        <el-table-column
+          align="left"
+          label="销量"
+          prop="saleNum"
+          width="100"
         />
         <el-table-column
           align="left"

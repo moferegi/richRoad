@@ -29,6 +29,10 @@ func (api *SignInApi) DoSignIn(c *gin.Context) {
 		global.GVA_LOG.Error("签到失败!", zap.Error(err))
 		response.FailWithMessage(err.Error(), c)
 	} else {
+		// 触发签到奖励（积分+优惠券）
+		if err := marketingRewardService.TriggerReward(userID, "sign_in", "sign_in_reward", "签到奖励", 0); err != nil {
+			global.GVA_LOG.Error("签到奖励发放失败", zap.Error(err))
+		}
 		response.OkWithMessage("签到成功", c)
 	}
 }

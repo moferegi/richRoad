@@ -1,14 +1,11 @@
 package client
 
 import (
-	"context"
 	"errors"
 	"time"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
-	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
-	"gorm.io/gorm"
 )
 
 type SignInService struct{}
@@ -34,8 +31,6 @@ func (s *SignInService) DoSignIn(userID uint) (err error) {
 		return
 	}
 
-	// 触发签到奖励
-	_ = s.TriggerSignInReward(userID, nil)
 	return
 }
 
@@ -80,45 +75,4 @@ func (s *SignInService) GetContinuousSignInDays(userID uint) (days int) {
 		days++
 	}
 	return
-}
-
-// TriggerSignInReward 触发签到奖励(由营销模块调用)
-func (s *SignInService) TriggerSignInReward(userID uint, tx *gorm.DB) error {
-	// 查询签到类型的营销奖励配置
-	var reward shop.MarketingReward
-	err := global.GVA_DB.Where("trigger_type = ? AND is_enabled = ?", "sign_in", true).First(&reward).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil // 未配置签到奖励，静默跳过
-		}
-		return err
-	}
-
-	if reward.Points == nil || *reward.Points <= 0 {
-		return nil // 奖励积分为0，跳过
-	}
-
-	// 创建积分记录
-	pointRecordService := &PointRecordService{}
-	userIdInt := int(userID)
-	changeType := "increase"
-	pointChange := *reward.Points
-	operationType := "sign_in_reward"
-	reason := "签到奖励"
-	remark := "每日签到获得积分"
-
-	pointRecord := &client.PointRecord{
-		UserId:        &userIdInt,
-		ChangeType:    &changeType,
-		PointChange:   &pointChange,
-		OperationType: &operationType,
-		Reason:        &reason,
-		Remark:        &remark,
-	}
-
-	ctx := context.Background()
-	if tx != nil {
-		ctx = context.WithValue(ctx, "tx", tx)
-	}
-	return pointRecordService.CreatePointRecord(ctx, pointRecord)
 }

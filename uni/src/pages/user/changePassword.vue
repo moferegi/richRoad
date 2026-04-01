@@ -50,9 +50,8 @@
 
 <script setup>
 import { reactive, ref, computed } from 'vue'
-import { getCaptcha } from '@/api/base.js'
+import { getCaptcha, changePassword } from '@/api/base.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
-import { request } from '@/utils/request.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
@@ -98,16 +97,12 @@ const onSubmit = async () => {
     return
   }
 
-  const res = await request({
-    url: '/phoneAreaCode/changePassword',
-    method: 'post',
-    data: {
-      oldPassword: form.oldPassword,
-      newPassword: form.newPassword,
-      method: 'old_password',
-      captcha: form.captcha,
-      captchaId: form.captchaId,
-    }
+  const res = await changePassword({
+    oldPassword: form.oldPassword,
+    newPassword: form.newPassword,
+    method: 'old_password',
+    captcha: form.captcha,
+    captchaId: form.captchaId,
   })
   if (res.code === 0) {
     uni.showToast({ title: $t.value('changeSuccess'), icon: 'success' })

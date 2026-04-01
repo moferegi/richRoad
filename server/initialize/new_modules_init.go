@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
+	clientModel "github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	sysModel "github.com/flipped-aurora/gin-vue-admin/server/model/system"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -19,6 +20,7 @@ func InitNewModulesData() {
 	initNewModulesApis(db)
 	initNewModulesMenus(db)
 	initNewModulesCasbin(db)
+	initLanguageSeedData(db)
 }
 
 func initNewModulesApis(db *gorm.DB) {
@@ -62,6 +64,15 @@ func initNewModulesApis(db *gorm.DB) {
 		{ApiGroup: "签到管理", Method: "POST", Path: "/signIn/doSignIn", Description: "用户签到"},
 		{ApiGroup: "签到管理", Method: "GET", Path: "/signIn/getSignInStatus", Description: "获取签到状态"},
 		{ApiGroup: "签到管理", Method: "GET", Path: "/signIn/getSignInRecords", Description: "获取签到记录"},
+		// 外部链接域名
+		{ApiGroup: "外部链接域名", Method: "POST", Path: "/extDomain/createExternalLinkDomain", Description: "创建外部链接域名"},
+		{ApiGroup: "外部链接域名", Method: "DELETE", Path: "/extDomain/deleteExternalLinkDomain", Description: "删除外部链接域名"},
+		{ApiGroup: "外部链接域名", Method: "PUT", Path: "/extDomain/updateExternalLinkDomain", Description: "更新外部链接域名"},
+		{ApiGroup: "外部链接域名", Method: "GET", Path: "/extDomain/getExternalLinkDomainList", Description: "获取外部链接域名列表"},
+		{ApiGroup: "外部链接域名", Method: "POST", Path: "/extDomain/setDefaultDomain", Description: "设置默认域名"},
+		// 系统配置扩展
+		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getSysConfigByGroup", Description: "按分组获取配置"},
+		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getSysConfigByKey", Description: "按Key获取配置"},
 	}
 	for _, api := range apis {
 		var count int64
@@ -101,8 +112,9 @@ func initNewModulesMenus(db *gorm.DB) {
 			menuDef{"qrcodePayment", "qrcodePayment", "view/shop/qrcodePayment/qrcodePayment.vue", "收款码管理", "credit-card", shopParent.ID, 21},
 			menuDef{"popup", "popup", "view/shop/popup/popup.vue", "弹窗管理", "message-box", shopParent.ID, 22},
 			menuDef{"marketingReward", "marketingReward", "view/shop/marketingReward/marketingReward.vue", "营销奖励", "present", shopParent.ID, 23},
-			menuDef{"dashboard", "dashboard", "view/shop/dashboard/dashboard.vue", "数据看板", "data-analysis", shopParent.ID, 1},
+			menuDef{"shopDashboard", "shopDashboard", "view/shop/dashboard/dashboard.vue", "数据看板", "data-analysis", shopParent.ID, 1},
 			menuDef{"presale", "presale", "view/shop/presale/presale.vue", "预售管理", "clock", shopParent.ID, 24},
+			menuDef{"couponorderuser", "couponorderuser", "view/shop/couponorderuser/couponorderuser.vue", "领券记录", "ticket", shopParent.ID, 25},
 		)
 	}
 
@@ -110,6 +122,7 @@ func initNewModulesMenus(db *gorm.DB) {
 		menus = append(menus,
 			menuDef{"language", "language", "view/client/language/language.vue", "语言管理", "edit", clientParent.ID, 13},
 			menuDef{"phoneAreaCode", "phoneAreaCode", "view/client/phoneAreaCode/phoneAreaCode.vue", "国际区号", "phone", clientParent.ID, 14},
+			menuDef{"externalLinkDomain", "externalLinkDomain", "view/client/externalLinkDomain/externalLinkDomain.vue", "外部链接域名", "link", clientParent.ID, 15},
 		)
 	}
 
@@ -194,6 +207,15 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/signIn/doSignIn", "POST"},
 		{"/signIn/getSignInStatus", "GET"},
 		{"/signIn/getSignInRecords", "GET"},
+		// 外部链接域名
+		{"/extDomain/createExternalLinkDomain", "POST"},
+		{"/extDomain/deleteExternalLinkDomain", "DELETE"},
+		{"/extDomain/updateExternalLinkDomain", "PUT"},
+		{"/extDomain/getExternalLinkDomainList", "GET"},
+		{"/extDomain/setDefaultDomain", "POST"},
+		// 系统配置扩展
+		{"/sysConfig/getSysConfigByGroup", "GET"},
+		{"/sysConfig/getSysConfigByKey", "GET"},
 	}
 
 	for _, auth := range authorities {
@@ -208,4 +230,34 @@ func initNewModulesCasbin(db *gorm.DB) {
 			}
 		}
 	}
+}
+
+// initLanguageSeedData 初始化默认语言数据（幂等，仅在表为空时插入）
+func initLanguageSeedData(db *gorm.DB) {
+	var count int64
+	db.Model(&clientModel.SysLanguage{}).Count(&count)
+	if count > 0 {
+		return // 已有数据，不重复插入
+	}
+
+	boolTrue := true
+	boolFalse := false
+	sort := func(n int) *int { return &n }
+
+	langs := []clientModel.SysLanguage{
+		{Code: "mn", Name: "蒙古国语", NativeName: "Монгол", IsEnabled: &boolTrue, IsDefault: &boolTrue, Sort: sort(0)},
+		{Code: "zh", Name: "中文", NativeName: "中文", IsEnabled: &boolTrue, IsDefault: &boolFalse, Sort: sort(1)},
+		{Code: "en", Name: "英语", NativeName: "English", IsEnabled: &boolTrue, IsDefault: &boolFalse, Sort: sort(2)},
+		{Code: "th", Name: "泰文", NativeName: "ไทย", IsEnabled: &boolTrue, IsDefault: &boolFalse, Sort: sort(3)},
+		{Code: "hi", Name: "印度语", NativeName: "हिन्दी", IsEnabled: &boolTrue, IsDefault: &boolFalse, Sort: sort(4)},
+		{Code: "zh-TW", Name: "中文繁体", NativeName: "繁體中文", IsEnabled: &boolTrue, IsDefault: &boolFalse, Sort: sort(5)},
+		{Code: "id", Name: "印度尼西亚语", NativeName: "Bahasa Indonesia", IsEnabled: &boolTrue, IsDefault: &boolFalse, Sort: sort(6)},
+	}
+
+	for _, lang := range langs {
+		if err := db.Create(&lang).Error; err != nil {
+			global.GVA_LOG.Error("初始化语言数据失败: "+lang.Code, zap.Error(err))
+		}
+	}
+	global.GVA_LOG.Info("语言数据初始化成功（7种语言，默认蒙古国语）")
 }

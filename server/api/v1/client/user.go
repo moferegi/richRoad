@@ -1,8 +1,8 @@
 package client
 
 import (
-	"context"
 	"errors"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -131,44 +131,22 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 		return
 	}
 
-	// 邀请奖励：给邀请人加积分
+	// 邀请奖励：给邀请人发放 sub_register 营销奖励（积分+优惠券）
 	if clientUser.InvitedBy > 0 {
-		rewardPoints := sysConfigService.GetConfigIntByKey("invite_reward_points", 10)
-		if rewardPoints > 0 {
-			inviterID := int(clientUser.InvitedBy)
-			changeType := "increase"
-			operationType := "invite_reward"
-			reason := "邀请用户 " + clientUser.Username + " 注册奖励"
-			record := &client.PointRecord{
-				UserId:        &inviterID,
-				ChangeType:    &changeType,
-				PointChange:   &rewardPoints,
-				OperationType: &operationType,
-				Reason:        &reason,
-			}
-			if err := cprService.CreatePointRecord(context.Background(), record); err != nil {
-				global.GVA_LOG.Error("邀请奖励积分发放失败", zap.Error(err))
+		// 检查 sub_register 配置是否要求下级首单
+		reward, rewardErr := marketingRewardService.GetMarketingRewardByType("sub_register")
+		if rewardErr == nil && (reward.SubRequireOrder == nil || !*reward.SubRequireOrder) {
+			// 不要求首单，直接奖励
+			if err := marketingRewardService.TriggerReward(clientUser.InvitedBy, "sub_register", "invite_reward", "邀请用户 "+clientUser.Username+" 注册奖励", 0); err != nil {
+				global.GVA_LOG.Error("邀请奖励发放失败", zap.Error(err))
 			}
 		}
+		// 如果 SubRequireOrder=true，等下级首单付款时再发，由 order 服务处理
 	}
 
-	// 注册奖励：给新用户发放营销奖励积分
-	if reward, err := marketingRewardService.GetMarketingRewardByType("register"); err == nil && reward.Points != nil && *reward.Points > 0 {
-		newUserID := int(clientUser.ID)
-		changeType := "increase"
-		points := *reward.Points
-		operationType := "register_reward"
-		reason := "新用户注册奖励"
-		record := &client.PointRecord{
-			UserId:        &newUserID,
-			ChangeType:    &changeType,
-			PointChange:   &points,
-			OperationType: &operationType,
-			Reason:        &reason,
-		}
-		if err := cprService.CreatePointRecord(context.Background(), record); err != nil {
-			global.GVA_LOG.Error("注册奖励积分发放失败", zap.Error(err))
-		}
+	// 注册奖励：给新用户发放 register 营销奖励（积分+优惠券）
+	if err := marketingRewardService.TriggerReward(clientUser.ID, "register", "register_reward", "新用户注册奖励", 0); err != nil {
+		global.GVA_LOG.Error("注册奖励发放失败", zap.Error(err))
 	}
 
 	response.OkWithMessage(i18n.T(c, "createSuccess"), c)
@@ -525,4 +503,149 @@ func (clientUserApi *ClientUserApi) GetMySubordinates(c *gin.Context) {
 		Page:     page,
 		PageSize: pageSize,
 	}, "获取成功", c)
+}
+
+// PhoneLogin 手机号+密码登录
+// @Tags ClientUser
+// @Summary 手机号+密码登录
+// @accept application/json
+// @Produce application/json
+// @Param data body clientReq.PhoneLoginRequest true "手机号登录参数"
+// @Success 200 {object} response.Response{data=systemRes.LoginResponse,msg=string} "登录成功"
+// @Router /clientUser/phoneLogin [post]
+func (clientUserApi *ClientUserApi) PhoneLogin(c *gin.Context) {
+	var req clientReq.PhoneLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+
+	// 验证码校验
+	if !store.Verify(req.CaptchaId, req.Captcha, true) {
+		response.FailWithMessage(i18n.T(c, "captchaError"), c)
+		return
+	}
+
+	// 检查登录失败限制
+	var securityService = service.ServiceGroupApp.ClientServiceGroup.SecurityService
+	allowed, waitSec, _ := securityService.CheckLoginFail(req.Phone)
+	if !allowed {
+		response.FailWithMessage(i18n.T(c, "loginLocked")+" "+strconv.Itoa(waitSec)+"s", c)
+		return
+	}
+
+	user, err := clientUserService.LoginByPhone(req.AreaCode, req.Phone, req.Password)
+	if err != nil {
+		global.GVA_LOG.Error("手机号登录失败!", zap.Error(err))
+		securityService.RecordLoginFail(req.Phone)
+		response.FailWithMessage(i18n.T(c, "loginFail"), c)
+		return
+	}
+
+	securityService.ClearLoginFail(req.Phone)
+	clientUserApi.TokenNext(c, user)
+}
+
+// PhoneRegister 手机号注册
+// @Tags ClientUser
+// @Summary 手机号注册
+// @accept application/json
+// @Produce application/json
+// @Param data body clientReq.PhoneRegisterRequest true "手机号注册参数"
+// @Success 200 {string} string "{"success":true,"data":{},"msg":"注册成功"}"
+// @Router /clientUser/phoneRegister [post]
+func (clientUserApi *ClientUserApi) PhoneRegister(c *gin.Context) {
+	var req clientReq.PhoneRegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+
+	// 验证码校验
+	if !store.Verify(req.CaptchaId, req.Captcha, true) {
+		response.FailWithMessage(i18n.T(c, "captchaError"), c)
+		return
+	}
+
+	// IP注册限制
+	var securityService = service.ServiceGroupApp.ClientServiceGroup.SecurityService
+	allowed, _ := securityService.CheckRegisterIPLimit(c.ClientIP())
+	if !allowed {
+		response.FailWithMessage(i18n.T(c, "registerIPLimit"), c)
+		return
+	}
+
+	// 验证手机号格式（通过PhoneAreaCode的正则）
+	var areaCode client.PhoneAreaCode
+	if err := global.GVA_DB.Where("area_code = ? AND is_enabled = ?", req.AreaCode, true).First(&areaCode).Error; err != nil {
+		response.FailWithMessage(i18n.T(c, "areaCodeInvalid"), c)
+		return
+	}
+	if areaCode.PhoneRegex != "" {
+		matched, _ := regexp.MatchString(areaCode.PhoneRegex, req.Phone)
+		if !matched {
+			response.FailWithMessage(i18n.T(c, "phoneFormatError"), c)
+			return
+		}
+	}
+
+	// 注册
+	clientUser, err := clientUserService.RegisterByPhone(req.AreaCode, req.Phone, req.Password, req.InviteCode)
+	if err != nil {
+		global.GVA_LOG.Error("手机号注册失败!", zap.Error(err))
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+
+	// 记录IP注册次数
+	securityService.IncrementRegisterIP(c.ClientIP())
+
+	// 邀请奖励：给邀请人发放 sub_register 营销奖励（积分+优惠券）
+	if clientUser.InvitedBy > 0 {
+		reward, rewardErr := marketingRewardService.GetMarketingRewardByType("sub_register")
+		if rewardErr == nil && (reward.SubRequireOrder == nil || !*reward.SubRequireOrder) {
+			if err := marketingRewardService.TriggerReward(clientUser.InvitedBy, "sub_register", "invite_reward", "邀请用户 "+clientUser.Username+" 注册奖励", 0); err != nil {
+				global.GVA_LOG.Error("邀请奖励发放失败", zap.Error(err))
+			}
+		}
+	}
+
+	// 注册奖励：给新用户发放 register 营销奖励（积分+优惠券）
+	if err := marketingRewardService.TriggerReward(clientUser.ID, "register", "register_reward", "新用户注册奖励", 0); err != nil {
+		global.GVA_LOG.Error("注册奖励发放失败", zap.Error(err))
+	}
+
+	response.OkWithMessage(i18n.T(c, "createSuccess"), c)
+}
+
+// ChangePassword 修改密码
+// @Tags ClientUser
+// @Summary 修改密码
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data body clientReq.ChangePasswordRequest true "修改密码参数"
+// @Success 200 {string} string "{"success":true,"data":{},"msg":"修改成功"}"
+// @Router /clientUser/changePassword [post]
+func (clientUserApi *ClientUserApi) ChangePassword(c *gin.Context) {
+	var req clientReq.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+
+	// 验证码校验
+	if !store.Verify(req.CaptchaId, req.Captcha, true) {
+		response.FailWithMessage(i18n.T(c, "captchaError"), c)
+		return
+	}
+
+	userID := utils.GetUserID(c)
+	if err := clientUserService.ChangePassword(userID, req.OldPassword, req.NewPassword, req.Method); err != nil {
+		global.GVA_LOG.Error("修改密码失败!", zap.Error(err))
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+
+	response.OkWithMessage(i18n.T(c, "changeSuccess"), c)
 }

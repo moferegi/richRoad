@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import {ref, watch} from 'vue'
-import { login,getUserInfo } from '@/api/base.js'
+import { login, getUserInfo, phoneLogin } from '@/api/base.js'
 import { myRouter } from '../../utils/permission'
 
 export const useUserStore = defineStore('user', () => {
@@ -31,6 +31,24 @@ export const useUserStore = defineStore('user', () => {
             return true
         }
         uni.showToast({	// 提示错误信息
+            icon:'none',
+            title: res.msg,
+            duration: 3000
+        })
+        return false
+    }
+
+    // 手机号登录
+    const phoneLoginIn = async (loginInfo) => {
+        const res = await phoneLogin(loginInfo)
+        if(res.code === 0) {
+           await setToken(res.data.token)
+			uni.switchTab({
+				url: '/pages/tabBar/index'
+			})
+            return true
+        }
+        uni.showToast({
             icon:'none',
             title: res.msg,
             duration: 3000
@@ -85,6 +103,7 @@ export const useUserStore = defineStore('user', () => {
         userInfo,
         token,
         loginIn,
+        phoneLoginIn,
         setToken,
         setUserInfo,
         getInfo,

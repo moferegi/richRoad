@@ -55,12 +55,13 @@
 
         <el-table-column align="left" label="折扣/分" prop="discount" width="120" />
 
-        <el-table-column align="left" label="商品ID（不填则不限商品）" prop="productID" width="120">
+        <el-table-column align="left" label="商品ID（不填则不限商品）" prop="productIDs" width="180">
           <template #default="scope">
-            <span>{{ filterDataSource(dataSource.productID, scope.row.productID) }}</span>
+            <span>{{ scope.row.productIDs || '不限' }}</span>
           </template>
         </el-table-column>
-        <el-table-column align="left" label="数量" prop="quantity" width="120" />
+        <el-table-column align="left" label="数量" prop="quantity" width="80" />
+        <el-table-column align="left" label="已领取" prop="claimed" width="80" />
 
         <el-table-column sortable align="left" label="开始时间" prop="startTime" width="180">
           <template #default="scope">{{ formatDate(scope.row.startTime) }}</template>
@@ -105,36 +106,76 @@
         <el-form-item label="名称:" prop="name">
           <el-input v-model="formData.name" :clearable="false" placeholder="请输入名称" />
         </el-form-item>
+        <div v-if="enabledLangs.length" class="pl-2 mb-3">
+          <span class="text-xs text-gray-400">名称多语言:</span>
+          <div v-for="lang in enabledLangs" :key="'n'+lang.code" class="flex items-center mb-1 mt-1">
+            <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
+            <el-input v-model="nameI18n[lang.code]" :placeholder="`${lang.name}`" size="small" />
+          </div>
+        </div>
         <el-form-item label="描述:" prop="description">
           <el-input v-model="formData.description" :clearable="false" placeholder="请输入描述" />
         </el-form-item>
-        <el-form-item label="最低消费/分（0为无门槛）:" prop="minSpend">
-          <el-input-number v-model="formData.minSpend" style="width:100%" :precision="0" :clearable="false" />
+        <div v-if="enabledLangs.length" class="pl-2 mb-3">
+          <span class="text-xs text-gray-400">描述多语言:</span>
+          <div v-for="lang in enabledLangs" :key="'d'+lang.code" class="flex items-center mb-1 mt-1">
+            <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
+            <el-input v-model="descI18n[lang.code]" :placeholder="`${lang.name}`" size="small" />
+          </div>
+        </div>
+        <el-row :gutter="12">
+          <el-col :span="12">
+            <el-form-item label="最低消费/分（0为无门槛）:" prop="minSpend">
+              <el-input-number v-model="formData.minSpend" style="width:100%" :precision="0" :clearable="false" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="折扣/分:" prop="discount">
+              <el-input-number v-model="formData.discount" style="width:100%" :precision="0" :clearable="false" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="可用商品ID（逗号分隔，不填则不限商品）:" prop="productIDs">
+          <el-input v-model="formData.productIDs" placeholder="例: 1,2,5 （空=全部商品可用）" clearable />
         </el-form-item>
-        <el-form-item label="折扣/分:" prop="discount">
-          <el-input-number v-model="formData.discount" style="width:100%" :precision="0" :clearable="false" />
+        <el-row :gutter="12">
+          <el-col :span="8">
+            <el-form-item label="数量:" prop="quantity">
+              <el-input v-model.number="formData.quantity" :clearable="false" placeholder="请输入数量" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="已领取:" prop="claimed">
+              <el-input-number v-model="formData.claimed" style="width:100%" :precision="0" disabled />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="启用:" prop="status">
+              <el-switch v-model="formData.status" active-color="#13ce66" inactive-color="#ff4949" active-text="是"
+                inactive-text="否" clearable />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="12">
+          <el-col :span="12">
+            <el-form-item label="开始时间:" prop="startTime">
+              <el-date-picker v-model="formData.startTime" type="date" style="width:100%" placeholder="选择日期"
+                :clearable="false" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="结束时间:" prop="endTime">
+              <el-date-picker v-model="formData.endTime" type="date" style="width:100%" placeholder="选择日期"
+                :clearable="false" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-divider content-position="left">背景图设置</el-divider>
+        <el-form-item label="背景图(上传):" prop="backgroundImage">
+          <SelectImage v-model="formData.backgroundImage" file-type="image" />
         </el-form-item>
-        <el-form-item label="商品ID（不填则不限商品）:" prop="productID">
-          <el-select v-model="formData.productID" placeholder="请选择商品ID" filterable style="width:100%"
-            :clearable="false">
-            <el-option v-for="(item, key) in dataSource.productID" :key="key" :label="item.label" :value="item.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="数量:" prop="quantity">
-          <el-input v-model.number="formData.quantity" :clearable="false" placeholder="请输入数量" />
-        </el-form-item>
-
-        <el-form-item label="开始时间:" prop="startTime">
-          <el-date-picker v-model="formData.startTime" type="date" style="width:100%" placeholder="选择日期"
-            :clearable="false" />
-        </el-form-item>
-        <el-form-item label="结束时间:" prop="endTime">
-          <el-date-picker v-model="formData.endTime" type="date" style="width:100%" placeholder="选择日期"
-            :clearable="false" />
-        </el-form-item>
-        <el-form-item label="启用:" prop="status">
-          <el-switch v-model="formData.status" active-color="#13ce66" inactive-color="#ff4949" active-text="是"
-            inactive-text="否" clearable></el-switch>
+        <el-form-item label="外部背景图路径(优先于上传):" prop="externalBgPath">
+          <el-input v-model="formData.externalBgPath" placeholder="https://example.com/bg.jpg" clearable />
         </el-form-item>
       </el-form>
     </el-drawer>
@@ -145,8 +186,14 @@
         <el-descriptions-item label="名称">
           {{ detailFrom.name }}
         </el-descriptions-item>
+        <el-descriptions-item v-if="detailFrom.nameI18n" label="名称(多语言)">
+          {{ detailFrom.nameI18n }}
+        </el-descriptions-item>
         <el-descriptions-item label="描述">
           {{ detailFrom.description }}
+        </el-descriptions-item>
+        <el-descriptions-item v-if="detailFrom.descriptionI18n" label="描述(多语言)">
+          {{ detailFrom.descriptionI18n }}
         </el-descriptions-item>
         <el-descriptions-item label="折扣/分">
           {{ detailFrom.discount }}
@@ -154,22 +201,27 @@
         <el-descriptions-item label="最低消费/分">
           {{ detailFrom.minSpend }}
         </el-descriptions-item>
-        <el-descriptions-item label="商品ID">
-          <template #default="scope">
-            <span>{{ filterDataSource(dataSource.productID, detailFrom.productID) }}</span>
-          </template>
+        <el-descriptions-item label="可用商品">
+          {{ detailFrom.productIDs || '不限' }}
         </el-descriptions-item>
         <el-descriptions-item label="数量">
           {{ detailFrom.quantity }}
         </el-descriptions-item>
+        <el-descriptions-item label="已领取">
+          {{ detailFrom.claimed }}
+        </el-descriptions-item>
         <el-descriptions-item label="开始时间">
-          {{ detailFrom.startTime }}
+          {{ formatDate(detailFrom.startTime) }}
         </el-descriptions-item>
         <el-descriptions-item label="结束时间">
-          {{ detailFrom.endTime }}
+          {{ formatDate(detailFrom.endTime) }}
         </el-descriptions-item>
         <el-descriptions-item label="启用">
-          {{ detailFrom.status }}
+          {{ formatBoolean(detailFrom.status) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="背景图">
+          <el-image v-if="detailFrom.externalBgPath || detailFrom.backgroundImage" style="width:100px;height:60px" :src="detailFrom.externalBgPath || getUrl(detailFrom.backgroundImage)" fit="cover" />
+          <span v-else>-</span>
         </el-descriptions-item>
       </el-descriptions>
     </el-drawer>
@@ -187,11 +239,14 @@ import {
   findCoupon,
   getCouponList
 } from '@/api/shop/coupon'
+import { getEnabledLanguages } from '@/api/client/language'
+import { getUrl } from '@/utils/image'
+import SelectImage from '@/components/selectImage/selectImage.vue'
 
 // 全量引入格式化工具 请按需保留
 import { getDictFunc, formatDate, formatBoolean, filterDict, filterDataSource, returnArrImg, onDownloadFile } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useAppStore } from "@/pinia"
 
 
@@ -208,6 +263,26 @@ const appStore = useAppStore()
 // 控制更多查询条件显示/隐藏状态
 const showAllQuery = ref(false)
 
+// === i18n ===
+const enabledLangs = ref([])
+const nameI18n = ref({})
+const descI18n = ref({})
+
+const loadLangs = async () => {
+  try {
+    const res = await getEnabledLanguages()
+    if (res.code === 0) enabledLangs.value = res.data || []
+  } catch (e) { /* ignore */ }
+}
+
+const parseI18n = (s) => { if (!s) return {}; try { return JSON.parse(s) } catch { return {} } }
+const serializeI18n = (o) => {
+  const f = {}; for (const [k,v] of Object.entries(o)) { if (v) f[k] = v }
+  return Object.keys(f).length ? JSON.stringify(f) : ''
+}
+
+onMounted(() => { loadLangs() })
+
 // 自动化生成的字典（可能为空）以及字段
 const formData = ref({
   name: '',
@@ -215,10 +290,16 @@ const formData = ref({
   discount: 0,
   minSpend: 0,
   productID: undefined,
+  productIDs: '',
   quantity: 0,
+  claimed: 0,
   startTime: new Date(),
   endTime: new Date(),
   status: false,
+  nameI18n: '',
+  descriptionI18n: '',
+  backgroundImage: '',
+  externalBgPath: '',
 })
 const dataSource = ref([])
 const getDataSourceFunc = async () => {
@@ -452,6 +533,8 @@ const updateCouponFunc = async (row) => {
   type.value = 'update'
   if (res.code === 0) {
     formData.value = res.data
+    nameI18n.value = parseI18n(formData.value.nameI18n)
+    descI18n.value = parseI18n(formData.value.descriptionI18n)
     dialogFormVisible.value = true
   }
 }
@@ -478,22 +561,32 @@ const dialogFormVisible = ref(false)
 // 打开弹窗
 const openDialog = () => {
   type.value = 'create'
+  nameI18n.value = {}
+  descI18n.value = {}
   dialogFormVisible.value = true
 }
 
 // 关闭弹窗
 const closeDialog = () => {
   dialogFormVisible.value = false
+  nameI18n.value = {}
+  descI18n.value = {}
   formData.value = {
     name: '',
     description: '',
     discount: 0,
     minSpend: 0,
     productID: undefined,
+    productIDs: '',
     quantity: 0,
+    claimed: 0,
     startTime: new Date(),
     endTime: new Date(),
     status: false,
+    nameI18n: '',
+    descriptionI18n: '',
+    backgroundImage: '',
+    externalBgPath: '',
   }
 }
 // 弹窗确定
@@ -501,6 +594,11 @@ const enterDialog = async () => {
   btnLoading.value = true
   elFormRef.value?.validate(async (valid) => {
     if (!valid) return btnLoading.value = false
+    // 序列化 i18n
+    if (enabledLangs.value.length) {
+      formData.value.nameI18n = serializeI18n(nameI18n.value)
+      formData.value.descriptionI18n = serializeI18n(descI18n.value)
+    }
     let res
     switch (type.value) {
       case 'create':

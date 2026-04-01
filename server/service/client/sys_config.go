@@ -63,3 +63,22 @@ func (s *SysConfigService) GetConfigIntByKey(key string, defaultVal int) int {
 	}
 	return result
 }
+
+// GetConfigByGroup 按分组获取所有配置
+func (s *SysConfigService) GetConfigByGroup(group string) (list []client.SysConfig, err error) {
+	err = global.GVA_DB.Where("config_group = ?", group).Order("id").Find(&list).Error
+	return
+}
+
+// GetAnnouncementConfig 获取公告配置（便捷方法）
+func (s *SysConfigService) GetAnnouncementConfig() (map[string]string, error) {
+	list, err := s.GetConfigByGroup("announcement")
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]string)
+	for _, cfg := range list {
+		result[cfg.ConfigKey] = cfg.ConfigValue
+	}
+	return result, nil
+}

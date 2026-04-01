@@ -54,6 +54,13 @@
                {{ row.province }}/{{ row.city }}/{{ row.area }}/{{ row.street }}
             </template>
           </el-table-column>
+          <el-table-column align="left" label="支付方式" prop="payMethod" width="120">
+            <template #default="scope">
+              <el-tag v-if="scope.row.payMethod === 'qrcode'" type="success" size="small">扫码支付</el-tag>
+              <el-tag v-else-if="scope.row.payMethod === 'contact'" type="warning" size="small">客服收款</el-tag>
+              <el-tag v-else type="info" size="small">未选择</el-tag>
+            </template>
+          </el-table-column>
           <el-table-column align="left" label="快递单号" prop="express" width="160" />
 
           <el-table-column align="left" label="操作" fixed="right" min-width="240">
@@ -62,6 +69,7 @@
                 <el-icon style="margin-right: 5px"><InfoFilled /></el-icon>
                 查看详情
             </el-button>
+              <el-button v-if="scope.row.status === '0'" type="success" link class="table-button" @click="confirmPaymentFunc(scope.row)">确认收款</el-button>
               <el-button v-if="scope.row.status === '6'" type="danger" link class="table-button" @click="refundOrderFunc(scope.row)">同意退款</el-button>
               <el-button v-if="scope.row.status === '1'" type="primary" link icon="van" class="table-button" @click="sendOut(scope.row)">发货</el-button>
               <el-button v-if="scope.row.status === '2'" type="primary" link icon="van" class="table-button" @click="checkRoutersFunc(scope.row)">查看物流</el-button>
@@ -151,6 +159,20 @@
             </el-col>
             <el-col :span="8">
               <div class="detail-item">
+                <span class="label">支付方式:</span>
+                <el-tag v-if="orderDetail.payMethod === 'qrcode'" type="success" size="small">扫码支付</el-tag>
+                <el-tag v-else-if="orderDetail.payMethod === 'contact'" type="warning" size="small">客服收款</el-tag>
+                <el-tag v-else type="info" size="small">未选择</el-tag>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="detail-item">
+                <span class="label">付款时间:</span>
+                <span class="value">{{ orderDetail.paidAt ? formatDate(orderDetail.paidAt) : '未付款' }}</span>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="detail-item">
                 <span class="label">优惠券编号:</span>
                 <span class="value">{{ orderDetail.couponNum || '无' }}</span>
               </div>
@@ -159,6 +181,12 @@
               <div class="detail-item">
                 <span class="label">快递单号:</span>
                 <span class="value">{{ orderDetail.express || '未发货' }}</span>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="detail-item">
+                <span class="label">关闭时间:</span>
+                <span class="value">{{ orderDetail.closeTime ? formatDate(orderDetail.closeTime) : '-' }}</span>
               </div>
             </el-col>
           </el-row>
@@ -345,7 +373,7 @@ import {
   deleteOrder,
   updateOrder,
   findOrder,
-  getOrderList, checkRouters, refundOrder
+  getOrderList, checkRouters, refundOrder, confirmPayment
 } from '@/api/shop/order'
 
 // 全量引入格式化工具 请按需保留
@@ -582,6 +610,23 @@ const refundOrderFunc = (row) => {
         type: 'success',
         message: '退款成功'
       })
+      if (detailDialogVisible.value && orderDetail.value?.ID === row.ID) {
+        await getDetails(row)
+      }
+      getTableData()
+    }
+  })
+}
+
+const confirmPaymentFunc = (row) => {
+  ElMessageBox.confirm(`确认订单 #${row.ID} 已收款？`, '确认收款', {
+    confirmButtonText: '确认',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    const res = await confirmPayment({ ID: row.ID })
+    if (res.code === 0) {
+      ElMessage({ type: 'success', message: '确认收款成功' })
       if (detailDialogVisible.value && orderDetail.value?.ID === row.ID) {
         await getDetails(row)
       }

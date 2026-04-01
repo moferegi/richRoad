@@ -92,6 +92,15 @@
             <el-form-item label="标签名:" prop="name">
     <el-input v-model="formData.name" :clearable="false" placeholder="请输入标签名" />
 </el-form-item>
+            <el-form-item label="标签名(多语言):">
+              <div style="width:100%">
+                <div v-for="lang in enabledLangs" :key="lang.code" style="display:flex;align-items:center;margin-bottom:8px;">
+                  <el-tag size="small" style="margin-right:8px;min-width:50px;text-align:center;">{{ lang.code }}</el-tag>
+                  <el-input v-model="nameI18nObj[lang.code]" :placeholder="lang.name" style="flex:1" />
+                </div>
+                <div v-if="!enabledLangs.length" style="color:#999;font-size:12px;">请先在语言管理中启用语言</div>
+              </div>
+            </el-form-item>
             <el-form-item label="描述:" prop="description">
     <el-input v-model="formData.description" :clearable="false" placeholder="请输入描述" />
 </el-form-item>
@@ -124,11 +133,12 @@ import {
   findTag,
   getTagList
 } from '@/api/shop/tag'
+import { getEnabledLanguages } from '@/api/client/language'
 
 // 全量引入格式化工具 请按需保留
 import { getDictFunc, formatDate, formatBoolean, filterDict ,filterDataSource, returnArrImg, onDownloadFile } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useAppStore } from "@/pinia"
 
 // 导出组件
@@ -153,9 +163,47 @@ const showAllQuery = ref(false)
 // 自动化生成的字典（可能为空）以及字段
 const formData = ref({
             name: '',
+            nameI18n: '',
             description: '',
             color: '',
         })
+
+// 多语言编辑
+const nameI18nObj = reactive({})
+const enabledLangs = ref([])
+
+const loadEnabledLangs = async () => {
+  try {
+    const res = await getEnabledLanguages()
+    if (res.code === 0 && res.data) {
+      enabledLangs.value = Array.isArray(res.data) ? res.data : (res.data.list || [])
+    }
+  } catch(e) {}
+}
+
+// 解析 nameI18n JSON → 对象
+const parseNameI18n = (jsonStr) => {
+  Object.keys(nameI18nObj).forEach(k => delete nameI18nObj[k])
+  try {
+    const parsed = JSON.parse(jsonStr || '{}')
+    Object.assign(nameI18nObj, parsed)
+  } catch { /* ignore */ }
+}
+
+// 序列化对象 → JSON
+const serializeNameI18n = () => {
+  const obj = {}
+  for (const lang of enabledLangs.value) {
+    if (nameI18nObj[lang.code]) {
+      obj[lang.code] = nameI18nObj[lang.code]
+    }
+  }
+  return JSON.stringify(obj)
+}
+
+onMounted(() => {
+  loadEnabledLangs()
+})
 
 
 
@@ -326,6 +374,7 @@ const updateTagFunc = async(row) => {
     type.value = 'update'
     if (res.code === 0) {
         formData.value = res.data
+        parseNameI18n(res.data.nameI18n)
         dialogFormVisible.value = true
     }
 }
@@ -352,6 +401,7 @@ const dialogFormVisible = ref(false)
 // 打开弹窗
 const openDialog = () => {
     type.value = 'create'
+    parseNameI18n('{}')
     dialogFormVisible.value = true
 }
 
@@ -360,15 +410,18 @@ const closeDialog = () => {
     dialogFormVisible.value = false
     formData.value = {
         name: '',
+        nameI18n: '',
         description: '',
         color: '',
         }
+    parseNameI18n('{}')
 }
 // 弹窗确定
 const enterDialog = async () => {
      btnLoading.value = true
      elFormRef.value?.validate( async (valid) => {
              if (!valid) return btnLoading.value = false
+              formData.value.nameI18n = serializeNameI18n()
               let res
               switch (type.value) {
                 case 'create':

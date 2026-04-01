@@ -29,14 +29,23 @@
             <el-tag :type="scope.row.isPresale ? 'warning' : 'info'">{{ scope.row.isPresale ? '预售' : '否' }}</el-tag>
           </template>
         </el-table-column>
+        <el-table-column align="left" label="预售开关" width="100">
+          <template #default="scope">
+            <el-tag v-if="scope.row.isPresale" :type="scope.row.presaleEnabled ? 'success' : 'danger'">{{ scope.row.presaleEnabled ? '开启' : '关闭' }}</el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column align="left" label="预售数量" width="120">
+          <template #default="scope">
+            <span v-if="scope.row.isPresale">{{ scope.row.presaleSold || 0 }} / {{ scope.row.presaleQty || 0 }}</span>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column align="left" label="预售开始" width="180">
-          <template #default="scope">{{ scope.row.presaleStartTime ? formatDate(scope.row.presaleStartTime) : '-' }}</template>
+          <template #default="scope">{{ scope.row.presaleStart ? formatDate(scope.row.presaleStart) : '-' }}</template>
         </el-table-column>
         <el-table-column align="left" label="预售结束" width="180">
-          <template #default="scope">{{ scope.row.presaleEndTime ? formatDate(scope.row.presaleEndTime) : '-' }}</template>
-        </el-table-column>
-        <el-table-column align="left" label="预计发货" width="180">
-          <template #default="scope">{{ scope.row.presaleShipDate ? formatDate(scope.row.presaleShipDate) : '-' }}</template>
+          <template #default="scope">{{ scope.row.presaleEnd ? formatDate(scope.row.presaleEnd) : '-' }}</template>
         </el-table-column>
         <el-table-column align="left" label="操作" fixed="right" min-width="150">
             <template #default="scope">
@@ -59,15 +68,38 @@
         </div>
     </div>
 
-    <el-drawer destroy-on-close size="600" v-model="participantShow" :show-close="true" title="预售参与者">
+    <el-drawer destroy-on-close size="800" v-model="participantShow" :show-close="true" :title="`预售参与者 - ${currentGoodName}`">
       <el-table :data="participants" style="width: 100%">
+        <el-table-column label="订单ID" prop="ID" width="80" />
         <el-table-column label="用户ID" prop="userID" width="80" />
-        <el-table-column label="订单号" prop="orderNo" width="200" show-overflow-tooltip />
-        <el-table-column label="数量" prop="quantity" width="80" />
+        <el-table-column label="订单金额(元)" width="120">
+          <template #default="scope">¥{{ (scope.row.totalPrice / 100).toFixed(2) }}</template>
+        </el-table-column>
+        <el-table-column label="订单状态" width="100">
+          <template #default="scope">
+            <el-tag :type="orderStatusType(scope.row.status)">{{ orderStatusText(scope.row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="购买商品" min-width="200">
+          <template #default="scope">
+            <div v-for="d in (scope.row.detail || [])" :key="d.ID" class="participant-detail-item">
+              {{ d.good?.name || '-' }} × {{ d.quantity }}
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column label="下单时间" width="180">
           <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
       </el-table>
+      <div class="gva-pagination" style="margin-top: 10px;">
+        <el-pagination
+          layout="total, prev, pager, next"
+          :current-page="participantPage"
+          :page-size="participantPageSize"
+          :total="participantTotal"
+          @current-change="handleParticipantPageChange"
+        />
+      </div>
     </el-drawer>
   </div>
 </template>
@@ -103,12 +135,35 @@ getTableData()
 
 const participantShow = ref(false)
 const participants = ref([])
+const participantTotal = ref(0)
+const participantPage = ref(1)
+const participantPageSize = ref(10)
+const currentGoodID = ref(0)
+const currentGoodName = ref('')
 
 const viewParticipants = async (row) => {
-  const res = await getPresaleParticipants({ goodID: row.ID })
+  currentGoodID.value = row.ID
+  currentGoodName.value = row.name || `商品#${row.ID}`
+  participantPage.value = 1
+  await loadParticipants()
+  participantShow.value = true
+}
+
+const loadParticipants = async () => {
+  const res = await getPresaleParticipants({ goodID: currentGoodID.value, page: participantPage.value, pageSize: participantPageSize.value })
   if (res.code === 0) {
     participants.value = res.data.list || []
-    participantShow.value = true
+    participantTotal.value = res.data.total
   }
 }
+
+const handleParticipantPageChange = (val) => {
+  participantPage.value = val
+  loadParticipants()
+}
+
+const orderStatusMap = { '0': '待付款', '1': '待发货', '2': '待收货', '3': '已完成', '4': '已关闭', '5': '已退款', '6': '退款中' }
+const orderStatusTypeMap = { '0': 'warning', '1': 'primary', '2': 'primary', '3': 'success', '4': 'info', '5': 'info', '6': 'danger' }
+const orderStatusText = (s) => orderStatusMap[s] || s
+const orderStatusType = (s) => orderStatusTypeMap[s] || 'info'
 </script>

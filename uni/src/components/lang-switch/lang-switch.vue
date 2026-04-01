@@ -33,7 +33,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, computed } from 'vue'
+import { ref, watch, nextTick, computed, onMounted } from 'vue'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
@@ -48,7 +48,8 @@ const visible = ref(false)
 const animShow = ref(false)
 const currentLang = computed(() => langStore.locale)
 
-const langs = [
+// 回退硬编码列表（API加载前或加载失败时使用）
+const fallbackLangs = [
   { value: 'zh', label: '中文', native: 'Chinese', flag: '🇨🇳' },
   { value: 'zh-TW', label: '繁體中文', native: 'Traditional Chinese', flag: '🇹🇼' },
   { value: 'en', label: 'English', native: '英语', flag: '🇬🇧' },
@@ -57,6 +58,15 @@ const langs = [
   { value: 'hi', label: 'हिन्दी', native: 'Hindi', flag: '🇮🇳' },
   { value: 'id', label: 'Bahasa', native: 'Indonesian', flag: '🇮🇩' },
 ]
+
+// 优先使用后端启用的语言列表
+const langs = computed(() => {
+  return langStore.enabledLangs.length > 0 ? langStore.enabledLangs : fallbackLangs
+})
+
+onMounted(() => {
+  langStore.initLangs()
+})
 
 watch(() => props.modelValue, (val) => {
   if (val) {

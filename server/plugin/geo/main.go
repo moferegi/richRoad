@@ -1,7 +1,9 @@
 package geo
 
 import (
+	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	sysModel "github.com/flipped-aurora/gin-vue-admin/server/model/system"
+	"github.com/flipped-aurora/gin-vue-admin/server/plugin/geo/model"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/geo/router"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/plugin-tool/utils"
 	"github.com/gin-gonic/gin"
@@ -11,6 +13,11 @@ type GeoPlugin struct {
 }
 
 func CreateGeoPlug() *GeoPlugin {
+	// 自动迁移新增字段
+	if global.GVA_DB != nil {
+		global.GVA_DB.AutoMigrate(&model.Province{}, &model.City{}, &model.Area{})
+	}
+
 	utils.RegisterMenus(
 		sysModel.SysBaseMenu{
 			Name:      "geoGroup",

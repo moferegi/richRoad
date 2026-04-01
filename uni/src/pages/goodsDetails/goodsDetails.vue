@@ -1,172 +1,176 @@
 <template>
-  <view class="goods-detail-container">
+  <view class="nf-goods-detail">
+    <!-- 自定义导航栏（悬浮在轮播上方） -->
+    <view class="nf-navbar">
+      <view class="nf-navbar-status"></view>
+      <view class="nf-navbar-content">
+        <view class="nf-navbar-back" @tap="goBack">
+          <uni-icons type="left" size="20" color="#fff"></uni-icons>
+        </view>
+        <text class="nf-navbar-title">{{ $t('goodsDetail') || '商品详情' }}</text>
+        <view style="width: 64rpx;"></view>
+      </view>
+    </view>
+
     <!-- 商品轮播图 -->
     <goods-swiper :list="data.banner"></goods-swiper>
 
     <!-- 商品基本信息 -->
-    <view class="product-info">
-      <view class="price-section">
-        <view class="current-price">
-          <text class="price-symbol">¥</text>
-          <text class="price-num">{{ data.price && data.price / 100 }}</text>
+    <view class="nf-product-info">
+      <view class="nf-price-row">
+        <text class="nf-price-symbol">¥</text>
+        <text class="nf-price-num">{{ data.price && (data.price / 100).toFixed(2) }}</text>
+        <view class="nf-sale-tag" v-if="data.saleCount && data.saleCount > 0">
+          <text>{{ $t('sold') || '已售' }} {{ data.saleCount }}</text>
         </view>
       </view>
-      <view class="title-section">
-        <text class="product-title">{{ $lt(data.title) }}</text>
-        <text class="product-desc">{{ $lt(data.description) }}</text>
+      <text class="nf-product-title">{{ $lt(data.title) }}</text>
+      <text class="nf-product-desc">{{ $lt(data.description) }}</text>
+      <view class="nf-stock-row">
+        <text>{{ $t('stock') || '库存' }}: {{ getTotalInventory(data.skus) }}</text>
       </view>
-      <view class="sales-info">
-        <text v-if="data.saleCount && data.saleCount>0">销量: {{ data.saleCount }}</text>
-        <text class="stock-info">库存: {{ getTotalInventory(data.skus) }}</text>
-      </view>
-
     </view>
 
     <!-- 优惠券 -->
-    <view class="coupon-section">
-      <text class="coupon-label">优惠券</text>
-
-      <view class="coupon-value" @tap="opencoupon" v-if="selectedCoupon.couponNum">
-        <text>{{selectedCoupon.minSpend > 0 ? '满'+selectedCoupon.minSpend/100+'减'+selectedCoupon.discount/100 : '无门槛减￥'+selectedCoupon.discount/100}}</text>
-        <uni-icons color="#cccccc" size="16" type="right"></uni-icons>
-      </view>
-      <view class="coupon-value" @tap="opencoupon" v-else>
-        <text>领取优惠券</text>
-        <uni-icons color="#cccccc" size="16" type="right"></uni-icons>
-      </view>
-    </view>
-
-    <!-- 促销活动 -->
-    <view class="promotion-section">
-      <text class="promotion-label">促销活动</text>
-      <view class="promotion-list">
-        <view class="promotion-item">新人首单送20元无门槛代金券</view>
-        <view class="promotion-item">订单满50减10</view>
-        <view class="promotion-item">订单满100减30</view>
-        <view class="promotion-item">单笔购买满两件免邮费</view>
+    <view class="nf-section-card" @tap="opencoupon">
+      <view class="nf-section-row">
+        <view class="nf-section-label">
+          <text class="nf-label-dot" style="background: #e50914;"></text>
+          <text>{{ $t('coupon') || '优惠券' }}</text>
+        </view>
+        <view class="nf-section-value">
+          <text class="nf-coupon-text" v-if="selectedCoupon.couponNum">
+            {{ selectedCoupon.minSpend > 0
+              ? '满' + selectedCoupon.minSpend/100 + '减' + selectedCoupon.discount/100
+              : '无门槛减￥' + selectedCoupon.discount/100 }}
+          </text>
+          <text class="nf-coupon-hint" v-else>领取优惠券</text>
+          <uni-icons type="right" size="14" color="rgba(255,255,255,0.3)"></uni-icons>
+        </view>
       </view>
     </view>
 
-    <!-- 服务保障 -->
-    <view class="service-section">
-      <text class="service-label">服务</text>
-      <view class="service-list">
-        <text class="service-item">7天无理由退换货</text>
-        <text class="service-dot">·</text>
-        <text class="service-item">假一赔十</text>
+    <!-- 促销 + 服务 -->
+    <view class="nf-section-card">
+      <view class="nf-promo-title">
+        <text class="nf-label-dot" style="background: #f59e0b;"></text>
+        <text>促销活动</text>
+      </view>
+      <view class="nf-promo-list">
+        <view class="nf-promo-item">🎁 新人首单送20元无门槛代金券</view>
+        <view class="nf-promo-item">🔥 订单满50减10</view>
+        <view class="nf-promo-item">💰 订单满100减30</view>
+        <view class="nf-promo-item">🚚 单笔购买满两件免邮费</view>
+      </view>
+      <view class="nf-service-row">
+        <text class="nf-service-tag">✓ 7天无理由退换货</text>
+        <text class="nf-service-tag">✓ 假一赔十</text>
       </view>
     </view>
 
     <!-- 用户评价 -->
-    <view class="review-section">
-      <view class="review-header">
-        <text class="review-title">评价({{ commentInfo.length || 0 }})</text>
-        <view class="review-rate" @tap="toEvaluate">
-          <text class="good-rate">好评率 100%</text>
-          <uni-icons color="#cccccc" size="16" type="right"></uni-icons>
+    <view class="nf-section-card">
+      <view class="nf-review-header">
+        <text class="nf-review-title">评价({{ commentInfo.length || 0 }})</text>
+        <view class="nf-review-more" @tap="toEvaluate">
+          <text>好评率 100%</text>
+          <uni-icons type="right" size="14" color="rgba(255,255,255,0.3)"></uni-icons>
         </view>
       </view>
 
-      <!-- 用户评价内容 -->
-      <view v-if="hasContent" class="review-content">
-        <view class="comment-section section-card">
-
-          <view class="comment-item" v-if="commentInfo.content.length > 0">
-            <view class="comment-user">
-              <image :src="getUrl(commentInfo.user.avatar)" class="reviewer-avatar"></image>
-              <text class="user-name">{{ commentInfo.user.nickname }}</text>
-            </view>
-            <view class="comment-content">
-              <text class="comment-text">{{ commentInfo.content }}</text>
-              <view class="comment-images">
-                <view class="comment-image" :style="{ backgroundColor: '#f0f0f0' }"></view>
-              </view>
-              <view class="comment-info">
-                <text class="comment-spec">{{ commentInfo.feedbackPics&&commentInfo.feedbackPics[0] }}</text>
-                <text class="comment-time">{{ formatTimeToStr(commentInfo.CreatedAt, 'yyyy-MM-dd HH:mm') }}</text>
-              </view>
-            </view>
+      <view v-if="hasContent" class="nf-review-content">
+        <view class="nf-comment-item" v-if="commentInfo.content && commentInfo.content.length > 0">
+          <view class="nf-comment-user">
+            <image :src="getUrl(commentInfo.user.avatar)" class="nf-comment-avatar"></image>
+            <text class="nf-comment-name">{{ commentInfo.user.nickname }}</text>
           </view>
+          <text class="nf-comment-text">{{ commentInfo.content }}</text>
+          <text class="nf-comment-time">{{ formatTimeToStr(commentInfo.CreatedAt, 'yyyy-MM-dd HH:mm') }}</text>
         </view>
       </view>
-
-      <view v-if="!hasContent" class="no-review">
-        暂无评价
-      </view>
+      <view v-else class="nf-no-review">暂无评价</view>
     </view>
 
-    <!-- 商品详情标题 -->
-    <view class="detail-title">
-      <view class="title-line"></view>
+    <!-- 图文详情 -->
+    <view class="nf-detail-divider">
+      <view class="nf-divider-line"></view>
       <text>图文详情</text>
-      <view class="title-line"></view>
+      <view class="nf-divider-line"></view>
     </view>
 
-    <!-- 商品详情内容 -->
-    <goodsDetail :detail="data.detail"></goodsDetail>
-    <rich-text style="width: 100%;"/>
+    <view class="nf-detail-content">
+      <goodsDetail :detail="data.detail"></goodsDetail>
+      <rich-text style="width: 100%;" />
+    </view>
 
-    <!-- SKU选择器 (隐藏状态) -->
-    <goods-sku style="z-index:999;" v-if="data.skus" ref="goodsSkuRef" :isCart="isCart" :good="data" @toOrder="toOrder" :selectedCoupon="selectedCoupon"></goods-sku>
+    <!-- SKU选择器 -->
+    <goods-sku
+      style="z-index: 999;"
+      v-if="data.skus"
+      ref="goodsSkuRef"
+      :isCart="isCart"
+      :good="data"
+      @toOrder="toOrder"
+      :selectedCoupon="selectedCoupon"
+    ></goods-sku>
 
-    <!-- 底部固定导航栏 -->
-    <view class="fixed-bottom-nav">
-      <view class="nav-action-buttons">
-        <view class="nav-button" @tap="goTo()">
-          <image class="nav-icon" src="./../../static/images/tabBar/home.png"></image>
-          <text class="nav-text">{{ $t('home') }}</text>
+    <!-- 底部导航 -->
+    <view class="nf-bottom-nav">
+      <view class="nf-nav-icons">
+        <view class="nf-nav-icon-item" @tap="goTo()">
+          <image class="nf-nav-icon-img" src="./../../static/images/tabBar/home.png"></image>
+          <text class="nf-nav-icon-text">{{ $t('home') }}</text>
         </view>
-        <view class="nav-button" @tap="goToKefu">
-          <uni-icons type="headphones" size="22" color="#999"></uni-icons>
-          <text class="nav-text">{{ $t('customerService') }}</text>
+        <view class="nf-nav-icon-item" @tap="goToKefu">
+          <uni-icons type="headphones" size="20" color="rgba(255,255,255,0.6)"></uni-icons>
+          <text class="nf-nav-icon-text">{{ $t('customerService') }}</text>
         </view>
-        <view class="nav-button" @tap="goTo('cart')">
-          <image class="nav-icon" src="./../../static/images/tabBar/cart.png"></image>
-          <text class="nav-text">{{ $t('cart') }}</text>
+        <view class="nf-nav-icon-item" @tap="goTo('cart')">
+          <image class="nf-nav-icon-img" src="./../../static/images/tabBar/cart.png"></image>
+          <text class="nf-nav-icon-text">{{ $t('cart') }}</text>
         </view>
-        <view class="nav-button" @tap="addCollect">
-          <image class="nav-icon" :src="!collectionFlag? './../../static/collection.png' : './../../static/collect.png'"></image>
-          <text class="nav-text">{{ $t('collectText') }}</text>
+        <view class="nf-nav-icon-item" @tap="addCollect">
+          <image class="nf-nav-icon-img" :src="!collectionFlag ? './../../static/collection.png' : './../../static/collect.png'"></image>
+          <text class="nf-nav-icon-text">{{ $t('collectText') }}</text>
         </view>
       </view>
-      <view class="buy-buttons">
-        <view class="add-cart-btn" @tap="addToCart()">{{ $t('addToCart') }}</view>
-        <view class="buy-now-btn" @tap="goodsTapPay('pay')">{{ $t('buyNow') }}</view>
+      <view class="nf-buy-buttons">
+        <view class="nf-add-cart-btn" @tap="addToCart()">{{ $t('addToCart') }}</view>
+        <view class="nf-buy-now-btn" @tap="goodsTapPay('pay')">{{ $t('buyNow') }}</view>
       </view>
     </view>
 
-        <!-- 选择优惠券弹出层 -->
-		<view class="mask" catchtouchmove="preventTouchMove" v-if="couponshow == true" @tap="hidecoupon"></view>
-		<view class="coupon" :style="'bottom:' + (couponshow == true ? '0px':'')">
-			<scroll-view class="scrolls" scroll-y>
-				<!-- colors:按钮颜色 couponList:优惠卷列表数据  @onReceive：领取或立即使用按钮事件 -->
-				<cc-defineCoupon v-if="couponshow" :goodIds="[data.ID]" colors="#fa436a" @onReceive="onReceive"></cc-defineCoupon>
-			</scroll-view>
-		</view>
-
+    <!-- 优惠券弹出层 -->
+    <view class="nf-mask" v-if="couponshow" @tap="hidecoupon"></view>
+    <view class="nf-coupon-popup" :class="{ show: couponshow }">
+      <scroll-view class="nf-coupon-scroll" scroll-y>
+        <cc-defineCoupon v-if="couponshow" :goodIds="[data.ID]" colors="#e50914" @onReceive="onReceive"></cc-defineCoupon>
+      </scroll-view>
+    </view>
   </view>
 </template>
 
 <script setup>
 import goodsSwiper from './components/goods-swiper.vue'
 import goodsSku from './components/goods-sku.vue'
-import goodsDetail from './components/goods-detail.vue';
-import {ref, computed} from "vue";
-import {onLoad} from '@dcloudio/uni-app'
-import {findGood} from '@/api/product.js'
-import {myRouter} from '@/utils/permission';
-import {findCollect, createCollect} from '@/api/collect.js'
-import {claimCouponByUser} from '@/api/coupon.js'
-import {useUserStore} from "@/pinia/modules/user";
-import {findComment} from "@/api/comment.js"
-import {formatTimeToStr} from "@/utils/date.js"
-import evaluateGridImg from '@/pages/evaluate/evaluate-img.vue'
-import {getUrl} from "@/utils/url.js"
+import goodsDetail from './components/goods-detail.vue'
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { findGood } from '@/api/product.js'
+import { myRouter } from '@/utils/permission'
+import { findCollect, createCollect } from '@/api/collect.js'
+import { claimCouponByUser } from '@/api/coupon.js'
+import { useUserStore } from '@/pinia/modules/user'
+import { findComment } from '@/api/comment.js'
+import { formatTimeToStr } from '@/utils/date.js'
+import { getUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
 const $lt = computed(() => langStore.$lt)
 const $t = computed(() => langStore.$t)
+
+const goBack = () => { uni.navigateBack() }
 
 const data = ref({})
 const collectionFlag = ref('')
@@ -175,8 +179,8 @@ const goodID = ref(0)
 const userStore = useUserStore()
 const token = userStore.token || ''
 const commentInfo = ref([])
+
 onLoad((options) => {
-  // 先获取商品属性
   if (options.id) {
     goodID.value = options.id
     hasContent.value = false
@@ -186,17 +190,12 @@ onLoad((options) => {
 
 const init = async () => {
   const res = await findGood(goodID.value)
-  res.code === 0 ? data.value = res.data.regood : ''
-  // 如果登录，就获取当前商品收藏状态 反之则默认未收藏，点击跳转 登录后收藏
+  if (res.code === 0) data.value = res.data.regood
   if (token) {
-    // 先查看当前商品收藏状态
-    const status = await findCollect({
-      goodID: goodID.value
-    })
-    status.code === 0 ? collectionFlag.value = status.data : ''
+    const status = await findCollect({ goodID: goodID.value })
+    if (status.code === 0) collectionFlag.value = status.data
   }
-
-  const res2 = await findComment({ID:goodID.value})
+  const res2 = await findComment({ ID: goodID.value })
   if (res2.code === 0 && res2.data.length) {
     commentInfo.value = res2.data[0]
     hasContent.value = true
@@ -204,569 +203,204 @@ const init = async () => {
 }
 
 const toEvaluate = () => {
-  uni.navigateTo({
-    url: `/pages/evaluate/evaluate?goodsID=${goodID.value}`
-  })
+  uni.navigateTo({ url: `/pages/evaluate/evaluate?goodsID=${goodID.value}` })
 }
 
 const goodsSkuRef = ref()
-
 const isCart = ref(false)
 
-const addToCart = async () => {
-  // 需要校验用户是否登录，未登录跳转至登录页，否则允许加入购物车
+const addToCart = () => {
   if (!token) {
-    uni.showToast({
-      title: '请登录后进行操作',
-      mask: true,
-      icon: 'none'
-    });
-    uni.redirectTo({
-      url: '/pages/user/login'
-    })
+    uni.showToast({ title: '请登录后进行操作', mask: true, icon: 'none' })
+    uni.redirectTo({ url: '/pages/user/login' })
     return
   }
-  //传递参数让子组件知道是加入购物车还是立即购买
   isCart.value = true
   goodsSkuRef.value.showSku()
 }
 
 const goTo = (path) => {
-  if (path === "cart") {
-    uni.switchTab({
-      url: '/pages/tabBar/shop/shop'
-    })
-  } else {
-    uni.switchTab({
-      url: '/pages/tabBar/index'
-    })
-  }
+  if (path === 'cart') uni.switchTab({ url: '/pages/tabBar/shop/shop' })
+  else uni.switchTab({ url: '/pages/tabBar/index' })
 }
 
-const goToKefu = () => {
-  uni.navigateTo({
-    url: '/pages/kefu/index'
-  })
-}
-const toOrder = async () => {
+const goToKefu = () => { uni.navigateTo({ url: '/pages/kefu/index' }) }
+
+const toOrder = () => {
   myRouter(`/pages/orderInfo/orderInfo?skuID=${data.value.skus[0].ID}&goodID=${data.value.skus[0].goodID}`)
 }
 
-const goodsTapPay = (pay) => {
+const goodsTapPay = () => {
   isCart.value = false
   goodsSkuRef.value.showSku()
 }
 
 const addCollect = async () => {
   if (token) {
-    // 如果已登录并且未收藏 则允许进行收藏操作
-    const res = await createCollect({
-      goodID: Number(goodID.value)
-    })
+    const res = await createCollect({ goodID: Number(goodID.value) })
     if (res.code === 0) {
       collectionFlag.value = !collectionFlag.value
-      uni.showToast({
-        title: collectionFlag.value ? '已收藏' : '已取消',
-        mask: true,
-        icon: 'none'
-      });
+      uni.showToast({ title: collectionFlag.value ? '已收藏' : '已取消', mask: true, icon: 'none' })
     }
   } else {
-    uni.showToast({
-      title: '请登录后进行操作',
-      mask: true,
-      icon: 'none'
-    });
-    uni.redirectTo({
-      url: '/pages/user/login'
-    })
+    uni.showToast({ title: '请登录后进行操作', mask: true, icon: 'none' })
+    uni.redirectTo({ url: '/pages/user/login' })
   }
-
 }
 
 const selectedCoupon = ref({})
-
 const couponshow = ref(false)
 
 const getTotalInventory = (skus) => {
-  if (!skus || skus.length === 0) return 0;
-  return skus.reduce((total, sku) => total + sku.inventory, 0);
+  if (!skus || skus.length === 0) return 0
+  return skus.reduce((total, sku) => total + sku.inventory, 0)
 }
 
-const opencoupon = () => {
-				couponshow.value = true
-			}
-			// 关闭优惠券弹框
-    const hidecoupon = () => {
-				couponshow.value = false
-			}
-			//领取优惠券 立即使用事件
-			const onReceive = async (item, index) => {
-        // 添加loading遮罩防止多次点击
-        uni.showLoading({
-          title: item.couponNum == 0 ? '领取中...' : '选择中...',
-          mask: true
-        })
+const opencoupon = () => { couponshow.value = true }
+const hidecoupon = () => { couponshow.value = false }
 
-        try {
-          if (item.couponNum == 0) {
-            const res = await claimCouponByUser({
-              couponID: item.couponID,
-            })
-            item.couponNum = res.data
-            // 领取成功提示
-            uni.showToast({
-              title: '领取成功',
-              icon: 'success',
-              duration: 1500
-            })
-          }
-          selectedCoupon.value = item
-          // 关闭优惠券弹窗
-          setTimeout(() => {
-            hidecoupon()
-          }, 500)
-        } catch (error) {
-          uni.showToast({
-            title: '操作失败，请重试',
-            icon: 'none'
-          })
-        } finally {
-          uni.hideLoading()
-        }
-			}
-
+const onReceive = async (item) => {
+  uni.showLoading({ title: item.couponNum == 0 ? '领取中...' : '选择中...', mask: true })
+  try {
+    if (item.couponNum == 0) {
+      const res = await claimCouponByUser({ couponID: item.couponID })
+      item.couponNum = res.data
+      uni.showToast({ title: '领取成功', icon: 'success', duration: 1500 })
+    }
+    selectedCoupon.value = item
+    setTimeout(() => { hidecoupon() }, 500)
+  } catch (error) {
+    uni.showToast({ title: '操作失败，请重试', icon: 'none' })
+  } finally { uni.hideLoading() }
+}
 </script>
 
 <style lang="scss">
-page {
-  background-color: #f5f5f5;
-  color: #333;
-  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+page { background-color: #000; }
+
+.nf-goods-detail { min-height: 100vh; background: #000; padding-bottom: 120rpx; }
+
+/* 导航栏 */
+.nf-navbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(24px);
+  padding: 0 28rpx 16rpx;
 }
-
-.goods-detail-container {
-  padding-bottom: 120rpx;
+.nf-navbar-status { height: var(--status-bar-height, 0px); }
+.nf-navbar-content { display: flex; align-items: center; justify-content: space-between; height: 88rpx; }
+.nf-navbar-back {
+  width: 64rpx; height: 64rpx; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12); border: 1rpx solid rgba(255, 255, 255, 0.15);
+  display: flex; align-items: center; justify-content: center;
 }
+.nf-navbar-title { font-size: 34rpx; font-weight: 700; color: #fff; letter-spacing: 2rpx; }
 
-/* 商品基本信息区域 */
-.product-info {
-  background-color: #fff;
-  padding: 20rpx 24rpx;
-  margin-bottom: 20rpx;
+/* 商品信息 */
+.nf-product-info {
+  padding: 28rpx 24rpx;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
 }
-
-.price-section {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16rpx;
-
-  .current-price {
-    color: #e4393c;
-
-    .price-symbol {
-      font-size: 32rpx;
-      font-weight: bold;
-    }
-
-    .price-num {
-      font-size: 48rpx;
-      font-weight: bold;
-    }
-  }
-
-  .original-price {
-    font-size: 24rpx;
-    color: #999;
-    text-decoration: line-through;
-    margin-left: 16rpx;
-    margin-top: 8rpx;
-  }
-
-  .discount-tag {
-    background-color: #e4393c;
-    color: #fff;
-    font-size: 20rpx;
-    padding: 2rpx 8rpx;
-    border-radius: 4rpx;
-    margin-left: 12rpx;
-  }
+.nf-price-row {
+  display: flex; align-items: baseline; gap: 4rpx; margin-bottom: 16rpx;
 }
-
-.title-section {
-  margin-bottom: 16rpx;
-
-  .product-title {
-    font-size: 32rpx;
-    font-weight: bold;
-    color: #333;
-    line-height: 1.4;
-    display: block;
-    margin-bottom: 8rpx;
-  }
-
-  .product-desc {
-    font-size: 26rpx;
-    color: #666;
-    line-height: 1.4;
-    display: block;
-  }
+.nf-price-symbol { font-size: 30rpx; font-weight: 700; color: #e50914; }
+.nf-price-num { font-size: 52rpx; font-weight: 800; color: #e50914; line-height: 1; }
+.nf-sale-tag {
+  margin-left: 16rpx; font-size: 20rpx; color: rgba(255, 255, 255, 0.4);
+  padding: 4rpx 14rpx; background: rgba(255, 255, 255, 0.06); border-radius: 8rpx;
 }
+.nf-product-title { display: block; font-size: 32rpx; font-weight: 700; color: #fff; line-height: 1.4; margin-bottom: 8rpx; }
+.nf-product-desc { display: block; font-size: 26rpx; color: rgba(255, 255, 255, 0.5); line-height: 1.4; margin-bottom: 12rpx; }
+.nf-stock-row { font-size: 24rpx; color: rgba(255, 255, 255, 0.3); }
 
-.sales-info {
-  display: flex;
-  font-size: 24rpx;
-  color: #999;
-  margin-bottom: 16rpx;
-
-  text {
-    margin-right: 24rpx;
-  }
+/* 通用区块卡片 */
+.nf-section-card {
+  margin: 20rpx 24rpx; padding: 24rpx 28rpx;
+  background: rgba(255, 255, 255, 0.04); border: 1rpx solid rgba(255, 255, 255, 0.06);
+  border-radius: 20rpx; backdrop-filter: blur(8px);
 }
+.nf-section-row { display: flex; justify-content: space-between; align-items: center; }
+.nf-section-label { display: flex; align-items: center; gap: 12rpx; font-size: 28rpx; color: #fff; }
+.nf-label-dot { width: 12rpx; height: 12rpx; border-radius: 4rpx; }
+.nf-section-value { display: flex; align-items: center; gap: 8rpx; }
+.nf-coupon-text { font-size: 26rpx; color: #e50914; font-weight: 600; }
+.nf-coupon-hint { font-size: 26rpx; color: rgba(255, 255, 255, 0.4); }
 
-/* 规格选择 */
-.specs-section, .coupon-section, .promotion-section, .service-section {
-  background-color: #fff;
-  padding: 24rpx;
-  display: flex;
-  align-items: center;
-  border-bottom: 1rpx solid #f0f0f0;
+/* 促销 */
+.nf-promo-title { display: flex; align-items: center; gap: 12rpx; font-size: 28rpx; color: #fff; margin-bottom: 16rpx; }
+.nf-promo-list { margin-bottom: 16rpx; }
+.nf-promo-item {
+  font-size: 24rpx; color: rgba(255, 255, 255, 0.6); padding: 6rpx 0;
 }
-
-.specs-label, .coupon-label, .promotion-label, .service-label {
-  width: 140rpx;
-  font-size: 28rpx;
-  color: #666;
+.nf-service-row {
+  display: flex; gap: 20rpx; padding-top: 16rpx;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.04);
 }
+.nf-service-tag { font-size: 24rpx; color: rgba(255, 255, 255, 0.5); }
 
-.specs-value, .coupon-value {
-  flex: 1;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 28rpx;
-  color: #333;
+/* 评价 */
+.nf-review-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-bottom: 16rpx; border-bottom: 1rpx solid rgba(255, 255, 255, 0.04); margin-bottom: 16rpx;
 }
+.nf-review-title { font-size: 28rpx; font-weight: 700; color: #fff; }
+.nf-review-more { display: flex; align-items: center; gap: 8rpx; font-size: 24rpx; color: rgba(255, 255, 255, 0.4); }
+.nf-comment-item { }
+.nf-comment-user { display: flex; align-items: center; gap: 12rpx; margin-bottom: 12rpx; }
+.nf-comment-avatar { width: 48rpx; height: 48rpx; border-radius: 50%; border: 1rpx solid rgba(255, 255, 255, 0.1); }
+.nf-comment-name { font-size: 26rpx; color: rgba(255, 255, 255, 0.7); }
+.nf-comment-text { font-size: 26rpx; color: rgba(255, 255, 255, 0.6); line-height: 1.5; display: block; margin-bottom: 8rpx; }
+.nf-comment-time { font-size: 22rpx; color: rgba(255, 255, 255, 0.3); }
+.nf-no-review { text-align: center; padding: 30rpx 0; color: rgba(255, 255, 255, 0.3); font-size: 26rpx; }
 
-/* 促销活动 */
-.promotion-section {
-  flex-direction: column;
-  align-items: flex-start;
+/* 图文详情分割 */
+.nf-detail-divider {
+  display: flex; align-items: center; justify-content: center;
+  gap: 20rpx; padding: 30rpx 0;
+  text { font-size: 26rpx; color: rgba(255, 255, 255, 0.4); }
 }
-
-.promotion-list {
-  width: 100%;
-  margin-top: 16rpx;
+.nf-divider-line {
+  height: 1rpx; width: 100rpx;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
 }
-
-.promotion-item {
-  font-size: 26rpx;
-  color: #e4393c;
-  margin-bottom: 8rpx;
-  position: relative;
-  padding-left: 16rpx;
-
-  &:before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 12rpx;
-    width: 8rpx;
-    height: 8rpx;
-    background-color: #e4393c;
-    border-radius: 50%;
-  }
-}
-
-/* 服务保障 */
-.service-section {
-  margin-bottom: 20rpx;
-}
-
-.service-list {
-  flex: 1;
-  display: flex;
-  align-items: center;
-}
-
-.service-item {
-  font-size: 26rpx;
-  color: #666;
-}
-
-.service-dot {
-  margin: 0 8rpx;
-  color: #ccc;
-}
-
-/* 用户评价 */
-.review-section {
-  background-color: #fff;
-  padding: 24rpx;
-  margin-bottom: 20rpx;
-}
-
-.review-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 20rpx;
-  border-bottom: 1rpx solid #f0f0f0;
-  margin-bottom: 20rpx;
-}
-
-.review-title {
-  font-size: 28rpx;
-  font-weight: bold;
-  color: #333;
-}
-
-.review-rate {
-  display: flex;
-  align-items: center;
-
-  .good-rate {
-    font-size: 24rpx;
-    color: #666;
-    margin-right: 8rpx;
-  }
-}
-
-.reviewer-info {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16rpx;
-}
-
-.reviewer-avatar {
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: 50%;
-  margin-right: 12rpx;
-}
-
-.reviewer-name {
-  font-size: 26rpx;
-  color: #333;
-  margin-right: 12rpx;
-}
-
-.review-time {
-  font-size: 24rpx;
-  color: #999;
-}
-
-.review-text {
-  font-size: 28rpx;
-  color: #333;
-  line-height: 1.6;
-  margin-bottom: 16rpx;
-}
-
-.purchase-info {
-  font-size: 24rpx;
-  color: #999;
-  margin-bottom: 16rpx;
-}
-
-.no-review {
-  text-align: center;
-  padding: 30rpx 0;
-  color: #999;
-  font-size: 28rpx;
-}
-
-/* 商品详情标题 */
-.detail-title {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 30rpx 0;
-
-  text {
-    margin: 0 16rpx;
-    font-size: 28rpx;
-    color: #666;
-  }
-
-  .title-line {
-    height: 1rpx;
-    background-color: #e0e0e0;
-    flex: 1;
-    max-width: 200rpx;
-  }
-}
+.nf-detail-content { padding: 0 24rpx; }
 
 /* 底部导航 */
-.fixed-bottom-nav {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 100rpx;
-  background-color: #fff;
-  display: flex;
-  align-items: center;
-  box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
-  z-index: 0;
+.nf-bottom-nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 98;
+  display: flex; align-items: center; height: 110rpx;
+  background: rgba(0, 0, 0, 0.95); backdrop-filter: blur(24px);
+  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
   padding-bottom: constant(safe-area-inset-bottom);
   padding-bottom: env(safe-area-inset-bottom);
 }
-
-.nav-action-buttons {
-  display: flex;
-  flex: 1;
+.nf-nav-icons { display: flex; flex: 1; }
+.nf-nav-icon-item {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; width: 96rpx;
 }
-
-.nav-button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100rpx;
-
-  .nav-icon {
-    width: 44rpx;
-    height: 44rpx;
-    margin-bottom: 4rpx;
-  }
-
-  .nav-text {
-    font-size: 20rpx;
-    color: #666;
-  }
+.nf-nav-icon-img { width: 40rpx; height: 40rpx; margin-bottom: 4rpx; opacity: 0.6; }
+.nf-nav-icon-text { font-size: 20rpx; color: rgba(255, 255, 255, 0.5); }
+.nf-buy-buttons { display: flex; height: 100%; }
+.nf-add-cart-btn, .nf-buy-now-btn {
+  padding: 0 36rpx; height: 100%; display: flex; align-items: center; justify-content: center;
+  font-size: 28rpx; font-weight: 600; color: #fff;
 }
+.nf-add-cart-btn { background: rgba(255, 149, 0, 0.9); }
+.nf-buy-now-btn { background: #e50914; }
 
-.comment-section {
-  flex-direction: column;
-  align-items: flex-start;
+/* 优惠券弹出层 */
+.nf-mask {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.7); z-index: 900;
 }
-
-.comment-header {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
+.nf-coupon-popup {
+  position: fixed; left: 0; right: 0; bottom: -100vh; z-index: 999;
+  background: #1a1a1a; border-radius: 24rpx 24rpx 0 0;
+  transition: all 0.3s ease;
+  &.show { bottom: 0; }
 }
-
-.comment-rate {
-  display: flex;
-  align-items: center;
-  font-size: 12px;
-  color: #666;
-}
-
-.comment-item {
-  width: 100%;
-}
-
-.comment-user {
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.user-avatar {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  margin-right: 8px;
-}
-
-.user-name {
-  font-size: 14px;
-  color: #333;
-}
-
-.comment-content {
-  padding-left: 38px;
-}
-
-.comment-text {
-  font-size: 14px;
-  color: #333;
-  line-height: 1.4;
-  margin-bottom: 10px;
-}
-
-.comment-images {
-  display: flex;
-  margin-bottom: 10px;
-}
-
-.comment-image {
-  width: 80px;
-  height: 80px;
-  margin-right: 8px;
-  border-radius: 4px;
-}
-
-.comment-info {
-  display: flex;
-  font-size: 12px;
-  color: #999;
-}
-
-.comment-spec {
-  margin-right: 15px;
-}
-
-.buy-buttons {
-  display: flex;
-  align-items: center;
-  height: 100%;
-
-  .add-cart-btn, .buy-now-btn {
-    padding: 0 40rpx;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28rpx;
-    font-weight: 500;
-    color: #fff;
-  }
-
-  .add-cart-btn {
-    background-color: #ff9500;
-  }
-
-  .buy-now-btn {
-    background-color: #ff5000;
-  }
-}
-
-
-.mask {
-		width: 100%;
-		height: 100vh;
-		position: fixed;
-		top: 0;
-		left: 0;
-		background: #000;
-		z-index: 900;
-		opacity: 0.7;
-	}
-
-	/* 优惠券 */
-	.coupon {
-		background-color: #fff;
-		border-radius: 10upx 10upx 0 0;
-		position: fixed;
-		left: 0;
-		bottom: -1000upx;
-		z-index: 999;
-		transition: all 0.3s;
-	}
-
-	.scrolls {
-		width: 100vw;
-		height: 60vh;
-		padding-top: 10upx;
-		z-index: 500;
-	}
-
+.nf-coupon-scroll { width: 100vw; height: 60vh; padding-top: 16rpx; }
 </style>
 
 

@@ -33,6 +33,17 @@
           </el-select>
         </el-form-item>
 
+        <el-form-item label="使用状态" prop="status">
+          <el-select v-model="searchInfo.status" placeholder="全部" clearable style="width:120px">
+            <el-option label="未使用" :value="false" />
+            <el-option label="已使用" :value="true" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="用户ID" prop="userID">
+          <el-input-number v-model="searchInfo.userID" :min="0" controls-position="right" placeholder="用户ID" clearable style="width:140px" />
+        </el-form-item>
+
         <template v-if="showAllQuery">
           <!-- 将需要控制显示状态的查询条件添加到此范围内 -->
         </template>
@@ -61,7 +72,9 @@
           <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
 
-        <el-table-column align="left" label="优惠券ID" prop="couponID" width="120">
+        <el-table-column align="left" label="券编号" prop="couponNum" width="180" show-overflow-tooltip />
+
+        <el-table-column align="left" label="优惠券" prop="couponID" width="140">
           <template #default="scope">
             <span>{{ filterDataSource(dataSource.couponID, scope.row.couponID) }}</span>
           </template>
@@ -71,8 +84,17 @@
             <span>{{ filterDataSource(dataSource.orderID, scope.row.orderID) }}</span>
           </template>
         </el-table-column>
-        <el-table-column align="left" label="已使用" prop="status" width="120">
-          <template #default="scope">{{ formatBoolean(scope.row.status) }}</template>
+        <el-table-column align="left" label="用户ID" prop="userID" width="100" />
+        <el-table-column align="left" label="领取时间" prop="claimedAt" width="180">
+          <template #default="scope">{{ scope.row.claimedAt ? formatDate(scope.row.claimedAt) : '-' }}</template>
+        </el-table-column>
+        <el-table-column align="left" label="使用时间" prop="usedAt" width="180">
+          <template #default="scope">{{ scope.row.usedAt ? formatDate(scope.row.usedAt) : '-' }}</template>
+        </el-table-column>
+        <el-table-column align="left" label="状态" prop="status" width="100">
+          <template #default="scope">
+            <el-tag :type="scope.row.status ? 'success' : 'info'">{{ scope.row.status ? '已使用' : '未使用' }}</el-tag>
+          </template>
         </el-table-column>
         <el-table-column align="left" label="操作" fixed="right" :min-width="appStore.operateMinWith">
           <template #default="scope">
@@ -105,8 +127,8 @@
       </template>
 
       <el-form :model="formData" label-position="top" ref="elFormRef" :rules="rule" label-width="80px">
-        <el-form-item label="优惠券ID:" prop="couponID">
-          <el-select v-model="formData.couponID" placeholder="请选择优惠券ID" filterable style="width:100%"
+        <el-form-item label="优惠券:" prop="couponID">
+          <el-select v-model="formData.couponID" placeholder="请选择优惠券" filterable style="width:100%"
             :clearable="false">
             <el-option v-for="(item, key) in dataSource.couponID" :key="key" :label="item.label" :value="item.value" />
           </el-select>
@@ -115,6 +137,18 @@
           <el-select v-model="formData.orderID" placeholder="请选择订单ID" filterable style="width:100%" :clearable="false">
             <el-option v-for="(item, key) in dataSource.orderID" :key="key" :label="item.label" :value="item.value" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="券编号:" prop="couponNum">
+          <el-input v-model="formData.couponNum" placeholder="自动生成" disabled />
+        </el-form-item>
+        <el-form-item label="用户ID:" prop="userID">
+          <el-input-number v-model="formData.userID" :min="0" controls-position="right" style="width:100%" />
+        </el-form-item>
+        <el-form-item label="领取时间:" prop="claimedAt">
+          <el-date-picker v-model="formData.claimedAt" type="datetime" placeholder="领取时间" style="width:100%" />
+        </el-form-item>
+        <el-form-item label="使用时间:" prop="usedAt">
+          <el-date-picker v-model="formData.usedAt" type="datetime" placeholder="使用时间" style="width:100%" />
         </el-form-item>
         <el-form-item label="已使用:" prop="status">
           <el-switch v-model="formData.status" active-color="#13ce66" inactive-color="#ff4949" active-text="是"
@@ -126,18 +160,18 @@
     <el-drawer destroy-on-close :size="appStore.drawerSize" v-model="detailShow" :show-close="true"
       :before-close="closeDetailShow" title="查看">
       <el-descriptions :column="1" border>
-        <el-descriptions-item label="优惠券ID">
-          <template #default="scope">
-            <span>{{ filterDataSource(dataSource.couponID, detailFrom.couponID) }}</span>
-          </template>
+        <el-descriptions-item label="券编号">{{ detailFrom.couponNum }}</el-descriptions-item>
+        <el-descriptions-item label="优惠券">
+          {{ filterDataSource(dataSource.couponID, detailFrom.couponID) }}
         </el-descriptions-item>
         <el-descriptions-item label="订单ID">
-          <template #default="scope">
-            <span>{{ filterDataSource(dataSource.orderID, detailFrom.orderID) }}</span>
-          </template>
+          {{ filterDataSource(dataSource.orderID, detailFrom.orderID) }}
         </el-descriptions-item>
-        <el-descriptions-item label="已使用">
-          {{ detailFrom.status }}
+        <el-descriptions-item label="用户ID">{{ detailFrom.userID }}</el-descriptions-item>
+        <el-descriptions-item label="领取时间">{{ detailFrom.claimedAt ? formatDate(detailFrom.claimedAt) : '-' }}</el-descriptions-item>
+        <el-descriptions-item label="使用时间">{{ detailFrom.usedAt ? formatDate(detailFrom.usedAt) : '-' }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="detailFrom.status ? 'success' : 'info'">{{ detailFrom.status ? '已使用' : '未使用' }}</el-tag>
         </el-descriptions-item>
       </el-descriptions>
     </el-drawer>
@@ -180,6 +214,10 @@ const showAllQuery = ref(false)
 const formData = ref({
   couponID: undefined,
   orderID: undefined,
+  couponNum: '',
+  userID: undefined,
+  claimedAt: null,
+  usedAt: null,
   status: false,
 })
 const dataSource = ref([])
@@ -384,6 +422,10 @@ const closeDialog = () => {
   formData.value = {
     couponID: undefined,
     orderID: undefined,
+    couponNum: '',
+    userID: undefined,
+    claimedAt: null,
+    usedAt: null,
     status: false,
   }
 }

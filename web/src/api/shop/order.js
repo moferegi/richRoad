@@ -111,3 +111,17 @@ export const refundOrder = (data) => {
     data
   })
 }
+
+/**
+ * 管理员确认收款
+ * @param {Object} params
+ * @param {string} params.ID 订单ID
+ * @returns {Promise}
+ */
+export const confirmPayment = (params) => {
+  return service({
+    url: '/order/confirmPayment',
+    method: 'post',
+    params
+  })
+}

@@ -49,27 +49,39 @@
 		{
 			"path": "pages/goodsDetails/goodsDetails",
 			"style": {
-				"navigationBarTitleText": "商品详情",
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
 				"enablePullDownRefresh": false
 			}
 		},
 		{
 			"path": "pages/coupon/index",
 			"style": {
-				"navigationBarTitleText": "优惠券",
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
 				"enablePullDownRefresh": false
 			}
 		},
 		{
 			"path": "pages/order/order",
 			"style": {
-				"navigationBarTitleText": "订单",
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
 				"enablePullDownRefresh": false
 			}
 		},{
 			"path": "pages/pay/index",
 			"style": {
-				"navigationBarTitleText": "支付",
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
 				"enablePullDownRefresh": false
 			}
 		},
@@ -100,7 +112,10 @@
 		{
 			"path": "pages/orderInfo/orderInfo",
 			"style": {
-				"navigationBarTitleText": "确认订单信息",
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
 				"enablePullDownRefresh": false
 			}
 
@@ -128,7 +143,10 @@
 		}, {
 			"path": "pages/integral/integral",
 			"style": {
-				"navigationBarTitleText": "积分记录",
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
 				"enablePullDownRefresh": false
 			}
 
@@ -143,8 +161,10 @@
 		}, {
 			"path": "pages/tabBar/shop/shop",
 			"style": {
-				"navigationBarTitleText": "购物车",
-				"navigationBarBackgroundColor": "#fff",
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
 				"enablePullDownRefresh": false
 			}
 

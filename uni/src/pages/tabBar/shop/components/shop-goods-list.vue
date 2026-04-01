@@ -1,670 +1,484 @@
 <template>
-  <view class="shop_list_view">
-    <view class="bgc_fff shop_list_box">
-      <view v-if="cartList.length < 1" class="empty-cart">
-        <text class="empty-cart-title">购物车竟然是空的</text>
-        <text class="empty-cart-text">"再忙，也要记得买点什么犒赏自己~"</text>
-        <view class="empty-cart-buttons">
-          <button class="empty-cart-btn go-shopping" @tap="goTo">去逛逛</button>
-        </view>
+  <view class="nf-cart">
+    <!-- 未登录提示 -->
+    <view v-if="!isLoggedIn" class="nf-cart-empty">
+      <view class="nf-cart-empty-icon">🛒</view>
+      <text class="nf-cart-empty-title">{{ $t('cartLoginHint') }}</text>
+      <view class="nf-cart-empty-btns">
+        <view class="nf-btn nf-btn-primary" @tap="goLogin">{{ $t('goLogin') }}</view>
+        <view class="nf-btn nf-btn-ghost" @tap="goRegister">{{ $t('goRegister') }}</view>
       </view>
+    </view>
 
-      <view class="cart-item" v-for="(item, index) in cartList" :key="index">
-        <image class="shop_item_img" :src="getUrl(item.sku.picture)" mode="aspectFill"></image>
-        <view class="cart-item-info">
-          <view>
-            <view class="title">
-              <text>{{item.sku.name}}</text>
-            </view>
-            <view class="desc">
-              <view class="desc-text">{{item.sku.description}}</view>
-            </view>
+    <!-- 空购物车 -->
+    <view v-else-if="cartList.length < 1" class="nf-cart-empty">
+      <view class="nf-cart-empty-icon">🛒</view>
+      <text class="nf-cart-empty-title">{{ $t('emptyCart') }}</text>
+      <text class="nf-cart-empty-sub">{{ $t('emptyCartHint') }}</text>
+      <view class="nf-cart-empty-btns">
+        <view class="nf-btn nf-btn-primary" @tap="goTo">{{ $t('goShopping') }}</view>
+      </view>
+    </view>
+
+    <!-- 购物车列表 -->
+    <view class="nf-cart-list" v-if="isLoggedIn && cartList.length > 0">
+      <view class="nf-cart-item" v-for="(item, index) in cartList" :key="item.ID">
+        <!-- 选择 -->
+        <view class="nf-cart-check" @tap="toggleSelect(index)" v-if="!isDeleteAll">
+          <view :class="['nf-checkbox', { checked: item._selected }]">
+            <text v-if="item._selected" class="nf-check-icon">✓</text>
           </view>
-
-          <view class="price-action">
-            <view class="price">
-              <text class="price-symbol">¥</text>
-              <text class="price-value">{{item.sku.price /100}}</text>
+        </view>
+        <!-- 商品图片 -->
+        <image class="nf-cart-img" :src="getUrl(item.sku.picture)" mode="aspectFill"></image>
+        <!-- 商品信息 -->
+        <view class="nf-cart-info">
+          <text class="nf-cart-name">{{ item.sku.name }}</text>
+          <view class="nf-cart-specs" v-if="item.sku.specs && item.sku.specs.length">
+            <text class="nf-cart-spec-tag">{{ item.sku.specs.map(s => s.value).join(' / ') }}</text>
+          </view>
+          <view class="nf-cart-specs" v-else-if="item.sku.description">
+            <text class="nf-cart-spec-tag">{{ item.sku.description }}</text>
+          </view>
+          <view class="nf-cart-bottom">
+            <text class="nf-cart-price">¥{{ (item.sku.price / 100).toFixed(2) }}</text>
+            <view v-if="!isDeleteAll" class="nf-cart-qty">
+              <wu-number-box :asyncChange="true" :min="0" @change="(e)=>onChange(item,e)" integer v-model="item.quantity"></wu-number-box>
             </view>
-            <view class="quantity-control">
-              <view v-if="!isDeleteAll" class="number-box-container">
-                <wu-number-box :asyncChange="true" :min="0" @change="(e)=>onChange(item,e)" integer v-model="item.quantity"></wu-number-box>
-              </view>
-              <view v-else class="delete-btn" @tap="deleteItem(item)">删除</view>
-            </view>
+            <view v-else class="nf-btn-del" @tap="deleteItem(item)">{{ $t('delete') || '删除' }}</view>
           </view>
         </view>
       </view>
     </view>
   </view>
-  <view class="shop_nav_box pos_f bgc_fff flex-aic flexr-jsb boxs_bb" v-if="cartList.length > 0">
-    <view class="total_money" v-if="!isDeleteAll">
-      <text class="total_money_label">合计</text>￥{{cartList.reduce((total, item) => total + item.sku.price * item.quantity, 0) / 100}}
+
+  <!-- 底部操作栏 -->
+  <view class="nf-cart-bar" v-if="isLoggedIn && cartList.length > 0">
+    <view class="nf-cart-bar-left" v-if="!isDeleteAll">
+      <view class="nf-cart-check" @tap="toggleSelectAll">
+        <view :class="['nf-checkbox', { checked: isAllSelected }]">
+          <text v-if="isAllSelected" class="nf-check-icon">✓</text>
+        </view>
+      </view>
+      <text class="nf-cart-bar-all">{{ $t('selectAll') }}</text>
     </view>
-    <view class="edit-mode" v-else @tap="toggleDeleteMode">完成</view>
-    <view class="btns_box">
-      <button class="edit-btn" v-if="!isDeleteAll" @tap="toggleDeleteMode">编辑</button>
-      <button class="checkout-btn" v-if="!isDeleteAll" @tap="toSettlement">去结算</button>
-      <button class="delete-all-btn" v-if="isDeleteAll" @tap="clearAllCart">清空购物车</button>
+    <view class="nf-cart-bar-left" v-else>
+      <view class="nf-cart-bar-done" @tap="toggleDeleteMode">{{ $t('doneText') }}</view>
+    </view>
+
+    <view class="nf-cart-bar-right" v-if="!isDeleteAll">
+      <view class="nf-cart-bar-total">
+        <text class="nf-cart-bar-label">{{ $t('totalText') }}</text>
+        <text class="nf-cart-bar-price">¥{{ selectedTotal }}</text>
+        <text class="nf-cart-bar-count">({{ selectedCount }}{{ $t('itemCount') }})</text>
+      </view>
+      <view class="nf-cart-bar-btns">
+        <view class="nf-btn nf-btn-ghost-sm" @tap="toggleDeleteMode">{{ $t('editCart') }}</view>
+        <view class="nf-btn nf-btn-primary" @tap="toSettlement">{{ $t('checkout') }}({{ selectedCount }})</view>
+      </view>
+    </view>
+    <view class="nf-cart-bar-right" v-else>
+      <view class="nf-btn nf-btn-danger" @tap="clearAllCart">{{ $t('clearCart') }}</view>
     </view>
   </view>
 </template>
 
 <script setup>
-	import { ref } from 'vue'
+	import { ref, computed } from 'vue'
 	import { getSelfCart, cutCart, addCart, clearCart } from "@/api/cart.js"
 	import { onShow } from '@dcloudio/uni-app'
-	import { useUserStore } from "@/pinia/modules/user";
-  import { placeOrderByCart } from '@/api/order.js'
-  import {getUrl} from "@/utils/url.js"
+	import { useUserStore } from "@/pinia/modules/user"
+	import { useLangStore } from '@/pinia/modules/lang.js'
+	import { placeOrderByCart } from '@/api/order.js'
+	import { getUrl } from "@/utils/url.js"
 
+	const { $t } = useLangStore()
 	const cartList = ref([])
+	const isLoggedIn = ref(false)
 
 	const initPage = async () => {
 		const userStore = useUserStore()
 		const token = userStore.token || ''
-
+		isLoggedIn.value = !!token
 		if (token) {
 			const res = await getSelfCart()
 			if (res.code === 0) {
-				cartList.value = res.data
+				cartList.value = (res.data || []).map(item => ({ ...item, _selected: true }))
 			}
-		} else {
-			uni.showToast({
-				title: '请登录后访问',
-				mask: true,
-				icon: 'none'
-			});
-			uni.redirectTo({
-				url: '/pages/user/login'
-			})
 		}
 	}
-	onShow(() => {
-		initPage()
-	})
+	onShow(() => { initPage() })
+
+	const toggleSelect = (index) => { cartList.value[index]._selected = !cartList.value[index]._selected }
+	const isAllSelected = computed(() => cartList.value.length > 0 && cartList.value.every(item => item._selected))
+	const toggleSelectAll = () => { const v = !isAllSelected.value; cartList.value.forEach(item => { item._selected = v }) }
+	const selectedItems = computed(() => cartList.value.filter(item => item._selected))
+	const selectedCount = computed(() => selectedItems.value.length)
+	const selectedTotal = computed(() => (selectedItems.value.reduce((t, i) => t + i.sku.price * i.quantity, 0) / 100).toFixed(2))
 
 	const isDeleteAll = ref(false)
+	const goTo = () => { uni.switchTab({ url: '/pages/tabBar/index' }) }
+	const goLogin = () => { uni.navigateTo({ url: '/pages/user/login' }) }
+	const goRegister = () => { uni.navigateTo({ url: '/pages/user/register' }) }
 
-  // 跳转到首页挑选商品
-  const goTo = () => {
-    uni.switchTab({
-      url: '/pages/tabBar/index'
-    })
-  }
-
-	const onChange = async (item,e) => {
-    console.log(item)
-    uni.showLoading({
-					title: '加载中',
-					mask: true
-				})
-    let res
-    if(item.quantity > e.value) {
-       res = await cutCart({
-        goodID: item.goodID,
-        skuID: item.skuID,
-        quantity:1,
-      })
-    }else{
-      res = await addCart({
-        goodID: item.goodID,
-        skuID: item.skuID,
-        quantity:1,
-      })
-    }
-    uni.hideLoading();
-    if (res.code !== 0) {
-      uni.showToast({
-        title: '调整失败',
-        mask: true,
-        icon: 'none'
-      })
-      return
-    }
-    item.quantity = e.value
-    if(e.value == 0) {
-      cartList.value = cartList.value.filter(i => i.ID !== item.ID)
-    }
+	const onChange = async (item, e) => {
+		uni.showLoading({ title: '', mask: true })
+		let res
+		if (item.quantity > e.value) {
+			res = await cutCart({ goodID: item.goodID, skuID: item.skuID, quantity: 1 })
+		} else {
+			res = await addCart({ goodID: item.goodID, skuID: item.skuID, quantity: 1 })
+		}
+		uni.hideLoading()
+		if (res.code !== 0) { uni.showToast({ title: res.msg || '调整失败', icon: 'none' }); return }
+		item.quantity = e.value
+		if (e.value == 0) { cartList.value = cartList.value.filter(i => i.ID !== item.ID) }
 	}
 
-	// 切换删除模式
-	const toggleDeleteMode = () => {
-		isDeleteAll.value = !isDeleteAll.value
-	}
+	const toggleDeleteMode = () => { isDeleteAll.value = !isDeleteAll.value }
 
-	// 删除单个商品
 	const deleteItem = async (item) => {
 		uni.showModal({
-			title: '提示',
-			content: '确定要删除这个商品吗？',
-			success: async function (res) {
+			title: '', content: $t('deleteConfirmCart'),
+			success: async (res) => {
 				if (res.confirm) {
-					uni.showLoading({
-						title: '删除中',
-						mask: true
-					})
-					const result = await cutCart({
-						goodID: item.goodID,
-						skuID: item.skuID,
-						quantity: item.quantity,
-					})
+					uni.showLoading({ title: '', mask: true })
+					const result = await cutCart({ goodID: item.goodID, skuID: item.skuID, quantity: item.quantity })
 					uni.hideLoading()
 					if (result.code === 0) {
 						cartList.value = cartList.value.filter(i => i.ID !== item.ID)
-						uni.showToast({
-							title: '删除成功',
-							mask: true,
-							icon: 'success'
-						})
-						// 如果购物车为空，自动退出删除模式
-						if (cartList.value.length === 0) {
-							isDeleteAll.value = false
-						}
-					} else {
-						uni.showToast({
-							title: '删除失败，请稍后重试',
-							mask: true,
-							icon: 'none'
-						})
+						if (cartList.value.length === 0) isDeleteAll.value = false
 					}
 				}
 			}
 		})
 	}
 
-	// 删除购物车全部内容
 	const clearAllCart = async () => {
 		uni.showModal({
-			title: '提示',
-			content: '确定要清空购物车吗？',
-			success: async function (res) {
+			title: '', content: $t('clearConfirmCart'),
+			success: async (res) => {
 				if (res.confirm) {
-					uni.showLoading({
-						title: '清空中',
-						mask: true
-					})
+					uni.showLoading({ title: '', mask: true })
 					const result = await clearCart()
 					uni.hideLoading()
-					if (result.code === 0) {
-						cartList.value = []
-						isDeleteAll.value = false
-						uni.showToast({
-							title: '清空成功',
-							mask: true,
-							icon: 'success'
-						})
-					} else {
-						uni.showToast({
-							title: '清空失败，请稍后重试',
-							mask: true,
-							icon: 'none'
-						})
-					}
+					if (result.code === 0) { cartList.value = []; isDeleteAll.value = false }
 				}
 			}
 		})
 	}
 
-	// 结算
 	const toSettlement = async () => {
-    // 先调用placeOrderByCart生成订单成功后再跳转
-    if(cartList.value.length) {
-      const data = cartList.value.map(item => {
-        return {
-          goodID: item.goodID,
-          skuID: item.skuID,
-          quantity: item.quantity
-        }
-      })
-      let detail = {
-        "detail": data
-      };
-      const res = await placeOrderByCart(detail);
-      if (res.code === 0) {
-        uni.navigateTo({
-          url: `/pages/orderInfo/orderInfo?orderID=${res.data.orderID}&type=cart`
-        })
-      } else {
-        uni.showToast({
-          title: '生成订单失败，请稍后重试',
-          mask: true,
-          icon: 'none'
-        });
-      }
-    } else {
-      uni.showToast({
-        title: '请先添加商品到购物车',
-        mask: true,
-        icon: 'none'
-      });
-    }
+		const items = selectedItems.value
+		if (!items.length) { uni.showToast({ title: $t('selectAll') || '请选择商品', icon: 'none' }); return }
+		uni.showLoading({ title: '', mask: true })
+		const res = await placeOrderByCart({ cartIDs: items.map(item => item.ID) })
+		uni.hideLoading()
+		if (res.code === 0) {
+			const orderedIDs = new Set(items.map(i => i.ID))
+			cartList.value = cartList.value.filter(i => !orderedIDs.has(i.ID))
+			uni.navigateTo({ url: `/pages/orderInfo/orderInfo?orderID=${res.data.orderID}&type=cart` })
+		} else {
+			uni.showToast({ title: res.msg || '生成订单失败', icon: 'none' })
+		}
 	}
 </script>
 
 <style lang="scss" scoped>
-.shop_list_view {
-  padding: 20rpx;
-  margin-bottom: 20rpx;
+/* ===== Netflix Dark Cart ===== */
+.nf-cart {
+  padding: 0 24rpx;
 }
 
-.shop_list_box {
-  border-radius: 24rpx;
-  background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
-  box-shadow: 0 8rpx 32rpx rgba(255, 76, 125, 0.1);
-  backdrop-filter: blur(10rpx);
-  border: 1rpx solid rgba(255, 255, 255, 0.3);
-  overflow: hidden;
-}
-
-// 自定义的空购物车组件样式
-.empty-cart {
+/* 空状态 */
+.nf-cart-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 100rpx 40rpx;
-  height: 66vh;
   justify-content: center;
-  background: linear-gradient(135deg, #fef7f0 0%, #fff5f5 100%);
-  border-radius: 24rpx;
-  margin: 20rpx;
-
-  &-icon-container {
-    width: 240rpx;
-    height: 240rpx;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 48rpx;
-    background: linear-gradient(135deg, #ff4c7d, #ff6b9d);
-    box-shadow: 0 16rpx 48rpx rgba(255, 76, 125, 0.3);
-    position: relative;
-
-    &::before {
-      content: '';
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      border-radius: 50%;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
-      top: 0;
-      left: 0;
-    }
-  }
-
-  &-icon {
-    width: 160rpx;
-    height: 160rpx;
-    filter: brightness(0) invert(1);
-  }
-
-  &-title {
-    font-size: 36rpx;
-    color: #333;
-    font-weight: 600;
-    margin-bottom: 20rpx;
-    background: linear-gradient(135deg, #ff4c7d, #ff6b9d);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  &-text {
-    font-size: 28rpx;
-    color: #666;
-    margin-bottom: 80rpx;
-    text-align: center;
-    line-height: 1.6;
-  }
-
-  &-buttons {
-    display: flex;
-    gap: 30rpx;
-  }
-
-  &-btn {
-    min-width: 200rpx;
-    height: 80rpx;
-    line-height: 80rpx;
-    font-size: 30rpx;
-    border-radius: 40rpx;
-    text-align: center;
-    border: none;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    box-shadow: 0 8rpx 24rpx rgba(255, 76, 125, 0.2);
-
-    &.go-shopping {
-      background: linear-gradient(135deg, #ff4c7d, #ff6b9d);
-      color: #fff;
-
-      &:active {
-        transform: translateY(2rpx);
-        box-shadow: 0 4rpx 12rpx rgba(255, 76, 125, 0.3);
-      }
-    }
-  }
+  min-height: 60vh;
+  padding: 60rpx 40rpx;
 }
 
-// 购物车项目样式优化
-.cart-item {
+.nf-cart-empty-icon {
+  font-size: 120rpx;
+  margin-bottom: 30rpx;
+  opacity: 0.6;
+}
+
+.nf-cart-empty-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 16rpx;
+}
+
+.nf-cart-empty-sub {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 50rpx;
+  text-align: center;
+}
+
+.nf-cart-empty-btns {
+  display: flex;
+  gap: 24rpx;
+}
+
+/* 购物车列表 */
+.nf-cart-list {
+  padding-bottom: 20rpx;
+}
+
+.nf-cart-item {
   display: flex;
   align-items: center;
-  padding: 24rpx;
-  margin: 16rpx 20rpx;
-  background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
   border-radius: 20rpx;
-  box-shadow: 0 4rpx 16rpx rgba(255, 76, 125, 0.08);
-  border: 1rpx solid rgba(255, 255, 255, 0.5);
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-
-  &:hover {
-    transform: translateY(-2rpx);
-    box-shadow: 0 8rpx 24rpx rgba(255, 76, 125, 0.15);
-  }
-
-  &:last-child {
-    margin-bottom: 24rpx;
-  }
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+  backdrop-filter: blur(8px);
 }
 
+.nf-cart-check {
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
 
-.select-circle {
-  width: 40rpx;
-  height: 40rpx;
+.nf-checkbox {
+  width: 44rpx;
+  height: 44rpx;
   border-radius: 50%;
-  border: 2rpx solid #FE5572;
-  background-color: #FE5572;
-  position: relative;
+  border: 2rpx solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
 
-  &::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 20rpx;
-    height: 20rpx;
-    border-radius: 50%;
-    background-color: #fff;
+  &.checked {
+    background: #e50914;
+    border-color: #e50914;
   }
 }
 
-.shop_item_img {
-  width: 200rpx;
-  height: 200rpx;
-  border-radius: 16rpx;
-  margin-right: 24rpx;
-  box-shadow: 0 8rpx 24rpx rgba(255, 76, 125, 0.15);
-  border: 2rpx solid rgba(255, 255, 255, 0.8);
-  transition: all 0.3s ease;
-
-  &:hover {
-    transform: scale(1.02);
-    box-shadow: 0 12rpx 32rpx rgba(255, 76, 125, 0.2);
-  }
+.nf-check-icon {
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: bold;
 }
 
-.cart-item-info {
+.nf-cart-img {
+  width: 180rpx;
+  height: 180rpx;
+  border-radius: 12rpx;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+}
+
+.nf-cart-info {
   flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 200rpx;
-  padding: 8rpx 0;
+  height: 180rpx;
+  overflow: hidden;
 }
 
-.title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 30rpx;
-  color: #333;
+.nf-cart-name {
+  font-size: 28rpx;
   font-weight: 600;
-  margin-bottom: 16rpx;
+  color: #fff;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.4;
+  white-space: nowrap;
+  margin-bottom: 8rpx;
 }
 
-.desc {
-  margin-bottom: 24rpx;
-
-  &-text {
-    font-size: 26rpx;
-    color: #666;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    line-height: 1.5;
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    padding: 8rpx 12rpx;
-    border-radius: 8rpx;
-  }
+.nf-cart-specs {
+  margin-bottom: 8rpx;
 }
 
-.price-action {
+.nf-cart-spec-tag {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 4rpx 12rpx;
+  border-radius: 6rpx;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nf-cart-bottom {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 8rpx;
+  margin-top: auto;
 }
 
-.delete-btn {
-  padding: 12rpx 24rpx;
-  background: linear-gradient(135deg, #ff4c7d, #ff6b9d);
-  color: #fff;
-  border-radius: 20rpx;
-  font-size: 26rpx;
-  font-weight: 500;
-  box-shadow: 0 4rpx 12rpx rgba(255, 76, 125, 0.3);
-  transition: all 0.3s ease;
-
-  &:active {
-    transform: translateY(1rpx);
-    box-shadow: 0 2rpx 8rpx rgba(255, 76, 125, 0.4);
-  }
+.nf-cart-price {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #e50914;
 }
 
-.quantity-control {
-  display: flex;
-  align-items: center;
-}
-
-.number-box-container {
-  display: flex;
-  align-items: center;
-
+.nf-cart-qty {
   :deep(.wu-numberbox) {
     border: none;
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    border-radius: 12rpx;
-    box-shadow: 0 2rpx 8rpx rgba(255, 76, 125, 0.1);
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 10rpx;
     overflow: hidden;
 
     .wu-numberbox__minus,
     .wu-numberbox__plus {
-      width: 64rpx;
-      height: 64rpx;
-      background: linear-gradient(135deg, #ff4c7d, #ff6b9d);
-      color: #fff;
+      width: 56rpx;
+      height: 56rpx;
+      background: rgba(229, 9, 20, 0.2);
+      color: #e50914;
       border: none;
       font-weight: 600;
-      transition: all 0.3s ease;
-
-      &:active {
-        background: linear-gradient(135deg, #e63946, #ff4757);
-      }
     }
 
     .wu-numberbox__value {
-      width: 80rpx;
-      height: 64rpx;
-      background: #fff;
-      color: #333;
+      width: 64rpx;
+      height: 56rpx;
+      background: rgba(255, 255, 255, 0.04);
+      color: #fff;
       margin: 0;
-      font-size: 28rpx;
+      font-size: 26rpx;
       font-weight: 600;
-      border: 2rpx solid rgba(255, 76, 125, 0.1);
+      border: none;
     }
   }
 }
 
-.price {
-  background: linear-gradient(135deg, #ff4c7d, #ff6b9d);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  display: flex;
-  align-items: baseline;
-  gap: 4rpx;
-
-  &-symbol {
-    font-size: 26rpx;
-    font-weight: 500;
-  }
-
-  &-value {
-    font-size: 36rpx;
-    font-weight: 700;
-  }
-}
-
-.shop-title {
-  font-size: 36rpx;
-  font-weight: bold;
-  text-align: center;
-  padding: 20rpx 0;
-  margin-bottom: 10rpx;
-}
-
-.total_money{
-  font-size: 36rpx;
-  background: linear-gradient(135deg, #ff4c7d, #ff6b9d);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  .total_money_label{
-    font-size: 26rpx;
-    color: #666;
-    margin-right: 8rpx;
-    background: none;
-    -webkit-text-fill-color: #666;
-  }
-  .discount-text {
-    font-size: 22rpx;
-    color: #999;
-    font-weight: normal;
-    margin-top: 4rpx;
-    background: none;
-    -webkit-text-fill-color: #999;
-  }
-}
-
-.shop_nav_box {
+/* 底部操作栏 */
+.nf-cart-bar {
   position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
   height: 120rpx;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 249, 250, 0.95));
-  backdrop-filter: blur(20rpx);
-  box-shadow: 0 -8rpx 32rpx rgba(255, 76, 125, 0.15);
-  border-top: 1rpx solid rgba(255, 255, 255, 0.3);
-  left: 0;
-  z-index: 100;
   padding: 0 24rpx;
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(24px);
+  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
+  z-index: 100;
   /* #ifdef H5 */
   bottom: 88rpx;
   /* #endif */
-  /* #ifdef MP */
-  bottom: 0rpx;
-  /* #endif */
 }
 
-.btns_box {
+.nf-cart-bar-left {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
+}
+
+.nf-cart-bar-all {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.6);
+  margin-left: 8rpx;
+}
+
+.nf-cart-bar-done {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #e50914;
+}
+
+.nf-cart-bar-right {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  justify-content: flex-end;
   gap: 16rpx;
 }
 
-.edit-mode {
-  font-size: 30rpx;
-  color: #333;
-  font-weight: 600;
-  background: linear-gradient(135deg, #ff4c7d, #ff6b9d);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+.nf-cart-bar-total {
+  display: flex;
+  align-items: baseline;
+  margin-right: 12rpx;
 }
 
-.checkout-btn {
-  width: 220rpx;
-  height: 88rpx;
-  line-height: 88rpx;
-  background: linear-gradient(135deg, #ff4c7d, #ff6b9d);
-  color: #fff;
-  font-size: 32rpx;
-  font-weight: 600;
-  border-radius: 44rpx;
-  text-align: center;
-  border: none;
-  box-shadow: 0 8rpx 24rpx rgba(255, 76, 125, 0.3);
-  transition: all 0.3s ease;
-
-  &:active {
-    transform: translateY(2rpx);
-    box-shadow: 0 4rpx 16rpx rgba(255, 76, 125, 0.4);
-  }
+.nf-cart-bar-label {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.5);
+  margin-right: 6rpx;
 }
 
-.edit-btn {
-  width: 140rpx;
-  height: 88rpx;
-  line-height: 88rpx;
-  background: linear-gradient(135deg, rgba(255, 76, 125, 0.1), rgba(255, 107, 157, 0.1));
-  color: #ff4c7d;
+.nf-cart-bar-price {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #e50914;
+}
+
+.nf-cart-bar-count {
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.3);
+  margin-left: 6rpx;
+}
+
+.nf-cart-bar-btns {
+  display: flex;
+  gap: 12rpx;
+}
+
+/* 按钮系统 */
+.nf-btn {
+  height: 72rpx;
+  line-height: 72rpx;
+  padding: 0 36rpx;
+  border-radius: 36rpx;
   font-size: 28rpx;
-  font-weight: 500;
-  border-radius: 44rpx;
+  font-weight: 600;
   text-align: center;
-  border: 2rpx solid rgba(255, 76, 125, 0.2);
-  transition: all 0.3s ease;
+  transition: all 0.2s;
 
-  &:active {
-    background: linear-gradient(135deg, rgba(255, 76, 125, 0.2), rgba(255, 107, 157, 0.2));
-    transform: translateY(1rpx);
-  }
+  &:active { transform: scale(0.96); }
 }
 
-.delete-all-btn {
-  width: 220rpx;
-  height: 88rpx;
-  line-height: 88rpx;
-  background: linear-gradient(135deg, #ff4c7d, #ff6b9d);
+.nf-btn-primary {
+  background: #e50914;
   color: #fff;
-  font-size: 32rpx;
-  font-weight: 600;
-  border-radius: 44rpx;
-  text-align: center;
-  border: none;
-  box-shadow: 0 8rpx 24rpx rgba(255, 76, 125, 0.3);
-  transition: all 0.3s ease;
+}
 
-  &:active {
-    transform: translateY(2rpx);
-    box-shadow: 0 4rpx 16rpx rgba(255, 76, 125, 0.4);
-  }
+.nf-btn-ghost {
+  background: rgba(229, 9, 20, 0.12);
+  border: 1rpx solid rgba(229, 9, 20, 0.3);
+  color: #e50914;
+}
+
+.nf-btn-ghost-sm {
+  height: 64rpx;
+  line-height: 64rpx;
+  padding: 0 24rpx;
+  border-radius: 32rpx;
+  font-size: 24rpx;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.nf-btn-danger {
+  background: #e50914;
+  color: #fff;
+}
+
+.nf-btn-del {
+  padding: 8rpx 24rpx;
+  background: rgba(229, 9, 20, 0.15);
+  color: #e50914;
+  border-radius: 16rpx;
+  font-size: 24rpx;
+  font-weight: 500;
+  border: 1rpx solid rgba(229, 9, 20, 0.3);
 }
 </style>
-

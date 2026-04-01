@@ -22,6 +22,7 @@ func (s *ClientUserRouter) InitClientUserRouter(Router *gin.RouterGroup, PublicR
 		clientUserRouter.DELETE("deleteClientUserByIds", clientUserApi.DeleteClientUserByIds) // 批量删除客户端用户
 		clientUserRouter.PUT("updateClientUser", clientUserApi.UpdateClientUser)              // 更新客户端用户
 		clientUserRouter.GET("getUserInfo", clientUserApi.GetUserInfo)                        // 客户端获取自身信息
+		clientUserRouter.POST("changePassword", clientUserApi.ChangePassword)                 // 修改密码
 	}
 	{
 		clientUserRouterWithoutRecord.GET("findClientUser", clientUserApi.FindClientUser)       // 根据ID获取客户端用户
@@ -34,6 +35,8 @@ func (s *ClientUserRouter) InitClientUserRouter(Router *gin.RouterGroup, PublicR
 		clientUserRouterWithoutAuth.GET("getOpenID", clientUserApi.GetOpenID)                  // 获取小程序openid
 		clientUserRouterWithoutAuth.POST("login", clientUserApi.Login)                         // 客户端登录
 		clientUserRouterWithoutAuth.POST("register", clientUserApi.Register)                   // 客户端注册
+		clientUserRouterWithoutAuth.POST("phoneLogin", clientUserApi.PhoneLogin)               // 手机号登录
+		clientUserRouterWithoutAuth.POST("phoneRegister", clientUserApi.PhoneRegister)         // 手机号注册
 		clientUserRouterWithoutAuth.POST("setClientUserInfo", clientUserApi.SetClientUserInfo) // 客户端设置个人信息
 	}
 }

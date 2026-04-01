@@ -67,10 +67,10 @@
               :key="idx"
               @tap="goGoodsDetail(item)"
             >
-              <image class="nf-presale-img" :src="getUrl(item.good && item.good.imageUrl)" mode="aspectFill" />
+              <image class="nf-presale-img" :src="getUrl(item.externalImagePath || item.imageUrl)" mode="aspectFill" />
               <view class="nf-presale-info">
-                <text class="nf-presale-name">{{ $lt(item.good && item.good.title) }}</text>
-                <text class="nf-presale-price">¥{{ formatPrice(item.presalePrice || (item.good && item.good.price)) }}</text>
+                <text class="nf-presale-name">{{ $lt(item.title) }}</text>
+                <text class="nf-presale-price">¥{{ formatPrice(item.price) }}</text>
               </view>
               <view class="nf-presale-badge-tag">{{ $t('presale') }}</view>
             </view>
@@ -238,8 +238,8 @@ const goPresaleList = () => {
 }
 
 const goGoodsDetail = (item) => {
-  if (item.good && item.good.ID) {
-    uni.navigateTo({ url: '/pages/goodsDetails/goodsDetails?id=' + item.good.ID })
+  if (item.ID) {
+    uni.navigateTo({ url: '/pages/player/index?id=' + item.ID })
   }
 }
 

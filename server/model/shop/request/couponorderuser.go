@@ -1,8 +1,9 @@
 package request
 
 import (
-	"github.com/flipped-aurora/gin-vue-admin/server/model/common/request"
 	"time"
+
+	"github.com/flipped-aurora/gin-vue-admin/server/model/common/request"
 )
 
 type CouponOrderUserSearch struct {
@@ -10,5 +11,7 @@ type CouponOrderUserSearch struct {
 	EndCreatedAt   *time.Time `json:"endCreatedAt" form:"endCreatedAt"`
 	CouponID       *int       `json:"couponID" form:"couponID"`
 	OrderID        *int       `json:"orderID" form:"orderID"`
+	Status         *bool      `json:"status" form:"status"`
+	UserID         *uint      `json:"userID" form:"userID"`
 	request.PageInfo
 }

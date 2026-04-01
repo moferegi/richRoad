@@ -1,5 +1,6 @@
 <script>
 	import {useUserStore} from "@/pinia/modules/user.js"
+	import { useLangStore } from "@/pinia/modules/lang.js"
 	import { getOpenID } from '@/api/base.js'
 	import {myRouter} from '@/utils/permission.js'
 	import { visitorHeartbeat } from '@/api/visitor.js'
@@ -7,7 +8,9 @@
 	export default {
 		onLaunch: function() {
 			const userStore = useUserStore()
+			const langStore = useLangStore()
 			userStore.getInfo()
+			langStore.initLangs()
       console.log(123)
 			wx.login({
 			  success: async (res) => {

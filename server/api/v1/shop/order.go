@@ -2,6 +2,7 @@ package shop
 
 import (
 	"encoding/json"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
@@ -210,6 +211,29 @@ func (orderApi *OrderApi) UpdateOrderStatus(c *gin.Context) {
 		response.FailWithMessage(err.Error(), c)
 	} else {
 		response.OkWithMessage("更新成功", c)
+	}
+}
+
+// ConfirmPayment 管理员确认收款
+// @Tags Order
+// @Summary 管理员确认收款（将待付款订单标记为已付款）
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param ID query string true "订单ID"
+// @Success 200 {string} string "{"success":true,"data":{},"msg":"确认收款成功"}"
+// @Router /order/confirmPayment [post]
+func (orderApi *OrderApi) ConfirmPayment(c *gin.Context) {
+	ID := c.Query("ID")
+	if ID == "" {
+		response.FailWithMessage("订单ID不能为空", c)
+		return
+	}
+	if err := orderService.ConfirmPayment(ID); err != nil {
+		global.GVA_LOG.Error("确认收款失败!", zap.Error(err))
+		response.FailWithMessage(err.Error(), c)
+	} else {
+		response.OkWithMessage("确认收款成功", c)
 	}
 }
 

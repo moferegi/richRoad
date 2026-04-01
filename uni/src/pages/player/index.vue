@@ -139,6 +139,30 @@
         </text>
       </view>
 
+      <!-- 预售信息 -->
+      <view class="nf-presale-section" v-if="data.isPresale">
+        <view class="nf-presale-card">
+          <view class="nf-presale-badge-row">
+            <view class="nf-presale-tag">{{ $t('presale') }}</view>
+            <view class="nf-presale-status-tag" :class="presaleStatusClass">{{ presaleStatusText }}</view>
+          </view>
+          <view class="nf-presale-time-row" v-if="data.presaleStart && data.presaleEnd">
+            <text class="nf-presale-time-label">{{ $t('couponValidity') }}</text>
+            <text class="nf-presale-time-val">{{ fmtPresaleDate(data.presaleStart) }} - {{ fmtPresaleDate(data.presaleEnd) }}</text>
+          </view>
+          <view class="nf-presale-qty-row" v-if="data.presaleQty">
+            <view class="nf-presale-progress-bar">
+              <view class="nf-presale-progress-fill" :style="{ width: presaleProgress + '%' }"></view>
+            </view>
+            <text class="nf-presale-qty-text">{{ $t('sold') }} {{ data.presaleSold || 0 }}/{{ data.presaleQty }}</text>
+          </view>
+          <view class="nf-presale-countdown-row" v-if="presaleCountdownType !== 'ended'">
+            <text class="nf-presale-cd-label">{{ presaleCountdownType === 'start' ? $t('presaleStartsIn') : $t('presaleEndsIn') }}</text>
+            <text class="nf-presale-cd-time">{{ presaleCountdownStr }}</text>
+          </view>
+        </view>
+      </view>
+
       <!-- 选集 -->
       <view class="nf-episodes-section" v-if="episodes.length">
         <view class="nf-section-header">
@@ -182,6 +206,7 @@ import { getUrl } from '@/utils/url.js'
 import { useUserStore } from '@/pinia/modules/user'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { usePlayHistoryStore } from '@/pinia/modules/playHistory.js'
+import { localText } from '@/utils/i18n'
 
 
 const langStore = useLangStore()
@@ -222,6 +247,72 @@ const formatNum = (num) => {
   return String(num)
 }
 
+// ===== 预售相关 =====
+const presaleNow = ref(Date.now())
+let presaleTimer = null
+
+const presaleCountdownType = computed(() => {
+  if (!data.value.isPresale) return 'ended'
+  const now = presaleNow.value
+  if (data.value.presaleStart && now < new Date(data.value.presaleStart).getTime()) return 'start'
+  if (data.value.presaleEnd && now < new Date(data.value.presaleEnd).getTime()) return 'end'
+  return 'ended'
+})
+
+const presaleCountdownStr = computed(() => {
+  const now = presaleNow.value
+  const type = presaleCountdownType.value
+  if (type === 'ended') return ''
+  const target = type === 'start'
+    ? new Date(data.value.presaleStart).getTime()
+    : new Date(data.value.presaleEnd).getTime()
+  const diff = Math.max(0, target - now)
+  const d = Math.floor(diff / 86400000)
+  const h = Math.floor((diff % 86400000) / 3600000)
+  const m = Math.floor((diff % 3600000) / 60000)
+  const s = Math.floor((diff % 60000) / 1000)
+  if (d > 0) return `${d}d ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+})
+
+const presaleStatusText = computed(() => {
+  const type = presaleCountdownType.value
+  if (type === 'start') return $t.value('presaleNotStart')
+  if (type === 'end') return $t.value('presaleInProgress')
+  if (data.value.presaleQty && data.value.presaleSold >= data.value.presaleQty) return $t.value('presaleEnded')
+  return $t.value('presaleEnded')
+})
+
+const presaleStatusClass = computed(() => {
+  const type = presaleCountdownType.value
+  if (type === 'start') return 'nf-ps-notstart'
+  if (type === 'end') return 'nf-ps-active'
+  return 'nf-ps-ended'
+})
+
+const presaleProgress = computed(() => {
+  if (!data.value.presaleQty) return 0
+  return Math.min(100, Math.round((data.value.presaleSold || 0) / data.value.presaleQty * 100))
+})
+
+const fmtPresaleDate = (d) => {
+  if (!d) return ''
+  return new Date(d).toLocaleDateString()
+}
+
+const showPresalePopup = () => {
+  const title = localText(data.value.presalePopupTitle) || $t.value('presale')
+  const content = localText(data.value.presalePopupContent) || presaleStatusText.value
+  uni.showModal({ title, content, showCancel: false, confirmText: $t.value('confirm') })
+}
+
+const startPresaleTimer = () => {
+  if (presaleTimer) clearInterval(presaleTimer)
+  if (data.value.isPresale && presaleCountdownType.value !== 'ended') {
+    presaleTimer = setInterval(() => { presaleNow.value = Date.now() }, 1000)
+  }
+}
+
 onLoad(async (options) => {
   if (options.id) {
     goodID.value = options.id
@@ -239,6 +330,7 @@ const init = async () => {
     if (res.code === 0 && res.data.regood) {
       data.value = res.data.regood
       episodes.value = res.data.regood.skus || []
+      startPresaleTimer()
     }
     if (token) {
       const status = await findCollect({ goodID: goodID.value })
@@ -871,6 +963,7 @@ const goBack = () => {
 
 onUnmounted(() => {
   destroyPlayer()
+  if (presaleTimer) clearInterval(presaleTimer)
 })
 </script>
 
@@ -1689,5 +1782,89 @@ page {
   width: 100vw !important;
   height: 100vh !important;
   height: 100dvh !important;
+}
+
+/* ===== 预售信息区 ===== */
+.nf-presale-section {
+  padding: 0 32rpx;
+  margin-bottom: 20rpx;
+}
+.nf-presale-card {
+  background: rgba(229, 9, 20, 0.08);
+  border: 1rpx solid rgba(229, 9, 20, 0.25);
+  border-radius: 16rpx;
+  padding: 24rpx;
+}
+.nf-presale-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+}
+.nf-presale-tag {
+  background: #e50914;
+  color: #fff;
+  font-size: 22rpx;
+  font-weight: bold;
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+}
+.nf-presale-status-tag {
+  font-size: 22rpx;
+  font-weight: 600;
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+}
+.nf-ps-notstart { background: rgba(255,165,0,0.2); color: #ffa500; }
+.nf-ps-active { background: rgba(34,197,94,0.2); color: #22c55e; }
+.nf-ps-ended { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.4); }
+.nf-presale-time-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  margin-bottom: 12rpx;
+}
+.nf-presale-time-label {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.5);
+}
+.nf-presale-time-val {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.8);
+}
+.nf-presale-qty-row {
+  margin-bottom: 12rpx;
+}
+.nf-presale-progress-bar {
+  height: 8rpx;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4rpx;
+  overflow: hidden;
+  margin-bottom: 8rpx;
+}
+.nf-presale-progress-fill {
+  height: 100%;
+  background: #e50914;
+  border-radius: 4rpx;
+  transition: width 0.3s;
+}
+.nf-presale-qty-text {
+  font-size: 22rpx;
+  color: rgba(255,255,255,0.5);
+}
+.nf-presale-countdown-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.nf-presale-cd-label {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.5);
+}
+.nf-presale-cd-time {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #e50914;
+  font-variant-numeric: tabular-nums;
 }
 </style>

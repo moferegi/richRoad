@@ -23,6 +23,7 @@ func initBizRouter(routers ...*gin.RouterGroup) {
 		clientRouter.InitLanguageRouter(privateGroup, publicGroup)
 		clientRouter.InitPhoneAreaCodeRouter(privateGroup, publicGroup)
 		clientRouter.InitSignInRouter(privateGroup, publicGroup)
+		clientRouter.InitExternalLinkDomainRouter(privateGroup, publicGroup)
 	}
 	{
 		shopRouter := router.RouterGroupApp.Shop

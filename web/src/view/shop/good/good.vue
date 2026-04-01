@@ -43,6 +43,24 @@
           </el-select>
         </el-form-item>
 
+        <el-form-item label="关键词">
+          <el-input v-model="searchInfo.keyword" placeholder="名称/描述/标签" clearable style="width:160px;" />
+        </el-form-item>
+
+        <el-form-item label="排序">
+          <el-select v-model="searchInfo.orderBy" clearable placeholder="排序字段" style="width:120px;">
+            <el-option label="浏览量" value="view_num" />
+            <el-option label="销量" value="sale_num" />
+            <el-option label="收藏数" value="collect_num" />
+            <el-option label="价格" value="price" />
+            <el-option label="创建时间" value="created_at" />
+          </el-select>
+          <el-select v-model="searchInfo.orderDir" clearable placeholder="方向" style="width:90px; margin-left:4px;">
+            <el-option label="升序" value="asc" />
+            <el-option label="降序" value="desc" />
+          </el-select>
+        </el-form-item>
+
         <el-form-item>
           <el-button
             type="primary"
@@ -134,6 +152,24 @@
         />
         <el-table-column
           align="left"
+          label="浏览量"
+          prop="viewNum"
+          width="90"
+        />
+        <el-table-column
+          align="left"
+          label="销量"
+          prop="saleNum"
+          width="90"
+        />
+        <el-table-column
+          align="left"
+          label="收藏数"
+          prop="collectNum"
+          width="90"
+        />
+        <el-table-column
+          align="left"
           label="商品类型"
           prop="categoryID"
           width="120"
@@ -160,6 +196,24 @@
           width="120"
         >
           <template #default="scope">{{ formatBoolean(scope.row.recommend) }}</template>
+        </el-table-column>
+
+        <el-table-column
+          align="left"
+          label="备注"
+          prop="remark"
+          width="120"
+          show-overflow-tooltip
+        />
+
+        <el-table-column
+          align="left"
+          label="预售"
+          width="80"
+        >
+          <template #default="scope">
+            <el-tag v-if="scope.row.isPresale" type="warning" size="small">预售</el-tag>
+          </template>
         </el-table-column>
 
         <el-table-column
@@ -257,9 +311,15 @@
               <el-input
                 v-model="formData.title"
                 :clearable="true"
-                placeholder="请输入商品名称"
+                placeholder="默认商品名称"
               />
             </el-form-item>
+            <div v-if="enabledLangs.length" class="pl-2">
+              <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
+                <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
+                <el-input v-model="titleI18n[lang.code]" :placeholder="`${lang.name}`" size="small" />
+              </div>
+            </div>
           </el-col>
           <el-col :span="6">
             <el-form-item
@@ -322,12 +382,57 @@
           label="商品轮播图:"
           prop="banner"
         >
-          <SelectImage
-            v-model="formData.banner"
-            multiple
-            :max-update-count="5"
-            file-type="image"
-          />
+          <div class="w-full">
+            <div v-for="(item, index) in formData.banner" :key="index" class="mb-4 p-3" style="border: 1px solid #ebeef5; border-radius: 4px;">
+              <el-row :gutter="12" class="items-center">
+                <el-col :span="4">
+                  <el-tag size="small">{{ index + 1 }}</el-tag>
+                  <el-select v-model="item.type" placeholder="类型" size="small" style="width:80px; margin-left:4px;">
+                    <el-option label="图片" value="image" />
+                    <el-option label="视频" value="video" />
+                  </el-select>
+                </el-col>
+                <el-col :span="16">
+                  <el-form-item label="资源(上传):" class="mb-0" label-width="auto">
+                    <SelectImage v-model="item.url" :file-type="item.type === 'video' ? 'video' : 'image'" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="4" class="text-right">
+                  <el-button type="danger" icon="delete" size="small" @click="formData.banner.splice(index, 1)">删除</el-button>
+                </el-col>
+              </el-row>
+              <el-form-item label="外部链接(优先于上传):" class="mt-2 mb-0" label-width="auto">
+                <el-input v-model="item.externalUrl" placeholder="https://example.com/media.jpg" clearable />
+              </el-form-item>
+              <el-row :gutter="12" class="mt-2">
+                <el-col :span="8">
+                  <el-form-item label="文字:" class="mb-0" label-width="auto">
+                    <el-input v-model="item.text" placeholder="轮播图文字" clearable />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="4">
+                  <el-form-item label="颜色:" class="mb-0" label-width="auto">
+                    <el-color-picker v-model="item.textColor" show-alpha size="small" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="4">
+                  <el-form-item label="字号:" class="mb-0" label-width="auto">
+                    <el-input-number v-model="item.textSize" :min="8" :max="72" size="small" style="width:80px;" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="位置:" class="mb-0" label-width="auto">
+                    <el-select v-model="item.textPosition" size="small">
+                      <el-option label="顶部" value="top" />
+                      <el-option label="居中" value="center" />
+                      <el-option label="底部" value="bottom" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </div>
+            <el-button type="primary" icon="plus" @click="formData.banner.push({ url: '', type: 'image', externalUrl: '', text: '', textColor: '#FFFFFF', textSize: 14, textPosition: 'bottom' })">添加轮播项</el-button>
+          </div>
         </el-form-item>
         <el-form-item
           label="商品标签:"
@@ -355,8 +460,14 @@
           <el-input
             v-model="formData.description"
             :clearable="true"
-            placeholder="请输入商品描述"
+            placeholder="默认商品描述"
           />
+          <div v-if="enabledLangs.length" class="w-full mt-2">
+            <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
+              <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
+              <el-input v-model="descI18n[lang.code]" :placeholder="`${lang.name}`" size="small" />
+            </div>
+          </div>
         </el-form-item>
 
         <el-row :gutter="12">
@@ -401,8 +512,94 @@
             </el-form-item>
           </el-col>
         </el-row>
+
+        <el-form-item label="商品备注(来源等):" prop="remark">
+          <el-input v-model="formData.remark" type="textarea" :rows="2" placeholder="请输入商品备注" />
+        </el-form-item>
+
+        <el-divider content-position="left">积分抵扣设置</el-divider>
+        <el-row :gutter="12">
+          <el-col :span="6">
+            <el-form-item label="允许积分抵扣:" prop="pointsEnabled">
+              <el-switch v-model="formData.pointsEnabled" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="9">
+            <el-form-item label="最多可用积分数:" prop="pointsMaxUse">
+              <el-input-number v-model="formData.pointsMaxUse" :min="0" style="width:100%;" :disabled="!formData.pointsEnabled" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="9">
+            <el-form-item label="同商品可用积分次数:" prop="pointsUseTimes">
+              <el-input-number v-model="formData.pointsUseTimes" :min="0" style="width:100%;" :disabled="!formData.pointsEnabled" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-divider content-position="left">预售设置</el-divider>
+        <el-row :gutter="12">
+          <el-col :span="6">
+            <el-form-item label="开启预售:" prop="isPresale">
+              <el-switch v-model="formData.isPresale" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="预售开关:" prop="presaleEnabled">
+              <el-switch v-model="formData.presaleEnabled" :disabled="!formData.isPresale" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="预售数量:" prop="presaleQty">
+              <el-input-number v-model="formData.presaleQty" :min="0" style="width:100%;" :disabled="!formData.isPresale" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="预售排序:" prop="presaleSort">
+              <el-input-number v-model="formData.presaleSort" :min="0" style="width:100%;" :disabled="!formData.isPresale" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="12">
+          <el-col :span="12">
+            <el-form-item label="预售开始:" prop="presaleStart">
+              <el-date-picker
+                v-model="formData.presaleStart"
+                type="datetime"
+                placeholder="选择预售开始时间"
+                style="width:100%;"
+                :disabled="!formData.isPresale"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="预售结束:" prop="presaleEnd">
+              <el-date-picker
+                v-model="formData.presaleEnd"
+                type="datetime"
+                placeholder="选择预售结束时间"
+                style="width:100%;"
+                :disabled="!formData.isPresale"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="预售弹窗标题(多语言):" prop="presalePopupTitle" v-if="formData.isPresale">
+          <el-tabs type="border-card" style="width:100%;">
+            <el-tab-pane v-for="lang in enabledLangs" :key="lang.code" :label="lang.name">
+              <el-input v-model="presalePopupTitleI18n[lang.code]" :placeholder="`${lang.name} 弹窗标题`" />
+            </el-tab-pane>
+          </el-tabs>
+        </el-form-item>
+        <el-form-item label="预售弹窗内容(多语言):" prop="presalePopupContent" v-if="formData.isPresale">
+          <el-tabs type="border-card" style="width:100%;">
+            <el-tab-pane v-for="lang in enabledLangs" :key="lang.code" :label="lang.name">
+              <el-input v-model="presalePopupContentI18n[lang.code]" type="textarea" :rows="3" :placeholder="`${lang.name} 弹窗内容`" />
+            </el-tab-pane>
+          </el-tabs>
+        </el-form-item>
+
         <h4 class="flex justify-between items-center">
-          <span>商品规格(可作为商品选项的属性，例：尺码，颜色)</span>
+          <span>商品规格(可作为商品选项的属性，例：尺码，颜色) <el-tag size="small" type="info">名称支持JSON多语言</el-tag></span>
           <el-button
             type="primary"
             icon="plus"
@@ -457,7 +654,7 @@
           </el-col>
         </el-row>
         <h4 class="flex justify-between items-center">
-          <span>商品属性(仅作为展示属性，例：厂商，材料)</span>
+          <span>商品属性(仅作为展示属性，例：厂商，材料) <el-tag size="small" type="info">名称支持JSON多语言</el-tag></span>
           <el-button
             type="primary"
             icon="plus"
@@ -515,7 +712,20 @@
             label="商品详情:"
             prop="detail"
         >
-          <div class="h-[800px]">
+          <div v-if="enabledLangs.length" class="w-full">
+            <el-tabs v-model="detailLangTab" type="card">
+              <el-tab-pane v-for="lang in enabledLangs" :key="lang.code" :label="lang.name || lang.code" :name="lang.code">
+                <div class="h-[600px]">
+                  <rich-edit
+                    v-model="detailI18n[lang.code]"
+                    :clearable="true"
+                    :placeholder="`请输入 ${lang.name} 商品详情`"
+                  />
+                </div>
+              </el-tab-pane>
+            </el-tabs>
+          </div>
+          <div v-else class="h-[800px]">
             <rich-edit
                 v-model="formData.detail"
                 :clearable="true"
@@ -546,6 +756,7 @@ import {
 import {
   getCategoryList
 } from '@/api/shop/category'
+import { getEnabledLanguages } from '@/api/client/language'
 import { getUrl } from '@/utils/image'
 // 图片选择组件
 import SelectImage from '@/components/selectImage/selectImage.vue'
@@ -553,14 +764,51 @@ import SelectImage from '@/components/selectImage/selectImage.vue'
 // 全量引入格式化工具 请按需保留
 import { formatDate, formatBoolean } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ref, reactive } from 'vue'
-import RichEdit from "@/components/richtext/rich-edit.vue";
+import { ref, reactive, onMounted } from 'vue'
+import RichEdit from "@/components/richtext/rich-edit.vue"
 
 defineOptions({
   name: 'Good'
 })
 
 const router = useRouter()
+
+// === i18n 多语言支持 ===
+const enabledLangs = ref([])
+const titleI18n = ref({})
+const descI18n = ref({})
+const detailI18n = ref({})
+const presalePopupTitleI18n = ref({})
+const presalePopupContentI18n = ref({})
+// 当前详情编辑语言tab
+const detailLangTab = ref('')
+
+const loadLangs = async () => {
+  try {
+    const res = await getEnabledLanguages()
+    if (res.code === 0) {
+      enabledLangs.value = res.data || []
+      if (enabledLangs.value.length > 0) {
+        detailLangTab.value = enabledLangs.value[0].code
+      }
+    }
+  } catch (e) { /* ignore */ }
+}
+
+const parseI18nJson = (jsonStr) => {
+  if (!jsonStr) return {}
+  try { return JSON.parse(jsonStr) } catch { return {} }
+}
+
+const serializeI18nJson = (obj) => {
+  const filtered = {}
+  for (const [k, v] of Object.entries(obj)) {
+    if (v) filtered[k] = v
+  }
+  return Object.keys(filtered).length ? JSON.stringify(filtered) : ''
+}
+
+onMounted(() => { loadLangs() })
 
 const setSKU = (row) => {
   router.push({ name: 'sku', query: { id: row.ID }})
@@ -593,7 +841,19 @@ const formData = ref({
   discount: 0,
   specs: [],
   attrs: [],
-  detail: ''
+  detail: '',
+  remark: '',
+  pointsEnabled: false,
+  pointsMaxUse: 0,
+  pointsUseTimes: 1,
+  isPresale: false,
+  presaleQty: 0,
+  presaleStart: null,
+  presaleEnd: null,
+  presaleEnabled: true,
+  presaleSort: 0,
+  presalePopupTitle: '',
+  presalePopupContent: '',
 })
 const categoryList = ref([])
 const getCategoryListFunc = async() => {
@@ -760,6 +1020,18 @@ const updateGoodFunc = async(row) => {
     if (!formData.value.banner) {
       formData.value.banner = []
     }
+    // 兼容旧数据：如果 banner 是简单字符串数组，转为新结构
+    if (formData.value.banner.length > 0 && typeof formData.value.banner[0] === 'string') {
+      formData.value.banner = formData.value.banner.map(url => ({
+        url, type: 'image', externalUrl: '', text: '', textColor: '#FFFFFF', textSize: 14, textPosition: 'bottom'
+      }))
+    }
+    // 解析 i18n 字段
+    titleI18n.value = parseI18nJson(formData.value.title)
+    descI18n.value = parseI18nJson(formData.value.description)
+    detailI18n.value = parseI18nJson(formData.value.detail)
+    presalePopupTitleI18n.value = parseI18nJson(formData.value.presalePopupTitle)
+    presalePopupContentI18n.value = parseI18nJson(formData.value.presalePopupContent)
     dialogFormVisible.value = true
   }
 }
@@ -785,12 +1057,22 @@ const dialogFormVisible = ref(false)
 // 打开弹窗
 const openDialog = () => {
   type.value = 'create'
+  titleI18n.value = {}
+  descI18n.value = {}
+  detailI18n.value = {}
+  presalePopupTitleI18n.value = {}
+  presalePopupContentI18n.value = {}
   dialogFormVisible.value = true
 }
 
 // 关闭弹窗
 const closeDialog = () => {
   dialogFormVisible.value = false
+  titleI18n.value = {}
+  descI18n.value = {}
+  detailI18n.value = {}
+  presalePopupTitleI18n.value = {}
+  presalePopupContentI18n.value = {}
   formData.value = {
     description: '',
     price: 0,
@@ -804,13 +1086,37 @@ const closeDialog = () => {
     specs: [],
     attrs: [],
     discount: 0,
-    detail: ''
+    detail: '',
+    remark: '',
+    pointsEnabled: false,
+    pointsMaxUse: 0,
+    pointsUseTimes: 1,
+    isPresale: false,
+    presaleQty: 0,
+    presaleStart: null,
+    presaleEnd: null,
+    presaleEnabled: true,
+    presaleSort: 0,
+    presalePopupTitle: '',
+    presalePopupContent: '',
   }
 }
 // 弹窗确定
 const enterDialog = async() => {
   elFormRef.value?.validate(async(valid) => {
     if (!valid) return
+    // 序列化 i18n 字段
+    if (enabledLangs.value.length) {
+      const titleObj = { ...titleI18n.value }
+      if (formData.value.title && !titleObj[enabledLangs.value[0]?.code]) {
+        // 保持默认值在第一语言
+      }
+      formData.value.title = serializeI18nJson(titleI18n.value) || formData.value.title
+      formData.value.description = serializeI18nJson(descI18n.value) || formData.value.description
+      formData.value.detail = serializeI18nJson(detailI18n.value) || formData.value.detail
+      formData.value.presalePopupTitle = serializeI18nJson(presalePopupTitleI18n.value) || formData.value.presalePopupTitle
+      formData.value.presalePopupContent = serializeI18nJson(presalePopupContentI18n.value) || formData.value.presalePopupContent
+    }
     let res
     switch (type.value) {
       case 'create':

@@ -3,6 +3,7 @@ package model
 type Geo struct {
 	ID         uint   `gorm:"primary_key" json:"id" form:"id"`
 	Name       string `gorm:"column:name" json:"name" form:"name"`
+	NameI18n   string `gorm:"column:name_i18n;type:text;comment:名称多语言JSON" json:"nameI18n" form:"nameI18n"`
 	Level      int    `gorm:"column:level" json:"level" form:"level"`
 	Code       string `gorm:"column:code" json:"code" form:"code"`
 	Geocode    string `gorm:"column:geocode" json:"geocode" form:"geocode"`
@@ -16,6 +17,7 @@ type Geo struct {
 type Province struct {
 	ID         int    `gorm:"primary_key" json:"id" form:"id"`
 	Name       string `gorm:"column:name" json:"name" form:"name"`
+	NameI18n   string `gorm:"column:name_i18n;type:text;comment:名称多语言JSON" json:"nameI18n" form:"nameI18n"`
 	Level      int    `gorm:"column:level" json:"level" form:"level"`
 	Code       string `gorm:"column:code" json:"code" form:"code"`
 	Geocode    string `gorm:"column:geocode" json:"geocode" form:"geocode"`
@@ -32,6 +34,7 @@ func (Province) TableName() string {
 type City struct {
 	ID           int    `gorm:"primary_key" json:"id" form:"id"`
 	Name         string `gorm:"column:name" json:"name" form:"name"`
+	NameI18n     string `gorm:"column:name_i18n;type:text;comment:名称多语言JSON" json:"nameI18n" form:"nameI18n"`
 	Level        int    `gorm:"column:level" json:"level" form:"level"`
 	Code         string `gorm:"column:code" json:"code" form:"code"`
 	Geocode      string `gorm:"column:geocode" json:"geocode" form:"geocode"`
@@ -49,6 +52,7 @@ func (City) TableName() string {
 type Area struct {
 	ID           int    `gorm:"primary_key" json:"id" form:"id"`
 	Name         string `gorm:"column:name" json:"name" form:"name"`
+	NameI18n     string `gorm:"column:name_i18n;type:text;comment:名称多语言JSON" json:"nameI18n" form:"nameI18n"`
 	Level        int    `gorm:"column:level" json:"level" form:"level"`
 	Code         string `gorm:"column:code" json:"code" form:"code"`
 	Geocode      string `gorm:"column:geocode" json:"geocode" form:"geocode"`

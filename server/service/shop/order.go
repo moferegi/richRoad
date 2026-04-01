@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
 	clientService "github.com/flipped-aurora/gin-vue-admin/server/service/client"
+	"go.uber.org/zap"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -53,16 +55,19 @@ func (orderService *OrderService) ChangeOrderCoupon(userID uint, orderID string,
 		if err != nil {
 			return err
 		}
-		if coupon.ProductID != nil {
-			hasGoods := false
-			for _, detail := range order.Detail {
-				if int(detail.GoodID) == *coupon.ProductID {
-					hasGoods = true
-					break
+		if coupon.ProductID != nil || coupon.ProductIDs != "" {
+			allowedIDs := couponAllowedProductIDs(coupon)
+			if len(allowedIDs) > 0 {
+				hasGoods := false
+				for _, detail := range order.Detail {
+					if allowedIDs[int(detail.GoodID)] {
+						hasGoods = true
+						break
+					}
 				}
-			}
-			if !hasGoods {
-				return errors.New("当前订单不可使用此券")
+				if !hasGoods {
+					return errors.New("当前订单不可使用此券")
+				}
 			}
 		}
 		order.TotalPrice = 0
@@ -227,7 +232,18 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 			}
 			order.Detail[i].GoodID = sku.GoodID
 
-			err = tx.Model(&shop.Sku{}).Where("id = ?", order.Detail[i].SKUID).Update("inventory", gorm.Expr("inventory - ?", order.Detail[i].Quantity)).Error
+			err = tx.Model(&shop.Sku{}).Where("id = ?", order.Detail[i].SKUID).
+				Update("inventory", gorm.Expr("inventory - ?", order.Detail[i].Quantity)).Error
+			if err != nil {
+				return err
+			}
+			err = tx.Model(&shop.Sku{}).Where("id = ?", order.Detail[i].SKUID).
+				Update("sale_num", gorm.Expr("sale_num + ?", order.Detail[i].Quantity)).Error
+			if err != nil {
+				return err
+			}
+			err = tx.Model(&shop.Good{}).Where("id = ?", sku.GoodID).
+				Update("sale_num", gorm.Expr("sale_num + ?", order.Detail[i].Quantity)).Error
 			if err != nil {
 				return err
 			}
@@ -301,11 +317,19 @@ func (orderService *OrderService) PlaceOrderByCart(userID uint, req shopReq.Plac
 	// 1. 获取购物车中的商品
 	var carts []shop.Cart
 	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
-		tx.Where("user_id = ?", userID).Preload("Good").Preload("SKU").Find(&carts)
+		query := tx.Where("user_id = ?", userID).Preload("Good").Preload("SKU")
+		if len(req.CartIDs) > 0 {
+			query = query.Where("id IN ?", req.CartIDs)
+		}
+		query.Find(&carts)
+		if len(carts) == 0 {
+			return errors.New("购物车为空")
+		}
 		// 2. 创建订单
 		order := shop.Order{
-			UserID: userID,
-			Status: "0",
+			UserID:    userID,
+			Status:    "0",
+			PayMethod: req.PayMethod,
 		}
 		order.OriginPrice = 0
 		// 从购物车设置订单详情
@@ -377,8 +401,12 @@ func (orderService *OrderService) PlaceOrderByCart(userID uint, req shopReq.Plac
 			return err
 		}
 
-		// 4. 删除购物车中的商品
-		err = tx.Where("user_id = ?", userID).Delete(&shop.Cart{}).Error
+		// 4. 删除已下单的购物车商品
+		cartIDs := make([]uint, len(carts))
+		for i, c := range carts {
+			cartIDs[i] = c.ID
+		}
+		err = tx.Where("id IN ?", cartIDs).Delete(&shop.Cart{}).Error
 		if err != nil {
 			return err
 		}
@@ -494,31 +522,15 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 		}
 
 		if status == "1" && !order.Pointed {
-			// 创建积分增加记录
-			pointRecordService := &clientService.PointRecordService{}
-			userIdInt := int(user.ID)
-			changeType := "increase"
-			pointChange := int(totalPrice / 100)
-			operationType := "order_complete"
-			reason := "订单完成，获得积分奖励"
-			orderIdStr := strconv.Itoa(int(order.ID))
-			orderIdInt, _ := strconv.Atoi(orderIdStr)
-			remark := "订单ID: " + orderIdStr
-
-			pointRecord := &client.PointRecord{
-				UserId:         &userIdInt,
-				ChangeType:     &changeType,
-				PointChange:    &pointChange,
-				OperationType:  &operationType,
-				Reason:         &reason,
-				RelatedOrderId: &orderIdInt,
-				Remark:         &remark,
+			// 使用营销奖励配置发放订单奖励（积分+优惠券）
+			mrService := &MarketingRewardService{}
+			if err := mrService.TriggerReward(order.UserID, "order", "order_complete", "订单完成，获得奖励", order.ID); err != nil {
+				global.GVA_LOG.Error("订单营销奖励发放失败", zap.Error(err))
 			}
 
-			err = pointRecordService.CreatePointRecord(context.Background(), pointRecord)
-			if err != nil {
-				return err
-			}
+			// 检查下级首单奖励逻辑
+			mrService.TriggerSubOrderReward(tx, order.UserID, order.ID)
+
 			err = tx.Model(&order).Update("pointed", true).Error
 			if err != nil {
 				return err
@@ -534,6 +546,24 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 func (orderService *OrderService) DeleteOrder(ID string) (err error) {
 	err = global.GVA_DB.Delete(&shop.Order{}, "id = ?", ID).Error
 	return err
+}
+
+// ConfirmPayment 管理员确认收款
+func (orderService *OrderService) ConfirmPayment(orderID string) (err error) {
+	var order shop.Order
+	if err = global.GVA_DB.First(&order, "id = ?", orderID).Error; err != nil {
+		return err
+	}
+	if order.Status != "0" {
+		return fmt.Errorf("只能对待付款订单确认收款，当前状态: %s", order.Status)
+	}
+	now := time.Now()
+	// 先设置 paidAt
+	if err = global.GVA_DB.Model(&order).Update("paid_at", now).Error; err != nil {
+		return err
+	}
+	// 调用 UpdateOrderStatus 处理状态变更和积分逻辑
+	return orderService.UpdateOrderStatus(nil, orderID, "1")
 }
 
 // DeleteOrderByIds 批量删除订单记录

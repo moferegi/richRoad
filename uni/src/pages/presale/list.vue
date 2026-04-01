@@ -29,7 +29,7 @@
           @tap="goDetail(item)"
         >
           <view class="nf-goods-img-wrap">
-            <image class="nf-goods-img" :src="getUrl(item.good && item.good.imageUrl)" mode="aspectFill" />
+            <image class="nf-goods-img" :src="getUrl(item.externalImagePath || item.imageUrl)" mode="aspectFill" />
             <view class="nf-goods-img-overlay"></view>
             <!-- 预售标签 -->
             <view class="nf-presale-badge">
@@ -37,7 +37,7 @@
             </view>
           </view>
           <view class="nf-goods-info">
-            <text class="nf-goods-title">{{ $lt(item.good && item.good.title) }}</text>
+            <text class="nf-goods-title">{{ $lt(item.title) }}</text>
 
             <!-- 倒计时 -->
             <view class="nf-presale-countdown">
@@ -58,13 +58,13 @@
             <view class="nf-goods-bottom">
               <view class="nf-price-row">
                 <text class="nf-price-label">{{ $t('presalePrice') }}</text>
-                <text class="nf-price">¥{{ formatPrice(item.presalePrice || (item.good && item.good.price)) }}</text>
+                <text class="nf-price">¥{{ formatPrice(item.price) }}</text>
               </view>
               <view class="nf-presale-progress">
                 <view class="nf-progress-bar">
                   <view class="nf-progress-fill" :style="{ width: getProgress(item) + '%' }"></view>
                 </view>
-                <text class="nf-progress-text">{{ $t('sold') }} {{ item.presaleSold || 0 }}/{{ item.presaleTotal || 0 }}</text>
+                <text class="nf-progress-text">{{ $t('sold') }} {{ item.presaleSold || 0 }}/{{ item.presaleQty || 0 }}</text>
               </view>
             </view>
           </view>
@@ -112,8 +112,8 @@ const formatPrice = (priceInCents) => {
 
 const getCountdownType = (item) => {
   const now = Date.now()
-  const start = new Date(item.presaleStartTime).getTime()
-  const end = new Date(item.presaleEndTime).getTime()
+  const start = new Date(item.presaleStart).getTime()
+  const end = new Date(item.presaleEnd).getTime()
   if (now < start) return 'start'
   if (now < end) return 'end'
   return 'ended'
@@ -123,8 +123,8 @@ const formatCountdown = (item) => {
   const now = Date.now()
   const type = getCountdownType(item)
   let target
-  if (type === 'start') target = new Date(item.presaleStartTime).getTime()
-  else target = new Date(item.presaleEndTime).getTime()
+  if (type === 'start') target = new Date(item.presaleStart).getTime()
+  else target = new Date(item.presaleEnd).getTime()
 
   const diff = Math.max(0, target - now)
   const d = Math.floor(diff / 86400000)
@@ -137,8 +137,8 @@ const formatCountdown = (item) => {
 }
 
 const getProgress = (item) => {
-  if (!item.presaleTotal || item.presaleTotal === 0) return 0
-  return Math.min(100, Math.round((item.presaleSold || 0) / item.presaleTotal * 100))
+  if (!item.presaleQty || item.presaleQty === 0) return 0
+  return Math.min(100, Math.round((item.presaleSold || 0) / item.presaleQty * 100))
 }
 
 const init = async () => {
@@ -185,7 +185,7 @@ const goBack = () => {
 }
 
 const goDetail = (item) => {
-  uni.navigateTo({ url: `/pages/player/index?id=${item.goodId || item.good_id}` })
+  uni.navigateTo({ url: `/pages/player/index?id=${item.ID}` })
 }
 </script>
 

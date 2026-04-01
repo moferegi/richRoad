@@ -41,13 +41,21 @@
             <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
         
+        <el-table-column align="left" label="排序" prop="sort" width="80" />
         <el-table-column align="left" label="轮播标题" prop="title" width="120" />
-          <el-table-column label="图片连接" width="200">
+          <el-table-column label="图片" width="200">
               <template #default="scope">
-                <el-image style="width: 100px; height: 100px" :src="getUrl(scope.row.src)" fit="cover"/>
+                <el-image style="width: 100px; height: 100px" :src="scope.row.externalPath || getUrl(scope.row.src)" fit="cover"/>
               </template>
           </el-table-column>
         <el-table-column align="left" label="跳转链接" prop="href" width="120" />
+        <el-table-column align="left" label="外部图片路径" prop="externalPath" width="160" show-overflow-tooltip />
+        <el-table-column align="left" label="遮罩" width="80">
+          <template #default="scope">
+            <el-tag v-if="scope.row.maskEnabled" type="success" size="small">开</el-tag>
+            <el-tag v-else type="info" size="small">关</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column align="left" label="操作" fixed="right" min-width="240">
             <template #default="scope">
             <el-button type="primary" link class="table-button" @click="getDetails(scope.row)">
@@ -83,17 +91,69 @@
             </template>
 
           <el-form :model="formData" label-position="top" ref="elFormRef" :rules="rule" label-width="80px">
-            <el-form-item label="轮播标题:"  prop="title" >
-              <el-input v-model="formData.title" :clearable="true"  placeholder="请输入轮播标题" />
-            </el-form-item>
-            <el-form-item label="图片连接:"  prop="src" >
+            <el-row :gutter="12">
+              <el-col :span="12">
+                <el-form-item label="轮播标题:"  prop="title" >
+                  <el-input v-model="formData.title" :clearable="true"  placeholder="请输入轮播标题" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="6">
+                <el-form-item label="排序:" prop="sort">
+                  <el-input-number v-model="formData.sort" :min="0" style="width:100%" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="6">
+                <el-form-item label="跳转链接:" prop="href">
+                  <el-input v-model="formData.href" :clearable="true" placeholder="请输入跳转链接" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-form-item label="图片(上传):"  prop="src" >
                 <SelectImage
                  v-model="formData.src"
                  file-type="image"
                 />
             </el-form-item>
-            <el-form-item label="跳转链接:"  prop="href" >
-              <el-input v-model="formData.href" :clearable="true"  placeholder="请输入跳转链接" />
+            <el-form-item label="外部图片路径(优先于上传图片):" prop="externalPath">
+              <el-input v-model="formData.externalPath" :clearable="true" placeholder="https://example.com/banner.jpg" />
+            </el-form-item>
+
+            <el-divider content-position="left">遮罩设置</el-divider>
+            <el-row :gutter="12">
+              <el-col :span="4">
+                <el-form-item label="遮罩开关:" prop="maskEnabled">
+                  <el-switch v-model="formData.maskEnabled" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="5">
+                <el-form-item label="遮罩高度(px):" prop="maskHeight">
+                  <el-input-number v-model="formData.maskHeight" :min="0" :max="500" style="width:100%" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="5">
+                <el-form-item label="背景色:" prop="maskBgColor">
+                  <el-input v-model="formData.maskBgColor" placeholder="rgba(0,0,0,0.5)" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="5">
+                <el-form-item label="文字颜色:" prop="maskTextColor">
+                  <el-color-picker v-model="formData.maskTextColor" show-alpha />
+                </el-form-item>
+              </el-col>
+              <el-col :span="5">
+                <el-form-item label="文字大小:" prop="maskTextSize">
+                  <el-input-number v-model="formData.maskTextSize" :min="8" :max="72" style="width:100%" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-form-item label="遮罩文字(JSON多语言):" prop="maskText">
+              <div v-if="enabledLangs.length" class="w-full">
+                <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-2">
+                  <span class="w-16 text-right mr-2">{{ lang.code }}:</span>
+                  <el-input v-model="maskTextI18n[lang.code]" :placeholder="`${lang.name} 遮罩文字`" />
+                </div>
+              </div>
+              <el-input v-else v-model="formData.maskText" placeholder="JSON格式多语言文字" />
             </el-form-item>
           </el-form>
     </el-drawer>
@@ -108,11 +168,35 @@
                 <el-descriptions-item label="轮播标题">
                         {{ formData.title }}
                 </el-descriptions-item>
-                <el-descriptions-item label="图片连接">
-                        <el-image style="width: 50px; height: 50px" :preview-src-list="ReturnArrImg(formData.src)" :src="getUrl(formData.src)" fit="cover" />
+                <el-descriptions-item label="图片">
+                        <el-image style="width: 50px; height: 50px" :preview-src-list="ReturnArrImg(formData.externalPath || formData.src)" :src="formData.externalPath || getUrl(formData.src)" fit="cover" />
                 </el-descriptions-item>
                 <el-descriptions-item label="跳转链接">
                         {{ formData.href }}
+                </el-descriptions-item>
+                <el-descriptions-item label="外部图片路径">
+                        {{ formData.externalPath || '-' }}
+                </el-descriptions-item>
+                <el-descriptions-item label="排序">
+                        {{ formData.sort }}
+                </el-descriptions-item>
+                <el-descriptions-item label="遮罩开关">
+                        {{ formData.maskEnabled ? '开' : '关' }}
+                </el-descriptions-item>
+                <el-descriptions-item v-if="formData.maskEnabled" label="遮罩高度">
+                        {{ formData.maskHeight }}px
+                </el-descriptions-item>
+                <el-descriptions-item v-if="formData.maskEnabled" label="遮罩背景色">
+                        <span :style="{ backgroundColor: formData.maskBgColor, padding: '2px 12px', borderRadius: '4px' }">{{ formData.maskBgColor }}</span>
+                </el-descriptions-item>
+                <el-descriptions-item v-if="formData.maskEnabled" label="遮罩文字">
+                        {{ formData.maskText }}
+                </el-descriptions-item>
+                <el-descriptions-item v-if="formData.maskEnabled" label="遮罩文字颜色">
+                        <span :style="{ color: formData.maskTextColor }">{{ formData.maskTextColor }}</span>
+                </el-descriptions-item>
+                <el-descriptions-item v-if="formData.maskEnabled" label="遮罩文字大小">
+                        {{ formData.maskTextSize }}
                 </el-descriptions-item>
         </el-descriptions>
     </el-drawer>
@@ -129,23 +213,61 @@ import {
   getBannerList
 } from '@/api/shop/banner'
 import { getUrl } from '@/utils/image'
+import { getEnabledLanguages } from '@/api/client/language'
 // 图片选择组件
 import SelectImage from '@/components/selectImage/selectImage.vue'
 
 // 全量引入格式化工具 请按需保留
 import { getDictFunc, formatDate, formatBoolean, filterDict, ReturnArrImg, onDownloadFile } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 
 defineOptions({
     name: 'Banner'
 })
+
+// === i18n 多语言支持 ===
+const enabledLangs = ref([])
+const maskTextI18n = ref({})
+
+const loadLangs = async () => {
+  try {
+    const res = await getEnabledLanguages()
+    if (res.code === 0) {
+      enabledLangs.value = res.data || []
+    }
+  } catch (e) { /* ignore */ }
+}
+
+const parseMaskTextI18n = (jsonStr) => {
+  const obj = {}
+  if (!jsonStr) return obj
+  try { return JSON.parse(jsonStr) } catch { return obj }
+}
+
+const serializeMaskTextI18n = (obj) => {
+  const filtered = {}
+  for (const [k, v] of Object.entries(obj)) {
+    if (v) filtered[k] = v
+  }
+  return Object.keys(filtered).length ? JSON.stringify(filtered) : ''
+}
+
+onMounted(() => { loadLangs() })
 
 // 自动化生成的字典（可能为空）以及字段
 const formData = ref({
         title: '',
         src: "",
         href: '',
+        externalPath: '',
+        maskEnabled: false,
+        maskHeight: 40,
+        maskBgColor: 'rgba(0,0,0,0.5)',
+        maskText: '',
+        maskTextColor: '#FFFFFF',
+        maskTextSize: 14,
+        sort: 0,
         })
 
 
@@ -307,6 +429,7 @@ const updateBannerFunc = async(row) => {
     type.value = 'update'
     if (res.code === 0) {
         formData.value = res.data.rebanner
+        maskTextI18n.value = parseMaskTextI18n(formData.value.maskText)
         dialogFormVisible.value = true
     }
 }
@@ -358,6 +481,14 @@ const closeDetailShow = () => {
   formData.value = {
           title: '',
           href: '',
+          externalPath: '',
+          maskEnabled: false,
+          maskHeight: 40,
+          maskBgColor: 'rgba(0,0,0,0.5)',
+          maskText: '',
+          maskTextColor: '#FFFFFF',
+          maskTextSize: 14,
+          sort: 0,
           }
 }
 
@@ -365,21 +496,35 @@ const closeDetailShow = () => {
 // 打开弹窗
 const openDialog = () => {
     type.value = 'create'
+    maskTextI18n.value = {}
     dialogFormVisible.value = true
 }
 
 // 关闭弹窗
 const closeDialog = () => {
     dialogFormVisible.value = false
+    maskTextI18n.value = {}
     formData.value = {
         title: '',
         href: '',
+        externalPath: '',
+        maskEnabled: false,
+        maskHeight: 40,
+        maskBgColor: 'rgba(0,0,0,0.5)',
+        maskText: '',
+        maskTextColor: '#FFFFFF',
+        maskTextSize: 14,
+        sort: 0,
         }
 }
 // 弹窗确定
 const enterDialog = async () => {
      elFormRef.value?.validate( async (valid) => {
              if (!valid) return
+              // 序列化遮罩文字i18n
+              if (enabledLangs.value.length) {
+                formData.value.maskText = serializeMaskTextI18n(maskTextI18n.value)
+              }
               let res
               switch (type.value) {
                 case 'create':

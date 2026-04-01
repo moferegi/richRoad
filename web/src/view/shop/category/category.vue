@@ -97,11 +97,12 @@
           prop="title"
           width="120"
         />
-        <el-table-column label="icons" prop="icons" width="200">
+        <el-table-column label="图标" width="200">
           <template #default="scope">
-            <el-image style="width: 100px; height: 100px" :src="getUrl(scope.row.icons)" fit="cover"/>
+            <el-image style="width: 100px; height: 100px" :src="scope.row.externalIconPath || getUrl(scope.row.icons)" fit="cover"/>
           </template>
         </el-table-column>
+        <el-table-column align="left" label="外部图标路径" prop="externalIconPath" width="160" show-overflow-tooltip />
         <el-table-column
           align="left"
           label="分类描述"
@@ -186,11 +187,14 @@
         :rules="rule"
         label-width="80px"
       >
-        <el-form-item label="icons"  prop="icons" >
+        <el-form-item label="图标(上传):"  prop="icons" >
           <SelectImage
               v-model="formData.icons"
               file-type="image"
           />
+        </el-form-item>
+        <el-form-item label="外部图标路径(优先于上传图标):" prop="externalIconPath">
+          <el-input v-model="formData.externalIconPath" :clearable="true" placeholder="https://example.com/icon.png" />
         </el-form-item>
         <el-form-item
           label="分类标题:"
@@ -236,6 +240,9 @@
         <el-descriptions-item label="分类描述">
           {{ formData.desc }}
         </el-descriptions-item>
+        <el-descriptions-item label="外部图标路径">
+          {{ formData.externalIconPath || '-' }}
+        </el-descriptions-item>
       </el-descriptions>
     </el-drawer>
   </div>
@@ -267,7 +274,8 @@ const formData = ref({
   parentID: 0,
   title: '',
   desc: '',
-  icons: ''
+  icons: '',
+  externalIconPath: ''
 })
 
 // 验证规则
@@ -457,6 +465,8 @@ const closeDetailShow = () => {
     parentID: 0,
     title: '',
     desc: '',
+    icons: '',
+    externalIconPath: ''
   }
 }
 
@@ -476,6 +486,8 @@ const closeDialog = () => {
     parentID: 0,
     title: '',
     desc: '',
+    icons: '',
+    externalIconPath: ''
   }
 }
 // 弹窗确定

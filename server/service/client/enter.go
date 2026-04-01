@@ -11,4 +11,5 @@ type ServiceGroup struct {
 	PhoneAreaCodeService
 	SignInService
 	SecurityService
+	ExternalLinkDomainService
 }

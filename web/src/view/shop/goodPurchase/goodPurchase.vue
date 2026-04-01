@@ -26,6 +26,14 @@
         </el-form-item>
       </el-form>
     </div>
+    <!-- 进货汇总 -->
+    <div v-if="summaryData" class="gva-search-box" style="padding: 12px 20px; margin-bottom: 0;">
+      <el-descriptions title="商品进货汇总" :column="3" border size="small">
+        <el-descriptions-item label="总进货数量">{{ summaryData.totalQty || 0 }}</el-descriptions-item>
+        <el-descriptions-item label="总金额(元)">{{ ((summaryData.totalCost || 0) / 100).toFixed(2) }}</el-descriptions-item>
+        <el-descriptions-item label="商品ID">{{ searchInfo.goodID }}</el-descriptions-item>
+      </el-descriptions>
+    </div>
     <div class="gva-table-box">
         <div class="gva-btn-list">
             <el-button type="primary" icon="plus" @click="openDialog()">新增</el-button>
@@ -143,11 +151,12 @@ import {
   createGoodPurchase,
   deleteGoodPurchase,
   updateGoodPurchase,
-  getGoodPurchaseList
+  getGoodPurchaseList,
+  getGoodPurchaseSummary
 } from '@/api/shop/goodPurchase'
 import { formatDate } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ref, reactive } from 'vue'
+import { ref, reactive, watch } from 'vue'
 
 defineOptions({ name: 'GoodPurchase' })
 
@@ -193,6 +202,20 @@ const total = ref(0)
 const pageSize = ref(10)
 const tableData = ref([])
 const searchInfo = ref({})
+
+// === 进货汇总 ===
+const summaryData = ref(null)
+const loadSummary = async (goodID) => {
+  if (!goodID) { summaryData.value = null; return }
+  try {
+    const res = await getGoodPurchaseSummary({ goodId: goodID })
+    if (res.code === 0) {
+      summaryData.value = res.data
+    }
+  } catch (e) { summaryData.value = null }
+}
+
+watch(() => searchInfo.value.goodID, (val) => { loadSummary(val) })
 
 const sortChange = ({ prop, order }) => {
   let sort = prop.replace(/[A-Z]/g, match => `_${match.toLowerCase()}`)

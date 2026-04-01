@@ -3,6 +3,10 @@ package shop
 import (
 	"context"
 	"errors"
+	"strconv"
+	"strings"
+	"sync"
+
 	"github.com/bwmarrin/snowflake"
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
@@ -10,7 +14,6 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/system" // 假设用户模型
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"sync"
 )
 
 type CouponOrderUserService struct{}
@@ -92,6 +95,12 @@ func (couService *CouponOrderUserService) GetCouponOrderUserInfoList(ctx context
 	if info.OrderID != nil {
 		db = db.Where("order_id = ?", *info.OrderID)
 	}
+	if info.Status != nil {
+		db = db.Where("status = ?", *info.Status)
+	}
+	if info.UserID != nil {
+		db = db.Where("user_id = ?", *info.UserID)
+	}
 	err = db.Count(&total).Error
 	if err != nil {
 		return
@@ -142,29 +151,41 @@ func (couService *CouponOrderUserService) GetAllClaimCoupon(ctx context.Context,
 	for _, coupon := range availableCoupons {
 		// 创建返回数据结构
 		couponData := map[string]interface{}{
-			"couponNum": 0, // 默认为0，表示未领取
-			"couponID":  coupon.ID,
-			"name":      *coupon.Name,
-			"minSpend":  coupon.MinSpend,
-			"discount":  coupon.Discount,
-			"productID": 0,
-			"startTime": coupon.StartTime.Format("2006-01-02"),
-			"endTime":   coupon.EndTime.Format("2006-01-02"),
-			"status":    0, // 默认为0，表示未使用
-			"canUse":    0,
+			"couponNum":       0, // 默认为0，表示未领取
+			"couponID":        coupon.ID,
+			"name":            *coupon.Name,
+			"minSpend":        coupon.MinSpend,
+			"discount":        coupon.Discount,
+			"productID":       0,
+			"startTime":       coupon.StartTime.Format("2006-01-02"),
+			"endTime":         coupon.EndTime.Format("2006-01-02"),
+			"status":          0, // 默认为0，表示未使用
+			"canUse":          0,
+			"nameI18n":        coupon.NameI18n,
+			"descriptionI18n": coupon.DescriptionI18n,
+			"backgroundImage": coupon.BackgroundImage,
+			"externalBgPath":  coupon.ExternalBgPath,
 		}
 
 		// 如果有关联商品，设置productID
 		if coupon.ProductID != nil {
 			couponData["productID"] = *coupon.ProductID
 		}
+		if coupon.Description != nil {
+			couponData["description"] = *coupon.Description
+		}
 
 		if len(goodIds) > 0 {
-			// 检查商品ID是否在goodIds中
-			for _, goodID := range goodIds {
-				if coupon.ProductID == nil || *coupon.ProductID == goodID {
-					couponData["canUse"] = 1 // 可使用
-					break
+			// 检查商品ID是否在goodIds中 — 支持 ProductIDs (逗号分隔多商品)
+			allowedIDs := couponAllowedProductIDs(coupon)
+			if len(allowedIDs) == 0 {
+				couponData["canUse"] = 1 // 没有商品限制，默认可用
+			} else {
+				for _, goodID := range goodIds {
+					if allowedIDs[goodID] {
+						couponData["canUse"] = 1
+						break
+					}
 				}
 			}
 		} else {
@@ -359,4 +380,23 @@ func (couService *CouponOrderUserService) IssueCouponToAllUsers(ctx context.Cont
 	}
 
 	return tx.Commit().Error
+}
+
+// couponAllowedProductIDs 解析优惠券允许的商品ID集合
+// 优先使用 ProductIDs（逗号分隔），兼容旧字段 ProductID（单个）
+func couponAllowedProductIDs(coupon shop.Coupon) map[int]bool {
+	ids := make(map[int]bool)
+	if coupon.ProductIDs != "" {
+		parts := strings.Split(coupon.ProductIDs, ",")
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if id, err := strconv.Atoi(p); err == nil && id > 0 {
+				ids[id] = true
+			}
+		}
+	}
+	if len(ids) == 0 && coupon.ProductID != nil && *coupon.ProductID > 0 {
+		ids[*coupon.ProductID] = true
+	}
+	return ids
 }

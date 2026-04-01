@@ -8,8 +8,14 @@ type DashboardOverview struct {
 
 	// 订单
 	OrderTotal     int64 `json:"orderTotal"`     // 总订单量
-	OrderPaid      int64 `json:"orderPaid"`      // 已付款
+	OrderPending   int64 `json:"orderPending"`   // 待付款
+	OrderPaid      int64 `json:"orderPaid"`      // 已付款(含已发/已收)
+	OrderShipped   int64 `json:"orderShipped"`   // 已发货
+	OrderReceived  int64 `json:"orderReceived"`  // 已收货
 	OrderCancelled int64 `json:"orderCancelled"` // 已取消
+	OrderRefunding int64 `json:"orderRefunding"` // 退款中
+	OrderRefunded  int64 `json:"orderRefunded"`  // 已退款
+	OrderToday     int64 `json:"orderToday"`     // 今日订单
 
 	// 优惠券
 	CouponIssuedCount  int64 `json:"couponIssuedCount"`  // 发放量(总数量)
@@ -25,4 +31,25 @@ type DashboardOverview struct {
 	// 用户
 	UserTotal int64 `json:"userTotal"` // 总用户量
 	UserToday int64 `json:"userToday"` // 今日新增
+
+	// 访客
+	VisitorPV   int64 `json:"visitorPV"`   // 今日PV
+	VisitorUV   int64 `json:"visitorUV"`   // 今日UV
+	VisitorNew  int64 `json:"visitorNew"`  // 今日新访客
+	SignInToday int64 `json:"signInToday"` // 今日签到人数
+
+	// 商品
+	ProductTotal  int64 `json:"productTotal"`  // 商品总数
+	ProductActive int64 `json:"productActive"` // 上架商品
+
+	// 趋势数据(近7天)
+	SalesTrend []DayValue `json:"salesTrend"` // 每日销售额趋势
+	OrderTrend []DayValue `json:"orderTrend"` // 每日订单数趋势
+	UserTrend  []DayValue `json:"userTrend"`  // 每日新用户趋势
+}
+
+// DayValue 日期+数值对
+type DayValue struct {
+	Date  string `json:"date"`
+	Value int64  `json:"value"`
 }

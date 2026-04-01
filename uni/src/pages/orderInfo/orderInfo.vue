@@ -1,110 +1,150 @@
 <template>
-  <view class="container">
-    <!-- 收货地址信息 -->
-    <view @tap="toAddress" class="flex-aic flexr-jsb bgc_fff address_box">
-      <image class="location_icon m_r_16" src="./../../static/images/dizhis-icons.png" mode=""></image>
-      <view class="flex-fitem" v-if="hasAddress">
-        <text class="color_333 font_28 m_b_4">{{data.name}} {{data.phone}}</text>
-        <view class="text_nowrap color_999 font_24" style="max-width: 500rpx;">
-          {{data.province}}{{data.city}}{{data.area}} {{data.street}}
+  <view class="nf-orderinfo">
+    <view class="nf-orderinfo-bg"></view>
+
+    <!-- 自定义导航栏 -->
+    <view class="nf-navbar">
+      <view class="nf-navbar-status"></view>
+      <view class="nf-navbar-content">
+        <view class="nf-navbar-back" @tap="goBack">
+          <uni-icons type="left" size="20" color="#fff"></uni-icons>
         </view>
+        <text class="nf-navbar-title">{{ $t('orderDetail') || '订单详情' }}</text>
+        <view style="width: 64rpx;"></view>
       </view>
-      <view class="flex-fitem address-placeholder" v-else>
-        <text class="color_333 font_28 m_b_4">请选择收货地址</text>
-        <view class="text_nowrap color_999 font_24" style="max-width: 500rpx;">
-          添加收货人信息及地址
-        </view>
-      </view>
-      <text class="forward-icon">›</text>
     </view>
 
-    <!-- 分割线 -->
-    <view class="dashed-line"></view>
+    <view class="nf-body">
+      <!-- 收货地址 -->
+      <view class="nf-card nf-address-card" @tap="toAddress">
+        <view class="nf-address-icon">📍</view>
+        <view class="nf-address-info" v-if="hasAddress">
+          <text class="nf-address-name">{{ data.name }} {{ data.phone }}</text>
+          <text class="nf-address-detail">{{ data.province }}{{ data.city }}{{ data.area }} {{ data.street }}</text>
+        </view>
+        <view class="nf-address-info" v-else>
+          <text class="nf-address-name">请选择收货地址</text>
+          <text class="nf-address-detail">添加收货人信息及地址</text>
+        </view>
+        <uni-icons type="right" size="16" color="rgba(255,255,255,0.3)"></uni-icons>
+      </view>
 
-    <!-- 商品列表 -->
-    <view class="order_goods_box bgc_fff">
-
-      <!-- 商品1 -->
-      <view class="flex p_b_16" v-for="d in data.detail">
-        <image class="item_goods_img m_r_16" :src="getUrl(d.sku.picture)" mode="cover"	></image>
-        <view class="flex-fitem">
-          <view class="goods-name">{{d?.sku?.name}}</view>
-          <view class="goods-desc">{{d?.good?.description}}</view>
-          <view class="goods-attrs">{{d?.sku?.specs?.map(i=>i.value).join(" ")}}</view>
-          <view class="goods-price-row">
-            <text class="goods-price">¥{{d.sku.price / 100}}</text>
-            <text class="goods-count">×{{d.quantity}}</text>
+      <!-- 商品列表 -->
+      <view class="nf-card nf-goods-card">
+        <view class="nf-goods-item" v-for="(d, i) in data.detail" :key="i">
+          <image class="nf-goods-img" :src="getUrl(d.sku.picture)" mode="aspectFill"></image>
+          <view class="nf-goods-info">
+            <text class="nf-goods-name">{{ d?.sku?.name }}</text>
+            <text class="nf-goods-desc">{{ d?.good?.description }}</text>
+            <text class="nf-goods-specs">{{ d?.sku?.specs?.map(i => i.value).join(' ') }}</text>
+            <view class="nf-goods-bottom">
+              <text class="nf-goods-price">¥{{ d.sku.price / 100 }}</text>
+              <text class="nf-goods-qty">×{{ d.quantity }}</text>
+            </view>
           </view>
         </view>
       </view>
-    </view>
 
-    <!-- 优惠券和备注 -->
-    <view class="order-options">
-      <view class="option-item" @click="opencoupon">
-        <view class="option-label red-icon">优惠券</view>
-        <view class="option-value">
-          <text class="discount-text" v-if="data.discount > 0">¥{{data.discount/100}}</text>
-          <text class="discount-text" v-else>选择优惠券</text>
-          <text class=""><wu-icon name="arrow-right"></wu-icon></text>
+      <!-- 优惠券选择 -->
+      <view class="nf-card nf-option-card" @tap="opencoupon">
+        <view class="nf-option-row">
+          <view class="nf-option-label">
+            <text class="nf-option-dot" style="background: #e50914;"></text>
+            <text>优惠券</text>
+          </view>
+          <view class="nf-option-value">
+            <text class="nf-discount-text" v-if="data.discount > 0">-¥{{ data.discount / 100 }}</text>
+            <text class="nf-discount-hint" v-else>选择优惠券</text>
+            <uni-icons type="right" size="14" color="rgba(255,255,255,0.3)"></uni-icons>
+          </view>
         </view>
       </view>
-    </view>
 
-    <!-- 订单金额信息 -->
-    <view class="price-summary">
-      <view class="price-row">
-        <text>商品金额</text>
-        <text>¥{{ data.originPrice / 100 }}</text>
-      </view>
-      <view class="price-row discount">
-        <text>优惠金额</text>
-        <text>-¥{{ data.discount / 100 }}</text>
-      </view>
-      <!-- 积分抵扣选项 -->
-      <view class="price-row points-row">
-        <view class="points-left">
-          <checkbox-group @change="onPointsChange">
-            <view class="flex-aic">
-              <checkbox value="points" :checked="usePoints" color="#fa436a" style="transform: scale(0.8); margin-right: 8rpx;"/> <text>积分抵扣</text>
-            </view>
-          </checkbox-group>
-         
+      <!-- 价格汇总 -->
+      <view class="nf-card nf-price-card">
+        <view class="nf-price-row">
+          <text class="nf-price-label">商品金额</text>
+          <text class="nf-price-val">¥{{ data.originPrice / 100 }}</text>
         </view>
-        <text class="points-amount">可抵扣 ¥{{ Math.min(availablePointsAmount, (data.originPrice - data.discount)) / 100 }}</text>
+        <view class="nf-price-row nf-price-discount">
+          <text class="nf-price-label">优惠金额</text>
+          <text class="nf-price-val">-¥{{ data.discount / 100 }}</text>
+        </view>
+        <view class="nf-price-row nf-price-points">
+          <view class="nf-points-left">
+            <checkbox-group @change="onPointsChange">
+              <view class="nf-points-check">
+                <checkbox value="points" :checked="usePoints" color="#e50914" style="transform: scale(0.7); margin-right: 6rpx;" />
+                <text>积分抵扣</text>
+              </view>
+            </checkbox-group>
+          </view>
+          <text class="nf-points-amount">可抵扣 ¥{{ Math.min(availablePointsAmount, (data.originPrice - data.discount)) / 100 }}</text>
+        </view>
       </view>
-      <!-- <view class="price-row">
-        <text>运费</text>
-        <text>免运费</text>
-      </view> -->
-    </view>
 
-    <!-- 退款操作 -->
-    <view class="refund-section" v-if="canApplyRefund || isRefunding || isRefunded">
-      <view v-if="canApplyRefund" class="refund-btn" @tap="openRefund">申请退款</view>
-      <view v-else class="refund-status">{{ isRefunding ? '退款处理中' : '已退款' }}</view>
+      <!-- 订单信息 -->
+      <view class="nf-card nf-info-card" v-if="data.ID">
+        <view class="nf-info-row">
+          <text class="nf-info-label">{{ $t('orderNo') || '订单编号' }}</text>
+          <view class="nf-info-value" @tap="copyOrderNo">
+            <text>{{ data.ID }}</text>
+            <text class="nf-copy-btn">复制</text>
+          </view>
+        </view>
+        <view class="nf-info-row">
+          <text class="nf-info-label">下单时间</text>
+          <text class="nf-info-value">{{ formatTime(data.CreatedAt) }}</text>
+        </view>
+        <view class="nf-info-row" v-if="data.payMethod">
+          <text class="nf-info-label">支付方式</text>
+          <text class="nf-info-value">{{ data.payMethod === 'qrcode' ? ($t('payByQrcode') || 'QR码支付') : ($t('payByContact') || '联系客服') }}</text>
+        </view>
+        <view class="nf-info-row" v-if="data.paidAt">
+          <text class="nf-info-label">付款时间</text>
+          <text class="nf-info-value">{{ formatTime(data.paidAt) }}</text>
+        </view>
+        <view class="nf-info-row" v-if="data.express">
+          <text class="nf-info-label">快递单号</text>
+          <text class="nf-info-value">{{ data.express }}</text>
+        </view>
+        <view class="nf-info-row" v-if="data.receivedAt">
+          <text class="nf-info-label">收货时间</text>
+          <text class="nf-info-value">{{ formatTime(data.receivedAt) }}</text>
+        </view>
+        <view class="nf-info-row" v-if="data.status === '0' && data.closeTime">
+          <text class="nf-info-label">剩余支付时间</text>
+          <text class="nf-info-value nf-countdown-val">{{ payCountdown }}</text>
+        </view>
+      </view>
+
+      <!-- 退款操作 -->
+      <view class="nf-card nf-refund-card" v-if="canApplyRefund || isRefunding || isRefunded">
+        <view v-if="canApplyRefund" class="nf-refund-btn" @tap="openRefund">申请退款</view>
+        <view v-else class="nf-refund-status">{{ isRefunding ? '退款处理中' : '已退款' }}</view>
+      </view>
+
+      <view style="height: 140rpx;"></view>
     </view>
 
     <!-- 底部支付栏 -->
-    <view class="footer">
-      <view class="total-container">
-        <text class="total-label">实付款</text>
-        <text class="total-price">¥{{totalPrice / 100}}</text>
+    <view class="nf-footer">
+      <view class="nf-footer-info">
+        <text class="nf-footer-label">实付款</text>
+        <text class="nf-footer-price">¥{{ (totalPrice / 100).toFixed(2) }}</text>
       </view>
-      <view class="pay-btn" @tap="tapPay">
+      <view class="nf-footer-btn" @tap="tapPay">
         <text>提交订单</text>
       </view>
     </view>
 
-
-    <!-- 选择优惠券弹出层 -->
-		<view class="mask" catchtouchmove="preventTouchMove" v-if="couponshow == true" @tap="hidecoupon"></view>
-		<view class="coupon" :style="'bottom:' + (couponshow == true ? '0px':'')">
-			<scroll-view class="scrolls" scroll-y>
-				<!-- colors:按钮颜色 couponList:优惠卷列表数据  @onReceive：领取或立即使用按钮事件 -->
-				<cc-defineCoupon v-if="couponshow" colors="#fa436a" @onReceive="onReceive"></cc-defineCoupon>
-			</scroll-view>
-		</view>
+    <!-- 优惠券弹出层 -->
+    <view class="nf-mask" v-if="couponshow" @tap="hidecoupon"></view>
+    <view class="nf-coupon-popup" :class="{ show: couponshow }">
+      <scroll-view class="nf-coupon-scroll" scroll-y>
+        <cc-defineCoupon v-if="couponshow" colors="#e50914" @onReceive="onReceive"></cc-defineCoupon>
+      </scroll-view>
+    </view>
 
     <refund-apply-popup
       v-model:visible="refundVisible"
@@ -115,127 +155,64 @@
 </template>
 
 <script setup>
-import { ref, nextTick, watch, computed } from 'vue'
+import { ref, nextTick, watch, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { selfOrder,changeOrderCoupon } from '@/api/order.js'
+import { selfOrder, changeOrderCoupon } from '@/api/order.js'
 import { claimCouponByUser } from '@/api/coupon.js'
-import { getPayParams, getOrderById,checkNeedPay } from '@/api/base.js'
+import { getPayParams, getOrderById, checkNeedPay } from '@/api/base.js'
 import { getUserInfo } from '@/api/base.js'
 import { getUrl } from "@/utils/url.js"
 import { changeOrderPoints } from '@/api/order.js'
 import RefundApplyPopup from '@/components/refund-apply-popup/refund-apply-popup.vue'
+import { useLangStore } from '@/pinia/modules/lang.js'
+
+const langStore = useLangStore()
+const $t = computed(() => langStore.$t)
+
+const goBack = () => { uni.navigateBack() }
 
 const toAddress = () => {
-  uni.navigateTo({
-    url: `/pages/address/address?ID=${data.value.ID}`,
-  })
+  uni.navigateTo({ url: `/pages/address/address?ID=${data.value.ID}` })
 }
 
-
-
-const totalPrice = ref(475)
+const totalPrice = ref(0)
 const hasAddress = ref(false)
 const usePoints = ref(false)
 const availablePointsAmount = ref(0)
 const userPoints = ref(0)
 const data = ref({
-  name: '许小贤',
-  phone: '13685395563',
-  province: '山东省',
-  city: '济南市',
-  area: '历城区',
-  street: '149号',
-  detail: [
-    {
-      sku: {
-        name: '西域小洛镇',
-        description: '古瓷妃 短袖t恤女夏装2019新款',
-        price: 1780,
-        picture: 'http://www.liwanying.top/applate-icon/product-img1.png',
-        attrs: [{ label: '颜色', value: '粉紫色' }, { label: '尺码', value: 'L' }]
-      }
-    },
-    {
-      sku: {
-        name: '西域小洛镇',
-        description: '韩版子是网络鞋 夏季清凉防滑简约百搭',
-        price: 1780,
-        picture: 'http://www.liwanying.top/applate-icon/product-img2.png',
-        attrs: [{ label: '颜色', value: '粉紫色' }, { label: '尺码', value: 'L' }]
-      }
-    }
-  ]
+  detail: [],
+  originPrice: 0,
+  discount: 0,
 })
 const orderID = ref("")
 const refundVisible = ref(false)
-
 const couponshow = ref(false)
 
-const opencoupon = () => {
-				couponshow.value = true
-			}
-			// 关闭优惠券弹框
-    const hidecoupon = () => {
-				couponshow.value = false
-			}
-			//领取优惠券 立即使用事件
-			//领取优惠券 立即使用事件
-			const onReceive = async (item, index) => {
-        // 添加loading遮罩防止多次点击
-        uni.showLoading({
-          title: item.couponNum == 0 ? '领取中...' : '选择中...',
-          mask: true
-        })
+const opencoupon = () => { couponshow.value = true }
+const hidecoupon = () => { couponshow.value = false }
 
-        try {
-          if (item.couponNum == 0) {
-            const res = await claimCouponByUser({
-              couponID: item.couponID,
-            })
-            item.couponNum = res.data
-            // 领取成功提示
-            /*uni.showToast({
-              title: '领取成功',
-              icon: 'success',
-              duration: 1500
-            })*/
-          }
-          await changeOrderCoupon({
-            orderID: orderID.value,
-            couponNum: item.couponNum
-          })
+const onReceive = async (item, index) => {
+  uni.showLoading({ title: item.couponNum == 0 ? '领取中...' : '选择中...', mask: true })
+  try {
+    if (item.couponNum == 0) {
+      const res = await claimCouponByUser({ couponID: item.couponID })
+      item.couponNum = res.data
+    }
+    await changeOrderCoupon({ orderID: orderID.value, couponNum: item.couponNum })
+    setTimeout(() => { initSingleOrder(); hidecoupon() }, 500)
+  } catch (error) { /* ignore */ }
+  finally { uni.hideLoading() }
+}
 
-          // 关闭优惠券弹窗
-          setTimeout(() => {
-            initSingleOrder()
-            hidecoupon()
-          }, 500)
-        } catch (error) {
-          /*uni.showToast({
-            title: '操作失败，请重试',
-            icon: 'none'
-          })*/
-        } finally {
-          uni.hideLoading()
-        }
-			}
-
-// 注意：价格计算现在由后端处理，前端只需要显示从后端获取的价格
-
-// 获取用户积分信息
 const getUserPoints = async () => {
   try {
     const res = await getUserInfo()
     if (res.code === 0) {
       userPoints.value = res.data.point || 0
-      // 计算可抵扣金额（积分按1:1抵扣分，即100积分=1元）
-      // 积分不能超过商品价格，需要在计算总价时动态限制
       availablePointsAmount.value = userPoints.value
-
     }
-  } catch (error) {
-    console.error('获取用户积分失败:', error)
-  }
+  } catch (error) { console.error('获取用户积分失败:', error) }
 }
 
 onLoad((options) => {
@@ -244,487 +221,240 @@ onLoad((options) => {
   getUserPoints()
 })
 
-const canApplyRefund = computed(() => {
-  const status = String(data.value.status || '')
-  return ['1', '2', '3', '7'].includes(status)
-})
-
+const canApplyRefund = computed(() => ['1', '2', '3', '7'].includes(String(data.value.status || '')))
 const isRefunding = computed(() => String(data.value.status || '') === '6')
 const isRefunded = computed(() => String(data.value.status || '') === '5')
+const openRefund = () => { refundVisible.value = true }
 
-const openRefund = () => {
-  refundVisible.value = true
-}
-
-// 处理积分抵扣checkbox变化
 const onPointsChange = async (e) => {
-  console.log('checkbox change event:', e)
   const isChecked = e.detail.value.includes('points')
   usePoints.value = isChecked
-  console.log('usePoints updated to:', usePoints.value)
-  
-  // 调用后端接口变更积分抵扣
   try {
-    const res = await changeOrderPoints({
-      orderID: orderID.value,
-      usePoints: usePoints.value
-    })
-    
-    if (res.code === 0) {
-      // 重新获取订单信息以更新价格
-      await initSingleOrder()
-      console.log('积分抵扣状态更新成功')
-    } else {
-      uni.showToast({
-        title: '积分抵扣更新失败',
-        icon: 'none'
-      })
-      // 恢复checkbox状态
-      usePoints.value = !isChecked
-    }
+    const res = await changeOrderPoints({ orderID: orderID.value, usePoints: usePoints.value })
+    if (res.code === 0) { await initSingleOrder() }
+    else { uni.showToast({ title: '积分抵扣更新失败', icon: 'none' }); usePoints.value = !isChecked }
   } catch (error) {
-    console.error('积分抵扣更新失败:', error)
-    uni.showToast({
-      title: '积分抵扣更新失败',
-      icon: 'none'
-    })
-    // 恢复checkbox状态
-    usePoints.value = !isChecked
+    uni.showToast({ title: '积分抵扣更新失败', icon: 'none' }); usePoints.value = !isChecked
   }
 }
-
-
 
 const initSingleOrder = async () => {
   const order = await selfOrder(orderID.value)
   if (order.code === 0) {
     data.value = order.data
     totalPrice.value = order.data.totalPrice
-    if (order.data.city) {
-      hasAddress.value = true
-    }
-
+    if (order.data.city) hasAddress.value = true
+    startPayCountdown()
   }
 }
 
-let isChecking = false
-const stopChecking = () => {
-  isChecking = false
+const formatTime = (t) => {
+  if (!t) return ''
+  const d = new Date(t)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-const checkOrder = () => {
-  isChecking = true
-  checkOrderRecursive()
+const copyOrderNo = () => {
+  uni.setClipboardData({
+    data: String(data.value.ID),
+    success: () => { uni.showToast({ title: $t.value('orderNoCopied') || '已复制', icon: 'none' }) }
+  })
 }
 
-const checkOrderRecursive = async () => {
-  if (!isChecking) return
-  
-  try {
-    const res = await getOrderById(orderID.value)
-    if (res.data.TradeState === "SUCCESS") {
-      // uni.showToast({
-      //   title: "支付成功",
-      //   icon: "none"
-      // });
-      stopChecking()
-      // 这里要重新获取当前订单信息改变状态
-      await selfOrder(orderID.value)
-      // 更新成功后跳转到订单页
-      uni.navigateTo({
-        url: `/pages/order/order?orderID=${orderID.value}`,
-      })
-      return
-    }
-  } catch (error) {
-    console.error('检查订单状态失败:', error)
-  }
-  
-  // 如果还在检查中，1秒后继续检查
-  if (isChecking) {
-    setTimeout(checkOrderRecursive, 1000)
-  }
+const payCountdown = ref('')
+let payTimer = null
+
+const startPayCountdown = () => {
+  if (payTimer) clearInterval(payTimer)
+  updatePayCountdown()
+  payTimer = setInterval(updatePayCountdown, 1000)
 }
+
+const updatePayCountdown = () => {
+  if (data.value.status !== '0' || !data.value.closeTime) {
+    payCountdown.value = ''
+    if (payTimer) clearInterval(payTimer)
+    return
+  }
+  const remain = Math.max(0, Math.floor((new Date(data.value.closeTime).getTime() - Date.now()) / 1000))
+  if (remain <= 0) { payCountdown.value = '已超时'; if (payTimer) clearInterval(payTimer); return }
+  const m = Math.floor(remain / 60), s = remain % 60
+  payCountdown.value = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+onUnmounted(() => { if (payTimer) clearInterval(payTimer) })
 
 const tapPay = async () => {
-  // 遍历data，如果地址和用户信息任一一项缺失则提示用户手动填写并跳转到地址页面
   if (!data.value.name || !data.value.phone || !data.value.province || !data.value.city || !data.value.area || !data.value.detail) {
-    uni.navigateTo({
-      url: `/pages/address/address?ID=${data.value.goodID || data.value.ID}`,
-    })
-    /*uni.showToast({
-      title: '地址信息不全！请填写收货地址',
-      icon: 'none'
-    })*/
+    uni.navigateTo({ url: `/pages/address/address?ID=${data.value.goodID || data.value.ID}` })
     return
   }
-
-  // 获取参数
-  const params = {
-    "orderID": Number(orderID.value),
-    "openid": uni.getStorageSync('openid')
-  }
-
+  const params = { orderID: Number(orderID.value), openid: uni.getStorageSync('openid') }
   const needPayRes = await checkNeedPay(params)
   if (!needPayRes.data) {
-    // 0元购成功，显示成功提示
-    uni.showToast({
-      title: '订单提交成功！',
-      icon: 'success',
-      duration: 2000
-    })
-    // 延迟跳转到订单页面
-    setTimeout(() => {
-      uni.navigateTo({
-        url: `/pages/order/order?orderID=${orderID.value}`,
-      })
-    }, 2000)
+    uni.showToast({ title: $t.value('orderSubmitSuccess') || '订单提交成功！', icon: 'success', duration: 2000 })
+    setTimeout(() => { uni.navigateTo({ url: `/pages/order/order?orderID=${orderID.value}` }) }, 2000)
     return
   }
+  showPayMethodSelect()
+}
 
-  console.log(params)
-
-  const res = await getPayParams(params)
-  if (res.code === 0){
-    uni.requestPayment({
-      provider: 'wxpay',
-      timeStamp: res.data.timeStamp,
-      nonceStr: res.data.nonceStr,
-      package: res.data.package,
-      signType: res.data.signType,
-      paySign: res.data.paySign,
-      success: function (res) {
-        checkOrder()
-      },
-      fail: function (err) {
-        console.log('fail:' + JSON.stringify(err));
+const showPayMethodSelect = () => {
+  uni.showActionSheet({
+    itemList: [$t.value('payByQrcode') || 'QR码支付', $t.value('payByContact') || '联系客服付款'],
+    success: (res) => {
+      if (res.tapIndex === 0) {
+        uni.navigateTo({ url: `/pages/pay/index?amount=${(totalPrice.value / 100).toFixed(2)}&orderNo=${data.value.ID}&orderId=${orderID.value}` })
+      } else if (res.tapIndex === 1) {
+        uni.setClipboardData({
+          data: String(data.value.ID),
+          success: () => {
+            uni.showToast({ title: ($t.value('orderNoCopied') || '订单号已复制') + '：' + data.value.ID, icon: 'none', duration: 2000 })
+            setTimeout(() => { uni.navigateTo({ url: '/pages/kefu/index' }) }, 1500)
+          }
+        })
       }
-    });
-  }
+    }
+  })
 }
 </script>
 
 <style lang="scss">
-page {
-  background-color: #f8f8f8;
-  color: #333;
-  font-size: 28rpx;
+page { background-color: #000; }
+
+.nf-orderinfo { min-height: 100vh; background: #000; position: relative; }
+
+.nf-orderinfo-bg {
+  position: fixed; top: 0; left: 0; right: 0; height: 500rpx; z-index: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 0%, rgba(229, 9, 20, 0.10) 0%, transparent 60%);
 }
 
-.container {
-  padding-bottom: 120rpx;
+.nf-navbar {
+  background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(24px);
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+  padding: 0 28rpx 16rpx; position: sticky; top: 0; z-index: 99;
+}
+.nf-navbar-status { height: var(--status-bar-height, 0px); }
+.nf-navbar-content { display: flex; align-items: center; justify-content: space-between; height: 88rpx; }
+.nf-navbar-back {
+  width: 64rpx; height: 64rpx; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06); border: 1rpx solid rgba(255, 255, 255, 0.1);
+  display: flex; align-items: center; justify-content: center;
+}
+.nf-navbar-title { font-size: 34rpx; font-weight: 700; color: #fff; letter-spacing: 2rpx; }
+
+.nf-body { padding: 20rpx 24rpx; position: relative; z-index: 1; }
+
+.nf-card {
+  background: rgba(255, 255, 255, 0.04); border: 1rpx solid rgba(255, 255, 255, 0.06);
+  border-radius: 20rpx; margin-bottom: 20rpx; backdrop-filter: blur(8px); overflow: hidden;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  padding: 20rpx 32rpx;
-  background-color: #fff;
+/* 地址卡片 */
+.nf-address-card {
+  display: flex; align-items: center; padding: 28rpx; gap: 16rpx;
+}
+.nf-address-icon { font-size: 40rpx; }
+.nf-address-info { flex: 1; }
+.nf-address-name { font-size: 28rpx; font-weight: 600; color: #fff; display: block; margin-bottom: 6rpx; }
+.nf-address-detail { font-size: 24rpx; color: rgba(255, 255, 255, 0.4); display: block; }
+
+/* 商品卡片 */
+.nf-goods-card { padding: 24rpx; }
+.nf-goods-item {
+  display: flex; gap: 20rpx; padding: 12rpx 0;
+  & + .nf-goods-item { border-top: 1rpx solid rgba(255, 255, 255, 0.04); }
+}
+.nf-goods-img {
+  width: 168rpx; height: 168rpx; border-radius: 12rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.06); flex-shrink: 0;
+}
+.nf-goods-info { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+.nf-goods-name { font-size: 24rpx; color: rgba(255, 255, 255, 0.5); margin-bottom: 4rpx; }
+.nf-goods-desc { font-size: 28rpx; color: #fff; font-weight: 500; margin-bottom: 6rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nf-goods-specs { font-size: 22rpx; color: rgba(255, 255, 255, 0.3); margin-bottom: 8rpx; }
+.nf-goods-bottom { display: flex; justify-content: space-between; align-items: center; }
+.nf-goods-price { font-size: 28rpx; font-weight: 700; color: #e50914; }
+.nf-goods-qty { font-size: 24rpx; color: rgba(255, 255, 255, 0.4); }
+
+/* 选项卡片 */
+.nf-option-card { padding: 24rpx 28rpx; }
+.nf-option-row { display: flex; justify-content: space-between; align-items: center; }
+.nf-option-label { display: flex; align-items: center; gap: 12rpx; font-size: 28rpx; color: #fff; }
+.nf-option-dot { width: 16rpx; height: 16rpx; border-radius: 4rpx; }
+.nf-option-value { display: flex; align-items: center; gap: 8rpx; }
+.nf-discount-text { font-size: 28rpx; color: #e50914; font-weight: 600; }
+.nf-discount-hint { font-size: 26rpx; color: rgba(255, 255, 255, 0.4); }
+
+/* 价格卡片 */
+.nf-price-card { padding: 20rpx 28rpx; }
+.nf-price-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14rpx 0; border-bottom: 1rpx solid rgba(255, 255, 255, 0.04);
+  &:last-child { border-bottom: none; }
+}
+.nf-price-label { font-size: 26rpx; color: rgba(255, 255, 255, 0.5); }
+.nf-price-val { font-size: 26rpx; color: #fff; }
+.nf-price-discount .nf-price-val { color: #e50914; }
+.nf-points-left { display: flex; align-items: center; }
+.nf-points-check { display: flex; align-items: center; font-size: 26rpx; color: rgba(255, 255, 255, 0.6); }
+.nf-points-amount { font-size: 24rpx; color: rgba(255, 255, 255, 0.4); }
+
+/* 订单信息卡片 */
+.nf-info-card { padding: 24rpx 28rpx; }
+.nf-info-row {
+  display: flex; justify-content: space-between; align-items: center; padding: 10rpx 0;
+}
+.nf-info-label { font-size: 24rpx; color: rgba(255, 255, 255, 0.4); min-width: 140rpx; }
+.nf-info-value { font-size: 24rpx; color: rgba(255, 255, 255, 0.7); text-align: right; flex: 1; }
+.nf-copy-btn {
+  font-size: 22rpx; color: #e50914; margin-left: 12rpx;
+  padding: 4rpx 12rpx; border: 1rpx solid rgba(229, 9, 20, 0.3);
+  border-radius: 8rpx; background: rgba(229, 9, 20, 0.1);
+}
+.nf-countdown-val { color: #e50914; font-weight: 700; }
+
+/* 退款 */
+.nf-refund-card { padding: 20rpx 28rpx; display: flex; justify-content: flex-end; }
+.nf-refund-btn {
+  padding: 12rpx 28rpx; border-radius: 30rpx; font-size: 26rpx; font-weight: 600;
+  background: rgba(245, 158, 11, 0.15); border: 1rpx solid rgba(245, 158, 11, 0.3); color: #f59e0b;
+}
+.nf-refund-status {
+  padding: 12rpx 28rpx; border-radius: 30rpx; font-size: 26rpx;
+  background: rgba(255, 255, 255, 0.04); border: 1rpx solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.4);
 }
 
-.back-icon {
-  font-size: 40rpx;
-  margin-right: 20rpx;
+/* 底部支付栏 */
+.nf-footer {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 99;
+  display: flex; align-items: center; height: 110rpx;
+  background: rgba(0, 0, 0, 0.95); backdrop-filter: blur(24px);
+  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nf-footer-info { flex: 1; padding-left: 32rpx; display: flex; align-items: baseline; gap: 8rpx; }
+.nf-footer-label { font-size: 26rpx; color: rgba(255, 255, 255, 0.5); }
+.nf-footer-price { font-size: 38rpx; font-weight: 700; color: #e50914; }
+.nf-footer-btn {
+  width: 240rpx; height: 100%; background: #e50914;
+  display: flex; justify-content: center; align-items: center;
+  font-size: 30rpx; font-weight: 700; color: #fff;
+  &:active { background: #b30710; }
 }
 
-.header-title {
-  font-size: 32rpx;
-  font-weight: bold;
+/* 优惠券弹出层 */
+.nf-mask {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.7); z-index: 900;
 }
-
-.address_box {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 28rpx 32rpx;
-  background-color: #fff;
-  margin-top: 20rpx;
+.nf-coupon-popup {
+  position: fixed; left: 0; right: 0; bottom: -100vh; z-index: 999;
+  background: #1a1a1a; border-radius: 24rpx 24rpx 0 0;
+  transition: all 0.3s ease;
+  &.show { bottom: 0; }
 }
-
-.location_icon {
-  width: 40rpx;
-  height: 40rpx;
-  margin-right: 16rpx;
-}
-
-.forward-icon {
-  font-size: 36rpx;
-  color: #ccc;
-}
-
-.dashed-line {
-  height: 2rpx;
-  background-image: linear-gradient(to right, #ddd 50%, transparent 50%);
-  background-size: 10rpx 1rpx;
-  background-repeat: repeat-x;
-  margin: 0 32rpx;
-}
-
-.flex-aic {
-  display: flex;
-  align-items: center;
-}
-
-.flexr-jsb {
-  justify-content: space-between;
-}
-
-.flex-fitem {
-  flex: 1;
-}
-
-.color_333 {
-  color: #333;
-}
-
-.color_999 {
-  color: #999;
-}
-
-.font_28 {
-  font-size: 28rpx;
-}
-
-.font_24 {
-  font-size: 24rpx;
-}
-
-.m_r_16 {
-  margin-right: 16rpx;
-}
-
-.m_b_4 {
-  margin-bottom: 4rpx;
-}
-
-.text_nowrap {
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  overflow: hidden;
-}
-
-.order_goods_box {
-  padding: 24rpx 32rpx;
-  background-color: #fff;
-}
-
-.flex {
-  display: flex;
-}
-
-.p_b_16 {
-  padding-bottom: 16rpx;
-}
-
-.item_goods_img {
-  min-width: 168rpx;
-  max-width: 168rpx;
-  height: 168rpx;
-  border-radius: 8rpx;
-  margin-right: 16rpx;
-}
-
-.goods-name {
-  font-size: 24rpx;
-  color: #999;
-  margin-bottom: 4rpx;
-}
-
-.goods-desc {
-  font-size: 28rpx;
-  color: #333;
-  margin-bottom: 8rpx;
-}
-
-.goods-attrs {
-  font-size: 24rpx;
-  color: #999;
-  margin-bottom: 8rpx;
-}
-
-.goods-price-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.goods-price {
-  font-size: 28rpx;
-  color: #333;
-}
-
-.goods-count {
-  font-size: 24rpx;
-  color: #999;
-}
-
-.order-options {
-  margin-top: 20rpx;
-  background-color: #fff;
-}
-
-.option-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24rpx 32rpx;
-  border-bottom: 1rpx solid #f5f5f5;
-}
-
-.option-label {
-  display: flex;
-  align-items: center;
-}
-
-.option-label::before {
-  content: "";
-  display: inline-block;
-  width: 30rpx;
-  height: 30rpx;
-  margin-right: 10rpx;
-  border-radius: 6rpx;
-}
-
-.red-icon::before {
-  background-color: #ff6b6b;
-}
-
-.yellow-icon::before {
-  background-color: #ffb73b;
-}
-
-.option-value {
-  display: flex;
-  align-items: center;
-}
-
-.discount-text {
-  color: #ff5572;
-  margin-right: 10rpx;
-}
-
-.message-placeholder {
-  color: #999;
-  margin-right: 10rpx;
-}
-
-.price-summary {
-  margin-top: 20rpx;
-  background-color: #fff;
-  padding: 0 32rpx;
-}
-
-.refund-section {
-  margin-top: 20rpx;
-  background-color: #fff;
-  padding: 20rpx 32rpx;
-  display: flex;
-  justify-content: flex-end;
-  border-radius: 12rpx;
-}
-
-.refund-btn {
-  padding: 12rpx 28rpx;
-  border-radius: 30rpx;
-  border: 1rpx solid #fa8c16;
-  color: #fa8c16;
-  background-color: #fff7e6;
-  font-size: 26rpx;
-}
-
-.refund-status {
-  padding: 12rpx 28rpx;
-  border-radius: 30rpx;
-  border: 1rpx solid #ccc;
-  color: #999;
-  background-color: #fff;
-  font-size: 26rpx;
-}
-
-.price-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 20rpx 0;
-  border-bottom: 1rpx solid #f5f5f5;
-}
-
-.discount {
-  color: #ff5572;
-}
-
-.footer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 100rpx;
-  display: flex;
-  background-color: #fff;
-  box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
-}
-
-.total-container {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  padding-left: 32rpx;
-}
-
-.total-label {
-  font-size: 28rpx;
-  margin-right: 8rpx;
-}
-
-.total-price {
-  font-size: 36rpx;
-  font-weight: bold;
-  color: #ff5572;
-}
-
-.pay-btn {
-  width: 240rpx;
-  height: 100%;
-  background-color: #ff5572;
-  color: #fff;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 32rpx;
-}
-
-
-.content {
-		display: flex;
-		flex-direction: column;
-
-	}
-
-	.mask {
-		width: 100%;
-		height: 100vh;
-		position: fixed;
-		top: 0;
-		left: 0;
-		background: #000;
-		z-index: 900;
-		opacity: 0.7;
-	}
-
-	/* 优惠券 */
-	.coupon {
-		background-color: #fff;
-		border-radius: 10upx 10upx 0 0;
-		position: fixed;
-		left: 0;
-		bottom: -1000upx;
-		z-index: 999;
-		transition: all 0.3s;
-	}
-
-	.scrolls {
-		width: 100vw;
-		height: 60vh;
-		padding-top: 10upx;
-		z-index: 500;
-	}
+.nf-coupon-scroll { width: 100vw; height: 60vh; padding-top: 16rpx; }
 </style>

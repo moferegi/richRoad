@@ -23,12 +23,36 @@
         <view class="nf-title-line"></view>
       </view>
 
+      <!-- 模式切换（仅在手机登录启用时显示） -->
+      <view class="nf-mode-switch" v-if="phoneLoginEnabled">
+        <view class="nf-mode-tab" :class="{active: loginMode === 'username'}" @tap="loginMode = 'username'">
+          <text>{{ $t('switchToAccountLogin') }}</text>
+        </view>
+        <view class="nf-mode-tab" :class="{active: loginMode === 'phone'}" @tap="loginMode = 'phone'">
+          <text>{{ $t('switchToPhoneLogin') }}</text>
+        </view>
+      </view>
+
       <!-- 表单卡片 -->
       <view class="nf-card">
-        <view class="nf-field">
+        <!-- 用户名模式 -->
+        <view class="nf-field" v-if="loginMode === 'username'">
           <text class="nf-label">{{ $t('account') }}</text>
-          <input class="nf-input" name="username" :placeholder="$t('accountPlaceholder')" maxlength="11" v-model="form.username" />
+          <input class="nf-input" name="username" :placeholder="$t('accountPlaceholder')" maxlength="30" v-model="form.username" />
         </view>
+
+        <!-- 手机号模式 -->
+        <view class="nf-field" v-if="loginMode === 'phone'">
+          <text class="nf-label">{{ $t('phoneNumber') }}</text>
+          <view class="nf-phone-row">
+            <view class="nf-area-code-btn" @tap="showAreaCodePicker = true">
+              <text class="nf-area-code-text">{{ selectedAreaCode || '+86' }}</text>
+              <text class="nf-area-code-arrow">▼</text>
+            </view>
+            <input class="nf-input nf-phone-input" name="phone" :placeholder="$t('phonePlaceholder')" maxlength="15" v-model="form.phone" type="number" />
+          </view>
+        </view>
+
         <view class="nf-field">
           <text class="nf-label">{{ $t('password') }}</text>
           <input class="nf-input" type="password" name="password" maxlength="18" :placeholder="$t('passwordPlaceholder')" v-model="form.password" />
@@ -51,14 +75,30 @@
 
     <!-- 语言弹窗 -->
     <lang-switch v-model="showLangPicker" />
+
+    <!-- 区号选择弹窗 -->
+    <view class="nf-popup-mask" v-if="showAreaCodePicker" @tap="showAreaCodePicker = false">
+      <view class="nf-popup-content" @tap.stop>
+        <view class="nf-popup-title">{{ $t('selectAreaCode') }}</view>
+        <scroll-view scroll-y class="nf-popup-scroll">
+          <view class="nf-area-item" v-for="item in areaCodes" :key="item.ID" @tap="selectArea(item)">
+            <text class="nf-area-name">{{ $lt(item.countryName) }}</text>
+            <text class="nf-area-code-val">{{ item.areaCode }}</text>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
   </view>
 </template>
 <script setup>
 	import {getCaptcha} from "@/api/base.js"
+	import { getEnabledPhoneAreaCodes } from "@/api/phoneAreaCode.js"
+	import { getLoginConfig } from "@/api/sysConfig.js"
 	import {
 		reactive,
 		ref,
-		computed
+		computed,
+		onMounted
 	} from 'vue';
 
 	import {useUserStore} from "@/pinia/modules/user.js"
@@ -67,6 +107,7 @@
 
 	const langStore = useLangStore()
 	const $t = computed(() => langStore.$t)
+	const $lt = computed(() => langStore.$lt)
 	const langLabel = computed(() => {
 	  const map = { zh: '中', en: 'EN', mn: 'MN' }
 	  return map[langStore.locale] || '中'
@@ -78,21 +119,57 @@
 	}
 
 	const userStore = useUserStore()
-/* 	const token = userStore.token || ''
 
-	if(token){
-		uni.navigateTo({
-			url: '/pages/tabBar/index'
-		})
-		// myRouter("/pages/tabBar/index",true)
-	} */
+	// 登录模式
+	const loginMode = ref('username') // 'username' | 'phone'
+	const phoneLoginEnabled = ref(false)
+	const showAreaCodePicker = ref(false)
+	const areaCodes = ref([])
+	const selectedAreaCode = ref('+86')
 
 	const form = reactive({
-		username: '', //手机号码
-		password: '' ,//密码
+		username: '',
+		password: '',
 		captcha: '',
-		captchaId: ''
+		captchaId: '',
+		phone: '',
+		areaCode: '+86'
 	})
+
+	// 加载配置
+	const loadConfig = async () => {
+		try {
+			const res = await getLoginConfig()
+			if (res.code === 0 && res.data) {
+				if (res.data.phone_login_enabled === 'true') {
+					phoneLoginEnabled.value = true
+				}
+				if (res.data.default_login_method === 'phone' && phoneLoginEnabled.value) {
+					loginMode.value = 'phone'
+				}
+			}
+		} catch(e) {}
+	}
+
+	// 加载区号列表
+	const loadAreaCodes = async () => {
+		try {
+			const res = await getEnabledPhoneAreaCodes()
+			if (res.code === 0 && res.data && res.data.list) {
+				areaCodes.value = res.data.list
+				if (areaCodes.value.length > 0) {
+					selectedAreaCode.value = areaCodes.value[0].areaCode
+					form.areaCode = areaCodes.value[0].areaCode
+				}
+			}
+		} catch(e) {}
+	}
+
+	const selectArea = (item) => {
+		selectedAreaCode.value = item.areaCode
+		form.areaCode = item.areaCode
+		showAreaCodePicker.value = false
+	}
 
 	const captchaImg = ref("")
 
@@ -104,67 +181,58 @@
 		}
 	}
 
-	getCaptchaFunc()
+	onMounted(() => {
+		getCaptchaFunc()
+		loadConfig()
+		loadAreaCodes()
+	})
 
 
 	//当前登录按钮操作
 	const login = async () => {
-		if (!form.username) {
-			uni.showToast({
-				title: $t.value('enterUsername'),
-				icon: 'none'
-			});
-			return;
+		if (loginMode.value === 'username') {
+			if (!form.username) {
+				uni.showToast({ title: $t.value('enterUsername'), icon: 'none' })
+				return
+			}
+		} else {
+			if (!form.phone) {
+				uni.showToast({ title: $t.value('phonePlaceholder'), icon: 'none' })
+				return
+			}
 		}
 		if (!form.password) {
-			uni.showToast({
-				title: $t.value('enterPassword'),
-				icon: 'none'
-			});
-			return;
+			uni.showToast({ title: $t.value('enterPassword'), icon: 'none' })
+			return
 		}
-
 		if (!form.captcha) {
-			uni.showToast({
-				title: $t.value('enterCaptcha'),
-				icon: 'none'
-			});
-			return;
+			uni.showToast({ title: $t.value('enterCaptcha'), icon: 'none' })
+			return
 		}
 
-	    const flag = await userStore.loginIn(form)
+		let flag = false
+		if (loginMode.value === 'username') {
+			flag = await userStore.loginIn(form)
+		} else {
+			flag = await userStore.phoneLoginIn({
+				areaCode: form.areaCode,
+				phone: form.phone,
+				password: form.password,
+				captcha: form.captcha,
+				captchaId: form.captchaId
+			})
+		}
+
 		if(flag){
-			uni.showToast({
-				title: $t.value('loginSuccess'),
-			})
-			uni.navigateTo({
-				url: '/pages/tabBar/index'
-			})
-			// myRouter("/pages/tabBar/tabBar",true)
+			uni.showToast({ title: $t.value('loginSuccess') })
+			uni.navigateTo({ url: '/pages/tabBar/index' })
 			return
 		}
 		getCaptchaFunc()
 	}
 	//注册按钮点击
 	const toRegister = () => {
-		uni.navigateTo({
-			url: '/pages/user/register'
-		})
-		// myRouter("/pages/user/register",true)
-	}
-	//等三方微信登录
-	const wxLogin = () => {
-		uni.showToast({
-			title: $t.value('wechatLogin'),
-			icon: 'none'
-		});
-	}
-	//第三方支付宝登录
-	const zfbLogin = () => {
-		uni.showToast({
-			title: $t.value('alipayLogin'),
-			icon: 'none'
-		});
+		uni.navigateTo({ url: '/pages/user/register' })
 	}
 </script>
 <style lang="scss" scoped>
@@ -394,5 +462,119 @@ page { background-color: #000; }
     background: rgba(255, 255, 255, 0.05);
     color: #fff;
   }
+}
+
+/* 模式切换 */
+.nf-mode-switch {
+  display: flex;
+  margin-bottom: 32rpx;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16rpx;
+  padding: 6rpx;
+}
+
+.nf-mode-tab {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx 0;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.3s;
+
+  &.active {
+    background: rgba(229, 9, 20, 0.3);
+    color: #fff;
+    font-weight: 600;
+  }
+}
+
+/* 手机号输入行 */
+.nf-phone-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.nf-area-code-btn {
+  height: 88rpx;
+  padding: 0 20rpx;
+  background: rgba(255, 255, 255, 0.06);
+  border: 2rpx solid rgba(255, 255, 255, 0.1);
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  flex-shrink: 0;
+}
+
+.nf-area-code-text {
+  color: #fff;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.nf-area-code-arrow {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 20rpx;
+}
+
+.nf-phone-input {
+  flex: 1;
+}
+
+/* 区号弹窗 */
+.nf-popup-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.nf-popup-content {
+  width: 100%;
+  max-height: 60vh;
+  background: #1a1a1a;
+  border-radius: 28rpx 28rpx 0 0;
+  padding: 32rpx 0;
+}
+
+.nf-popup-title {
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #fff;
+  padding-bottom: 24rpx;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.nf-popup-scroll {
+  max-height: 50vh;
+}
+
+.nf-area-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx 40rpx;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.05);
+
+  &:active {
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.nf-area-name {
+  color: #fff;
+  font-size: 28rpx;
+}
+
+.nf-area-code-val {
+  color: rgba(229, 9, 20, 0.8);
+  font-size: 28rpx;
+  font-weight: 600;
 }
 </style>
