@@ -14,7 +14,7 @@
       </view>
     </view>
 
-    <!-- 订单状态标签 -->
+    <!-- 订单状态标签（横排滚动） -->
     <view class="nf-tabs">
       <scroll-view scroll-x class="nf-tabs-scroll" :show-scrollbar="false">
         <view class="nf-tabs-inner">
@@ -39,15 +39,15 @@
 
     <!-- 订单列表 -->
     <view class="nf-order-list" v-else>
-      <view class="nf-order-card" v-for="(item, index) in orderList" :key="index">
+      <view class="nf-order-card" v-for="(item, index) in orderList" :key="index" @tap="goOrderDetail(item)">
         <!-- 订单头部 -->
         <view class="nf-order-header">
           <view class="nf-order-date">
-            {{ item.CreatedAt.split('T')[0] }}
+            {{ formatOrderDate(item.CreatedAt) }}
             <text v-if="item.isPresale" class="nf-presale-tag">{{ $t('presale') }}</text>
           </view>
           <view class="nf-order-status" :class="'nf-st-' + item.status">
-            {{ tabColumns.find(tab => tab.id === item.status)?.title }}
+            {{ getStatusLabel(item.status) }}
             <text v-if="item.status === '0' && countdownMap[item.ID]" class="nf-countdown"> {{ countdownMap[item.ID] }}</text>
           </view>
         </view>
@@ -69,38 +69,53 @@
         <view class="nf-goods-single" v-if="item.detail && item.detail.length === 1">
           <image :src="getUrl(item.detail[0].sku.picture)" class="nf-goods-thumb-lg" mode="aspectFill" />
           <view class="nf-goods-single-info">
-            <text class="nf-goods-single-name">{{ item.detail[0].sku.name }}</text>
-            <text class="nf-goods-single-desc">{{ item.detail[0].sku.description }}</text>
+            <text class="nf-goods-single-name">{{ $lt(item.detail[0].sku.name) || item.detail[0].sku.name }}</text>
+            <text class="nf-goods-single-desc">{{ $lt(item.detail[0].good?.description) || item.detail[0].sku.description }}</text>
           </view>
         </view>
 
         <!-- 金额统计 -->
         <view class="nf-order-summary">
-          <text class="nf-order-count">共 {{ item.detail ? item.detail.length : 0 }} 件商品 · 实付</text>
-          <text class="nf-order-price">¥{{ (item.totalPrice / 100).toFixed(2) }}</text>
+          <text class="nf-order-count">{{ $t('totalItems').replace('{n}', item.detail ? item.detail.length : 0) }} · {{ $t('paidAmount') }}</text>
+          <text class="nf-order-price">{{ cs }}{{ (item.totalPrice / 100).toFixed(2) }}</text>
         </view>
 
         <!-- 操作按钮 -->
-        <view class="nf-order-actions">
-          <view v-if="item.status === '4'" class="nf-action-tag cancelled">已取消</view>
-          <view v-if="item.status === '0'" class="nf-action nf-action-ghost" @tap="cancelOrder(item)">取消订单</view>
-          <view v-if="item.status === '0'" class="nf-action nf-action-primary" @tap="payOff(item.ID)">立即支付</view>
-          <view v-if="item.status === '2'" class="nf-action nf-action-ghost" @tap="trackLogistics(item)">查看物流</view>
-          <view v-if="canApplyRefund(item)" class="nf-action nf-action-warn" @tap="openRefund(item)">申请退款</view>
-          <view v-else-if="item.status === '6'" class="nf-action-tag refunding">退款中</view>
-          <view v-else-if="item.status === '5'" class="nf-action-tag refunded">已退款</view>
+        <view class="nf-order-actions" @tap.stop>
+          <!-- 已取消：只显示标签+再次购买 -->
+          <template v-if="item.status === '4'">
+            <view class="nf-action-tag cancelled">{{ $t('ordersCancelled') }}</view>
+            <view class="nf-action nf-action-ghost" @tap.stop="buyAgain(item)">{{ $t('buyAgain') }}</view>
+          </template>
+
+          <!-- 待付款 -->
+          <template v-if="item.status === '0'">
+            <view class="nf-action nf-action-ghost" @tap.stop="cancelOrder(item)">{{ $t('cancelOrder') }}</view>
+            <view class="nf-action nf-action-primary" @tap.stop="payOff(item.ID)">{{ $t('payNow') }}</view>
+          </template>
+
+          <!-- 待发货/待收货/待评价/已评价 共用退款 -->
+          <view v-if="showRefundBtn && canApplyRefund(item)" class="nf-action nf-action-warn" @tap.stop="openRefund(item)">{{ $t('applyRefund') }}</view>
+          <view v-else-if="item.status === '6'" class="nf-action-tag refunding">{{ $t('ordersRefunding') }}</view>
+          <view v-else-if="item.status === '5'" class="nf-action-tag refunded">{{ $t('ordersRefunded') }}</view>
+
+          <!-- 待收货 -->
+          <template v-if="item.status === '2'">
+            <view v-if="showLogisticsBtn && item.express" class="nf-action nf-action-ghost" @tap.stop="trackLogistics(item)">{{ $t('viewLogistics') }}</view>
+            <view class="nf-action nf-action-primary" @tap.stop="confirm(item)">{{ $t('confirmReceipt') }}</view>
+          </template>
+
           <!-- 评价 -->
           <template v-if="item.status === '3' || item.status === '7'">
             <template v-if="item.detail && item.detail.length > 1">
-              <view v-if="hasUncommentedItems(item)" class="nf-action nf-action-primary" @tap="goCommentAll(item)">评价订单</view>
-              <view v-else-if="hasCommentedItems(item)" class="nf-action nf-action-ghost" @tap="goCommentAll(item)">查看评价</view>
+              <view v-if="hasUncommentedItems(item)" class="nf-action nf-action-primary" @tap.stop="goCommentAll(item)">{{ $t('reviewOrder') }}</view>
+              <view v-else-if="hasCommentedItems(item)" class="nf-action nf-action-ghost" @tap.stop="goCommentAll(item)">{{ $t('viewReview') }}</view>
             </template>
             <template v-else-if="item.detail && item.detail.length === 1">
-              <view v-if="!item.detail[0].isComment" class="nf-action nf-action-primary" @tap="goComment(item, item.detail[0])">评价订单</view>
-              <view v-else class="nf-action nf-action-ghost" @tap="goComment(item, item.detail[0])">查看评价</view>
+              <view v-if="!item.detail[0].isComment" class="nf-action nf-action-primary" @tap.stop="goComment(item, item.detail[0])">{{ $t('reviewOrder') }}</view>
+              <view v-else class="nf-action nf-action-ghost" @tap.stop="goComment(item, item.detail[0])">{{ $t('viewReview') }}</view>
             </template>
           </template>
-          <view v-if="item.status === '2'" class="nf-action nf-action-primary" @tap="confirm(item)">确认收货</view>
         </view>
       </view>
     </view>
@@ -119,29 +134,57 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { updateOrderStatus, SelfOrderList } from "../../api/order"
+import { getSysConfigByKey } from '@/api/sysConfig.js'
 import { getUrl } from "@/utils/url.js"
 import RefundApplyPopup from '@/components/refund-apply-popup/refund-apply-popup.vue'
 import { useLangStore } from '@/pinia/modules/lang.js'
-
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 const langStore = useLangStore()
+const appConfigStore = useAppConfigStore()
+const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
+const $lt = computed(() => langStore.$lt)
 
 const activeSataus = ref("")
-const tabColumns = ref([
-  { title: '全部', id: '' },
-  { title: '待付款', id: '0' },
-  { title: '待发货', id: '1' },
-  { title: '待收货', id: '2' },
-  { title: '待评价', id: '3' },
-  { title: '退款中', id: '6' },
-  { title: '已退款', id: '5' },
-  { title: '取消', id: '4' },
-  { title: '已评价', id: '7' },
+const showRefundBtn = ref(true)
+const showLogisticsBtn = ref(true)
+
+// Tab定义，使用i18n
+const tabColumns = computed(() => [
+  { title: $t.value('viewAll'), id: '' },
+  { title: $t.value('ordersPending'), id: '0' },
+  { title: $t.value('ordersShipping'), id: '1' },
+  { title: $t.value('ordersReceiving'), id: '2' },
+  { title: $t.value('ordersToReview'), id: '3' },
+  { title: $t.value('ordersRefunding'), id: '6' },
+  { title: $t.value('ordersRefunded'), id: '5' },
+  { title: $t.value('ordersCancelled'), id: '4' },
+  { title: $t.value('ordersReviewed'), id: '7' },
 ])
+
+const getStatusLabel = (status) => {
+  const tab = tabColumns.value.find(t => t.id === status)
+  return tab ? tab.title : ''
+}
 
 const orderList = ref([])
 const refundVisible = ref(false)
 const refundOrderId = ref('')
+
+const loadConfig = async () => {
+  try {
+    const [refundRes, logisticsRes] = await Promise.all([
+      getSysConfigByKey('order_refund_enabled').catch(() => null),
+      getSysConfigByKey('order_logistics_enabled').catch(() => null),
+    ])
+    if (refundRes?.code === 0 && refundRes.data?.configValue !== undefined) {
+      showRefundBtn.value = refundRes.data.configValue !== 'false' && refundRes.data.configValue !== '0'
+    }
+    if (logisticsRes?.code === 0 && logisticsRes.data?.configValue !== undefined) {
+      showLogisticsBtn.value = logisticsRes.data.configValue !== 'false' && logisticsRes.data.configValue !== '0'
+    }
+  } catch (e) { /* 配置获取失败时默认显示 */ }
+}
 
 const init = async (params) => {
   activeSataus.value = params || ''
@@ -159,8 +202,12 @@ const updateCountdowns = () => {
     if (item.status === '0' && item.closeTime) {
       const remain = Math.max(0, Math.floor((new Date(item.closeTime).getTime() - Date.now()) / 1000))
       if (remain > 0) {
-        const m = Math.floor(remain / 60), s = remain % 60
-        map[item.ID] = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+        const h = Math.floor(remain / 3600)
+        const m = Math.floor((remain % 3600) / 60)
+        const s = remain % 60
+        map[item.ID] = h > 0
+          ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+          : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
       }
     }
   })
@@ -174,15 +221,26 @@ const startCountdown = () => {
 }
 
 onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
-onLoad((options) => { init(options.status) })
+
+onLoad((options) => {
+  loadConfig()
+  init(options.status)
+})
+
+const formatOrderDate = (t) => {
+  if (!t) return ''
+  const d = new Date(t)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
 
 const cancelOrder = (item) => {
   uni.showModal({
-    title: "取消提示", content: "是否取消该订单？", confirmColor: "#e50914",
+    title: $t.value('cancelOrderHint'), content: $t.value('cancelOrderConfirm'), confirmColor: "#e50914",
     success: async (res) => {
       if (res.confirm) {
         const r = await updateOrderStatus({ ID: item.ID, status: "4" })
-        if (r.code === 0) { uni.showToast({ title: "取消成功", icon: "none" }); init() }
+        if (r.code === 0) { uni.showToast({ title: $t.value('cancelSuccess'), icon: "none" }); init() }
       }
     }
   })
@@ -194,9 +252,20 @@ const canApplyRefund = (item) => ['1', '2', '3', '7'].includes(item.status)
 const openRefund = (item) => { refundOrderId.value = item.ID; refundVisible.value = true }
 const onRefundSuccess = () => { init(activeSataus.value) }
 
+const goOrderDetail = (item) => {
+  uni.navigateTo({ url: `/pages/orderInfo/orderInfo?orderID=${item.ID}` })
+}
+
+const buyAgain = (item) => {
+  if (item.detail && item.detail.length > 0) {
+    const d = item.detail[0]
+    uni.navigateTo({ url: `/pages/goodsDetails/goodsDetails?id=${d.goodID}` })
+  }
+}
+
 const confirm = async (item) => {
   const res = await updateOrderStatus({ ID: item.ID, status: '3' })
-  if (res.code === 0) { uni.showToast({ title: "确认收货成功", icon: "none" }); init() }
+  if (res.code === 0) { uni.showToast({ title: $t.value('confirmReceiptSuccess'), icon: "none" }); init() }
 }
 
 const goComment = (order, detail) => {

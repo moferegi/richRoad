@@ -41,7 +41,7 @@
             <text class="nf-cart-spec-tag">{{ item.sku.description }}</text>
           </view>
           <view class="nf-cart-bottom">
-            <text class="nf-cart-price">¥{{ (item.sku.price / 100).toFixed(2) }}</text>
+            <text class="nf-cart-price">{{ cs }}{{ (item.sku.price / 100).toFixed(2) }}</text>
             <view v-if="!isDeleteAll" class="nf-cart-qty">
               <wu-number-box :asyncChange="true" :min="0" @change="(e)=>onChange(item,e)" integer v-model="item.quantity"></wu-number-box>
             </view>
@@ -69,7 +69,7 @@
     <view class="nf-cart-bar-right" v-if="!isDeleteAll">
       <view class="nf-cart-bar-total">
         <text class="nf-cart-bar-label">{{ $t('totalText') }}</text>
-        <text class="nf-cart-bar-price">¥{{ selectedTotal }}</text>
+        <text class="nf-cart-bar-price">{{ cs }}{{ selectedTotal }}</text>
         <text class="nf-cart-bar-count">({{ selectedCount }}{{ $t('itemCount') }})</text>
       </view>
       <view class="nf-cart-bar-btns">
@@ -89,10 +89,13 @@
 	import { onShow } from '@dcloudio/uni-app'
 	import { useUserStore } from "@/pinia/modules/user"
 	import { useLangStore } from '@/pinia/modules/lang.js'
+	import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 	import { placeOrderByCart } from '@/api/order.js'
 	import { getUrl } from "@/utils/url.js"
 
 	const { $t } = useLangStore()
+	const appConfigStore = useAppConfigStore()
+	const cs = computed(() => appConfigStore.currencySymbol)
 	const cartList = ref([])
 	const isLoggedIn = ref(false)
 

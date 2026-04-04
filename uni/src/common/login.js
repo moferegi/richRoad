@@ -1,4 +1,5 @@
 import {getMinProLoginInfo} from '@/api/loginApi.js'
+import { t } from '@/utils/i18n.js'
 /**
  * 微信登陆方法
  * @param {Function} callback  登陆信息回调
@@ -38,7 +39,7 @@ export const login = (callback) => {
 		fail: () => {
 			uni.showToast({
 				icon: "none",
-				title: '登录失败'
+				title: t('loginFail')
 			})
 		}
 	})

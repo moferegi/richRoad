@@ -11,8 +11,8 @@
                         <text v-if="item.isPlusDelivery" class="merchant-tag plus-delivery">Plus免邮</text>
                     </view>
                     <view class="price-container">
-                        <text class="discount-price">¥{{ item.discountPrice }}</text>
-                        <text class="original-price">¥{{ item.originalPrice }}</text>
+                        <text class="discount-price">{{ cs }}{{ item.discountPrice }}</text>
+                        <text class="original-price">{{ cs }}{{ item.originalPrice }}</text>
                         <text class="discount-tag">{{ getDiscountText(item.discount) }}</text>
                     </view>
                     <view class="shop-info">
@@ -29,7 +29,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
+const appConfigStore = useAppConfigStore()
+const cs = computed(() => appConfigStore.currencySymbol)
 const goodsList = ref([])
 const mockData = [
     {

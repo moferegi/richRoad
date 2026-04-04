@@ -27,9 +27,11 @@
         tooltip-effect="dark"
         :data="tableData"
         row-key="ID"
+        :default-sort="{ prop: 'ID', order: 'descending' }"
         @selection-change="handleSelectionChange"
         >
         <el-table-column type="selection" width="55" />
+        <el-table-column align="left" label="ID" prop="ID" width="80" sortable />
         <el-table-column align="left" label="日期" width="180">
             <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
@@ -39,9 +41,19 @@
           </template>
         </el-table-column>
         <el-table-column align="left" label="奖励积分" prop="points" width="100" />
-        <el-table-column align="left" label="奖励优惠券ID" prop="couponIDs" width="200" show-overflow-tooltip />
+        <el-table-column align="left" label="奖励优惠券" width="250" show-overflow-tooltip>
+          <template #default="scope">
+            <span>{{ formatCouponNames(scope.row.couponIDs) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column align="left" label="要求下级首单" width="120">
           <template #default="scope">{{ scope.row.subRequireOrder ? '是' : '否' }}</template>
+        </el-table-column>
+        <el-table-column align="left" label="仅奖一次" width="100">
+          <template #default="scope">
+            <el-tag v-if="scope.row.triggerType === 'order'" :type="scope.row.orderOnce ? 'warning' : 'info'">{{ scope.row.orderOnce ? '是' : '否' }}</el-tag>
+            <span v-else>-</span>
+          </template>
         </el-table-column>
         <el-table-column align="left" label="状态" width="80">
           <template #default="scope">
@@ -89,11 +101,21 @@
             <el-form-item label="奖励积分:" prop="points">
               <el-input-number v-model="formData.points" :min="0" />
             </el-form-item>
-            <el-form-item label="奖励优惠券ID(逗号分隔):" prop="couponIDs">
-              <el-input v-model="formData.couponIDs" placeholder="例: 1,2,3" />
+            <el-form-item label="奖励优惠券:" prop="couponIDs">
+              <el-select v-model="selectedCouponIds" multiple filterable placeholder="选择优惠券" style="width: 100%">
+                <el-option
+                  v-for="c in couponOptions"
+                  :key="c.ID"
+                  :label="`#${c.ID} ${c.name || ''} (满${c.minSpend/100}减${c.discount/100})`"
+                  :value="c.ID"
+                />
+              </el-select>
             </el-form-item>
             <el-form-item label="要求下级首单付款:" prop="subRequireOrder" v-if="formData.triggerType === 'sub_register'">
               <el-switch v-model="formData.subRequireOrder" />
+            </el-form-item>
+            <el-form-item label="下单奖励仅发放一次:" prop="orderOnce" v-if="formData.triggerType === 'order'">
+              <el-switch v-model="formData.orderOnce" />
             </el-form-item>
             <el-form-item label="启用:" prop="isEnabled">
               <el-switch v-model="formData.isEnabled" />
@@ -110,9 +132,10 @@ import {
   updateMarketingReward,
   getMarketingRewardList
 } from '@/api/shop/marketingReward'
+import { getCouponList } from '@/api/shop/coupon'
 import { formatDate } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ref, reactive } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 
 defineOptions({ name: 'MarketingReward' })
 
@@ -125,6 +148,42 @@ const defaultForm = () => ({
   points: 0,
   couponIDs: '',
   subRequireOrder: false,
+  orderOnce: false,
+})
+
+// 优惠券下拉选项
+const couponOptions = ref([])
+const selectedCouponIds = ref([])
+
+const loadCouponOptions = async () => {
+  const res = await getCouponList({ page: 1, pageSize: 999 })
+  if (res.code === 0) {
+    couponOptions.value = res.data.list || []
+  }
+}
+
+// couponIDs 字符串 <-> 数组 同步
+watch(selectedCouponIds, (ids) => {
+  formData.value.couponIDs = ids.join(',')
+})
+
+// 根据 couponIDs 反查优惠券名称
+const couponMap = ref({})
+watch(couponOptions, (list) => {
+  const m = {}
+  list.forEach(c => { m[c.ID] = c })
+  couponMap.value = m
+})
+const formatCouponNames = (ids) => {
+  if (!ids) return '-'
+  return ids.split(',').map(id => {
+    const c = couponMap.value[Number(id.trim())]
+    return c ? `#${c.ID} ${c.name || ''}` : `#${id.trim()}`
+  }).join(', ')
+}
+
+onMounted(() => {
+  loadCouponOptions()
 })
 
 const formData = ref(defaultForm())
@@ -179,7 +238,13 @@ const onDelete = async() => {
 }
 
 const type = ref('')
-const updateFunc = async(row) => { type.value = 'update'; formData.value = { ...row }; dialogFormVisible.value = true }
+const updateFunc = async(row) => {
+  type.value = 'update'
+  formData.value = { ...row }
+  // 回填优惠券多选
+  selectedCouponIds.value = row.couponIDs ? row.couponIDs.split(',').map(id => Number(id.trim())).filter(Boolean) : []
+  dialogFormVisible.value = true
+}
 const deleteFunc = async (row) => {
   const res = await deleteMarketingReward({ ID: row.ID })
   if (res.code === 0) {
@@ -190,8 +255,8 @@ const deleteFunc = async (row) => {
 }
 
 const dialogFormVisible = ref(false)
-const openDialog = () => { type.value = 'create'; dialogFormVisible.value = true }
-const closeDialog = () => { dialogFormVisible.value = false; formData.value = defaultForm() }
+const openDialog = () => { type.value = 'create'; selectedCouponIds.value = []; dialogFormVisible.value = true }
+const closeDialog = () => { dialogFormVisible.value = false; formData.value = defaultForm(); selectedCouponIds.value = [] }
 
 const enterDialog = async () => {
   btnLoading.value = true

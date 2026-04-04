@@ -115,14 +115,16 @@ func (api *PopupApi) GetPopupList(c *gin.Context) {
 // @Summary 获取当前生效的弹窗
 // @accept application/json
 // @Produce application/json
-// @Param position query string false "弹窗位置"
-// @Param clientType query string false "客户端类型(web/mini/app)"
+// @Param position query string false "弹窗位置(兼容旧版)"
+// @Param clientType query string false "客户端类型(web/uni/all)"
+// @Param page query string false "当前页面路径"
 // @Success 200 {object} response.Response{data=[]shop.Popup,msg=string} "获取成功"
 // @Router /popup/getActivePopups [get]
 func (api *PopupApi) GetActivePopups(c *gin.Context) {
 	position := c.Query("position")
 	clientType := c.Query("clientType")
-	if list, err := popupService.GetActivePopups(position, clientType); err != nil {
+	pagePath := c.Query("page")
+	if list, err := popupService.GetActivePopups(position, clientType, pagePath); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
 		response.FailWithMessage("获取失败", c)
 	} else {

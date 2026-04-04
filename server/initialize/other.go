@@ -54,15 +54,17 @@ func initDefaultSysConfigs() {
 		// invite 分组
 		{ConfigKey: "invite_reward_points", ConfigValue: "10", ConfigName: "邀请奖励积分", ConfigGroup: "invite", Remark: "用户邀请好友注册后获得的积分奖励"},
 		// payment 分组
-		{ConfigKey: "payment_qr_code", ConfigValue: "", ConfigName: "收款二维码", ConfigGroup: "payment", Remark: "客户下单后展示的收款二维码图片地址"},
-		{ConfigKey: "payment_contact", ConfigValue: "", ConfigName: "支付联系客服", ConfigGroup: "payment", Remark: "支付页面联系客服的链接或信息"},
 		{ConfigKey: "payment_tip_text", ConfigValue: "{\"zh\":\"请在规定时间内完成付款\",\"en\":\"Please complete payment within the specified time\",\"mn\":\"Заасан хугацаанд төлбөрөө хийнэ үү\"}", ConfigName: "付款提示文本", ConfigGroup: "payment", Remark: "二维码付款弹窗提示文本(JSON多语言)"},
 		{ConfigKey: "payment_tip_text_size", ConfigValue: "14", ConfigName: "付款提示文字大小", ConfigGroup: "payment", Remark: "付款提示文本字体大小(px)"},
 		{ConfigKey: "payment_tip_text_color", ConfigValue: "#ff0000", ConfigName: "付款提示文字颜色", ConfigGroup: "payment", Remark: "付款提示文本颜色(hex)"},
 		// system 分组
-		{ConfigKey: "maintenance_enabled", ConfigValue: "false", ConfigName: "维护模式开关", ConfigGroup: "system", Remark: "是否开启全站维护模式(true/false)"},
-		{ConfigKey: "maintenance_message", ConfigValue: "系统维护中，请稍后再试", ConfigName: "维护提示语", ConfigGroup: "system", Remark: "维护模式下的提示信息"},
-		{ConfigKey: "maintenance_bg_image", ConfigValue: "", ConfigName: "维护背景图", ConfigGroup: "system", Remark: "维护页面的背景图片地址"},
+		{ConfigKey: "maintenance_enabled", ConfigValue: "false", ConfigName: "维护模式开关", ConfigGroup: "maintenance", Remark: "是否开启全站维护模式(true/false)"},
+		{ConfigKey: "maintenance_message", ConfigValue: "系统维护中，请稍后再试", ConfigName: "维护提示语", ConfigGroup: "maintenance", Remark: "维护模式下的提示信息"},
+		{ConfigKey: "maintenance_bg_image", ConfigValue: "", ConfigName: "维护背景图", ConfigGroup: "maintenance", Remark: "维护页面的背景图片地址"},
+		{ConfigKey: "maintenance_popup_enabled", ConfigValue: "false", ConfigName: "维护弹窗开关", ConfigGroup: "maintenance", Remark: "是否显示维护弹窗(true/false)"},
+		{ConfigKey: "maintenance_popup_title", ConfigValue: "{\"zh\":\"系统维护中\",\"en\":\"System Maintenance\",\"mn\":\"Систем засвар үйлчилгээнд\"}", ConfigName: "维护弹窗标题", ConfigGroup: "maintenance", Remark: "维护弹窗标题(JSON多语言)"},
+		{ConfigKey: "maintenance_popup_content", ConfigValue: "{\"zh\":\"系统正在维护，请稍后再试\",\"en\":\"System is under maintenance, please try again later\",\"mn\":\"Систем засвар хийгдэж байна, дараа дахин оролдоно уу\"}", ConfigName: "维护弹窗内容", ConfigGroup: "maintenance", Remark: "维护弹窗内容(JSON多语言)"},
+		{ConfigKey: "maintenance_home_btn_enabled", ConfigValue: "false", ConfigName: "进入首页按钮", ConfigGroup: "maintenance", Remark: "维护模式下是否允许进入首页(true/false)"},
 		{ConfigKey: "currency_symbol", ConfigValue: "¥", ConfigName: "货币符号", ConfigGroup: "system", Remark: "前端展示的货币符号"},
 		{ConfigKey: "currency_unit", ConfigValue: "CNY", ConfigName: "货币单位", ConfigGroup: "system", Remark: "货币单位编码"},
 		{ConfigKey: "currency_suffix", ConfigValue: "rmb", ConfigName: "货币后缀", ConfigGroup: "system", Remark: "uni端显示的货币后缀(如rmb, usd等)"},
@@ -78,10 +80,12 @@ func initDefaultSysConfigs() {
 		{ConfigKey: "default_login_method", ConfigValue: "username", ConfigName: "默认登录方式", ConfigGroup: "auth", Remark: "默认登录方式: username(用户名+密码) 或 phone(手机号+密码)"},
 		{ConfigKey: "phone_login_enabled", ConfigValue: "false", ConfigName: "手机号登录开关", ConfigGroup: "auth", Remark: "是否开启手机号+密码登录(true/false)"},
 		{ConfigKey: "password_change_enabled", ConfigValue: "true", ConfigName: "密码修改开关", ConfigGroup: "auth", Remark: "uni端是否允许用户修改密码(true/false)"},
+		{ConfigKey: "username_login_enabled", ConfigValue: "true", ConfigName: "用户名登录开关", ConfigGroup: "auth", Remark: "是否开启用户名+密码登录注册(true/false)"},
 		// points 分组
 		{ConfigKey: "points_exchange_rate", ConfigValue: "100", ConfigName: "积分兑换比率", ConfigGroup: "points", Remark: "多少积分兑换1货币单位，如100积分=1元"},
 		// order 分组
 		{ConfigKey: "order_close_minutes", ConfigValue: "20", ConfigName: "订单自动关闭时间", ConfigGroup: "order", Remark: "未支付订单自动关闭的分钟数"},
+		{ConfigKey: "order_auto_close_minutes", ConfigValue: "20", ConfigName: "订单自动关闭时间(旧key)", ConfigGroup: "order", Remark: "兼容旧key，同order_close_minutes"},
 		// display 分组
 		{ConfigKey: "presale_home_count", ConfigValue: "4", ConfigName: "首页预售展示数", ConfigGroup: "display", Remark: "uni首页展示的预售商品数量"},
 		{ConfigKey: "sign_in_enabled", ConfigValue: "true", ConfigName: "签到功能开关", ConfigGroup: "display", Remark: "uni端是否显示签到悬浮按钮(true/false)"},

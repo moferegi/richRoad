@@ -7,7 +7,7 @@
       <view class="nf-navbar-status"></view>
       <view class="nf-navbar-content">
         <view class="nf-navbar-back" @tap="goBack">
-          <text class="nf-back-icon">&#xe603;</text>
+          <uni-icons type="left" size="20" color="#fff" />
         </view>
         <text class="nf-navbar-title">{{ $t('inviteFriends') }}</text>
       </view>
@@ -184,17 +184,14 @@ page { background-color: #000; }
 }
 
 .nf-navbar-back {
-  width: 60rpx;
-  height: 60rpx;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.nf-back-icon {
-  font-family: 'iconfont';
-  font-size: 40rpx;
-  color: #fff;
 }
 
 .nf-navbar-title {

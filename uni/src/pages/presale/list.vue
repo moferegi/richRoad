@@ -58,7 +58,7 @@
             <view class="nf-goods-bottom">
               <view class="nf-price-row">
                 <text class="nf-price-label">{{ $t('presalePrice') }}</text>
-                <text class="nf-price">¥{{ formatPrice(item.price) }}</text>
+                <text class="nf-price">{{ cs }}{{ formatPrice(item.price) }}</text>
               </view>
               <view class="nf-presale-progress">
                 <view class="nf-progress-bar">
@@ -88,13 +88,16 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getPresaleGoodList } from '@/api/presale'
 import { getUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
 const langStore = useLangStore()
+const appConfigStore = useAppConfigStore()
+const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
 
@@ -119,7 +122,22 @@ const getCountdownType = (item) => {
   return 'ended'
 }
 
+// 倒计时刷新
+const countdownTick = ref(0)
+let countdownTimer = null
+const startCountdownTimer = () => {
+  if (countdownTimer) clearInterval(countdownTimer)
+  countdownTimer = setInterval(() => {
+    countdownTick.value++
+  }, 1000)
+}
+onUnmounted(() => {
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
 const formatCountdown = (item) => {
+  // 依赖 countdownTick 以实现响应式刷新
+  void countdownTick.value
   const now = Date.now()
   const type = getCountdownType(item)
   let target
@@ -132,7 +150,8 @@ const formatCountdown = (item) => {
   const m = Math.floor((diff % 3600000) / 60000)
   const s = Math.floor((diff % 60000) / 1000)
 
-  if (d > 0) return `${d}d ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  const dayUnit = $t.value('countdownDay') || '天'
+  if (d > 0) return `${d}${dayUnit} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
@@ -150,6 +169,7 @@ const init = async () => {
     if (res.code === 0) {
       list.value = res.data.list || []
       isBottom.value = list.value.length < params.pageSize
+      if (list.value.length) startCountdownTimer()
     }
   } finally {
     loading.value = false

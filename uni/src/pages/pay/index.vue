@@ -18,7 +18,7 @@
       <!-- 订单金额 -->
       <view class="nf-pay-amount-card">
         <text class="nf-pay-amount-label">{{ $t('payAmount') }}</text>
-        <text class="nf-pay-amount-value">¥{{ amount }}</text>
+        <text class="nf-pay-amount-value">{{ cs }}{{ amount }}</text>
         <text class="nf-pay-order-no" v-if="orderNo">{{ $t('orderNo') }}: {{ orderNo }}</text>
       </view>
 
@@ -33,7 +33,7 @@
             class="nf-pay-qr-tab"
             :class="{ active: currentQrIndex === i }"
             @tap="currentQrIndex = i"
-          >{{ qr.name }}</view>
+          >{{ localText(qr.nameI18n) || qr.name }}</view>
         </view>
         <view class="nf-pay-qr-wrap">
           <image
@@ -90,12 +90,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { request } from '@/utils/request.js'
-import { getUrl } from '@/utils/url.js'
+import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { getEnabledQrcodePayments } from '@/api/qrcodePayment.js'
 import { localText } from '@/utils/i18n'
 
 const langStore = useLangStore()
+const appConfigStore = useAppConfigStore()
+const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 
 const amount = ref('0.00')
@@ -108,7 +111,7 @@ const currentQrIndex = ref(0)
 const currentQrUrl = computed(() => {
   const qr = qrList.value[currentQrIndex.value]
   if (!qr) return ''
-  return getUrl(qr.externalPath || qr.image)
+  return qr.externalPath ? getExternalUrl(qr.externalPath) : getUrl(qr.image)
 })
 
 // 付款提示文本

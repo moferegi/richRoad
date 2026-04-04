@@ -2,7 +2,7 @@
   <view class="goods-list" ref="goodsListRef">
     <view class="goods-grid">
       <view v-for="(item, index) in props.goodsList" :key="index" class="goods-item" @tap="handleGoodsClick(item)">
-        <image :src="getUrl(item.imageUrl)" class="goods-image" mode="aspectFill"></image>
+        <image :src="getUrl(item.externalImagePath || item.imageUrl)" class="goods-image" mode="aspectFill"></image>
         <view class="goods-info">
           <text class="goods-name">{{ $lt(item.title) }}</text>
           <view v-if="item.tags && item.tags.length > 0" class="merchant-tags">
@@ -16,12 +16,12 @@
           }"
                 class="merchant-tag"
             >
-              {{ tag.name }}
+              {{ $lt(tag.name) }}
             </text>
           </view>
           <view class="price-container">
-            <text class="discount-price">¥{{ item.price / 100 }}</text>
-            <text class="original-price">¥{{ item.originalPrice }}</text>
+            <text class="discount-price">{{ cs }}{{ item.price / 100 }}</text>
+            <text class="original-price">{{ cs }}{{ item.originalPrice }}</text>
           </view>
           <!-- 优惠券/积分标记 -->
           <view class="goods-badges" v-if="item.pointsEnabled || hasCoupon(item)">
@@ -55,8 +55,11 @@ import {ref, computed, onMounted, onUnmounted, nextTick, watch} from 'vue'
 import {getUrl} from "@/utils/url.js"
 import { onReachBottom } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
 const langStore = useLangStore()
+const appConfigStore = useAppConfigStore()
+const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
 

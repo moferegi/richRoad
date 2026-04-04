@@ -34,7 +34,7 @@
             <text class="goods-title">{{ item.title }}</text>
             <text class="goods-spec">{{ item.spec }}</text>
             <view class="goods-price-wrap">
-              <text class="goods-price">¥{{ item.price }}</text>
+              <text class="goods-price">{{ cs }}{{ item.price }}</text>
               <text class="goods-count">x{{ item.count }}</text>
             </view>
           </view>
@@ -69,15 +69,15 @@
     <view class="amount-section">
       <view class="amount-item">
         <text>商品金额</text>
-        <text>¥{{ totalAmount }}</text>
+        <text>{{ cs }}{{ totalAmount }}</text>
       </view>
       <view class="amount-item">
         <text>优惠券</text>
-        <text class="discount">-¥{{ couponAmount }}</text>
+        <text class="discount">-{{ cs }}{{ couponAmount }}</text>
       </view>
       <view class="amount-item">
         <text>运费</text>
-        <text>{{ shipping === 0 ? '免运费' : `¥${shipping}` }}</text>
+        <text>{{ shipping === 0 ? '免运费' : `${cs}${shipping}` }}</text>
       </view>
     </view>
     </scroll-view>
@@ -86,7 +86,7 @@
     <view class="submit-bar">
       <view class="total-wrap">
         <text>实付款：</text>
-        <text class="total-amount">¥{{ finalAmount }}</text>
+        <text class="total-amount">{{ cs }}{{ finalAmount }}</text>
       </view>
       <button class="submit-btn" @click="submitOrder">提交订单</button>
     </view>
@@ -95,6 +95,10 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
+
+const appConfigStore = useAppConfigStore()
+const cs = computed(() => appConfigStore.currencySymbol)
 
 // Mock数据
 const address = ref({

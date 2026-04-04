@@ -3,7 +3,19 @@
     <swiper class="swiper" circular autoplay :indicator-dots="true" indicator-color="rgba(255,255,255,0.6)" indicator-active-color="#fff">
       <swiper-item v-for="(item, index) in props.lists" :key="index" @click="handleSwiperClick(item)">
         <view class="swiper-item">
-          <image class="swiper-image" :src="getUrl(item.src)" mode="aspectFill"></image>
+          <image class="swiper-image" :src="item.externalPath ? getExternalUrl(item.externalPath) : getUrl(item.src)" mode="aspectFill"></image>
+          <!-- 遮罩文字层 -->
+          <view v-if="item.maskEnabled && $lt(item.maskText)" class="swiper-mask"
+            :style="{
+              height: (item.maskHeight || 40) + 'px',
+              background: item.maskBgColor || 'rgba(0,0,0,0.5)'
+            }">
+            <text class="swiper-mask-text"
+              :style="{
+                color: item.maskTextColor || '#FFFFFF',
+                fontSize: (item.maskTextSize || 14) + 'px'
+              }">{{ $lt(item.maskText) }}</text>
+          </view>
         </view>
       </swiper-item>
     </swiper>
@@ -11,7 +23,12 @@
 </template>
 
 <script setup>
-import {getUrl} from "@/utils/url.js"
+import {getUrl, getExternalUrl} from "@/utils/url.js"
+import { useLangStore } from '@/pinia/modules/lang.js'
+import { computed } from 'vue'
+
+const langStore = useLangStore()
+const $lt = computed(() => langStore.$lt)
 
 const props = defineProps({
   lists: {
@@ -49,18 +66,6 @@ const handleSwiperClick = (item) => {
   height: 100%;
   position: relative;
   background: #111;
-
-  &::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 40%;
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.5));
-    pointer-events: none;
-    z-index: 1;
-  }
 }
 
 .swiper-image {
@@ -68,5 +73,23 @@ const handleSwiperClick = (item) => {
   height: 100%;
   display: block;
   border-radius: 20rpx;
+}
+
+.swiper-mask {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  border-radius: 0 0 20rpx 20rpx;
+}
+
+.swiper-mask-text {
+  font-weight: 600;
+  letter-spacing: 2rpx;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.5);
 }
 </style>

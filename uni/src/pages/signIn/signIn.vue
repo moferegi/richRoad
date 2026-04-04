@@ -4,7 +4,7 @@
     <view class="nf-signin-card">
       <view class="nf-signin-header">
         <text class="nf-signin-title">{{ $t('signInTitle') }}</text>
-        <text class="nf-signin-sub">{{ $t('signInConsecutive').replace('{{n}}', status.consecutiveDays || 0) }}</text>
+        <text class="nf-signin-sub">{{ $t('signInConsecutive').replace('{n}', status.consecutiveDays || 0) }}</text>
       </view>
 
       <!-- 签到按钮 -->
@@ -23,7 +23,7 @@
       <!-- 奖励提示 -->
       <view class="nf-signin-reward" v-if="status.rewardPoints > 0">
         <text class="nf-signin-reward-text">
-          {{ $t('signInReward').replace('{{n}}', status.rewardPoints) }}
+          {{ $t('signInReward').replace('{n}', status.rewardPoints) }}
         </text>
       </view>
     </view>

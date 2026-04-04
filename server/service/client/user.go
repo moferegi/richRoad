@@ -33,7 +33,7 @@ func (clientUserService *ClientUserService) Login(loginInfo *clientReq.Login) (c
 func (clientUserService *ClientUserService) CreateClientUser(clientUser *client.ClientUser) (err error) {
 	ferr := global.GVA_DB.Where("username = ?", clientUser.Username).First(&client.ClientUser{}).Error
 	if ferr == nil {
-		return errors.New("用户名已注册")
+		return errors.New("用户名或手机号码已存在")
 	}
 	if clientUser.Nickname == "" {
 		clientUser.Nickname = clientUser.Username

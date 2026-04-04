@@ -70,7 +70,7 @@
               <image class="nf-presale-img" :src="getUrl(item.externalImagePath || item.imageUrl)" mode="aspectFill" />
               <view class="nf-presale-info">
                 <text class="nf-presale-name">{{ $lt(item.title) }}</text>
-                <text class="nf-presale-price">¥{{ formatPrice(item.price) }}</text>
+                <text class="nf-presale-price">{{ cs }}{{ formatPrice(item.price) }}</text>
               </view>
               <view class="nf-presale-badge-tag">{{ $t('presale') }}</view>
             </view>
@@ -134,7 +134,7 @@
     <lang-switch v-model="showLangPicker" />
 
     <!-- 首页弹窗 -->
-    <popup-modal position="home" client-type="uni" />
+    <popup-modal client-type="uni" />
   </view>
 </template>
 <script setup>
@@ -151,11 +151,14 @@ import announcementMarquee from '@/components/announcement-marquee/announcement-
 import langSwitch from '@/components/lang-switch/lang-switch.vue'
 import popupModal from '@/components/popup-modal/popup-modal.vue'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { useUserStore } from '@/pinia/modules/user.js'
 import { getUrl } from '@/utils/url.js'
 import { onShow } from '@dcloudio/uni-app'
 
 const langStore = useLangStore()
+const appConfigStore = useAppConfigStore()
+const cs = computed(() => appConfigStore.currencySymbol)
 const userStore = useUserStore()
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
@@ -239,7 +242,7 @@ const goPresaleList = () => {
 
 const goGoodsDetail = (item) => {
   if (item.ID) {
-    uni.navigateTo({ url: '/pages/player/index?id=' + item.ID })
+    uni.navigateTo({ url: '/pages/goodsDetails/goodsDetails?id=' + item.ID })
   }
 }
 
@@ -579,6 +582,7 @@ page {
 /* ===== 加载状态 ===== */
 .nf-footer {
   padding: 40rpx;
+  padding-bottom: calc(40rpx + 120rpx + env(safe-area-inset-bottom));
   text-align: center;
 }
 
@@ -594,7 +598,7 @@ page {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 120rpx 0 80rpx;
+  padding: 120rpx 0 calc(80rpx + 120rpx + env(safe-area-inset-bottom));
 }
 
 .nf-empty-icon {

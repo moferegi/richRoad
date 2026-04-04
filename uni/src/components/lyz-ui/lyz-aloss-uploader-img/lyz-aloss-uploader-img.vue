@@ -197,7 +197,8 @@
 	.sunui-uploader-inputbox {
 		position: relative;
 		box-sizing: border-box;
-		background-color: #FFFFFF;
+		background-color: rgba(255, 255, 255, 0.06);
+		border: 1rpx dashed rgba(255, 255, 255, 0.15);
 	}
 
 	.sunui-img-removeicon {
@@ -278,7 +279,7 @@
 	}
 
 	.sunui-uploader-hover {
-		box-shadow: 0 0 0 #e5e5e5;
-		background: #e5e5e5;
+		box-shadow: 0 0 0 rgba(255, 255, 255, 0.1);
+		background: rgba(255, 255, 255, 0.1);
 	}
 </style>

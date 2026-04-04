@@ -4,7 +4,8 @@ import {request} from '@/utils/request.js'
 export const getBannerList  = () => {
     return request({
 		url:'/banner/getBannerList',
-        method: 'get'
+        method: 'get',
+        data: { isEnabled: true }
     })
 }
 

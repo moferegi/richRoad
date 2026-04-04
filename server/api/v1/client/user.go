@@ -107,6 +107,12 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 		return
 	}
 
+	// 验证码校验
+	if register.CaptchaId == "" || register.Captcha == "" || !store.Verify(register.CaptchaId, register.Captcha, true) {
+		response.FailWithMessage(i18n.T(c, "captchaError"), c)
+		return
+	}
+
 	if register.Password != register.RePassword {
 		response.FailWithMessage(i18n.T(c, "passwordMismatch"), c)
 		return
@@ -127,7 +133,7 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 
 	if err := clientUserService.CreateClientUser(&clientUser); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "createFail"), c)
+		response.FailWithMessage(err.Error(), c)
 		return
 	}
 

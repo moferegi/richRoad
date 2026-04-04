@@ -15,12 +15,12 @@
 					<view class="item-info">
 						<text class="item-name">{{ item.name }}</text>
 						<text class="item-spec" v-if="item.spec">{{ item.spec }}</text>
-						<text class="item-price">¥{{ item.price }}</text>
+						<text class="item-price">{{ cs }}{{ item.price }}</text>
 					</view>
 				</view>
 
 				<view class="rating-section">
-					<text class="section-title">商品评分</text>
+					<text class="section-title">{{ $t('productRating') }}</text>
 					<view class="stars">
 						<text
 							v-for="star in 5"
@@ -32,12 +32,11 @@
 					<text class="rating-text">{{ getRatingText(item.rating) }}</text>
 				</view>
 
-				<view class="comment-section">
-					<text class="section-title">评价内容</text>
+					<text class="section-title">{{ $t('reviewContent') }}</text>
 					<textarea
 						v-model="item.comment"
 						class="comment-input"
-						:placeholder="viewMode ? '' : '请输入您的评价...'"
+						:placeholder="viewMode ? '' : $t('reviewPlaceholder')"
 						maxlength="200"
 						show-confirm-bar="false"
 						:disabled="viewMode"
@@ -46,7 +45,7 @@
 				</view>
 
 				<view class="image-section">
-					<text class="section-title">{{ viewMode ? '评价图片' : '上传图片（最多9张）' }}</text>
+					<text class="section-title">{{ viewMode ? $t('reviewImages') : $t('uploadImages') + '（' + $t('uploadImagesMax').replace('{n}', '9') + '）' }}</text>
 					<view class="image-upload">
 						<view class="uploaded-images">
 							<view
@@ -64,7 +63,7 @@
 								@click="chooseImage(index)"
 							>
 								<text class="add-icon">+</text>
-								<text class="add-text">添加图片</text>
+								<text class="add-text">{{ $t('addImage') }}</text>
 							</view>
 						</view>
 					</view>
@@ -74,24 +73,31 @@
 
 		<view class="submit-section" v-if="!viewMode">
 			<button class="submit-btn" @click="submitEvaluations" :disabled="submitting">
-				{{ submitting ? '提交中...' : '提交评价' }}
+				{{ submitting ? $t('submitting') : $t('submitReview') }}
 			</button>
 		</view>
 
 		<!-- 加载状态 -->
 		<view class="loading" v-if="loading">
-			<text>加载中...</text>
+			<text>{{ $t('loading') }}</text>
 		</view>
 	</view>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { selfOrder, selfOrderComment } from '@/api/order.js'
 import { createComment } from '@/api/comment.js'
 import { getUrl } from '@/utils/url.js'
 import { baseUrl } from '@/utils/request.js'
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
+import { useLangStore } from '@/pinia/modules/lang.js'
+
+const langStore = useLangStore()
+const $t = computed(() => langStore.$t)
+const appConfigStore = useAppConfigStore()
+const cs = computed(() => appConfigStore.currencySymbol)
 
 // 响应式数据
 const orderID = ref('')
@@ -109,12 +115,12 @@ onLoad((options) => {
 		viewMode.value = options.mode === 'view'
 		// 设置页面标题
 		uni.setNavigationBarTitle({
-			title: viewMode.value ? '查看评价' : '评价订单'
+			title: viewMode.value ? $t.value('viewReviewTitle') : $t.value('orderEvaluateTitle')
 		})
 		loadOrderData()
 	} else {
 		uni.showToast({
-			title: '订单ID不能为空',
+			title: $t.value('orderIdRequired'),
 			icon: 'none'
 		})
 		setTimeout(() => {
@@ -130,7 +136,7 @@ const loadOrderData = async () => {
 		// 首先获取基本订单信息
 		const orderRes = await selfOrder(orderID.value)
 		if (orderRes.code !== 0 || !orderRes.data) {
-			throw new Error('获取订单数据失败')
+			throw new Error('order data load failed')
 		}
 
 		Object.assign(orderInfo, orderRes.data)
@@ -145,7 +151,7 @@ const loadOrderData = async () => {
 	} catch (error) {
 		console.error('加载订单数据失败:', error)
 		uni.showToast({
-			title: '加载订单失败',
+			title: $t.value('loadFail'),
 			icon: 'none'
 		})
 		setTimeout(() => {
@@ -160,7 +166,7 @@ const loadOrderData = async () => {
 const loadOrderItemsWithComments = async () => {
 	if (!orderInfo.detail || orderInfo.detail.length === 0) {
 		uni.showToast({
-			title: '订单中没有商品',
+			title: $t.value('noItemsInOrder'),
 			icon: 'none'
 		})
 		setTimeout(() => {
@@ -180,7 +186,7 @@ const loadOrderItemsWithComments = async () => {
 						const commentData = commentRes.data
 						return {
 							...item,
-							name: commentData.detail?.good?.name || item.sku?.name || item.name || '商品名称',
+							name: commentData.detail?.good?.name || item.sku?.name || item.name || '',
 							image: commentData.detail?.good?.imageUrl || item.sku?.picture || item.image,
 							spec: formatSpec(commentData.detail?.sku?.attrs || item.sku?.attrs),
 							price: (commentData.detail?.price || item.price || 0).toFixed(2),
@@ -192,21 +198,21 @@ const loadOrderItemsWithComments = async () => {
 						// 如果获取评价失败，使用默认数据
 						return {
 							...item,
-							name: item.sku?.name || item.name || '商品名称',
-							image: item.sku?.picture || item.image,
-							spec: formatSpec(item.sku?.attrs),
-							price: (item.price || 0).toFixed(2),
-							rating: 5,
-							comment: '',
-							images: []
-						}
+						name: item.sku?.name || item.name || '',
+						image: item.sku?.picture || item.image,
+						spec: formatSpec(item.sku?.attrs),
+						price: (item.price || 0).toFixed(2),
+						rating: 5,
+						comment: '',
+						images: []
 					}
-				} catch (error) {
-					console.error(`获取商品 ${item.goodID}-${item.skuID} 评价失败:`, error)
+				}
+			} catch (error) {
+					console.error(`get comment error ${item.goodID}-${item.skuID}:`, error)
 					// 出错时返回默认数据
 					return {
 						...item,
-						name: item.sku?.name || item.name || '商品名称',
+						name: item.sku?.name || item.name || '',
 						image: item.sku?.picture || item.image,
 						spec: formatSpec(item.sku?.attrs),
 						price: (item.price || 0).toFixed(2),
@@ -231,7 +237,7 @@ const initOrderItems = () => {
 	if (orderInfo.detail && orderInfo.detail.length > 0) {
 		orderItems.value = orderInfo.detail.map(item => ({
 			...item,
-			name: item.sku?.name || item.name || '商品名称',
+			name: item.sku?.name || item.name || '',
 			image: item.sku?.picture || item.image,
 			spec: formatSpec(item.sku?.attrs),
 			price: (item.price || 0).toFixed(2),
@@ -241,7 +247,7 @@ const initOrderItems = () => {
 		}))
 	} else {
 		uni.showToast({
-			title: '订单中没有商品',
+			title: $t.value('noItemsInOrder'),
 			icon: 'none'
 		})
 		setTimeout(() => {
@@ -263,7 +269,7 @@ const setRating = (itemIndex, rating) => {
 
 // 获取评分文本
 const getRatingText = (rating) => {
-	const texts = ['', '很差', '较差', '一般', '满意', '非常满意']
+	const texts = ['', $t.value('ratingVeryBad'), $t.value('ratingBad'), $t.value('ratingOk'), $t.value('ratingGood'), $t.value('ratingExcellent')]
 	return texts[rating] || ''
 }
 
@@ -292,7 +298,7 @@ const previewImage = (itemIndex, imageIndex = 0) => {
   const currentItem = orderItems.value[itemIndex]
   if (!currentItem || !currentItem.images || currentItem.images.length === 0) {
     uni.showToast({
-      title: '暂无图片可预览',
+      title: $t.value('noImagePreview'),
       icon: 'none'
     })
     return
@@ -312,7 +318,7 @@ const previewImage = (itemIndex, imageIndex = 0) => {
     current: imageIndex, // 当前预览的图片索引
     urls: urls, // 图片URL数组
     longPressActions: {
-      itemList: ['保存图片'],
+      itemList: [$t.value('saveImage')],
       success: function (res) {
         if (res.tapIndex === 0) {
           // 保存图片到相册
@@ -320,13 +326,13 @@ const previewImage = (itemIndex, imageIndex = 0) => {
             filePath: urls[res.index],
             success: () => {
               uni.showToast({
-                title: '保存成功',
+                title: $t.value('saveSuccess'),
                 icon: 'success'
               })
             },
             fail: () => {
               uni.showToast({
-                title: '保存失败',
+                title: $t.value('saveFail'),
                 icon: 'error'
               })
             }
@@ -337,7 +343,7 @@ const previewImage = (itemIndex, imageIndex = 0) => {
     fail: (err) => {
       console.error('图片预览失败:', err)
       uni.showToast({
-        title: '图片预览失败',
+        title: $t.value('imagePreviewFail'),
         icon: 'error'
       })
     }
@@ -350,14 +356,14 @@ const validateForm = () => {
 		const item = orderItems.value[i]
 		if (!item.rating || item.rating < 1) {
 			uni.showToast({
-				title: `请为第${i + 1}个商品评分`,
+				title: $t.value('selectRating'),
 				icon: 'none'
 			})
 			return false
 		}
 		if (!item.comment.trim()) {
 			uni.showToast({
-				title: `请为第${i + 1}个商品填写评价内容`,
+				title: $t.value('reviewPlaceholder'),
 				icon: 'none'
 			})
 			return false
@@ -380,16 +386,16 @@ const uploadSingleImage = (tempFilePath, index, itemIndex) => {
 				try {
 					const data = JSON.parse(res.data)
 					if (data.code !== 0) {
-						reject(new Error(data.msg || `商品${itemIndex + 1}的图片${index + 1}上传失败`))
+						reject(new Error(data.msg || $t.value('uploadFail')))
 						return
 					}
 					resolve(data.data.file.url)
 				} catch (parseError) {
-					reject(new Error(`商品${itemIndex + 1}的图片${index + 1}响应数据解析失败`))
+					reject(new Error($t.value('uploadFail')))
 				}
 			},
-			fail: (error) => {
-				reject(new Error(`商品${itemIndex + 1}的图片${index + 1}网络请求失败: ${error.errMsg}`))
+			fail: () => {
+				reject(new Error($t.value('uploadFail')))
 			}
 		})
 	})
@@ -413,7 +419,6 @@ const uploadItemImages = async (item, itemIndex) => {
 				successUrls.push(result.value)
 			} else {
 				failedIndexes.push(index)
-				console.error(`商品${itemIndex + 1}的图片${index + 1}上传失败:`, result.reason)
 			}
 		})
 
@@ -423,10 +428,10 @@ const uploadItemImages = async (item, itemIndex) => {
 			const successCount = successUrls.length
 
 			if (successCount === 0) {
-				throw new Error(`商品${itemIndex + 1}的所有图片上传失败，请检查网络后重试`)
+				throw new Error($t.value('imageUploadAllFail'))
 			} else {
 				uni.showToast({
-					title: `商品${itemIndex + 1}有${failedCount}张图片上传失败`,
+					title: $t.value('nImagesUploadFail').replace('{n}', failedCount),
 					icon: 'none',
 					duration: 2000
 				})
@@ -460,17 +465,16 @@ const submitEvaluations = async () => {
 			let uploadedPics = []
 			if (item.images && item.images.length > 0) {
 				uni.showLoading({
-					title: `上传商品${i + 1}的图片...`,
+					title: $t.value('uploadingImages'),
 					mask: true
 				})
 
 				try {
 					uploadedPics = await uploadItemImages(item, i)
-					console.log(`商品${i + 1}图片上传成功:`, uploadedPics)
 				} catch (error) {
 					uni.hideLoading()
 					uni.showToast({
-						title: error.message || `商品${i + 1}图片上传失败`,
+						title: error.message || $t.value('uploadFail'),
 						icon: 'none',
 						duration: 2000
 					})
@@ -488,7 +492,7 @@ const submitEvaluations = async () => {
 
 		// 2. 提交所有评价数据
 		uni.showLoading({
-			title: '提交评价中...',
+			title: $t.value('submitting'),
 			mask: true
 		})
 
@@ -507,7 +511,7 @@ const submitEvaluations = async () => {
 
 		uni.hideLoading()
 		uni.showToast({
-			title: '评价提交成功',
+			title: $t.value('reviewSuccess'),
 			icon: 'success'
 		})
 
@@ -519,7 +523,7 @@ const submitEvaluations = async () => {
 		console.error('提交评价失败:', error)
 		uni.hideLoading()
 		uni.showToast({
-			title: '提交失败，请重试',
+			title: $t.value('submitFail'),
 			icon: 'none'
 		})
 	} finally {
@@ -531,15 +535,14 @@ const submitEvaluations = async () => {
 <style lang="scss" scoped>
 .order-evaluate-container {
 	min-height: 100vh;
-	background: #f7f7f7;
+	background: #000;
 	padding-bottom: 120rpx;
 }
 
 .header {
-	background: linear-gradient(135deg, #667eea 0%, #ff4c7d 100%);
+	background: #1a1a1a;
 	padding: 40rpx 30rpx 30rpx;
-	color: white;
-	box-shadow: 0 4rpx 20rpx rgba(102, 126, 234, 0.3);
+	color: #fff;
 
 	.title {
 		font-size: 36rpx;
@@ -549,15 +552,15 @@ const submitEvaluations = async () => {
 }
 
 .order-info {
-	background: white;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1rpx solid rgba(255, 255, 255, 0.06);
 	margin: 20rpx;
 	padding: 25rpx 30rpx;
 	border-radius: 16rpx;
-	box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
 
 	.order-number {
 		font-size: 28rpx;
-		color: #666;
+		color: rgba(255, 255, 255, 0.6);
 		font-weight: 500;
 	}
 }
@@ -567,11 +570,13 @@ const submitEvaluations = async () => {
 }
 
 .item-card {
-	background: white;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1rpx solid rgba(255, 255, 255, 0.06);
 	border-radius: 20rpx;
 	margin-bottom: 20rpx;
 	overflow: hidden;
-	box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
 	transition: transform 0.2s ease;
 
 	&:hover {
@@ -582,14 +587,14 @@ const submitEvaluations = async () => {
 .item-header {
 	display: flex;
 	padding: 30rpx;
-	border-bottom: 1rpx solid #f0f0f0;
+	border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
 
 	.evaluate_pic_img {
 		width: 120rpx;
 		height: 120rpx;
 		border-radius: 12rpx;
 		margin-right: 20rpx;
-		border: 1rpx solid #f0f0f0;
+		border: 1rpx solid rgba(255, 255, 255, 0.08);
 	}
 
 	.item-info {
@@ -601,33 +606,33 @@ const submitEvaluations = async () => {
 		.item-name {
 			font-size: 30rpx;
 			font-weight: 500;
-			color: #333;
+			color: rgba(255, 255, 255, 0.9);
 			line-height: 1.4;
 			margin-bottom: 8rpx;
 		}
 
 		.item-spec {
 			font-size: 24rpx;
-			color: #999;
+			color: rgba(255, 255, 255, 0.4);
 			margin-bottom: 8rpx;
 		}
 
 		.item-price {
 			font-size: 32rpx;
 			font-weight: bold;
-			color: #ff6b6b;
+			color: #e50914;
 		}
 	}
 }
 
 .rating-section {
 	padding: 30rpx;
-	border-bottom: 1rpx solid #f0f0f0;
+	border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
 
 	.section-title {
 		font-size: 28rpx;
 		font-weight: 500;
-		color: #333;
+		color: rgba(255, 255, 255, 0.9);
 		margin-bottom: 15rpx;
 	}
 
@@ -638,7 +643,7 @@ const submitEvaluations = async () => {
 
 		.star {
 			font-size: 40rpx;
-			color: #ddd;
+			color: rgba(255, 255, 255, 0.15);
 			margin-right: 8rpx;
 			transition: color 0.2s ease;
 			cursor: pointer;
@@ -656,19 +661,19 @@ const submitEvaluations = async () => {
 
 	.rating-text {
 		font-size: 24rpx;
-		color: #666;
+		color: rgba(255, 255, 255, 0.5);
 		font-style: italic;
 	}
 }
 
 .comment-section {
 	padding: 30rpx;
-	border-bottom: 1rpx solid #f0f0f0;
+	border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
 
 	.section-title {
 		font-size: 28rpx;
 		font-weight: 500;
-		color: #333;
+		color: rgba(255, 255, 255, 0.9);
 		margin-bottom: 15rpx;
 	}
 
@@ -676,17 +681,18 @@ const submitEvaluations = async () => {
 		width: 100%;
 		min-height: 120rpx;
 		padding: 20rpx;
-		border: 1rpx solid #e0e0e0;
+		border: 1rpx solid rgba(255, 255, 255, 0.1);
 		border-radius: 12rpx;
 		font-size: 28rpx;
 		line-height: 1.5;
-		background-color: #fafafa;
+		background-color: rgba(255, 255, 255, 0.04);
+		color: #fff;
 		box-sizing: border-box;
 		transition: border-color 0.2s ease;
 
 		&:focus {
-			border-color: #667eea;
-			background-color: white;
+			border-color: #e50914;
+			background-color: rgba(255, 255, 255, 0.06);
 		}
 	}
 
@@ -694,9 +700,46 @@ const submitEvaluations = async () => {
 		display: block;
 		text-align: right;
 		font-size: 24rpx;
-		color: #999;
+		color: rgba(255, 255, 255, 0.35);
 		margin-top: 10rpx;
 	}
+}
+
+.section-title {
+	font-size: 28rpx;
+	font-weight: 500;
+	color: rgba(255, 255, 255, 0.9);
+	margin-bottom: 15rpx;
+	padding: 0 30rpx;
+}
+
+.comment-input {
+	width: calc(100% - 60rpx);
+	min-height: 120rpx;
+	padding: 20rpx;
+	margin: 0 30rpx;
+	border: 1rpx solid rgba(255, 255, 255, 0.1);
+	border-radius: 12rpx;
+	font-size: 28rpx;
+	line-height: 1.5;
+	background-color: rgba(255, 255, 255, 0.04);
+	color: #fff;
+	box-sizing: border-box;
+	transition: border-color 0.2s ease;
+
+	&:focus {
+		border-color: #e50914;
+		background-color: rgba(255, 255, 255, 0.06);
+	}
+}
+
+.char-count {
+	display: block;
+	text-align: right;
+	font-size: 24rpx;
+	color: rgba(255, 255, 255, 0.35);
+	margin-top: 10rpx;
+	padding: 0 30rpx;
 }
 
 .image-section {
@@ -705,8 +748,9 @@ const submitEvaluations = async () => {
 	.section-title {
 		font-size: 28rpx;
 		font-weight: 500;
-		color: #333;
+		color: rgba(255, 255, 255, 0.9);
 		margin-bottom: 15rpx;
+		padding: 0;
 	}
 
 	.image-upload {
@@ -714,14 +758,15 @@ const submitEvaluations = async () => {
 			display: flex;
 			flex-wrap: wrap;
 			gap: 15rpx;
-      margin-top: 30rpx;
+			margin-top: 30rpx;
+
 			.image-item {
 				position: relative;
 				width: 120rpx;
 				height: 120rpx;
 				border-radius: 12rpx;
 				overflow: hidden;
-				border: 1rpx solid #e0e0e0;
+				border: 1rpx solid rgba(255, 255, 255, 0.1);
 
 				.uploaded-image {
 					width: 100%;
@@ -734,7 +779,7 @@ const submitEvaluations = async () => {
 					right: -5rpx;
 					width: 30rpx;
 					height: 30rpx;
-					background: #ff4757;
+					background: #e50914;
 					color: white;
 					border-radius: 50%;
 					font-size: 20rpx;
@@ -743,37 +788,36 @@ const submitEvaluations = async () => {
 					justify-content: center;
 					line-height: 1;
 					cursor: pointer;
-					box-shadow: 0 2rpx 8rpx rgba(255, 71, 87, 0.3);
 				}
 			}
 
 			.add-image-btn {
 				width: 120rpx;
 				height: 120rpx;
-				border: 2rpx dashed #ccc;
+				border: 2rpx dashed rgba(255, 255, 255, 0.2);
 				border-radius: 12rpx;
 				display: flex;
 				flex-direction: column;
 				align-items: center;
 				justify-content: center;
-				background: #fafafa;
+				background: rgba(255, 255, 255, 0.04);
 				cursor: pointer;
 				transition: all 0.2s ease;
 
 				&:hover {
-					border-color: #667eea;
-					background: #f0f2ff;
+					border-color: #e50914;
+					background: rgba(229, 9, 20, 0.06);
 				}
 
 				.add-icon {
 					font-size: 40rpx;
-					color: #999;
+					color: rgba(255, 255, 255, 0.4);
 					margin-bottom: 5rpx;
 				}
 
 				.add-text {
 					font-size: 20rpx;
-					color: #999;
+					color: rgba(255, 255, 255, 0.4);
 				}
 			}
 		}
@@ -785,32 +829,27 @@ const submitEvaluations = async () => {
 	bottom: 0;
 	left: 0;
 	right: 0;
-	background: white;
+	background: #1a1a1a;
 	padding: 20rpx 30rpx;
-	border-top: 1rpx solid #e0e0e0;
-	box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.1);
+	border-top: 1rpx solid rgba(255, 255, 255, 0.06);
 
 	.submit-btn {
 		width: 100%;
 		height: 80rpx;
-		background: linear-gradient(135deg, #667eea 0%, #ff4c7d 100%);
+		background: #e50914;
 		color: white;
 		border: none;
 		border-radius: 40rpx;
 		font-size: 32rpx;
 		font-weight: 500;
-		box-shadow: 0 4rpx 15rpx rgba(102, 126, 234, 0.4);
 		transition: all 0.2s ease;
 
-		&:hover {
-			transform: translateY(-2rpx);
-			box-shadow: 0 6rpx 20rpx rgba(102, 126, 234, 0.5);
+		&:active {
+			opacity: 0.85;
 		}
 
 		&:disabled {
-			opacity: 0.6;
-			transform: none;
-			box-shadow: 0 4rpx 15rpx rgba(102, 126, 234, 0.2);
+			opacity: 0.5;
 		}
 	}
 }
@@ -820,12 +859,13 @@ const submitEvaluations = async () => {
 	top: 50%;
 	left: 50%;
 	transform: translate(-50%, -50%);
-	background: rgba(0, 0, 0, 0.7);
+	background: rgba(26, 26, 26, 0.9);
 	color: white;
 	padding: 20rpx 40rpx;
 	border-radius: 10rpx;
 	font-size: 28rpx;
 	z-index: 9999;
+	backdrop-filter: blur(10px);
 }
 
 /* 动画效果 */

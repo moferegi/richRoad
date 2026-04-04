@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
@@ -85,6 +86,17 @@ func (s *MarketingRewardService) TriggerReward(userID uint, triggerType string, 
 		return err
 	}
 
+	// 下单奖励仅发放一次：检查该用户是否已获得过订单奖励
+	if triggerType == "order" && reward.OrderOnce != nil && *reward.OrderOnce {
+		var count int64
+		global.GVA_DB.Model(&client.PointRecord{}).
+			Where("user_id = ? AND operation_type = ?", userID, "order_complete").
+			Count(&count)
+		if count > 0 {
+			return nil // 已发放过，跳过
+		}
+	}
+
 	// 发放积分
 	if reward.Points != nil && *reward.Points > 0 {
 		pointRecordService := &clientService.PointRecordService{}
@@ -156,12 +168,14 @@ func (s *MarketingRewardService) issueCouponsToUser(userID uint, couponIDsStr st
 
 		status := false
 		uid := int(userID)
+		now := time.Now()
 		couponOrderUser := shop.CouponOrderUser{
 			CouponNum:  snowflakeID,
 			CouponID:   &couponID,
 			UserID:     userID,
 			ShopUserID: &uid,
 			Status:     &status,
+			ClaimedAt:  &now,
 		}
 		if err := global.GVA_DB.Create(&couponOrderUser).Error; err != nil {
 			global.GVA_LOG.Error("奖励优惠券发放失败", zap.Error(err))

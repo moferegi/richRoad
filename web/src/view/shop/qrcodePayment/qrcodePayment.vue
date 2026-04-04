@@ -71,6 +71,15 @@
             <el-form-item label="名称:" prop="name">
               <el-input v-model="formData.name" placeholder="请输入名称" />
             </el-form-item>
+            <el-form-item label="名称(多语言):">
+              <div style="width:100%">
+                <div v-for="lang in enabledLangs" :key="lang.code" style="display:flex;align-items:center;margin-bottom:8px;">
+                  <el-tag size="small" style="margin-right:8px;min-width:50px;text-align:center;">{{ lang.code }}</el-tag>
+                  <el-input v-model="nameI18nObj[lang.code]" :placeholder="lang.name" style="flex:1" />
+                </div>
+                <div v-if="!enabledLangs.length" style="color:#999;font-size:12px;">请先在语言管理中启用语言</div>
+              </div>
+            </el-form-item>
             <el-form-item label="收款码图片:" prop="image">
               <SelectImage v-model="formData.image" file-type="image" />
             </el-form-item>
@@ -103,11 +112,12 @@ import {
   updateQrcodePayment,
   getQrcodePaymentList
 } from '@/api/shop/qrcodePayment'
+import { getEnabledLanguages } from '@/api/client/language'
 import { getUrl } from '@/utils/image'
 import SelectImage from '@/components/selectImage/selectImage.vue'
 import { formatDate } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 
 defineOptions({ name: 'QrcodePayment' })
 
@@ -115,9 +125,45 @@ const btnLoading = ref(false)
 
 const formData = ref({
   name: '',
+  nameI18n: '',
   image: '',
   sort: 0,
   isEnabled: true,
+})
+
+// 多语言编辑
+const nameI18nObj = reactive({})
+const enabledLangs = ref([])
+
+const loadEnabledLangs = async () => {
+  try {
+    const res = await getEnabledLanguages()
+    if (res.code === 0 && res.data) {
+      enabledLangs.value = Array.isArray(res.data) ? res.data : (res.data.list || [])
+    }
+  } catch(e) {}
+}
+
+const parseNameI18n = (jsonStr) => {
+  Object.keys(nameI18nObj).forEach(k => delete nameI18nObj[k])
+  try {
+    const parsed = JSON.parse(jsonStr || '{}')
+    Object.assign(nameI18nObj, parsed)
+  } catch { /* ignore */ }
+}
+
+const serializeNameI18n = () => {
+  const obj = {}
+  for (const lang of enabledLangs.value) {
+    if (nameI18nObj[lang.code]) {
+      obj[lang.code] = nameI18nObj[lang.code]
+    }
+  }
+  return JSON.stringify(obj)
+}
+
+onMounted(() => {
+  loadEnabledLangs()
 })
 
 const rule = reactive({
@@ -171,7 +217,7 @@ const onDelete = async() => {
 }
 
 const type = ref('')
-const updateFunc = async(row) => { type.value = 'update'; formData.value = { ...row }; dialogFormVisible.value = true }
+const updateFunc = async(row) => { type.value = 'update'; formData.value = { ...row }; parseNameI18n(row.nameI18n); dialogFormVisible.value = true }
 const deleteFunc = async (row) => {
   const res = await deleteQrcodePayment({ ID: row.ID })
   if (res.code === 0) {
@@ -182,16 +228,18 @@ const deleteFunc = async (row) => {
 }
 
 const dialogFormVisible = ref(false)
-const openDialog = () => { type.value = 'create'; dialogFormVisible.value = true }
+const openDialog = () => { type.value = 'create'; parseNameI18n('{}'); dialogFormVisible.value = true }
 const closeDialog = () => {
   dialogFormVisible.value = false
-  formData.value = { name: '', image: '', sort: 0, isEnabled: true }
+  formData.value = { name: '', nameI18n: '', image: '', sort: 0, isEnabled: true }
+  parseNameI18n('{}')
 }
 
 const enterDialog = async () => {
   btnLoading.value = true
   elFormRef.value?.validate(async (valid) => {
     if (!valid) return btnLoading.value = false
+    formData.value.nameI18n = serializeNameI18n()
     let res
     switch (type.value) {
       case 'create': res = await createQrcodePayment(formData.value); break

@@ -228,6 +228,9 @@ const reload = (code) => {
     const { row, treeNode, resolve } = loadMap.get(code)
     mainTable.value.store.states.lazyTreeNodeMap[code] = []// 清空节点的数据
     load(row, treeNode, resolve)
+  } else {
+    // 根节点不在 loadMap 中，直接重新加载整棵树
+    init()
   }
 }
 

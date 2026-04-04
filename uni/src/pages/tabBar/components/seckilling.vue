@@ -10,7 +10,7 @@
           <image class="product-image" :src="getUrl(item.imageUrl)" mode="aspectFill"></image>
         <view class="desc">
           <text class="product-title">{{ $lt(item.title) }}</text>
-          <text class="product-price">¥ {{ formatPrice(item.price) }}</text>
+          <text class="product-price">{{ cs }} {{ formatPrice(item.price) }}</text>
         </view>
       </view>
     </view>
@@ -21,8 +21,11 @@
 import { computed } from 'vue'
 import {getUrl} from "@/utils/url";
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
 const langStore = useLangStore()
+const appConfigStore = useAppConfigStore()
+const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
 

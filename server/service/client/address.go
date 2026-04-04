@@ -94,13 +94,13 @@ func (addressService *AddressService) GetAddressDataSource() (res map[string][]m
 	res = make(map[string][]map[string]any)
 
 	area := make([]map[string]any, 0)
-	global.GVA_DB.Table("geo_areas").Select("name as label,code as value").Scan(&area)
+	global.GVA_DB.Table("geo_areas").Select("name as label,code as value,name_i18n as labelI18n").Scan(&area)
 	res["area"] = area
 	city := make([]map[string]any, 0)
-	global.GVA_DB.Table("geo_cities").Select("name as label,code as value").Scan(&city)
+	global.GVA_DB.Table("geo_cities").Select("name as label,code as value,name_i18n as labelI18n").Scan(&city)
 	res["city"] = city
 	province := make([]map[string]any, 0)
-	global.GVA_DB.Table("geo_provinces").Select("name as label,code as value").Scan(&province)
+	global.GVA_DB.Table("geo_provinces").Select("name as label,code as value,name_i18n as labelI18n").Scan(&province)
 	res["province"] = province
 	return
 }

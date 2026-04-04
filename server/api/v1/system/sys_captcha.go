@@ -6,6 +6,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	systemRes "github.com/flipped-aurora/gin-vue-admin/server/model/system/response"
+	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	"github.com/gin-gonic/gin"
 	"github.com/mojocn/base64Captcha"
 	"go.uber.org/zap"
@@ -26,6 +27,13 @@ type BaseApi struct{}
 // @Success   200  {object}  response.Response{data=systemRes.SysCaptchaResponse,msg=string}  "生成验证码,返回包括随机数id,base64,验证码长度,是否开启验证码"
 // @Router    /base/captcha [post]
 func (b *BaseApi) Captcha(c *gin.Context) {
+	// 验证码请求频率限制
+	secSvc := service.ServiceGroupApp.ClientServiceGroup.SecurityService
+	if !secSvc.CheckCaptchaRateLimit(c.ClientIP()) {
+		response.FailWithMessage("验证码请求过于频繁，请稍后再试", c)
+		return
+	}
+
 	// 判断验证码是否开启
 	openCaptcha := global.GVA_CONFIG.Captcha.OpenCaptcha               // 是否开启防爆次数
 	openCaptchaTimeOut := global.GVA_CONFIG.Captcha.OpenCaptchaTimeOut // 缓存超时时间

@@ -1,6 +1,7 @@
 package shop
 
 import (
+	"strings"
 	"time"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
@@ -65,16 +66,58 @@ func (s *PopupService) GetPopupList(info shopReq.PopupSearch) (list []shop.Popup
 }
 
 // GetActivePopups 获取当前有效弹窗(客户端用)
-func (s *PopupService) GetActivePopups(position string, clientType string) (list []shop.Popup, err error) {
+func (s *PopupService) GetActivePopups(position string, clientType string, page string) (list []shop.Popup, err error) {
 	now := time.Now()
 	db := global.GVA_DB.Where("is_enabled = ?", true)
-	if position != "" {
-		db = db.Where("position = ? OR position = 'all'", position)
-	}
 	if clientType != "" {
 		db = db.Where("client_type = ? OR client_type = 'all'", clientType)
 	}
 	db = db.Where("(start_time IS NULL OR start_time <= ?) AND (end_time IS NULL OR end_time >= ?)", now, now)
 	err = db.Order("sort ASC").Find(&list).Error
+	if err != nil {
+		return
+	}
+
+	// 按页面路径过滤：优先使用 pages 字段，兼容旧 position 字段
+	if page != "" || position != "" {
+		matchPath := page
+		if matchPath == "" {
+			matchPath = position
+		}
+		var filtered []shop.Popup
+		for _, p := range list {
+			if p.Pages != "" {
+				// 新逻辑：pages 字段逗号分隔匹配
+				pages := splitPages(p.Pages)
+				for _, pg := range pages {
+					if pg == matchPath || pg == "all" {
+						filtered = append(filtered, p)
+						break
+					}
+				}
+			} else if p.Position != "" {
+				// 兼容旧逻辑
+				if p.Position == matchPath || p.Position == "all" {
+					filtered = append(filtered, p)
+				}
+			} else {
+				// 无页面限制，全部匹配
+				filtered = append(filtered, p)
+			}
+		}
+		list = filtered
+	}
 	return
+}
+
+// splitPages 将逗号分隔的页面路径拆分为切片
+func splitPages(pages string) []string {
+	var result []string
+	for _, p := range strings.Split(pages, ",") {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
 }

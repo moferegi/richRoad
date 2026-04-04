@@ -6,6 +6,7 @@
  */
 import config from './config.js'
 import { login } from './login.js';
+import { t } from '@/utils/i18n.js'
 export default function http(opts, data = {}) {
 	let token = uni.getStorageSync('token') || '';
 	let requestUrl = ''
@@ -50,7 +51,7 @@ export default function http(opts, data = {}) {
 				if (res.code !== 200) {
 					reject(res)
 					uni.showToast({
-						title:res.msg || '服务器错误',
+						title:res.msg || t('serverError'),
 						icon: 'none'
 					})
 					return;
@@ -62,7 +63,7 @@ export default function http(opts, data = {}) {
 				console.log('error-----',err)
 				reject(err)
 				uni.showToast({
-					title: '网络连接异常',
+					title: t('networkError'),
 					icon: 'none'
 				})
 			}

@@ -41,7 +41,7 @@
           <view class="nf-goods-info">
             <text class="nf-goods-title">{{ $lt(item.title) }}</text>
             <view class="nf-goods-bottom">
-              <text class="nf-price">¥{{ formatPrice(item.price) }}</text>
+              <text class="nf-price">{{ cs }}{{ formatPrice(item.price) }}</text>
             </view>
           </view>
         </view>
@@ -69,9 +69,12 @@ import { onShow } from '@dcloudio/uni-app'
 import { getGoodHistory } from '@/api/order'
 import { getUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { usePlayHistoryStore } from '@/pinia/modules/playHistory.js'
 
 const langStore = useLangStore()
+const appConfigStore = useAppConfigStore()
+const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
 

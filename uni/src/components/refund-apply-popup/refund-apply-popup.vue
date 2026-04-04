@@ -2,12 +2,13 @@
   <view v-if="visible" class="refund-popup-wrapper">
     <view class="refund-mask" @tap="close"></view>
     <view class="refund-popup">
-      <view class="refund-title">申请退款</view>
+      <view class="refund-title">{{ $t('applyRefund') }}</view>
       <textarea
         class="refund-textarea"
         v-model="reason"
-        placeholder="请填写退款原因"
+        :placeholder="$t('refundReasonPlaceholder')"
         maxlength="200"
+        placeholder-style="color:rgba(255,255,255,0.3)"
       />
       <view class="refund-images">
         <view class="image-item" v-for="(pic, index) in pics" :key="index">
@@ -16,21 +17,25 @@
         </view>
         <view v-if="pics.length < maxImages" class="image-add" @tap="chooseImage">
           <text>+</text>
-          <text class="image-add-text">上传</text>
+          <text class="image-add-text">{{ $t('uploadBtn') }}</text>
         </view>
       </view>
       <view class="refund-actions">
-        <view class="action-btn cancel" @tap="close">取消</view>
-        <view class="action-btn submit" @tap="submitRefund">提交申请</view>
+        <view class="action-btn cancel" @tap="close">{{ $t('cancel') }}</view>
+        <view class="action-btn submit" @tap="submitRefund">{{ $t('submitApply') }}</view>
       </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { baseUrl } from '@/utils/request.js'
 import { applyRefund } from '@/api/order.js'
+import { useLangStore } from '@/pinia/modules/lang.js'
+
+const langStore = useLangStore()
+const $t = computed(() => langStore.$t)
 
 const props = defineProps({
   visible: {
@@ -70,7 +75,7 @@ const close = () => {
 const chooseImage = () => {
   if (pics.value.length >= maxImages) {
     uni.showToast({
-      title: `最多上传${maxImages}张图片`,
+      title: $t.value('maxUploadNImages').replace('{n}', maxImages),
       icon: 'none'
     })
     return
@@ -114,16 +119,16 @@ const uploadSingleImage = (tempFilePath, index) => {
         try {
           const data = JSON.parse(res.data)
           if (data.code !== 0) {
-            reject(new Error(data.msg || `图片${index + 1}上传失败`))
+            reject(new Error(data.msg || $t.value('uploadFail')))
             return
           }
           resolve(data.data.file.url)
         } catch (parseError) {
-          reject(new Error(`图片${index + 1}响应解析失败`))
+          reject(new Error($t.value('uploadFail')))
         }
       },
-      fail: (error) => {
-        reject(new Error(`图片${index + 1}上传失败: ${error.errMsg}`))
+      fail: () => {
+        reject(new Error($t.value('uploadFail')))
       }
     })
   })
@@ -145,11 +150,11 @@ const uploadAllImages = async () => {
     }
   })
   if (failedIndexes.length && successUrls.length === 0) {
-    throw new Error('图片上传失败，请稍后重试')
+    throw new Error($t.value('imageUploadAllFail'))
   }
   if (failedIndexes.length && successUrls.length > 0) {
     uni.showToast({
-      title: `${failedIndexes.length}张图片上传失败`,
+      title: $t.value('nImagesUploadFail').replace('{n}', failedIndexes.length),
       icon: 'none'
     })
   }
@@ -160,14 +165,14 @@ const submitRefund = async () => {
   if (submitting.value) return
   if (!props.orderId) {
     uni.showToast({
-      title: '订单信息异常',
+      title: $t.value('orderInfoError'),
       icon: 'none'
     })
     return
   }
   if (!reason.value.trim()) {
     uni.showToast({
-      title: '请填写退款原因',
+      title: $t.value('refundReasonPlaceholder'),
       icon: 'none'
     })
     return
@@ -177,7 +182,7 @@ const submitRefund = async () => {
   try {
     if (pics.value.length > 0) {
       uni.showLoading({
-        title: '上传图片中...',
+        title: $t.value('uploadingImages'),
         mask: true
       })
       uploadedPics = await uploadAllImages()
@@ -185,7 +190,7 @@ const submitRefund = async () => {
     }
 
     uni.showLoading({
-      title: '提交中...',
+      title: $t.value('submitting'),
       mask: true
     })
     const res = await applyRefund({
@@ -196,7 +201,7 @@ const submitRefund = async () => {
     uni.hideLoading()
     if (res.code === 0) {
       uni.showToast({
-        title: '申请成功',
+        title: $t.value('refundSuccess'),
         icon: 'none'
       })
       emit('success')
@@ -205,7 +210,7 @@ const submitRefund = async () => {
   } catch (error) {
     uni.hideLoading()
     uni.showToast({
-      title: error.message || '提交失败',
+      title: error.message || $t.value('submitFail'),
       icon: 'none'
     })
   } finally {
@@ -224,7 +229,8 @@ const submitRefund = async () => {
 .refund-mask {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
 }
 
 .refund-popup {
@@ -233,9 +239,10 @@ const submitRefund = async () => {
   top: 50%;
   width: 640rpx;
   transform: translate(-50%, -50%);
-  background: #fff;
+  background: #1a1a1a;
   border-radius: 20rpx;
   padding: 28rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
 }
 
 .refund-title {
@@ -243,17 +250,20 @@ const submitRefund = async () => {
   font-weight: 600;
   text-align: center;
   margin-bottom: 20rpx;
+  color: #fff;
 }
 
 .refund-textarea {
   width: 100%;
   min-height: 160rpx;
   padding: 16rpx;
-  border: 1rpx solid #e6e6e6;
+  border: 1rpx solid rgba(255, 255, 255, 0.15);
   border-radius: 12rpx;
   font-size: 26rpx;
   box-sizing: border-box;
   margin-bottom: 20rpx;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
 }
 
 .refund-images {
@@ -273,7 +283,7 @@ const submitRefund = async () => {
   width: 100%;
   height: 100%;
   border-radius: 12rpx;
-  background: #f5f5f5;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .image-delete {
@@ -283,7 +293,7 @@ const submitRefund = async () => {
   width: 36rpx;
   height: 36rpx;
   border-radius: 50%;
-  background: #ff4d4f;
+  background: #e50914;
   color: #fff;
   font-size: 24rpx;
   text-align: center;
@@ -293,13 +303,13 @@ const submitRefund = async () => {
 .image-add {
   width: 140rpx;
   height: 140rpx;
-  border: 1rpx dashed #ccc;
+  border: 1rpx dashed rgba(255, 255, 255, 0.2);
   border-radius: 12rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #999;
+  color: rgba(255, 255, 255, 0.4);
   font-size: 36rpx;
 }
 
@@ -321,12 +331,12 @@ const submitRefund = async () => {
 }
 
 .action-btn.cancel {
-  border: 1rpx solid #ddd;
-  color: #666;
+  border: 1rpx solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .action-btn.submit {
-  background: #fe5572;
+  background: #e50914;
   color: #fff;
 }
 </style>

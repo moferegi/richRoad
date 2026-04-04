@@ -1,27 +1,31 @@
 <template>
-	<view>
-		<view class="bgc_fff flex logistics_code_box b_b_2">
-			<image class="logistics_icon m_r_24" src="http://www.liwanying.top/applate-icon/kuaidicheche.png" mode=""></image>
-			<view class="flex-fitem">
-				<view>顺丰速运</view>
-				<view class="flex-aic flexr-jsb font_28">
-					<text class="color_666">{{ expressNum }}</text>
-					<view class="color_fe5572" @tap="copyBoard">
-						<text class="m_r_16">复制</text>
+	<view class="nf-logistics-page">
+		<view class="nf-logistics-header">
+			<image class="nf-logistics-icon" src="http://www.liwanying.top/applate-icon/kuaidicheche.png" mode=""></image>
+			<view class="nf-logistics-info">
+				<view class="nf-logistics-carrier">{{ $t('logisticsCarrier') }}</view>
+				<view class="nf-logistics-num-row">
+					<text class="nf-logistics-num">{{ expressNum }}</text>
+					<view class="nf-logistics-copy" @tap="copyBoard">
+						<text>{{ $t('copy') }}</text>
 					</view>
 				</view>
 			</view>
 		</view>
-		<view class="logistics_steps_box bgc_fff">
+		<view class="nf-logistics-steps">
       <uni-steps :options="infoList" direction="column" :active="2"></uni-steps>
 		</view>
 	</view>
 </template>
 
 <script setup>
-	import {ref} from 'vue'
+	import {ref, computed} from 'vue'
   import { checkRouters } from '@/api/order'
   import { onLoad } from '@dcloudio/uni-app'
+  import { useLangStore } from '@/pinia/modules/lang.js'
+
+  const langStore = useLangStore()
+  const $t = computed(() => langStore.$t)
 
   const infoList = ref([])
   const express = ref('')
@@ -29,7 +33,6 @@
   const init = async () => {
     const res = await checkRouters(express.value)
     if(res.code === 0) {
-      // 把返回值的res.data.msgData.routeResps.routes洗数据，把time改成desc, remark改成title
       infoList.value = res.data.msgData.routeResps[0].routes
       infoList.value.forEach(item => {
         item.desc = item.acceptTime
@@ -49,7 +52,7 @@
       data: expressNum.value,
       success: function () {
         uni.showToast({
-          title: '复制成功',
+          title: $t.value('copySuccess'),
           icon: 'none'
         })
       }
@@ -58,38 +61,48 @@
 
 </script>
 
-<style lang="scss">
-	page {
-		background-color: #f8f8f8;
+<style lang="scss" scoped>
+	.nf-logistics-page {
+		min-height: 100vh;
+		background: #000;
 	}
-	.logistics_notify_box {
-		height: 68rpx;
+	.nf-logistics-header {
+		display: flex;
+		align-items: center;
+		padding: 30rpx 32rpx;
+		background: rgba(255, 255, 255, 0.04);
+		border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
 	}
-	.logistics_icon {
+	.nf-logistics-icon {
 		width: 72rpx;
 		height: 72rpx;
+		margin-right: 24rpx;
 	}
-	.logistics_code_box {
-		padding: 24rpx 32rpx;
+	.nf-logistics-info {
+		flex: 1;
 	}
-	.logistics_steps_box {
+	.nf-logistics-carrier {
+		color: rgba(255, 255, 255, 0.9);
+		font-size: 30rpx;
+		font-weight: 600;
+		margin-bottom: 8rpx;
+	}
+	.nf-logistics-num-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+	.nf-logistics-num {
+		color: rgba(255, 255, 255, 0.5);
+		font-size: 28rpx;
+	}
+	.nf-logistics-copy {
+		color: #e50914;
+		font-size: 28rpx;
+		padding: 4rpx 16rpx;
+	}
+	.nf-logistics-steps {
 		padding: 24rpx 0 100rpx 56rpx;
-	}
-	.logistics_steps_icon {
-		width: 24rpx;
-		height: 24rpx;
-		background-color: rgba(255, 112, 0, 0.3);
-		border-radius: 50%;
-		view {
-			width: 12rpx;
-			height: 12rpx;
-			border-radius: 50%;
-		}
-	}
-	.logistics_steps_icon_out {
-		background-color: rgba(194, 199, 204, 0.3);
-		view {
-			background-color: #C2C7CC;
-		}
+		background: rgba(255, 255, 255, 0.02);
 	}
 </style>

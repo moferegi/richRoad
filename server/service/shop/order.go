@@ -45,6 +45,19 @@ func (orderService *OrderService) ChangeOrderCoupon(userID uint, orderID string,
 			}
 		}
 
+		// 如果 couponNum 为空，表示取消优惠券
+		if couponNum == "" {
+			order.TotalPrice = int(order.OriginPrice)
+			order.CouponNum = ""
+			order.Discount = 0
+			err = tx.Model(&order).
+				Update("total_price", order.TotalPrice).
+				Update("coupon_num", "").
+				Update("discount", 0).
+				Error
+			return err
+		}
+
 		var couponOrderUser shop.CouponOrderUser
 		err = tx.Where("coupon_num = ? and order_id IS NULL", couponNum).First(&couponOrderUser).Error
 		if err != nil {
@@ -232,10 +245,14 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 			}
 			order.Detail[i].GoodID = sku.GoodID
 
-			err = tx.Model(&shop.Sku{}).Where("id = ?", order.Detail[i].SKUID).
-				Update("inventory", gorm.Expr("inventory - ?", order.Detail[i].Quantity)).Error
-			if err != nil {
-				return err
+			// 乐观锁扣减库存：WHERE inventory >= quantity 防止并发超卖
+			result := tx.Model(&shop.Sku{}).Where("id = ? AND inventory >= ?", order.Detail[i].SKUID, order.Detail[i].Quantity).
+				Update("inventory", gorm.Expr("inventory - ?", order.Detail[i].Quantity))
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected == 0 {
+				return errors.New("库存不足，请重试")
 			}
 			err = tx.Model(&shop.Sku{}).Where("id = ?", order.Detail[i].SKUID).
 				Update("sale_num", gorm.Expr("sale_num + ?", order.Detail[i].Quantity)).Error
@@ -296,7 +313,15 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 			order.Area = addr.AreaStr
 			order.Street = addr.Street
 		}
-		order.CloseTime = time.Now().Add(time.Minute * 15)
+		// 从系统配置读取订单自动关闭时间（分钟），默认15分钟
+		closeMinutes := 15
+		var sysConf client.SysConfig
+		if e := tx.Where("config_key = ?", "order_auto_close_minutes").First(&sysConf).Error; e == nil {
+			if v, pe := strconv.Atoi(sysConf.ConfigValue); pe == nil && v > 0 {
+				closeMinutes = v
+			}
+		}
+		order.CloseTime = time.Now().Add(time.Duration(closeMinutes) * time.Minute)
 
 		err = tx.Create(order).Error
 		if err != nil {
@@ -363,11 +388,17 @@ func (orderService *OrderService) PlaceOrderByCart(userID uint, req shopReq.Plac
 				Price:    carts[i].SKU.Price,
 			})
 			order.OriginPrice += carts[i].Quantity * carts[i].SKU.Price
-			// 扣减库存 增加销量
+			// 乐观锁扣减库存：WHERE inventory >= quantity 防止并发超卖
+			result := tx.Model(&shop.Sku{}).Where("id = ? AND inventory >= ?", carts[i].SKUID, carts[i].Quantity).
+				Update("inventory", gorm.Expr("inventory - ?", carts[i].Quantity))
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected == 0 {
+				return errors.New("库存不足，请重试")
+			}
 			err = tx.Model(&shop.Sku{}).Where("id = ?", carts[i].SKUID).
-				Update("inventory", gorm.Expr("inventory - ?", carts[i].Quantity)).
-				Update("sale_num", gorm.Expr("sale_num + ?", carts[i].Quantity)).
-				Error
+				Update("sale_num", gorm.Expr("sale_num + ?", carts[i].Quantity)).Error
 			if err != nil {
 				return err
 			}
@@ -385,7 +416,15 @@ func (orderService *OrderService) PlaceOrderByCart(userID uint, req shopReq.Plac
 			order.Area = addr.AreaStr
 			order.Street = addr.Street
 		}
-		order.CloseTime = time.Now().Add(time.Minute * 15)
+		// 从系统配置读取订单自动关闭时间（分钟），默认15分钟
+		closeMinutes := 15
+		var sysConf client.SysConfig
+		if e := tx.Where("config_key = ?", "order_auto_close_minutes").First(&sysConf).Error; e == nil {
+			if v, pe := strconv.Atoi(sysConf.ConfigValue); pe == nil && v > 0 {
+				closeMinutes = v
+			}
+		}
+		order.CloseTime = time.Now().Add(time.Duration(closeMinutes) * time.Minute)
 
 		// 3. 创建订单详情
 
@@ -432,8 +471,8 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 			return err
 		}
 		totalPrice := order.TotalPrice
-		// 订单取消（status="5"）时，无论是否已积分，都要恢复库存
-		if status == "5" {
+		// 订单取消（status="4"用户取消 或 status="5"系统/退款取消）时，恢复库存
+		if status == "4" || status == "5" {
 			err = tx.Preload("Detail").First(&order, "id = ?", orderID).Error
 			if err != nil {
 				return err
@@ -455,6 +494,20 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 			// 设置取消时间
 			now := time.Now()
 			tx.Model(&order).Update("cancelled_at", now)
+
+			// 恢复优惠券：清除 order_id 绑定，如果订单使用了优惠券
+			if order.CouponNum != "" {
+				// 查到该券记录
+				var couponRecord shop.CouponOrderUser
+				if e := tx.Where("coupon_num = ?", order.CouponNum).First(&couponRecord).Error; e == nil {
+					// 清除订单绑定，重置状态为未使用
+					unused := false
+					tx.Model(&couponRecord).Updates(map[string]interface{}{
+						"order_id": nil,
+						"status":   &unused,
+					})
+				}
+			}
 
 			// 如果订单已积分（Pointed=true），还需要处理积分返还和扣除
 			if order.Pointed {
@@ -522,14 +575,19 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 		}
 
 		if status == "1" && !order.Pointed {
-			// 使用营销奖励配置发放订单奖励（积分+优惠券）
-			mrService := &MarketingRewardService{}
-			if err := mrService.TriggerReward(order.UserID, "order", "order_complete", "订单完成，获得奖励", order.ID); err != nil {
-				global.GVA_LOG.Error("订单营销奖励发放失败", zap.Error(err))
-			}
+			// 幂等检查：查看该订单是否已经发放过奖励（防止取消后重新支付重复发放）
+			var rewardCount int64
+			tx.Model(&client.PointRecord{}).Where("related_order_id = ? AND operation_type = ?", order.ID, "order_complete").Count(&rewardCount)
+			if rewardCount == 0 {
+				// 使用营销奖励配置发放订单奖励（积分+优惠券）
+				mrService := &MarketingRewardService{}
+				if err := mrService.TriggerReward(order.UserID, "order", "order_complete", "订单完成，获得奖励", order.ID); err != nil {
+					global.GVA_LOG.Error("订单营销奖励发放失败", zap.Error(err))
+				}
 
-			// 检查下级首单奖励逻辑
-			mrService.TriggerSubOrderReward(tx, order.UserID, order.ID)
+				// 检查下级首单奖励逻辑
+				mrService.TriggerSubOrderReward(tx, order.UserID, order.ID)
+			}
 
 			err = tx.Model(&order).Update("pointed", true).Error
 			if err != nil {

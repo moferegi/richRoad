@@ -65,8 +65,10 @@
 
       </div>
       <el-table ref="multipleTable" style="width: 100%" tooltip-effect="dark" :data="tableData" row-key="ID"
+        :default-sort="{ prop: 'ID', order: 'descending' }"
         @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" />
+        <el-table-column align="left" label="ID" prop="ID" width="70" sortable />
 
         <el-table-column sortable align="left" label="日期" prop="CreatedAt" width="180">
           <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>

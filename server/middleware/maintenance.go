@@ -12,7 +12,7 @@ import (
 
 // Maintenance 系统维护模式中间件
 // 当 client_sys_config 中 maintenance_enabled = "true" 时，
-// 拦截所有非管理员的客户端请求，返回维护信息
+// 拦截所有非管理员的客户端请求，返回维护信息及维护页面配置
 func Maintenance() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 放行管理后台相关路径（system/base/user/authority 等），仅拦截客户端业务路径
@@ -46,13 +46,22 @@ func Maintenance() gin.HandlerFunc {
 			return
 		}
 
+		// 查询所有维护模式配置，一并返回给前端
+		maintenanceData := gin.H{
+			"maintenance": true,
+		}
+		var configs []client.SysConfig
+		if err := global.GVA_DB.Where("config_group = ?", "maintenance").Find(&configs).Error; err == nil {
+			for _, cfg := range configs {
+				maintenanceData[cfg.ConfigKey] = cfg.ConfigValue
+			}
+		}
+
 		// 维护模式生效，返回维护信息
 		c.JSON(http.StatusServiceUnavailable, response.Response{
 			Code: 503,
 			Msg:  "系统维护中，请稍后再试",
-			Data: gin.H{
-				"maintenance": true,
-			},
+			Data: maintenanceData,
 		})
 		c.Abort()
 	}

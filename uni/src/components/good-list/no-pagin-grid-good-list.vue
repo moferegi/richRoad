@@ -2,12 +2,12 @@
   <view class="goods-list">
     <view class="goods-row"  v-if="props.goodsList.length">
       <view v-for="(item, index) in props.goodsList" :key="index" class="goods-item" @tap="handleGoodsClick(item)">
-        <image :src="getUrl(item.imageUrl)" class="goods-image" mode="aspectFill"></image>
+        <image :src="getUrl(item.externalImagePath || item.imageUrl)" class="goods-image" mode="aspectFill"></image>
         <view class="goods-info">
           <text class="goods-name">{{ $lt(item.title) }}</text>
           <view class="price-container">
-            <text class="discount-price">¥{{ item.price / 100 }}</text>
-            <text class="original-price">¥{{ item.originalPrice }}</text>
+            <text class="discount-price">{{ cs }}{{ item.price / 100 }}</text>
+            <text class="original-price">{{ cs }}{{ item.originalPrice }}</text>
             <text class="discount-tag">{{ getDiscountText(item.discount) }}</text>
           </view>
           <view v-if="item.tags && item.tags.length > 0" class="merchant-tags">
@@ -21,7 +21,7 @@
         }"
                 class="merchant-tag"
             >
-              {{ tag.name }}
+              {{ $lt(tag.name) }}
             </text>
           </view>
           <view class="goods-extra">
@@ -31,7 +31,7 @@
               <text class="rating-count">({{ item.ratingCount || 0 }})</text>
             </view>
             <view class="sales">
-              <text>售出 {{ item.saleNum }} 件</text>
+              <text>{{ $t('sold') }} {{ item.saleNum }} {{ $t('unit') }}</text>
             </view>
           </view>
         </view>
@@ -42,7 +42,7 @@
       <view class="empty-image-container">
         <image class="empty-image-placeholder" src="./../../static/emptyStatus.jpg"></image>
       </view>
-      <view class="empty-text">暂无订单数据</view>
+      <view class="empty-text">{{ $t('noOrderData') }}</view>
     </view>
   </view>
 </template>
@@ -51,8 +51,12 @@
 import {ref, computed, onMounted, onUnmounted} from 'vue'
 import {getUrl} from "@/utils/url";
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
 const langStore = useLangStore()
+const appConfigStore = useAppConfigStore()
+const cs = computed(() => appConfigStore.currencySymbol)
+const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
 
 const props = defineProps({
@@ -74,13 +78,13 @@ const emit = defineEmits(['loadMore'])
 const isThrottling = ref(false)
 
 const getDiscountText = (discount) => {
-  if (discount >= 9.5) return '小降'
-  if (discount >= 9.0) return '优惠'
-  if (discount >= 8.0) return '特惠'
-  if (discount >= 7.0) return '好价'
-  if (discount >= 6.0) return '低价'
-  if (discount >= 5.0) return '特价'
-  return '折扣'
+  if (discount >= 9.5) return $t.value('discountSmall')
+  if (discount >= 9.0) return $t.value('discountNormal')
+  if (discount >= 8.0) return $t.value('discountGood')
+  if (discount >= 7.0) return $t.value('discountGreat')
+  if (discount >= 6.0) return $t.value('discountLow')
+  if (discount >= 5.0) return $t.value('discountSpecial')
+  return $t.value('discountDefault')
 }
 
 // 根据评分生成星星
@@ -196,12 +200,9 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
-/* 页面背景色 */
-
-
 /* 商品列表容器 */
 .goods-list {
-  padding: 16rpx 12rpx;
+  padding: 12rpx 12rpx;
 
   /* 商品行布局 */
   .goods-row {
@@ -234,22 +235,24 @@ onUnmounted(() => {
 
 .empty-text {
   font-size: 28rpx;
-  color: #999;
+  color: rgba(255, 255, 255, 0.4);
 }
 
 
 /* 商品卡片 */
 .goods-item {
   width: calc(50% - 16rpx);
-  background: #ffffff;
-  border-radius: 12rpx;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  border-radius: 20rpx;
   margin: 8rpx;
   overflow: hidden;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   transition: all 0.3s ease;
 
   &:active {
-    transform: scale(0.98);
+    transform: scale(0.97);
   }
 
   .goods-image {
@@ -268,7 +271,7 @@ onUnmounted(() => {
 
   .goods-name {
     font-size: 28rpx;
-    color: #333;
+    color: #fff;
     margin-bottom: 8rpx;
     line-height: 1.4;
     overflow: hidden;
@@ -277,6 +280,8 @@ onUnmounted(() => {
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     word-break: break-all;
+    font-weight: 600;
+    letter-spacing: 0.5rpx;
   }
 }
 
@@ -289,14 +294,14 @@ onUnmounted(() => {
 
   .discount-price {
     font-size: 32rpx;
-    color: #ff4444;
-    font-weight: bold;
+    color: #e50914;
+    font-weight: 800;
     margin-right: 6rpx;
   }
 
   .original-price {
     font-size: 22rpx;
-    color: #999;
+    color: rgba(255, 255, 255, 0.3);
     text-decoration: line-through;
     margin-right: 6rpx;
   }
@@ -304,7 +309,7 @@ onUnmounted(() => {
   .discount-tag {
     font-size: 20rpx;
     color: #fff;
-    background: #ff4444;
+    background: #e50914;
     padding: 2rpx 8rpx;
     border-radius: 4rpx;
   }
@@ -316,7 +321,7 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   font-size: 20rpx;
-  color: #666;
+  color: rgba(255, 255, 255, 0.45);
   margin: 6rpx 0;
 
   .rating {
@@ -324,7 +329,7 @@ onUnmounted(() => {
     align-items: center;
 
     .rating-score {
-      color: #ff4444;
+      color: #e50914;
       font-weight: bold;
       margin-right: 2rpx;
     }
@@ -336,13 +341,13 @@ onUnmounted(() => {
     }
 
     .rating-count {
-      color: #999;
+      color: rgba(255, 255, 255, 0.35);
       font-size: 28rpx;
     }
   }
 
   .sales {
-    color: #999;
+    color: rgba(255, 255, 255, 0.35);
     font-size: 28rpx;
   }
 }
@@ -355,8 +360,8 @@ onUnmounted(() => {
 
   .tag {
     font-size: 18rpx;
-    color: #666;
-    background: #f7f7f7;
+    color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.06);
     padding: 0 6rpx;
     border-radius: 2rpx;
     line-height: 24rpx;

@@ -124,10 +124,14 @@ func (s *SysConfigApi) GetSysConfigByKey(c *gin.Context) {
 // @Router /sysConfig/getLoginConfig [get]
 func (s *SysConfigApi) GetLoginConfig(c *gin.Context) {
 	phoneEnabled, _ := sysConfigService.GetConfigByKey("phone_login_enabled")
+	usernameEnabled, _ := sysConfigService.GetConfigByKey("username_login_enabled")
 	defaultMethod, _ := sysConfigService.GetConfigByKey("default_login_method")
+	passwordChangeEnabled, _ := sysConfigService.GetConfigByKey("password_change_enabled")
 	response.OkWithDetailed(map[string]string{
-		"phone_login_enabled":  phoneEnabled,
-		"default_login_method": defaultMethod,
+		"phone_login_enabled":     phoneEnabled,
+		"username_login_enabled":  usernameEnabled,
+		"default_login_method":    defaultMethod,
+		"password_change_enabled": passwordChangeEnabled,
 	}, "获取成功", c)
 }
 

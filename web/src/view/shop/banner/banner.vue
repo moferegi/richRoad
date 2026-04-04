@@ -33,11 +33,13 @@
         tooltip-effect="dark"
         :data="tableData"
         row-key="ID"
+        :default-sort="{ prop: 'ID', order: 'descending' }"
         @selection-change="handleSelectionChange"
         >
         <el-table-column type="selection" width="55" />
+        <el-table-column align="left" label="ID" prop="ID" width="70" sortable />
         
-        <el-table-column align="left" label="日期" width="180">
+        <el-table-column align="left" label="日期" width="180" sortable>
             <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
         
@@ -49,6 +51,12 @@
               </template>
           </el-table-column>
         <el-table-column align="left" label="跳转链接" prop="href" width="120" />
+        <el-table-column align="left" label="商品ID" prop="goodID" width="80" />
+        <el-table-column align="left" label="启用" width="80">
+          <template #default="scope">
+            <el-tag :type="scope.row.isEnabled ? 'success' : 'danger'" size="small">{{ scope.row.isEnabled ? '开' : '关' }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column align="left" label="外部图片路径" prop="externalPath" width="160" show-overflow-tooltip />
         <el-table-column align="left" label="遮罩" width="80">
           <template #default="scope">
@@ -105,6 +113,18 @@
               <el-col :span="6">
                 <el-form-item label="跳转链接:" prop="href">
                   <el-input v-model="formData.href" :clearable="true" placeholder="请输入跳转链接" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="12">
+              <el-col :span="8">
+                <el-form-item label="关联商品ID:" prop="goodID">
+                  <el-input-number v-model="formData.goodID" :min="0" placeholder="商品ID(点击跳商品详情)" style="width:100%;" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="启用:" prop="isEnabled">
+                  <el-switch v-model="formData.isEnabled" />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -268,6 +288,8 @@ const formData = ref({
         maskTextColor: '#FFFFFF',
         maskTextSize: 14,
         sort: 0,
+        isEnabled: true,
+        goodID: null,
         })
 
 

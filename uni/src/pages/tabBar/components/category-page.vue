@@ -25,7 +25,7 @@
             :key="index"
             @tap="goto(item, index)"
           >
-            <image class="nf-cate-tab-icon" :src="getUrl(item.icons)" mode="aspectFill"></image>
+            <image class="nf-cate-tab-icon" :src="getUrl(item.externalIconPath || item.icons)" mode="aspectFill"></image>
             <text class="nf-cate-tab-text">{{ $lt(item.title) }}</text>
           </view>
         </view>
@@ -43,7 +43,7 @@
           @tap="handleGoodsClick(item)"
         >
           <view class="nf-grid-img-wrap">
-            <image class="nf-grid-img" :src="getUrl(item.imageUrl)" mode="aspectFill"></image>
+            <image class="nf-grid-img" :src="getUrl(item.externalImagePath || item.imageUrl)" mode="aspectFill"></image>
             <view class="nf-grid-img-overlay"></view>
             <!-- 折扣标签 -->
             <view class="nf-grid-badge" v-if="item.discount && item.discount < 10">
@@ -53,7 +53,7 @@
           <view class="nf-grid-info">
             <text class="nf-grid-title">{{ $lt(item.title) }}</text>
             <view class="nf-grid-price-row">
-              <text class="nf-grid-price">¥{{ formatPrice(item.price) }}</text>
+              <text class="nf-grid-price">{{ cs }}{{ formatPrice(item.price) }}</text>
               <text class="nf-grid-sales">{{ $t('sold') }} {{ item.saleNum || 0 }}</text>
             </view>
             <view v-if="item.tags && item.tags.length > 0" class="nf-grid-tags">
@@ -95,8 +95,11 @@ import { getCategoryMobile, getGoodList } from '@/api/homePage.js'
 import { onLoad } from '@dcloudio/uni-app'
 import { getUrl } from '@/utils/url'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
 const langStore = useLangStore()
+const appConfigStore = useAppConfigStore()
+const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
 

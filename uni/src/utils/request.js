@@ -52,6 +52,17 @@ export const request = ({url, data, header, method, params}) => {
                     myRouter("/pages/home/index")
                     return
                 }
+                // 维护模式：503 + maintenance=true → 缓存配置并跳转维护页
+                if (res.statusCode === 503 && res.data && res.data.data && res.data.data.maintenance) {
+                    uni.setStorageSync('maintenance_config', JSON.stringify(res.data.data))
+                    const pages = getCurrentPages()
+                    const currentRoute = pages.length > 0 ? '/' + pages[pages.length - 1].route : ''
+                    if (currentRoute !== '/pages/maintenance/index') {
+                        uni.redirectTo({ url: '/pages/maintenance/index' })
+                    }
+                    resolve(res.data)
+                    return
+                }
                 resolve(res.data)
 
             },

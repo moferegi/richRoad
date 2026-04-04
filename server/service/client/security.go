@@ -103,9 +103,18 @@ func (s *SecurityService) CheckCaptchaRateLimit(ip string) (allowed bool) {
 		return true
 	}
 
+	// 从 sysConfig 读取频率限制
+	limit := 10
+	var cfg client.SysConfig
+	if err := global.GVA_DB.Where("config_key = ?", "captcha_rate_limit").First(&cfg).Error; err == nil {
+		if v, e := fmt.Sscanf(cfg.ConfigValue, "%d", &limit); v == 0 || e != nil {
+			limit = 10
+		}
+	}
+
 	key := fmt.Sprintf("captcha:rate:%s", ip)
 	count, _ := global.GVA_REDIS.Get(context.Background(), key).Int()
-	if count >= 10 { // 每分钟最多10次
+	if count >= limit {
 		return false
 	}
 	global.GVA_REDIS.Incr(context.Background(), key)

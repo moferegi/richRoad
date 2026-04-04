@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/bwmarrin/snowflake"
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
@@ -255,11 +256,14 @@ func (couService *CouponOrderUserService) ClaimCouponByUser(ctx context.Context,
 	}
 
 	status := false // false 表示未使用
+	now := time.Now()
 	couponOrderUser := shop.CouponOrderUser{
 		CouponNum:  snowflakeID, // 使用雪花ID作为券码
 		CouponID:   &couponID,
+		UserID:     userID,
 		ShopUserID: &shopUserID,
 		Status:     &status,
+		ClaimedAt:  &now,
 	}
 	if err = tx.Create(&couponOrderUser).Error; err != nil {
 		tx.Rollback()

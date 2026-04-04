@@ -47,7 +47,7 @@
             <text class="nf-coupon-date">{{ t('couponValidity') }}{{ item.startTime }} - {{ item.endTime }}</text>
           </view>
           <view class="nf-coupon-right" :class="{ disabled: item.status === 1 }">
-            <text class="nf-coupon-symbol">¥</text>
+            <text class="nf-coupon-symbol">{{ cs }}</text>
             <text class="nf-coupon-discount">{{ (item.discount / 100).toFixed(0) }}</text>
             <text class="nf-coupon-condition">{{ minSpendText(item) }}</text>
           </view>
@@ -75,6 +75,10 @@ import { ref, computed, onMounted } from 'vue'
 import { getAllClaimCoupon, claimCouponByUser } from '@/api/coupon'
 import { t, localText } from '@/utils/i18n'
 import { getUrl } from '@/utils/url'
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
+
+const appConfigStore = useAppConfigStore()
+const cs = computed(() => appConfigStore.currencySymbol)
 
 const activeTab = ref('available')
 const couponList = ref([])
@@ -95,7 +99,7 @@ const couponDesc = (item) => {
 }
 
 const minSpendText = (item) => {
-  if (item.minSpend > 0) return t('couponMinSpend').replace('{{n}}', item.minSpend / 100)
+  if (item.minSpend > 0) return t('couponMinSpend').replace('{n}', item.minSpend / 100)
   return t('couponNoLimit')
 }
 

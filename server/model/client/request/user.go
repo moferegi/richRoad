@@ -21,6 +21,8 @@ type CreateUser struct {
 	Password   string `json:"password" form:"password" gorm:"column:password;comment:密码;" binding:"required"`  //密码
 	RePassword string `json:"rePassword" form:"rePassword" gorm:"-"`                                           // 确认密码
 	InviteCode string `json:"inviteCode" form:"inviteCode"`                                                    // 邀请码（可选）
+	Captcha    string `json:"captcha" form:"captcha"`                                                          // 验证码
+	CaptchaId  string `json:"captchaId" form:"captchaId"`                                                      // 验证码ID
 }
 
 type Login struct {

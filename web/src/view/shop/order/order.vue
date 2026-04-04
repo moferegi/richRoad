@@ -34,9 +34,11 @@
         tooltip-effect="dark"
         :data="tableData"
         row-key="ID"
+        :default-sort="{ prop: 'ID', order: 'descending' }"
         >
 
-        <el-table-column align="left" label="日期" width="180">
+        <el-table-column align="left" label="ID" prop="ID" width="70" sortable />
+        <el-table-column align="left" label="日期" width="180" sortable>
             <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
 
@@ -214,6 +216,12 @@
               <div class="detail-item">
                 <span class="label">实际金额:</span>
                 <span class="value total-price">¥{{ (orderDetail.totalPrice / 100).toFixed(2) }}</span>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="detail-item">
+                <span class="label">使用积分:</span>
+                <span class="value">{{ orderDetail.usePoints ? `是 (${orderDetail.pointsUsed || 0} 积分)` : '否' }}</span>
               </div>
             </el-col>
           </el-row>

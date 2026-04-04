@@ -5,6 +5,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	clientReq "github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -154,6 +155,12 @@ func (cprApi *PointRecordApi) GetPointRecordList(c *gin.Context) {
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
+	}
+	// 非管理员只能查看自己的积分记录
+	authID := utils.GetUserAuthorityId(c)
+	if authID != 888 {
+		uid := int(utils.GetUserID(c))
+		pageInfo.UserId = &uid
 	}
 	list, total, err := cprService.GetPointRecordInfoList(ctx, pageInfo)
 	if err != nil {

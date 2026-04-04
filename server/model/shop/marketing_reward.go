@@ -11,7 +11,8 @@ type MarketingReward struct {
 	IsEnabled       *bool  `json:"isEnabled" form:"isEnabled" gorm:"column:is_enabled;default:false;comment:是否启用;"`                                                  //是否启用
 	Points          *int   `json:"points" form:"points" gorm:"column:points;default:0;comment:奖励积分;"`                                                                //奖励积分
 	CouponIDs       string `json:"couponIDs" form:"couponIDs" gorm:"column:coupon_ids;size:500;comment:奖励优惠券ID(逗号分隔);"`                                              //奖励优惠券ID
-	SubRequireOrder *bool  `json:"subRequireOrder" form:"subRequireOrder" gorm:"column:sub_require_order;default:false;comment:是否要求下级首单付款;"`                          //是否要求下级首单付款
+	SubRequireOrder *bool  `json:"subRequireOrder" form:"subRequireOrder" gorm:"column:sub_require_order;default:false;comment:是否要求下级首单付款;"`                         //是否要求下级首单付款
+	OrderOnce       *bool  `json:"orderOnce" form:"orderOnce" gorm:"column:order_once;default:false;comment:下单奖励仅发放一次;"`                                             //下单奖励仅发放一次
 }
 
 // TableName 营销奖励配置自定义表名

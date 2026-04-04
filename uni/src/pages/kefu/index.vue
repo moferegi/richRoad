@@ -30,19 +30,19 @@
               :src="item.avatar ? getUrl(item.avatar) : defaultAvatar"
               mode="aspectFill"
             />
-            <view class="nf-kefu-status-dot" :class="'nf-dot-' + item.status"></view>
+            <view class="nf-kefu-status-dot" :class="'nf-dot-' + normalizeStatus(item.status)"></view>
           </view>
           <!-- 信息区 -->
           <view class="nf-kefu-info">
             <text class="nf-kefu-name">{{ item.name }}</text>
             <view class="nf-kefu-status-row">
-              <text class="nf-kefu-status-text" :class="'nf-status-' + item.status">
+              <text class="nf-kefu-status-text" :class="'nf-status-' + normalizeStatus(item.status)">
                 {{ getStatusText(item.status) }}
               </text>
             </view>
           </view>
           <!-- 联系按钮 -->
-          <view class="nf-kefu-action" :class="{ 'nf-action-disabled': item.status === '离线' }">
+          <view class="nf-kefu-action" :class="{ 'nf-action-disabled': normalizeStatus(item.status) === 'offline' }">
             <text class="nf-kefu-action-text">{{ $t('kefuContact') }}</text>
           </view>
         </view>
@@ -74,13 +74,19 @@ const defaultAvatar = 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQ
 const kefuList = ref([])
 const isLoading = ref(true)
 
+const normalizeStatus = (status) => {
+  const map = { '在线': 'online', 'online': 'online', '离线': 'offline', 'offline': 'offline', '忙碌': 'busy', 'busy': 'busy' }
+  return map[status] || 'offline'
+}
+
 const getStatusText = (status) => {
+  const key = normalizeStatus(status)
   const map = {
-    '在线': $t.value('kefuOnline'),
-    '离线': $t.value('kefuOffline'),
-    '忙碌': $t.value('kefuBusy')
+    'online': $t.value('kefuOnline'),
+    'offline': $t.value('kefuOffline'),
+    'busy': $t.value('kefuBusy')
   }
-  return map[status] || status
+  return map[key] || status
 }
 
 const init = async () => {
@@ -100,7 +106,7 @@ const init = async () => {
 onShow(() => { init() })
 
 const contactKefu = (item) => {
-  if (item.status === '离线') {
+  if (normalizeStatus(item.status) === 'offline') {
     uni.showToast({ title: $t.value('kefuOffline'), icon: 'none' })
     return
   }
@@ -264,16 +270,16 @@ page {
   border: 3rpx solid #000;
 }
 
-.nf-dot-在线 {
+.nf-dot-online {
   background: #22c55e;
   box-shadow: 0 0 8rpx rgba(34, 197, 94, 0.6);
 }
 
-.nf-dot-离线 {
+.nf-dot-offline {
   background: #6b7280;
 }
 
-.nf-dot-忙碌 {
+.nf-dot-busy {
   background: #f59e0b;
   box-shadow: 0 0 8rpx rgba(245, 158, 11, 0.6);
 }
@@ -305,15 +311,15 @@ page {
   font-weight: 500;
 }
 
-.nf-status-在线 {
+.nf-status-online {
   color: #22c55e;
 }
 
-.nf-status-离线 {
+.nf-status-offline {
   color: #6b7280;
 }
 
-.nf-status-忙碌 {
+.nf-status-busy {
   color: #f59e0b;
 }
 

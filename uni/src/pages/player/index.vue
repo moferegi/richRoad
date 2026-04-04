@@ -234,11 +234,11 @@ const duration = ref(0)
 const playbackSpeed = ref(1.0)
 
 const epLabel = (n) => {
-  return $t.value('playerEp').replace('{{n}}', n)
+  return $t.value('playerEp').replace('{n}', n)
 }
 
 const epCountLabel = computed(() => {
-  return $t.value('playerEpCount').replace('{{n}}', episodes.value.length)
+  return $t.value('playerEpCount').replace('{n}', episodes.value.length)
 })
 
 const formatNum = (num) => {
@@ -473,8 +473,8 @@ const initPlayer = () => {
         v.currentTime = targetTime
         showTip(
           $t.value('playerContinueFrom')
-            .replace('{{ep}}', epNum)
-            .replace('{{time}}', fmtTime(targetTime)),
+            .replace('{ep}', epNum)
+            .replace('{time}', fmtTime(targetTime)),
           3000
         )
       }
@@ -884,7 +884,7 @@ const switchEpisode = (idx) => {
   pendingResumeTime = epProg ? epProg.currentTime : 0
   lastSaveTime = 0       // 新集数重置节流
   clearTimeout(switchTimer)
-  showTip($t.value('playerSwitchEp').replace('{{n}}', idx + 1), 2000)
+  showTip($t.value('playerSwitchEp').replace('{n}', idx + 1), 2000)
   const v = getVideo()
   if (v) {
     v.src = videoUrl.value
@@ -906,8 +906,8 @@ const switchEpisode = (idx) => {
         v.currentTime = targetTime
         showTip(
           $t.value('playerContinueFrom')
-            .replace('{{ep}}', epNum)
-            .replace('{{time}}', fmtTime(targetTime)),
+            .replace('{ep}', epNum)
+            .replace('{time}', fmtTime(targetTime)),
           3000
         )
       }

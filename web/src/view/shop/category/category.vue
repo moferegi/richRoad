@@ -79,6 +79,7 @@
         tooltip-effect="dark"
         :data="tableData"
         row-key="ID"
+        :default-sort="{ prop: 'ID', order: 'descending' }"
         @selection-change="handleSelectionChange"
       >
         <el-table-column
@@ -90,6 +91,7 @@
           label="ID"
           prop="ID"
           width="140"
+          sortable
           ></el-table-column>
         <el-table-column
           align="left"
@@ -196,25 +198,21 @@
         <el-form-item label="外部图标路径(优先于上传图标):" prop="externalIconPath">
           <el-input v-model="formData.externalIconPath" :clearable="true" placeholder="https://example.com/icon.png" />
         </el-form-item>
-        <el-form-item
-          label="分类标题:"
-          prop="title"
-        >
-          <el-input
-            v-model="formData.title"
-            :clearable="true"
-            placeholder="请输入分类标题"
-          />
+        <el-form-item label="分类标题(多语言):" prop="title">
+          <el-tabs v-if="enabledLangs.length" type="border-card" style="width:100%;">
+            <el-tab-pane v-for="lang in enabledLangs" :key="lang.code" :label="lang.name">
+              <el-input v-model="titleI18n[lang.code]" :placeholder="`${lang.name} 标题`" />
+            </el-tab-pane>
+          </el-tabs>
+          <el-input v-else v-model="formData.title" :clearable="true" placeholder="请输入分类标题" />
         </el-form-item>
-        <el-form-item
-          label="分类描述:"
-          prop="desc"
-        >
-          <el-input
-            v-model="formData.desc"
-            :clearable="true"
-            placeholder="请输入分类描述"
-          />
+        <el-form-item label="分类描述(多语言):" prop="desc">
+          <el-tabs v-if="enabledLangs.length" type="border-card" style="width:100%;">
+            <el-tab-pane v-for="lang in enabledLangs" :key="lang.code" :label="lang.name">
+              <el-input v-model="descI18n[lang.code]" :placeholder="`${lang.name} 描述`" />
+            </el-tab-pane>
+          </el-tabs>
+          <el-input v-else v-model="formData.desc" :clearable="true" placeholder="请输入分类描述" />
         </el-form-item>
       </el-form>
     </el-drawer>
@@ -257,17 +255,45 @@ import {
   findCategory,
   getCategoryList
 } from '@/api/shop/category'
+import { getEnabledLanguages } from '@/api/client/language'
 
 // 全量引入格式化工具 请按需保留
 import { getDictFunc, formatDate, formatBoolean, filterDict, ReturnArrImg, onDownloadFile } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import SelectImage from "@/components/selectImage/selectImage.vue";
 import {getUrl} from "@/utils/image";
 
 defineOptions({
   name: 'Category'
 })
+
+// === 多语言支持 ===
+const enabledLangs = ref([])
+const titleI18n = ref({})
+const descI18n = ref({})
+
+const loadLangs = async () => {
+  try {
+    const res = await getEnabledLanguages()
+    if (res.code === 0) enabledLangs.value = res.data || []
+  } catch (e) { /* ignore */ }
+}
+
+const parseI18nJson = (jsonStr) => {
+  if (!jsonStr) return {}
+  try { return JSON.parse(jsonStr) } catch { return {} }
+}
+
+const serializeI18nJson = (obj) => {
+  const filtered = {}
+  for (const [k, v] of Object.entries(obj)) {
+    if (v) filtered[k] = v
+  }
+  return Object.keys(filtered).length ? JSON.stringify(filtered) : ''
+}
+
+onMounted(() => { loadLangs() })
 
 // 自动化生成的字典（可能为空）以及字段
 const formData = ref({
@@ -418,6 +444,8 @@ const updateCategoryFunc = async(row) => {
   type.value = 'update'
   if (res.code === 0) {
     formData.value = res.data.recategory
+    titleI18n.value = parseI18nJson(formData.value.title)
+    descI18n.value = parseI18nJson(formData.value.desc)
     dialogFormVisible.value = true
   }
 }
@@ -475,6 +503,8 @@ const openDialog = (id) => {
   if (id) {
     formData.value.parentID = id
   }
+  titleI18n.value = {}
+  descI18n.value = {}
   type.value = 'create'
   dialogFormVisible.value = true
 }
@@ -482,6 +512,8 @@ const openDialog = (id) => {
 // 关闭弹窗
 const closeDialog = () => {
   dialogFormVisible.value = false
+  titleI18n.value = {}
+  descI18n.value = {}
   formData.value = {
     parentID: 0,
     title: '',
@@ -494,6 +526,11 @@ const closeDialog = () => {
 const enterDialog = async() => {
   elFormRef.value?.validate(async(valid) => {
     if (!valid) return
+    // 序列化多语言字段
+    if (enabledLangs.value.length) {
+      formData.value.title = serializeI18nJson(titleI18n.value)
+      formData.value.desc = serializeI18nJson(descI18n.value)
+    }
     let res
     switch (type.value) {
       case 'create':

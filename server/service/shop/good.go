@@ -162,6 +162,8 @@ func (goodService *GoodService) GetGoodInfoList(info shopReq.GoodSearch) (list [
 		db = db.Limit(limit).Offset(offset)
 	}
 
-	err = db.Find(&goods).Error
+	err = db.Preload("SKUS", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id, good_id, inventory")
+	}).Find(&goods).Error
 	return goods, total, err
 }

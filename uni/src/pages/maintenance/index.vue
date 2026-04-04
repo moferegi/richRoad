@@ -44,7 +44,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useLangStore } from '@/pinia/modules/lang.js'
-import { request } from '@/utils/request.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
@@ -56,36 +55,17 @@ const popupTitle = ref('')
 const popupContent = ref('')
 const homeBtnEnabled = ref(false)
 
-const loadConfig = async () => {
+const loadConfig = () => {
   try {
-    const keys = [
-      'maintenance_bg_image',
-      'maintenance_popup_enabled',
-      'maintenance_popup_title',
-      'maintenance_popup_content',
-      'maintenance_home_btn_enabled',
-    ]
-    for (const key of keys) {
-      const res = await request({ url: '/sysConfig/getConfigByKey', method: 'get', params: { key } })
-      if (res.code === 0 && res.data) {
-        switch (key) {
-          case 'maintenance_bg_image':
-            bgImage.value = res.data
-            break
-          case 'maintenance_popup_enabled':
-            popupEnabled.value = res.data === 'true'
-            break
-          case 'maintenance_popup_title':
-            popupTitle.value = res.data
-            break
-          case 'maintenance_popup_content':
-            popupContent.value = res.data
-            break
-          case 'maintenance_home_btn_enabled':
-            homeBtnEnabled.value = res.data === 'true'
-            break
-        }
-      }
+    // 从缓存中读取维护模式配置（由 request.js 在收到503时写入）
+    const cached = uni.getStorageSync('maintenance_config')
+    if (cached) {
+      const data = JSON.parse(cached)
+      bgImage.value = data.maintenance_bg_image || ''
+      popupEnabled.value = data.maintenance_popup_enabled === 'true'
+      popupTitle.value = data.maintenance_popup_title || ''
+      popupContent.value = data.maintenance_popup_content || ''
+      homeBtnEnabled.value = data.maintenance_home_btn_enabled === 'true'
     }
   } catch (e) {
     console.error('加载维护配置失败', e)
@@ -97,6 +77,7 @@ const goKefu = () => {
 }
 
 const goHome = () => {
+  uni.removeStorageSync('maintenance_config')
   uni.switchTab({ url: '/pages/tabBar/index' })
 }
 

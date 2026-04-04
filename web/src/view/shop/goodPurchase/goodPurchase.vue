@@ -45,10 +45,12 @@
         tooltip-effect="dark"
         :data="tableData"
         row-key="ID"
+        :default-sort="{ prop: 'ID', order: 'descending' }"
         @selection-change="handleSelectionChange"
         @sort-change="sortChange"
         >
         <el-table-column type="selection" width="55" />
+        <el-table-column align="left" label="ID" prop="ID" width="70" sortable />
         <el-table-column sortable align="left" label="日期" prop="CreatedAt" width="180">
             <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
@@ -108,7 +110,9 @@
               <el-input v-model.number="formData.goodID" placeholder="请输入商品ID" />
             </el-form-item>
             <el-form-item label="SKU ID:" prop="skuID">
-              <el-input v-model.number="formData.skuID" placeholder="请输入SKU ID（可选）" />
+              <el-select v-model="formData.skuID" placeholder="输入商品ID后自动加载SKU" clearable filterable style="width:100%;">
+                <el-option v-for="s in skuOptions" :key="s.id" :label="s.label" :value="s.id" />
+              </el-select>
             </el-form-item>
             <el-form-item label="进货数量:" prop="quantity">
               <el-input-number v-model="formData.quantity" :min="1" placeholder="请输入数量" />
@@ -156,9 +160,13 @@ import {
 } from '@/api/shop/goodPurchase'
 import { formatDate } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { getSkuList } from '@/api/shop/sku'
 
 defineOptions({ name: 'GoodPurchase' })
+
+const route = useRoute()
 
 const btnLoading = ref(false)
 
@@ -251,6 +259,14 @@ const getTableData = async() => {
 }
 getTableData()
 
+// 从商品管理页跳转过来时，自动打开新增表单并预填商品ID
+onMounted(() => {
+  const qGoodID = route.query.goodID
+  if (qGoodID) {
+    openDialog(Number(qGoodID))
+  }
+})
+
 const multipleSelection = ref([])
 const handleSelectionChange = (val) => { multipleSelection.value = val }
 
@@ -293,7 +309,43 @@ const deleteFunc = async (row) => {
 
 const dialogFormVisible = ref(false)
 
-const openDialog = () => { type.value = 'create'; dialogFormVisible.value = true }
+// === SKU 下拉列表 ===
+const skuOptions = ref([])
+const loadSkuOptions = async (goodID) => {
+  skuOptions.value = []
+  if (!goodID) return
+  try {
+    const res = await getSkuList({ page: 1, pageSize: 100, goodID })
+    if (res.code === 0 && res.data.list) {
+      skuOptions.value = res.data.list.map(sku => {
+        const specStr = formatSkuSpecs(sku.attrs)
+        return { id: sku.ID, label: `${sku.ID} - ${sku.name || ''} ${specStr}`.trim() }
+      })
+    }
+  } catch (e) { /* ignore */ }
+}
+
+const formatSkuSpecs = (attrs) => {
+  if (!attrs) return ''
+  try {
+    const arr = typeof attrs === 'string' ? JSON.parse(attrs) : attrs
+    if (!Array.isArray(arr)) return ''
+    return arr.map(a => `${a.name || a.key}:${a.value}`).join(', ')
+  } catch { return '' }
+}
+
+watch(() => formData.value.goodID, (val) => {
+  if (val) loadSkuOptions(val)
+  else skuOptions.value = []
+})
+
+const openDialog = (preGoodID) => {
+  type.value = 'create'
+  if (preGoodID) {
+    formData.value.goodID = preGoodID
+  }
+  dialogFormVisible.value = true
+}
 
 const closeDialog = () => {
   dialogFormVisible.value = false

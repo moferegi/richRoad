@@ -81,17 +81,20 @@
         tooltip-effect="dark"
         :data="tableData"
         row-key="ID"
+        :default-sort="{ prop: 'ID', order: 'descending' }"
         @selection-change="handleSelectionChange"
       >
         <el-table-column
           type="selection"
           width="55"
         />
+        <el-table-column align="left" label="ID" prop="ID" width="70" sortable />
 
         <el-table-column
           align="left"
           label="日期"
           width="180"
+          sortable
         >
           <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
@@ -108,6 +111,13 @@
           prop="name"
           width="120"
         />
+        <el-table-column
+          align="left"
+          label="规格内容"
+          width="200"
+        >
+          <template #default="scope">{{ formatSkuAttrs(scope.row.attrs) }}</template>
+        </el-table-column>
         <el-table-column
           label="图片"
           width="200"
@@ -385,6 +395,15 @@ import { ref, reactive } from 'vue'
 defineOptions({
   name: 'Sku'
 })
+
+const formatSkuAttrs = (attrsStr) => {
+  if (!attrsStr) return '-'
+  try {
+    const arr = typeof attrsStr === 'string' ? JSON.parse(attrsStr) : attrsStr
+    if (!Array.isArray(arr) || arr.length === 0) return '-'
+    return arr.map(a => `${a.name || a.key}：${a.value}`).join('，')
+  } catch { return '-' }
+}
 
 const route = useRoute()
 

@@ -56,6 +56,9 @@ func (bannerService *BannerService) GetBannerInfoList(info shopReq.BannerSearch)
 	if info.StartCreatedAt != nil && info.EndCreatedAt != nil {
 		db = db.Where("created_at BETWEEN ? AND ?", info.StartCreatedAt, info.EndCreatedAt)
 	}
+	if info.IsEnabled != nil {
+		db = db.Where("is_enabled = ?", *info.IsEnabled)
+	}
 	err = db.Count(&total).Error
 	if err != nil {
 		return

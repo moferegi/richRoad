@@ -33,7 +33,7 @@
         <view v-if="currentCategory" class="content-header">
           <view class="category-banner">
             <view class="banner-title">{{ $lt(currentCategory.title) }}</view>
-            <view class="banner-subtitle">精选好物 · 品质保证</view>
+            <view class="banner-subtitle">{{ $t('categorySubtitle') }}</view>
           </view>
         </view>
 
@@ -69,7 +69,7 @@
                       }"
                       class="tag-badge"
                     >
-                      {{ tag.name }}
+                      {{ $lt(tag.name) }}
                     </text>
                   </view>
                 </view>
@@ -80,7 +80,7 @@
 
                   <view class="price-section">
                     <view class="current-price">
-                      <text class="price-symbol">¥</text>
+                      <text class="price-symbol">{{ cs }}</text>
                       <text class="price-value">{{ (item.price / 100).toFixed(2) }}</text>
                     </view>
                     <view class="add-cart-btn">
@@ -96,14 +96,14 @@
         <!-- 加载状态 -->
         <view v-if="loading && categoriesWithGoods.length === 0 && currentCategory" class="loading-state">
           <view class="loading-spinner"></view>
-          <text class="loading-text">正在加载精彩内容...</text>
+          <text class="loading-text">{{ $t('loading') }}</text>
         </view>
 
         <!-- 空状态 -->
         <view v-if="categoriesWithGoods.length === 0 && !loading && currentCategory" class="empty-state">
           <view class="empty-icon">📦</view>
-          <text class="empty-text">暂无商品</text>
-          <text class="empty-desc">该分类下暂时没有商品哦</text>
+          <text class="empty-text">{{ $t('noGoods') }}</text>
+          <text class="empty-desc">{{ $t('categoryEmpty') }}</text>
         </view>
 
         <!-- 底部间距 -->
@@ -118,8 +118,12 @@ import {ref, computed, onMounted} from 'vue'
 import {getUrl} from '@/utils/url'
 import {getCategoryMobile, getChildrenCategoryAndProduct} from '@/api/homePage.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
 const langStore = useLangStore()
+const appConfigStore = useAppConfigStore()
+const cs = computed(() => appConfigStore.currencySymbol)
+const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
 
 // 分类数据
@@ -150,14 +154,14 @@ const getCategoryData = async () => {
     } else {
       categoriesWithGoods.value = [];
       currentCategory.value = null;
-      uni.showToast({title: '获取分类数据失败', icon: 'none'});
+      uni.showToast({title: $t.value('loadFail'), icon: 'none'});
     }
   } catch (error) {
     console.error('获取分类数据失败:', error)
     categoriesWithGoods.value = [];
     currentCategory.value = null;
     uni.showToast({
-      title: '获取分类失败',
+      title: $t.value('loadFail'),
       icon: 'none'
     })
   }
@@ -184,7 +188,7 @@ const loadCategoryData = async (parentID) => {
     console.error('获取分类商品数据失败:', error)
     categoriesWithGoods.value = []
     uni.showToast({
-      title: '获取分类商品失败',
+      title: $t.value('loadFail'),
       icon: 'none'
     })
   } finally {
@@ -213,10 +217,7 @@ const clickitem = (item) => {
 }
 
 const getgoods = (item) => {
-  uni.showModal({
-    title: '商品数据',
-    content: '点击商品数据 = ' + JSON.stringify(item)
-  })
+  // debug removed
 }
 
 const goto = (item) => {
@@ -238,6 +239,7 @@ onMounted(() => {
 <style lang="scss" scoped>
 .page-container {
   min-height: 100vh;
+  background: #000;
 
   /* #ifdef H5 */
   min-height: calc(100vh - var(--window-top) - var(--window-bottom));
@@ -259,11 +261,11 @@ onMounted(() => {
 
     &:active {
       transform: scale(0.98);
-      background: #e9ecef;
+      background: rgba(255, 255, 255, 0.06);
     }
 
     .search-placeholder {
-      color: #999;
+      color: rgba(255, 255, 255, 0.4);
       font-size: 28rpx;
     }
   }
@@ -272,10 +274,9 @@ onMounted(() => {
 .cate-box {
   display: flex;
   height: calc(100vh - 120rpx);
-  background: #fff;
+  background: #141414;
   border-radius: 30rpx 30rpx 0 0;
   overflow: hidden;
-  box-shadow: 0 -10rpx 30rpx rgba(0, 0, 0, 0.1);
 
   /* #ifdef H5 */
   height: calc(100vh - var(--window-top) - var(--window-bottom) - 120rpx);
@@ -285,7 +286,7 @@ onMounted(() => {
 // 左侧分类导航
 .left-sidebar {
   width: 200rpx;
-  background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+  background: linear-gradient(180deg, #1a1a1a 0%, #111 100%);
   position: relative;
 
   .category-item {
@@ -297,7 +298,7 @@ onMounted(() => {
       padding: 30rpx 20rpx;
       text-align: center;
       font-size: 26rpx;
-      color: #495057;
+      color: rgba(255, 255, 255, 0.5);
       font-weight: 500;
       transition: all 0.3s ease;
       position: relative;
@@ -311,19 +312,18 @@ onMounted(() => {
       transform: translateY(-50%);
       width: 6rpx;
       height: 40rpx;
-      background: #ff4c7d;
+      background: #e50914;
       border-radius: 6rpx 0 0 6rpx;
       animation: slideIn 0.3s ease;
     }
 
     &.active {
-      background: #fff;
+      background: #141414;
       margin-right: 6rpx;
       border-radius: 25rpx 0 0 25rpx;
-      box-shadow: 0 8rpx 25rpx rgba(102, 126, 234, 0.15);
 
       .category-text {
-        color: #667eea;
+        color: #e50914;
         font-weight: 600;
         font-size: 28rpx;
       }
@@ -331,7 +331,7 @@ onMounted(() => {
 
     &:not(.active):active {
       transform: scale(0.95);
-      background: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.06);
     }
   }
 }
@@ -339,29 +339,28 @@ onMounted(() => {
 // 右侧内容区域
 .right-content {
   flex: 1;
-  background: #fff;
+  background: #141414;
 
   .content-header {
     position: sticky;
     top: 0;
     z-index: 10;
-    background: linear-gradient(135deg, #667eea 0%, #ff4c7d 100%);
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
 
     .category-banner {
       padding: 40rpx 30rpx;
       text-align: center;
-      color: #fff;
 
       .banner-title {
         font-size: 36rpx;
         font-weight: bold;
         margin-bottom: 10rpx;
-        text-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.1);
+        color: #fff;
       }
 
       .banner-subtitle {
         font-size: 24rpx;
-        opacity: 0.9;
+        color: rgba(255, 255, 255, 0.5);
       }
     }
   }
@@ -377,14 +376,14 @@ onMounted(() => {
       .title-line {
         flex: 1;
         height: 2rpx;
-        background: linear-gradient(90deg, transparent, #e9ecef, transparent);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
       }
 
       .title-text {
         padding: 0 30rpx;
         font-size: 28rpx;
         font-weight: 600;
-        color: #495057;
+        color: rgba(255, 255, 255, 0.8);
       }
     }
 
@@ -399,15 +398,16 @@ onMounted(() => {
 
 // 商品卡片
 .goods-card {
-  background: #fff;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
   border-radius: 20rpx;
   overflow: hidden;
-  box-shadow: 0 8rpx 25rpx rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:active {
-    transform: translateY(-5rpx) scale(0.98);
-    box-shadow: 0 15rpx 35rpx rgba(0, 0, 0, 0.15);
+    transform: scale(0.97);
   }
 
   .card-image-container {
@@ -434,7 +434,7 @@ onMounted(() => {
         font-size: 20rpx;
         color: #fff;
         font-weight: 500;
-        text-shadow: 0 1rpx 2rpx rgba(0, 0, 0, 0.1);
+        text-shadow: 0 1rpx 2rpx rgba(0, 0, 0, 0.3);
       }
     }
   }
@@ -445,7 +445,7 @@ onMounted(() => {
     .goods-title {
       font-size: 28rpx;
       font-weight: 600;
-      color: #212529;
+      color: #fff;
       line-height: 1.4;
       margin-bottom: 12rpx;
       overflow: hidden;
@@ -457,7 +457,7 @@ onMounted(() => {
 
     .goods-desc {
       font-size: 24rpx;
-      color: #6c757d;
+      color: rgba(255, 255, 255, 0.45);
       line-height: 1.3;
       margin-bottom: 20rpx;
       overflow: hidden;
@@ -476,13 +476,13 @@ onMounted(() => {
 
         .price-symbol {
           font-size: 24rpx;
-          color: #e74c3c;
+          color: #e50914;
           font-weight: 500;
         }
 
         .price-value {
           font-size: 32rpx;
-          color: #e74c3c;
+          color: #e50914;
           font-weight: bold;
           margin-left: 2rpx;
         }
@@ -491,17 +491,16 @@ onMounted(() => {
       .add-cart-btn {
         width: 60rpx;
         height: 60rpx;
-        background: #ff4c7d;
+        background: #e50914;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 4rpx 15rpx rgba(102, 126, 234, 0.3);
         transition: all 0.3s ease;
 
         &:active {
           transform: scale(0.9);
-          box-shadow: 0 2rpx 8rpx rgba(102, 126, 234, 0.4);
+          opacity: 0.85;
         }
       }
     }
@@ -518,8 +517,8 @@ onMounted(() => {
   .loading-spinner {
     width: 60rpx;
     height: 60rpx;
-    border: 4rpx solid #f3f3f3;
-    border-top: 4rpx solid #667eea;
+    border: 4rpx solid rgba(255, 255, 255, 0.1);
+    border-top: 4rpx solid #e50914;
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-bottom: 30rpx;
@@ -527,7 +526,7 @@ onMounted(() => {
 
   .loading-text {
     font-size: 28rpx;
-    color: #6c757d;
+    color: rgba(255, 255, 255, 0.5);
   }
 }
 
@@ -546,14 +545,14 @@ onMounted(() => {
 
   .empty-text {
     font-size: 32rpx;
-    color: #495057;
+    color: rgba(255, 255, 255, 0.8);
     font-weight: 600;
     margin-bottom: 15rpx;
   }
 
   .empty-desc {
     font-size: 26rpx;
-    color: #6c757d;
+    color: rgba(255, 255, 255, 0.4);
   }
 }
 

@@ -94,17 +94,20 @@
         tooltip-effect="dark"
         :data="tableData"
         row-key="ID"
+        :default-sort="{ prop: 'ID', order: 'descending' }"
         @selection-change="handleSelectionChange"
       >
         <el-table-column
           type="selection"
           width="55"
         />
+        <el-table-column align="left" label="ID" prop="ID" width="70" sortable />
 
         <el-table-column
           align="left"
           label="日期"
           width="180"
+          sortable
         >
           <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
@@ -168,6 +171,13 @@
           prop="collectNum"
           width="90"
         />
+        <el-table-column
+          align="left"
+          label="总库存"
+          width="90"
+        >
+          <template #default="scope">{{ getTotalInventory(scope.row) }}</template>
+        </el-table-column>
         <el-table-column
           align="left"
           label="商品类型"
@@ -254,6 +264,13 @@
               class="table-button"
               @click="setSKU(scope.row)"
             >SKU</el-button>
+            <el-button
+              type="primary"
+              link
+              icon="Goods"
+              class="table-button"
+              @click="gotoPurchase(scope.row)"
+            >进货</el-button>
             <el-button
               type="primary"
               link
@@ -812,6 +829,15 @@ onMounted(() => { loadLangs() })
 
 const setSKU = (row) => {
   router.push({ name: 'sku', query: { id: row.ID }})
+}
+
+const gotoPurchase = (row) => {
+  router.push({ name: 'goodPurchase', query: { goodID: row.ID }})
+}
+
+const getTotalInventory = (row) => {
+  if (!row.skus || !row.skus.length) return 0
+  return row.skus.reduce((sum, sku) => sum + (sku.inventory || 0), 0)
 }
 
 const tags = ref([])

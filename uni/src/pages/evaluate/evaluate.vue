@@ -1,205 +1,236 @@
-<template>
-	<view class="big_box">
-		<view style="height: 88rpx;width: 100%;">
-			<view class="tabs_box pos_f bgc_fff">
-				<view class="font_28 words color_333">
-					<text @tap="choose('all')" class="font_bold color_fe5572">{{`全部（${commentInfo.length}）`}}</text>
-					<text @tap="choose('pics')" class="font_bold color_fe5572">{{`图文（${num}）`}}</text>
-				</view>
-			</view>
-		</view>
-		<view class="content-box">
-			<view class="bgc_fff mt_20 cards" v-for="(item, key) in commentInfo" :key="key">
-				<view class="flex m_b_24">
-					<image class="item_head m_r_16" :src="getUrl(item.user.avatar)"></image>
-					<view class="flex-fitem">
-						<view class="flex-aic flexr-jsb">
-							<text class="color_333 font_28">{{item.user.nickname}}</text>
-							<text class="color_999 font_24">{{formatTimeToStr(item.CreatedAt, 'yyyy-MM-dd')}}</text>
-						</view>
-						<uni-rate size="16" :readonly="true" active-color="#fe5572" :value="item.rating" />
-					</view>
-				</view>
-				<view style="padding: 0 16rpx 0 80rpx;" class="boxs_bb">
-					<view class="flex-aic flexr-jsb color_999 font_24 bgc_f8f8f8 evaluate_num boxs_bb">
-						<text>已购</text>
-					</view>
-					<view class="text_pre_wrap m_b_24 m_t_24 color_333 font_28">{{item.content}}</view>
-          <view class="pics_grid">
-            <view
-                v-for="(pic, index) in item.pics"
-                :key="index"
-                class="pic_item"
-                @tap="previewImage(pic, index, item.pics)"
-            >
-              <image
-                  :src="getUrl(pic)"
-                  class="evaluate_pic_img"
-                  mode="aspectFill"
-                  @error="onImageError(index)"
-              />
-            </view>
-          </view>
-					<view v-if="item.shopReply !== ''" class="shop-reply m_t_24  color_999 font_24 bgc_f8f8f8 evaluate_num boxs_bb">
-						<p >商家回复：{{item.shopReply}}</p>
-					</view>
-				</view>
-			</view>
-		</view>
-	</view>
+﻿<template>
+  <view class="nf-reviews">
+    <view class="nf-reviews-bg"></view>
 
+    <!-- navbar -->
+    <view class="nf-navbar">
+      <view class="nf-navbar-status"></view>
+      <view class="nf-navbar-content">
+        <view class="nf-navbar-back" @tap="goBack">
+          <uni-icons type="left" size="20" color="#fff"></uni-icons>
+        </view>
+        <text class="nf-navbar-title">{{ $t('productReview') }}</text>
+        <view style="width: 64rpx;"></view>
+      </view>
+    </view>
+
+    <!-- tabs -->
+    <view class="nf-tabs">
+      <view :class="['nf-tab', { active: tab === 'all' }]" @tap="choose('all')">
+        {{ $t('allReviews') }}（{{ totalCount }}）
+      </view>
+      <view :class="['nf-tab', { active: tab === 'pics' }]" @tap="choose('pics')">
+        {{ $t('imageReviews') }}（{{ picCount }}）
+      </view>
+    </view>
+
+    <view class="nf-body">
+      <view class="nf-empty" v-if="commentInfo.length === 0">
+        <text class="nf-empty-icon">💬</text>
+        <text class="nf-empty-text">{{ $t('noData') || '暂无评价' }}</text>
+      </view>
+
+      <view class="nf-comment-card" v-for="(item, key) in commentInfo" :key="key">
+        <!-- user info -->
+        <view class="nf-comment-header">
+          <image class="nf-avatar" :src="getUrl(item.user.avatar)" mode="aspectFill" />
+          <view class="nf-comment-meta">
+            <text class="nf-nickname">{{ item.user.nickname }}</text>
+            <text class="nf-time">{{ formatTimeToStr(item.CreatedAt, 'yyyy-MM-dd') }}</text>
+          </view>
+        </view>
+
+        <!-- rating -->
+        <view class="nf-comment-stars">
+          <text v-for="s in 5" :key="s" :class="['nf-mini-star', { active: s <= item.rating }]"></text>
+        </view>
+
+        <!-- content -->
+        <text class="nf-comment-text" v-if="item.content">{{ item.content }}</text>
+
+        <!-- pics -->
+        <view class="nf-comment-pics" v-if="item.pics && item.pics.length > 0">
+          <view
+            v-for="(pic, index) in item.pics"
+            :key="index"
+            class="nf-comment-pic"
+            @tap="previewImage(pic, index, item.pics)"
+          >
+            <image :src="getUrl(pic)" class="nf-comment-pic-img" mode="aspectFill" />
+          </view>
+        </view>
+
+        <!-- shop reply -->
+        <view class="nf-shop-reply" v-if="item.shopReply">
+          <text class="nf-shop-reply-label">{{ $t('shopReplyLabel') }}：</text>
+          <text class="nf-shop-reply-text">{{ item.shopReply }}</text>
+        </view>
+      </view>
+    </view>
+  </view>
 </template>
 
 <script setup>
-	import { ref } from "vue";
-	import { findComment } from "@/api/comment.js"
-	import evaluateGridImg from './evaluate-img.vue'
-	import { formatTimeToStr } from "@/utils/date.js"
-	import {
-		onLoad,
-	} from '@dcloudio/uni-app'
-    import {getUrl} from "@/utils/url.js"
-	const commentInfo = ref([])
-	const num = ref(0)
-	let ID = ""
-	const findFunc = async(params) => {
-		num.value = 0
-		const res = await findComment({ID:params})
-		if (res.code === 0) {
-			commentInfo.value = res.data
-			commentInfo.value.map((i) =>{
-				if(i.feedbackPics) {
-					++num.value
-				}
-			})
-		}
-	}
-	onLoad((options) => {
-		ID = options.goodsID
-		setTimeout(async () => {
-			// 获取评论
-			findFunc(ID)
-		}, 500)
-	})
+import { ref, computed } from 'vue'
+import { findComment } from '@/api/comment.js'
+import { formatTimeToStr } from '@/utils/date.js'
+import { onLoad } from '@dcloudio/uni-app'
+import { getUrl } from '@/utils/url.js'
+import { useLangStore } from '@/pinia/modules/lang.js'
 
-	const choose = (params) => {
-		const temp = commentInfo.value;
-		const filteredItems = temp.filter(item => item.feedbackPics !== null);
-		if (params === 'all') {
-			findFunc(ID)
-		} else {
-			commentInfo.value = filteredItems;
-		}
+const langStore = useLangStore()
+const $t = computed(() => langStore.$t)
+
+const commentInfo = ref([])
+const allComments = ref([])
+const picCount = ref(0)
+const totalCount = ref(0)
+const tab = ref('all')
+let ID = ''
+
+const goBack = () => {
+  uni.navigateBack({ delta: 1 })
 }
 
-  const pics = ref([])
-
-  // 新增图片预览方法
-  const previewImage = (currentPic, index, allPics) => {
-    const urls = allPics.map(pic => getUrl(pic));
-
-    uni.previewImage({
-      current: getUrl(currentPic), // 当前图片
-      urls: urls, // 所有图片
-      fail: (err) => {
-        console.error('图片预览失败:', err)
-        uni.showToast({
-          title: '图片加载失败',
-          icon: 'error'
-        })
-      }
-    })
+const findFunc = async (params) => {
+  const res = await findComment({ ID: params })
+  if (res.code === 0) {
+    allComments.value = res.data || []
+    commentInfo.value = allComments.value
+    totalCount.value = allComments.value.length
+    picCount.value = allComments.value.filter(i => i.pics && i.pics.length > 0).length
   }
+}
 
-  // 图片加载错误处理
-  const onImageError = (index) => {
-    const failedPic = pics.value[index];
-    console.error(`图片加载失败:`, {
-      originalUrl: failedPic.url,
-      processedUrl: getUrl(failedPic.url),
-      index: index
-    });
+onLoad((options) => {
+  ID = options.goodsID
+  setTimeout(() => findFunc(ID), 300)
+})
+
+const choose = (type) => {
+  tab.value = type
+  if (type === 'all') {
+    commentInfo.value = allComments.value
+  } else {
+    commentInfo.value = allComments.value.filter(item => item.pics && item.pics.length > 0)
   }
+}
 
+const previewImage = (currentPic, index, allPics) => {
+  uni.previewImage({
+    current: getUrl(currentPic),
+    urls: allPics.map(pic => getUrl(pic))
+  })
+}
 </script>
 
 <style lang="scss" scoped>
-	.big_box{
-    height: 100vh;
-		background-color: #f5f5f5;
-		.words{
-			text-align: center;
-			font-size: 32rpx;
-			.line_active {
-				width: 100%;
-				background-color: #fe5572;
-			}
-		}
-	}
-	.item_head {
-		width: 64rpx;
-		height: 64rpx;
-		border-radius: 50%;
-	}
+page { background: #000; }
+.nf-reviews {
+  min-height: 100vh;
+  background: #000;
+  color: #fff;
+}
+.nf-reviews-bg {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 400rpx;
+  background: radial-gradient(ellipse at 50% 0%, rgba(229, 9, 20, 0.12) 0%, transparent 70%);
+  pointer-events: none; z-index: 0;
+}
+.nf-navbar {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(20rpx);
+}
+.nf-navbar-status { height: var(--status-bar-height); }
+.nf-navbar-content {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 88rpx; padding: 0 24rpx;
+}
+.nf-navbar-back {
+  width: 64rpx; height: 64rpx;
+  display: flex; align-items: center; justify-content: center;
+}
+.nf-navbar-title { font-size: 34rpx; font-weight: 600; color: #fff; }
 
-	.evaluate_num {
-		margin-top: 16rpx;
-		padding: 6rpx 16rpx;
-	}
-	.content-box{
-		margin: 40rpx;
-		.shop-reply{
-			display: flex;
-			justify-content: space-between;
-		}
-		.cards{
-			border-radius: 20rpx;
-			padding: 20rpx;
-		}
-	}
-		page {
-			background-color: #F8F8F8;
-		}
-
-		.tabs_box {
-			/* #ifdef H5 */
-			top: var(--window-top);
-			/* #endif */
-			/* #ifndef H5 */
-			top: 0;
-			/* #endif */
-			z-index: 1;
-			left: 0;
-			right: 0;
-			padding: 24rpx 0;
-		}
-
-		.item_box {
-			padding: 24rpx 32rpx;
-		}
-		.mt_20{
-			margin-top: 40rpx;
-		}
-
-  .pics_grid {
-    display: grid;
-    grid-template-columns: repeat(3, 100rpx); /* 改为100rpx匹配pic_item */
-    gap: 8rpx;
-    justify-content: flex-start;
-    margin-bottom: 16rpx; /* 添加底部间距 */
+.nf-tabs {
+  display: flex; padding: 0 24rpx;
+  position: relative; z-index: 1;
+  background: rgba(0, 0, 0, 0.6);
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+}
+.nf-tab {
+  padding: 20rpx 32rpx;
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.5);
+  border-bottom: 3rpx solid transparent;
+  transition: all 0.2s;
+  &.active {
+    color: #e50914;
+    border-bottom-color: #e50914;
+    font-weight: 600;
   }
+}
 
-  .pic_item {
-    width: 100rpx;
-    height: 100rpx;
-    border-radius: 8rpx;
-    overflow: hidden;
-    background-color: #f5f5f5;
-  }
+.nf-body { position: relative; z-index: 1; padding: 24rpx; }
 
-  .evaluate_pic_img {
-    width: 100%;
-    height: 100%;
-    border-radius: 8rpx;
-  }
+.nf-empty {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 120rpx 0;
+}
+.nf-empty-icon { font-size: 80rpx; margin-bottom: 20rpx; }
+.nf-empty-text { font-size: 28rpx; color: rgba(255, 255, 255, 0.4); }
+
+.nf-comment-card {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 16rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  padding: 28rpx;
+  margin-bottom: 20rpx;
+}
+.nf-comment-header {
+  display: flex; align-items: center; margin-bottom: 16rpx;
+}
+.nf-avatar {
+  width: 64rpx; height: 64rpx;
+  border-radius: 50%; margin-right: 16rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.1);
+}
+.nf-comment-meta { flex: 1; display: flex; justify-content: space-between; align-items: center; }
+.nf-nickname { font-size: 28rpx; color: #fff; font-weight: 500; }
+.nf-time { font-size: 22rpx; color: rgba(255, 255, 255, 0.35); }
+
+.nf-comment-stars { display: flex; margin-bottom: 12rpx; }
+.nf-mini-star {
+  font-size: 28rpx; color: rgba(255, 255, 255, 0.15); margin-right: 4rpx;
+  &.active { color: #e50914; }
+}
+
+.nf-comment-text {
+  font-size: 28rpx; color: rgba(255, 255, 255, 0.8);
+  line-height: 1.6; margin-bottom: 16rpx;
+}
+
+.nf-comment-pics {
+  display: flex; flex-wrap: wrap; gap: 12rpx; margin-bottom: 16rpx;
+}
+.nf-comment-pic {
+  width: 140rpx; height: 140rpx;
+  border-radius: 10rpx; overflow: hidden;
+}
+.nf-comment-pic-img { width: 100%; height: 100%; }
+
+.nf-shop-reply {
+  background: rgba(229, 9, 20, 0.08);
+  border-radius: 10rpx;
+  padding: 16rpx 20rpx;
+  border-left: 4rpx solid #e50914;
+  margin-top: 12rpx;
+}
+.nf-shop-reply-label {
+  font-size: 24rpx; color: #e50914; font-weight: 500;
+}
+.nf-shop-reply-text {
+  font-size: 26rpx; color: rgba(255, 255, 255, 0.7); line-height: 1.5;
+}
 </style>

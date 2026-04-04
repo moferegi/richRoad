@@ -133,11 +133,11 @@ func initShopApis(db *gorm.DB) {
 		{ApiGroup: "收藏管理", Method: "GET", Path: "/collect/getCollectList", Description: "获取收藏列表"},
 		{ApiGroup: "收藏管理", Method: "GET", Path: "/collect/checkCollect", Description: "检查是否收藏"},
 		// 积分记录
-		{ApiGroup: "积分管理", Method: "POST", Path: "/pointRecord/createPointRecord", Description: "创建积分记录"},
-		{ApiGroup: "积分管理", Method: "DELETE", Path: "/pointRecord/deletePointRecord", Description: "删除积分记录"},
-		{ApiGroup: "积分管理", Method: "PUT", Path: "/pointRecord/updatePointRecord", Description: "更新积分记录"},
-		{ApiGroup: "积分管理", Method: "GET", Path: "/pointRecord/findPointRecord", Description: "查找积分记录"},
-		{ApiGroup: "积分管理", Method: "GET", Path: "/pointRecord/getPointRecordList", Description: "获取积分记录列表"},
+		{ApiGroup: "积分管理", Method: "POST", Path: "/cpr/createPointRecord", Description: "创建积分记录"},
+		{ApiGroup: "积分管理", Method: "DELETE", Path: "/cpr/deletePointRecord", Description: "删除积分记录"},
+		{ApiGroup: "积分管理", Method: "PUT", Path: "/cpr/updatePointRecord", Description: "更新积分记录"},
+		{ApiGroup: "积分管理", Method: "GET", Path: "/cpr/findPointRecord", Description: "查找积分记录"},
+		{ApiGroup: "积分管理", Method: "GET", Path: "/cpr/getPointRecordList", Description: "获取积分记录列表"},
 		// 系统配置
 		{ApiGroup: "系统配置", Method: "PUT", Path: "/sysConfig/updateSysConfig", Description: "更新系统配置"},
 		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getSysConfigList", Description: "获取系统配置列表"},
@@ -286,11 +286,11 @@ func initShopCasbin(db *gorm.DB) {
 		{"/collect/getCollectList", "GET"},
 		{"/collect/checkCollect", "GET"},
 		// 积分
-		{"/pointRecord/createPointRecord", "POST"},
-		{"/pointRecord/deletePointRecord", "DELETE"},
-		{"/pointRecord/updatePointRecord", "PUT"},
-		{"/pointRecord/findPointRecord", "GET"},
-		{"/pointRecord/getPointRecordList", "GET"},
+		{"/cpr/createPointRecord", "POST"},
+		{"/cpr/deletePointRecord", "DELETE"},
+		{"/cpr/updatePointRecord", "PUT"},
+		{"/cpr/findPointRecord", "GET"},
+		{"/cpr/getPointRecordList", "GET"},
 		// 系统配置
 		{"/sysConfig/updateSysConfig", "PUT"},
 		{"/sysConfig/getSysConfigList", "GET"},

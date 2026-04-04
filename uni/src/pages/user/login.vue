@@ -23,8 +23,8 @@
         <view class="nf-title-line"></view>
       </view>
 
-      <!-- 模式切换（仅在手机登录启用时显示） -->
-      <view class="nf-mode-switch" v-if="phoneLoginEnabled">
+      <!-- 模式切换（仅在两种登录方式都启用时显示） -->
+      <view class="nf-mode-switch" v-if="phoneLoginEnabled && usernameLoginEnabled">
         <view class="nf-mode-tab" :class="{active: loginMode === 'username'}" @tap="loginMode = 'username'">
           <text>{{ $t('switchToAccountLogin') }}</text>
         </view>
@@ -109,8 +109,8 @@
 	const $t = computed(() => langStore.$t)
 	const $lt = computed(() => langStore.$lt)
 	const langLabel = computed(() => {
-	  const map = { zh: '中', en: 'EN', mn: 'MN' }
-	  return map[langStore.locale] || '中'
+	  const map = { zh: '中', en: 'EN', mn: 'MN', 'zh-TW': '繁', th: 'TH', hi: 'HI', id: 'ID' }
+	  return map[langStore.locale] || langStore.locale.slice(0, 2).toUpperCase()
 	})
 	const showLangPicker = ref(false)
 
@@ -123,6 +123,7 @@
 	// 登录模式
 	const loginMode = ref('username') // 'username' | 'phone'
 	const phoneLoginEnabled = ref(false)
+	const usernameLoginEnabled = ref(true)
 	const showAreaCodePicker = ref(false)
 	const areaCodes = ref([])
 	const selectedAreaCode = ref('+86')
@@ -141,11 +142,19 @@
 		try {
 			const res = await getLoginConfig()
 			if (res.code === 0 && res.data) {
-				if (res.data.phone_login_enabled === 'true') {
-					phoneLoginEnabled.value = true
+				phoneLoginEnabled.value = res.data.phone_login_enabled === 'true'
+				usernameLoginEnabled.value = res.data.username_login_enabled !== 'false' // 默认true
+				// 互斥：两者不能同时关闭
+				if (!phoneLoginEnabled.value && !usernameLoginEnabled.value) {
+					usernameLoginEnabled.value = true
 				}
+				// 根据配置决定默认模式
 				if (res.data.default_login_method === 'phone' && phoneLoginEnabled.value) {
 					loginMode.value = 'phone'
+				} else if (!usernameLoginEnabled.value && phoneLoginEnabled.value) {
+					loginMode.value = 'phone'
+				} else {
+					loginMode.value = 'username'
 				}
 			}
 		} catch(e) {}
@@ -318,6 +327,7 @@ page { background-color: #000; }
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   transition: all 0.3s;
 
   &:active {
@@ -330,6 +340,8 @@ page { background-color: #000; }
   font-size: 22rpx;
   font-weight: 700;
   color: #fff;
+  line-height: 1;
+  text-align: center;
 }
 
 .nf-container {
@@ -437,6 +449,9 @@ page { background-color: #000; }
   justify-content: center;
   border: none;
   margin: 0;
+  line-height: 1;
+  overflow: hidden;
+  white-space: nowrap;
   transition: all 0.3s;
 
   &:active { transform: scale(0.97); }
@@ -480,6 +495,9 @@ page { background-color: #000; }
   border-radius: 12rpx;
   font-size: 26rpx;
   color: rgba(255, 255, 255, 0.5);
+  line-height: 1.2;
+  overflow: hidden;
+  white-space: nowrap;
   transition: all 0.3s;
 
   &.active {

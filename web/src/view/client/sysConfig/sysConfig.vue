@@ -136,6 +136,7 @@ import { ElMessage } from 'element-plus'
 // 配置组定义
 const groupList = [
   { value: 'system', label: '系统设置', type: '' },
+  { value: 'maintenance', label: '维护模式', type: 'danger' },
   { value: 'security', label: '安全设置', type: 'danger' },
   { value: 'auth', label: '认证设置', type: 'warning' },
   { value: 'payment', label: '支付设置', type: 'success' },
@@ -158,7 +159,8 @@ const groupLabel = (group) => {
 
 // 布尔键列表
 const booleanKeys = [
-  'maintenance_enabled', 'phone_login_enabled', 'password_change_enabled',
+  'maintenance_enabled', 'maintenance_popup_enabled', 'maintenance_home_btn_enabled',
+  'phone_login_enabled', 'username_login_enabled', 'password_change_enabled',
   'sign_in_enabled', 'announcement_enabled'
 ]
 const isBooleanConfig = (row) => booleanKeys.includes(row.configKey)
@@ -168,7 +170,7 @@ const colorKeys = ['announcement_text_color', 'payment_tip_text_color']
 const isColorConfig = (row) => colorKeys.includes(row.configKey)
 
 // JSON键列表
-const jsonKeys = ['payment_tip_text']
+const jsonKeys = ['payment_tip_text', 'maintenance_popup_title', 'maintenance_popup_content']
 const isJsonConfig = (row) => jsonKeys.includes(row.configKey)
 
 // 数字键列表

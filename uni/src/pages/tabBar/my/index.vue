@@ -150,6 +150,7 @@ import { useLangStore } from '@/pinia/modules/lang.js'
 import { usePlayHistoryStore } from '@/pinia/modules/playHistory.js'
 import { onShow } from '@dcloudio/uni-app'
 import { getGoodHistory } from '@/api/order.js'
+import { getAllClaimCoupon } from '@/api/coupon.js'
 import langSwitch from '@/components/lang-switch/lang-switch.vue'
 
 const langStore = useLangStore()
@@ -212,6 +213,11 @@ const columns = computed(() => [
     icon: '/static/images/exit.png',
     hidden: !isShow.value
   },{
+    title: $t.value('myAddresses') || '收货地址',
+    pages: '/pages/address/address',
+    icon: '/static/MYcollect.png',
+    hidden: !isShow.value
+  },{
     title: $t.value('onlineService'),
     pages: '/pages/kefu/index',
     icon: '/static/wx.png'
@@ -244,12 +250,24 @@ onShow(() => {
     if (info.value && info.value.point !== undefined) {
       userPoints.value = info.value.point || 0
     }
+    // 获取用户优惠券数量
+    loadCouponCount()
   } else {
     isShow.value = false
   }
   playHistoryStore.reload()
   getHistory()
 })
+
+// 加载优惠券数量（仅统计可用的）
+const loadCouponCount = async () => {
+  try {
+    const res = await getAllClaimCoupon({ goodIds: [] })
+    if (res.code === 0 && res.data) {
+      userCouponCount.value = res.data.filter(c => c.status === 0).length
+    }
+  } catch (e) {}
+}
 
 // 获取浏览历史的方法
 const getHistory = async () => {
@@ -365,12 +383,19 @@ const toPages = (pages) => {
     return
   }
   if(pages === 'exit'){
-    userStore.loginOut()
-    uni.showToast({
-      icon: 'none',
-      title: $t.value('logoutSuccess')
+    uni.showModal({
+      title: $t.value('logout') || '退出登录',
+      content: $t.value('logoutConfirm') || '确定要退出登录吗？',
+      success: (res) => {
+        if (res.confirm) {
+          userStore.loginOut()
+          uni.showToast({
+            icon: 'none',
+            title: $t.value('logoutSuccess')
+          })
+        }
+      }
     })
-
     return
   }
   if (!pages) {

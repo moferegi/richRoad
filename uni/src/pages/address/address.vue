@@ -1,61 +1,78 @@
 <template>
-  <view class="address-container">
-    <scroll-view scroll-y="true" class="address-scroll" @scrolltolower="debouncedLower">
-      <!-- 有地址时显示列表 -->
-      <block v-if="addressList.length > 0">
-        <view class="address-item" v-for="(item, index) in addressList" :key="index" @tap="selectAddr(item)">
-          <view class="address-content">
-            <view class="address-header">
-              <view class="name-phone">
-                <text class="name">{{item.name}}</text>
-                <text class="phone">{{item.phone}}</text>
-              </view>
-              <view class="tag-box" v-if="item.active">
-                <text class="default-tag">默认</text>
-              </view>
-            </view>
-            <view class="address-detail">
-              {{item.provinceTrans}}{{item.cityTrans}}{{item.areaTrans}}{{item.street}}
-            </view>
-          </view>
+  <view class="nf-address">
+    <view class="nf-address-bg"></view>
 
-          <!-- 每个地址下面的编辑删除操作栏 -->
-          <view class="address-actions" >
-            <view class="action-divider"></view>
-            <view class="action-buttons">
-              <view class="action-btn edit-btn" @tap.stop="editAddress(item)">
-                <text>编辑</text>
+    <!-- 自定义导航栏 -->
+    <view class="nf-navbar">
+      <view class="nf-navbar-status"></view>
+      <view class="nf-navbar-content">
+        <view class="nf-navbar-back" @tap="goBack">
+          <uni-icons type="left" size="20" color="#fff" />
+        </view>
+        <text class="nf-navbar-title">{{ $t('myAddresses') }}</text>
+        <view style="width: 64rpx;"></view>
+      </view>
+    </view>
+
+    <scroll-view scroll-y class="nf-address-scroll" @scrolltolower="debouncedLower">
+      <view class="nf-address-list" v-if="addressList.length > 0">
+        <view class="nf-addr-card" v-for="(item, index) in addressList" :key="index" @tap="selectAddr(item)">
+          <view class="nf-addr-info">
+            <view class="nf-addr-header">
+              <view class="nf-addr-name-phone">
+                <text class="nf-addr-name">{{ item.name }}</text>
+                <text class="nf-addr-phone">{{ item.phone }}</text>
               </view>
-              <view class="action-divider-vertical"></view>
-              <view class="action-btn delete-btn" @tap.stop="delAddress(item)">
-                <text>删除</text>
+              <view class="nf-addr-default-tag" v-if="item.active">
+                <text>{{ $t('defaultAddr') }}</text>
               </view>
+            </view>
+            <text class="nf-addr-detail">{{ item.provinceTrans }}{{ item.cityTrans }}{{ item.areaTrans }}{{ item.street }}</text>
+          </view>
+          <view class="nf-addr-actions">
+            <view class="nf-addr-action" @tap.stop="editAddress(item)">
+              <uni-icons type="compose" size="16" color="rgba(255,255,255,0.6)" />
+              <text>{{ $t('editAddr') }}</text>
+            </view>
+            <view class="nf-addr-action nf-addr-action-del" @tap.stop="delAddress(item)">
+              <uni-icons type="trash" size="16" color="#e50914" />
+              <text>{{ $t('deleteAddr') }}</text>
             </view>
           </view>
         </view>
 
-        <view class="bottom-text" v-if="isBottom">已经到底了</view>
-      </block>
+        <view class="nf-addr-bottom" v-if="isBottom">
+          <text>{{ $t('reachedBottom') }}</text>
+        </view>
+      </view>
 
-      <!-- 空地址状态 -->
-      <view class="empty-address" v-if="addressList.length === 0">
-        <image class="empty-icon" src="/static/images/empty-address.png"></image>
-        <text class="empty-text">暂无收货地址，请添加</text>
+      <!-- 空状态 -->
+      <view class="nf-addr-empty" v-if="addressList.length === 0">
+        <uni-icons type="location" size="48" color="rgba(229,9,20,0.4)" />
+        <text class="nf-addr-empty-text">{{ $t('noAddress') || '暂无收货地址' }}</text>
       </view>
     </scroll-view>
 
     <!-- 底部添加按钮 -->
-    <view class="add-address-btn-wrapper">
-      <button class="add-address-btn" @tap="toAddress">新增地址</button>
+    <view class="nf-addr-add-wrap">
+      <view class="nf-addr-add-btn" @tap="toAddress">
+        <uni-icons type="plusempty" size="18" color="#fff" />
+        <text>{{ $t('addNewAddr') }}</text>
+      </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref } from "vue"
+import { ref, computed } from 'vue'
 import { updateOrder } from '@/api/order.js'
 import { getAddressList, getAddressDataSource, deleteAddress } from '@/api/address.js'
 import { onLoad } from '@dcloudio/uni-app'
+import { useLangStore } from '@/pinia/modules/lang.js'
+import { localText } from '@/utils/i18n'
+
+const langStore = useLangStore()
+const $t = computed(() => langStore.$t)
 
 const addressList = ref([])
 const isShow = ref(false)
@@ -64,19 +81,15 @@ const isBottom = ref(false)
 const addressSource = ref([])
 
 onLoad(async (options) => {
-  if(options.ID) {
+  if (options.ID) {
     orderID.value = options.ID
     isShow.value = true
   } else {
     isShow.value = false
   }
-  // 重置列表避免重复加载
   addressList.value = []
   await getAddressDataSources()
-  getAddress({
-    page: 1,
-    pageSize: 10,
-  })
+  getAddress({ page: 1, pageSize: 10 })
 })
 
 const getAddressDataSources = async () => {
@@ -84,141 +97,105 @@ const getAddressDataSources = async () => {
     const res = await getAddressDataSource()
     if (res.code === 0) {
       addressSource.value = res.data
-    } else {
-      uni.showToast({ title: res.msg, icon: "none" })
     }
   } catch (error) {
-    console.error("获取地址数据源失败", error)
+    console.error('获取地址数据源失败', error)
   }
 }
 
-const formatt = async (value, type) => {
+const formatt = (value, type) => {
   const source = addressSource.value
-  let province = source['province']
-  let city = source['city']
-  let area = source['area']
+  const list = source[type]
+  if (!list) return null
+  return list.find(item => Number(item.value) === Number(value)) || null
+}
 
-  if (type === 'province') {
-    let result = province.find(item => Number(item.value) === Number(value))
-    return result ? result : null
+const getGeoLabel = (item) => {
+  if (!item) return ''
+  // 优先使用多语言字段
+  if (item.labelI18n) {
+    const translated = localText(item.labelI18n)
+    if (translated) return translated
   }
-
-  if (type === 'city') {
-    let result = city.find(item => Number(item.value) === Number(value))
-    return result ? result : null
-  }
-
-  if (type === 'area') {
-    let result = area.find(item => Number(item.value) === Number(value))
-    return result ? result : null
-  }
+  return item.label || ''
 }
 
 const getAddress = async (params) => {
   try {
     const res = await getAddressList(params)
-    if(res.code === 0) {
-      // 如果是滚动加载且滑到尽头
-      if(res.data.list.length === 0) {
+    if (res.code === 0) {
+      if (res.data.list.length === 0) {
         isBottom.value = true
-        addressList.value = []
-        // if (params.page > 1) {
-        //   uni.showToast({
-        //     title: '没有更多地址了',
-        //     icon: 'none'
-        //   })
-        // }
+        if (params.page === 1) addressList.value = []
         return
-      } else {
-        addressList.value.push(...res.data.list)
-        isBottom.value = false
       }
+      addressList.value.push(...res.data.list)
+      isBottom.value = false
 
-      // 处理地址翻译
       for (const item of addressList.value) {
-        const province = await formatt(item.province, 'province')
-        item.provinceTrans = province?.label || ''
+        const province = formatt(item.province, 'province')
+        item.provinceTrans = getGeoLabel(province)
 
-        const city = await formatt(item.city, 'city')
-        item.cityTrans = city?.label || ''
+        const city = formatt(item.city, 'city')
+        item.cityTrans = getGeoLabel(city)
 
-        const area = await formatt(item.area, 'area')
-        item.areaTrans = area?.label || ''
+        const area = formatt(item.area, 'area')
+        item.areaTrans = getGeoLabel(area)
       }
-    } else {
-      uni.showToast({ title: res.msg, icon: "none" })
     }
   } catch (error) {
-    console.error("获取地址列表失败", error)
-    uni.showToast({ title: "获取地址列表失败", icon: "none" })
+    console.error('获取地址列表失败', error)
   }
 }
 
 const debounce = (func, delay) => {
-  let debounceTimer
-  return function(...args) {
-    if (debounceTimer) clearTimeout(debounceTimer)
-    debounceTimer = setTimeout(() => {
-      func.apply(this, args)
-    }, delay)
+  let timer
+  return function (...args) {
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(() => func.apply(this, args), delay)
   }
 }
 
-let params = {
-  page: 1,
-  pageSize: 10
-}
+let params = { page: 1, pageSize: 10 }
 
 const lower = async () => {
-  if(isBottom.value) {
-    return
-  } else {
-    params.page += 1
-    await getAddress(params)
-  }
+  if (isBottom.value) return
+  params.page += 1
+  await getAddress(params)
 }
-
-// 防抖包装的 lower 方法
 const debouncedLower = debounce(lower, 300)
 
 const delAddress = (item) => {
   uni.showModal({
-    title: '收货地址',
-    content: '确定删除收货地址吗？',
-    success: async function  (res) {
+    title: $t.value('confirmDeleteAddr') || '确定删除收货地址吗？',
+    success: async (res) => {
       if (res.confirm) {
         const del = await deleteAddress(item.ID)
-        if(del.code === 0){
-          uni.showToast({
-            title: "删除成功",
-            icon: "none"
-          })
+        if (del.code === 0) {
+          uni.showToast({ title: $t.value('deleteSuccess') || '删除成功', icon: 'none' })
+          addressList.value = []
+          params.page = 1
           getAddress(params)
         }
-      } else if (res.cancel) {
-        console.log('用户点击取消');
       }
     }
-  });
+  })
 }
 
 const editAddress = (item) => {
-  // 携带当前地址ID或者其他参数跳转到编辑页面反填
   uni.redirectTo({
-    url:`/pages/address/editAddress?ID=${item.ID}&orderID=${orderID.value}`
+    url: `/pages/address/editAddress?ID=${item.ID}&orderID=${orderID.value}`
   })
 }
 
 const toAddress = () => {
-  // 点击跳转到新增地址页面并携带订单编号
   uni.redirectTo({
     url: `/pages/address/addAddress?ID=${orderID.value}`
   })
 }
 
 const selectAddr = async (item) => {
-  // 如果从订单页面进入，选择地址后，更新订单信息并带回
-  if(isShow.value) {
+  if (isShow.value) {
     const req = {
       ID: Number(orderID.value),
       userID: item.userID,
@@ -230,178 +207,181 @@ const selectAddr = async (item) => {
       Street: item.street,
       active: item.active
     }
-
     const res = await updateOrder(req)
-    if(res.code === 0){
-      // 返回订单详情页并刷新，并携带orderID
+    if (res.code === 0) {
       uni.redirectTo({
         url: `/pages/orderInfo/orderInfo?orderID=${orderID.value}`
       })
     }
   }
 }
+
+const goBack = () => {
+  uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/tabBar/index' }) })
+}
 </script>
 
-<style lang="scss">
-page {
-  background-color: #f5f5f5;
+<style lang="scss" scoped>
+.nf-address {
+  min-height: 100vh;
+  background: #141414;
+  position: relative;
 }
-
-.address-container {
+.nf-address-bg {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(180deg, #1a1a2e 0%, #141414 100%);
+  z-index: 0;
+}
+.nf-navbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(20rpx);
+}
+.nf-navbar-status {
+  height: var(--status-bar-height, 44rpx);
+}
+.nf-navbar-content {
   display: flex;
-  flex-direction: column;
-  height: 100vh;
+  align-items: center;
+  justify-content: space-between;
+  height: 88rpx;
+  padding: 0 24rpx;
 }
-
-.address-scroll {
-  flex: 1;
-  padding-bottom: 100rpx;
+.nf-navbar-back {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-
-.address-item {
-  background-color: #fff;
-  margin: 20rpx;
-  border-radius: 12rpx;
+.nf-navbar-title {
+  font-size: 34rpx;
+  font-weight: bold;
+  color: #fff;
+}
+.nf-address-scroll {
+  position: relative;
+  z-index: 1;
+  height: calc(100vh - var(--status-bar-height, 44rpx) - 88rpx - 120rpx);
+  margin-top: calc(var(--status-bar-height, 44rpx) + 88rpx);
+  padding: 0 24rpx;
+}
+.nf-address-list {
+  padding-top: 20rpx;
+  padding-bottom: 30rpx;
+}
+.nf-addr-card {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 16rpx;
   padding: 30rpx;
-  display: flex;
-  flex-direction: column;
+  margin-bottom: 20rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
 }
-
-.address-content {
-  flex: 1;
+.nf-addr-info {
+  margin-bottom: 20rpx;
 }
-
-.address-header {
+.nf-addr-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10rpx;
+  margin-bottom: 12rpx;
 }
-
-.name-phone {
+.nf-addr-name-phone {
   display: flex;
   align-items: center;
+  gap: 16rpx;
 }
-
-.name {
-  font-size: 32rpx;
-  font-weight: 500;
-  color: #333;
-  margin-right: 20rpx;
-}
-
-.phone {
-  font-size: 28rpx;
-  color: #666;
-}
-
-.tag-box {
-  display: flex;
-}
-
-.default-tag {
-  font-size: 22rpx;
-  background-color: #ff4c7d;
+.nf-addr-name {
+  font-size: 30rpx;
+  font-weight: bold;
   color: #fff;
-  padding: 2rpx 10rpx;
-  border-radius: 4rpx;
 }
-
-.address-detail {
-  font-size: 28rpx;
-  color: #666;
-  line-height: 1.4;
-  margin-top: 10rpx;
+.nf-addr-phone {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.5);
 }
-
-.address-actions {
-  background-color: #fff;
-  border-radius: 0 0 12rpx 12rpx;
-  margin-top: 40rpx;
+.nf-addr-default-tag {
+  background: rgba(229, 9, 20, 0.2);
+  border: 1rpx solid rgba(229, 9, 20, 0.4);
+  border-radius: 6rpx;
+  padding: 4rpx 12rpx;
 }
-
-.action-divider {
-  height: 1rpx;
-  background-color: #eee;
-  margin: 0 0 20rpx 0;
+.nf-addr-default-tag text {
+  font-size: 20rpx;
+  color: #e50914;
 }
-
-.action-divider-vertical {
-  width: 1rpx;
-  height: 40rpx;
-  background-color: #eee;
+.nf-addr-detail {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.5;
 }
-
-.action-buttons {
+.nf-addr-actions {
   display: flex;
-  justify-content: space-around;
-  align-items: center;
-  padding-bottom: 20rpx;
+  gap: 30rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
 }
-
-.action-btn {
-  flex: 1;
+.nf-addr-action {
   display: flex;
-  justify-content: center;
   align-items: center;
-  height: 60rpx;
+  gap: 8rpx;
 }
-
-.action-btn text {
-  font-size: 28rpx;
-  color: #666;
+.nf-addr-action text {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.6);
 }
-
-.edit-btn text {
-  color: #333;
+.nf-addr-action-del text {
+  color: #e50914;
 }
-
-.delete-btn text {
-  color: #ff4c7d;
+.nf-addr-bottom {
+  text-align: center;
+  padding: 20rpx 0;
 }
-
-.empty-address {
+.nf-addr-bottom text {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.3);
+}
+.nf-addr-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding-top: 200rpx;
+  padding-top: 300rpx;
 }
-
-.empty-icon {
-  width: 200rpx;
-  height: 200rpx;
-  margin-bottom: 30rpx;
-}
-
-.empty-text {
+.nf-addr-empty-text {
   font-size: 28rpx;
-  color: #999;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 20rpx;
 }
-
-.add-address-btn-wrapper {
+.nf-addr-add-wrap {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 20rpx;
-  background-color: #fff;
-  box-shadow: 0 -2rpx 10rpx rgba(0,0,0,0.05);
+  padding: 20rpx 24rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(20rpx);
+  z-index: 100;
 }
-
-.add-address-btn {
-  background-color: #ff4c7d;
+.nf-addr-add-btn {
+  height: 88rpx;
+  border-radius: 12rpx;
+  background: #e50914;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+}
+.nf-addr-add-btn text {
+  font-size: 30rpx;
+  font-weight: bold;
   color: #fff;
-  border-radius: 8rpx;
-  font-size: 32rpx;
-  height: 90rpx;
-  line-height: 90rpx;
-}
-
-.bottom-text {
-  text-align: center;
-  color: #999;
-  font-size: 24rpx;
-  padding: 30rpx 0;
 }
 </style>

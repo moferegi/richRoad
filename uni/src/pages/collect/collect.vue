@@ -42,7 +42,7 @@
             </view>
             <view class="nf-goods-bottom">
               <view class="nf-price-row">
-                <text class="nf-price">¥{{ formatPrice(item.price) }}</text>
+                <text class="nf-price">{{ cs }}{{ formatPrice(item.price) }}</text>
               </view>
               <view class="nf-goods-meta">
                 <text class="nf-rating-stars">★</text>
@@ -92,8 +92,11 @@ import { getCollectList, findCollect, createCollect } from '@/api/collect'
 import { useUserStore } from '@/pinia/modules/user'
 import { getUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
 const langStore = useLangStore()
+const appConfigStore = useAppConfigStore()
+const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
 

@@ -23,8 +23,8 @@
         <view class="nf-title-line"></view>
       </view>
 
-      <!-- 模式切换（仅在手机注册启用时显示） -->
-      <view class="nf-mode-switch" v-if="phoneLoginEnabled">
+      <!-- 模式切换（仅在两种注册方式都启用时显示） -->
+      <view class="nf-mode-switch" v-if="phoneLoginEnabled && usernameLoginEnabled">
         <view class="nf-mode-tab" :class="{active: registerMode === 'username'}" @tap="registerMode = 'username'">
           <text>{{ $t('usernameRegisterBtn') }}</text>
         </view>
@@ -62,13 +62,19 @@
           <input class="nf-input" type="password" maxlength="18" :placeholder="$t('passwordPlaceholder')" v-model="form.rePassword" />
         </view>
 
-        <!-- 手机号注册需要验证码 -->
-        <view class="nf-field nf-captcha-field" v-if="registerMode === 'phone'">
+        <!-- 验证码（所有模式都显示） -->
+        <view class="nf-field nf-captcha-field">
           <text class="nf-label">{{ $t('captcha') }}</text>
           <view class="nf-captcha-row">
             <input class="nf-input nf-captcha-input" :placeholder="$t('captchaPlaceholder')" v-model="form.captcha" />
             <image class="nf-captcha-img" @tap="getCaptchaFunc()" :src="captchaImg" mode="aspectFit"></image>
           </view>
+        </view>
+
+        <!-- 邀请码 -->
+        <view class="nf-field">
+          <text class="nf-label">{{ $t('inviteCodeLabel') }}</text>
+          <input class="nf-input" :placeholder="$t('inviteCodePlaceholder')" maxlength="20" v-model="form.inviteCode" />
         </view>
       </view>
 
@@ -124,8 +130,8 @@
 	const $t = computed(() => langStore.$t)
 	const $lt = computed(() => langStore.$lt)
 	const langLabel = computed(() => {
-	  const map = { zh: '中', en: 'EN', mn: 'MN' }
-	  return map[langStore.locale] || '中'
+	  const map = { zh: '中', en: 'EN', mn: 'MN', 'zh-TW': '繁', th: 'TH', hi: 'HI', id: 'ID' }
+	  return map[langStore.locale] || langStore.locale.slice(0, 2).toUpperCase()
 	})
 	const showLangPicker = ref(false)
 
@@ -143,6 +149,7 @@
 	// 注册模式
 	const registerMode = ref('username') // 'username' | 'phone'
 	const phoneLoginEnabled = ref(false)
+	const usernameLoginEnabled = ref(true)
 	const showAreaCodePicker = ref(false)
 	const areaCodes = ref([])
 	const selectedAreaCode = ref('+86')
@@ -172,9 +179,17 @@
 	const loadConfig = async () => {
 		try {
 			const res = await getLoginConfig()
-			if (res.code === 0 && res.data && res.data.phone_login_enabled === 'true') {
-				phoneLoginEnabled.value = true
-				getCaptchaFunc()
+			if (res.code === 0 && res.data) {
+				phoneLoginEnabled.value = res.data.phone_login_enabled === 'true'
+				usernameLoginEnabled.value = res.data.username_login_enabled !== 'false'
+				// 互斥：两者不能同时关闭
+				if (!phoneLoginEnabled.value && !usernameLoginEnabled.value) {
+					usernameLoginEnabled.value = true
+				}
+				// 根据配置决定默认注册模式
+				if (!usernameLoginEnabled.value && phoneLoginEnabled.value) {
+					registerMode.value = 'phone'
+				}
 			}
 		} catch(e) {}
 	}
@@ -207,6 +222,7 @@
 	})
 
 	onMounted(() => {
+		getCaptchaFunc()
 		loadConfig()
 		loadAreaCodes()
 	})
@@ -234,10 +250,23 @@
 				uni.showToast({ title: $t.value('passwordMismatch'), icon: 'none' })
 				return
 			}
-			const res = await register(form)
+			if (!form.captcha) {
+				uni.showToast({ title: $t.value('enterCaptcha'), icon: 'none' })
+				return
+			}
+			const res = await register({
+				username: form.username,
+				password: form.password,
+				rePassword: form.rePassword,
+				captcha: form.captcha,
+				captchaId: form.captchaId,
+				inviteCode: form.inviteCode
+			})
 			if (res.code === 0) {
 				uni.showToast({ title: $t.value('registerSuccess'), icon: 'none' })
 				toLogin()
+			} else {
+				getCaptchaFunc()
 			}
 		} else {
 			// 手机号注册
@@ -360,6 +389,7 @@ page { background-color: #000; }
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   transition: all 0.3s;
 
   &:active {
@@ -372,6 +402,8 @@ page { background-color: #000; }
   font-size: 22rpx;
   font-weight: 700;
   color: #fff;
+  line-height: 1;
+  text-align: center;
 }
 
 .nf-container {
@@ -461,6 +493,9 @@ page { background-color: #000; }
   justify-content: center;
   border: none;
   margin: 0;
+  line-height: 1;
+  overflow: hidden;
+  white-space: nowrap;
   transition: all 0.3s;
 
   &:active { transform: scale(0.97); }
@@ -504,6 +539,9 @@ page { background-color: #000; }
   border-radius: 12rpx;
   font-size: 26rpx;
   color: rgba(255, 255, 255, 0.5);
+  line-height: 1.2;
+  overflow: hidden;
+  white-space: nowrap;
   transition: all 0.3s;
 
   &.active {

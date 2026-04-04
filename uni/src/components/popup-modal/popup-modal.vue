@@ -1,13 +1,18 @@
 <template>
   <view class="nf-popup-mask" v-if="visible" @tap.self="onClose">
     <view class="nf-popup-wrap">
+      <!-- 图片类型 -->
       <image
-        v-if="popup.image || popup.externalPath"
+        v-if="popup.popupType !== 'content' && (popup.image || popup.externalPath)"
         class="nf-popup-img"
-        :src="popup.externalPath || getUrl(popup.image)"
+        :src="popup.externalPath ? getExternalUrl(popup.externalPath) : getUrl(popup.image)"
         mode="widthFix"
         @tap="onImageTap"
       />
+      <!-- 内容类型 -->
+      <view v-if="popup.popupType === 'content' && parsedContent" class="nf-popup-content">
+        <rich-text :nodes="parsedContent" />
+      </view>
       <view class="nf-popup-title" v-if="parsedTitle">
         <text class="nf-popup-title-text">{{ parsedTitle }}</text>
       </view>
@@ -22,10 +27,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { getActivePopups } from '@/api/popup.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
-import { getUrl } from '@/utils/url.js'
+import { getUrl, getExternalUrl } from '@/utils/url.js'
 
 const props = defineProps({
-  position: { type: String, default: 'home' },
+  position: { type: String, default: '' },
+  pagePath: { type: String, default: '' },
   clientType: { type: String, default: 'uni' }
 })
 
@@ -40,11 +46,35 @@ const parsedTitle = computed(() => {
   return $lt.value(popup.value.title)
 })
 
+const parsedContent = computed(() => {
+  if (!popup.value.content) return ''
+  return $lt.value(popup.value.content)
+})
+
+const getCurrentPagePath = () => {
+  if (props.pagePath) return props.pagePath
+  const pages = getCurrentPages()
+  if (pages.length > 0) {
+    return '/' + pages[pages.length - 1].route
+  }
+  return ''
+}
+
 const loadPopup = async () => {
-  const storageKey = 'popup_shown_' + props.position
-  const res = await getActivePopups({ position: props.position, clientType: props.clientType })
+  const currentPage = getCurrentPagePath()
+  const params = { clientType: props.clientType }
+  // 优先用页面路径，兼容旧 position
+  if (currentPage) {
+    params.page = currentPage
+  }
+  if (props.position) {
+    params.position = props.position
+  }
+
+  const res = await getActivePopups(params)
   if (res.code === 0 && res.data && res.data.length > 0) {
     const p = res.data[0]
+    const storageKey = 'popup_shown_' + (currentPage || props.position || 'default')
     // 如果设置为只弹一次，检查是否已展示过
     if (p.onceOnly) {
       const shown = uni.getStorageSync(storageKey)
@@ -92,6 +122,14 @@ onMounted(() => {
 }
 .nf-popup-img {
   width: 100%;
+}
+.nf-popup-content {
+  padding: 24rpx 32rpx;
+  max-height: 600rpx;
+  overflow-y: auto;
+  color: #fff;
+  font-size: 26rpx;
+  line-height: 1.6;
 }
 .nf-popup-title {
   padding: 24rpx 32rpx;
