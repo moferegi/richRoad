@@ -93,7 +93,10 @@
         <text class="nf-section-title">{{ $t('browseHistory') }}</text>
         <view class="nf-section-line"></view>
       </view>
-      <scroll-view class="nf-history-scroll" scroll-x>
+      <view v-if="historyList.length === 0" class="nf-history-empty">
+        <text class="nf-history-empty-text">{{ $t('noData') }}</text>
+      </view>
+      <scroll-view v-else class="nf-history-scroll" scroll-x>
         <view class="nf-history-list">
           <view
               class="nf-history-item"
@@ -233,7 +236,7 @@ const columns = computed(() => [
   }
 ])
 // 浏览历史
-const historyList = ref(Array(5).fill(null));
+const historyList = ref([]);
 const defaultAvatarUrl = 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0'
 const avatarUrl = ref('')
 const nickName = ref('默认用户')
@@ -385,7 +388,7 @@ const toPages = (pages) => {
   if(pages === 'exit'){
     uni.showModal({
       title: $t.value('logout') || '退出登录',
-      content: $t.value('logoutConfirm') || '确定要退出登录吗？',
+      content: $t.value('confirmLogout') || '确定要退出登录吗？',
       success: (res) => {
         if (res.confirm) {
           userStore.loginOut()
@@ -739,6 +742,13 @@ page {
 }
 
 /* 浏览历史 */
+.nf-history-empty {
+  display: flex; align-items: center; justify-content: center;
+  padding: 40rpx 0;
+}
+.nf-history-empty-text {
+  font-size: 24rpx; color: rgba(255,255,255,0.3);
+}
 .nf-history-scroll {
   width: 100%;
 }

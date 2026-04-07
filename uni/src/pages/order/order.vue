@@ -58,7 +58,7 @@
           <view class="nf-goods-row">
             <image
               v-for="(d, di) in item.detail" :key="di"
-              :src="getUrl(d.sku.picture)"
+              :src="d.sku.externalPicturePath ? getExternalUrl(d.sku.externalPicturePath) : getUrl(d.sku.picture)"
               class="nf-goods-thumb"
               mode="aspectFill"
             />
@@ -67,7 +67,7 @@
 
         <!-- 单件商品 -->
         <view class="nf-goods-single" v-if="item.detail && item.detail.length === 1">
-          <image :src="getUrl(item.detail[0].sku.picture)" class="nf-goods-thumb-lg" mode="aspectFill" />
+          <image :src="item.detail[0].sku.externalPicturePath ? getExternalUrl(item.detail[0].sku.externalPicturePath) : getUrl(item.detail[0].sku.picture)" class="nf-goods-thumb-lg" mode="aspectFill" />
           <view class="nf-goods-single-info">
             <text class="nf-goods-single-name">{{ $lt(item.detail[0].sku.name) || item.detail[0].sku.name }}</text>
             <text class="nf-goods-single-desc">{{ $lt(item.detail[0].good?.description) || item.detail[0].sku.description }}</text>
@@ -120,6 +120,17 @@
       </view>
     </view>
 
+    <!-- 加载更多提示 -->
+    <view v-if="isLoading && orderList.length > 0" class="nf-load-more">
+      <text class="nf-load-text">{{ $t('loading') }}</text>
+    </view>
+    <view v-else-if="!isBottom && !isLoading && orderList.length > 0" class="nf-load-more" @tap="loadMore">
+      <text class="nf-load-btn">{{ $t('loadMore') || 'Load More' }}</text>
+    </view>
+    <view v-else-if="isBottom && orderList.length > 0" class="nf-load-more">
+      <text class="nf-load-text">— END —</text>
+    </view>
+
     <view style="height: 40rpx;"></view>
 
     <refund-apply-popup
@@ -132,10 +143,10 @@
 
 <script setup>
 import { ref, computed, onUnmounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onReachBottom, onShow } from '@dcloudio/uni-app'
 import { updateOrderStatus, SelfOrderList } from "../../api/order"
 import { getSysConfigByKey } from '@/api/sysConfig.js'
-import { getUrl } from "@/utils/url.js"
+import { getUrl, getExternalUrl } from "@/utils/url.js"
 import RefundApplyPopup from '@/components/refund-apply-popup/refund-apply-popup.vue'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
@@ -170,6 +181,11 @@ const getStatusLabel = (status) => {
 const orderList = ref([])
 const refundVisible = ref(false)
 const refundOrderId = ref('')
+const page = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
+const isLoading = ref(false)
+const isBottom = ref(false)
 
 const loadConfig = async () => {
   try {
@@ -177,19 +193,50 @@ const loadConfig = async () => {
       getSysConfigByKey('order_refund_enabled').catch(() => null),
       getSysConfigByKey('order_logistics_enabled').catch(() => null),
     ])
-    if (refundRes?.code === 0 && refundRes.data?.configValue !== undefined) {
-      showRefundBtn.value = refundRes.data.configValue !== 'false' && refundRes.data.configValue !== '0'
+    if (refundRes?.code === 0 && refundRes.data !== undefined) {
+      const val = typeof refundRes.data === 'object' ? refundRes.data.configValue : refundRes.data
+      showRefundBtn.value = val !== 'false' && val !== '0'
     }
-    if (logisticsRes?.code === 0 && logisticsRes.data?.configValue !== undefined) {
-      showLogisticsBtn.value = logisticsRes.data.configValue !== 'false' && logisticsRes.data.configValue !== '0'
+    if (logisticsRes?.code === 0 && logisticsRes.data !== undefined) {
+      const val = typeof logisticsRes.data === 'object' ? logisticsRes.data.configValue : logisticsRes.data
+      showLogisticsBtn.value = val !== 'false' && val !== '0'
     }
   } catch (e) { /* 配置获取失败时默认显示 */ }
 }
 
 const init = async (params) => {
   activeSataus.value = params || ''
-  const res = await SelfOrderList(activeSataus.value)
-  if (res.code === 0) { orderList.value = res.data.list || [] }
+  page.value = 1
+  isBottom.value = false
+  isLoading.value = true
+  try {
+    const res = await SelfOrderList({ status: activeSataus.value, page: page.value, pageSize: pageSize.value })
+    if (res.code === 0) {
+      orderList.value = res.data.list || []
+      total.value = res.data.total || 0
+      if (orderList.value.length >= total.value) isBottom.value = true
+    }
+  } finally {
+    isLoading.value = false
+  }
+  startCountdown()
+}
+
+const loadMore = async () => {
+  if (isBottom.value || isLoading.value) return
+  isLoading.value = true
+  page.value++
+  try {
+    const res = await SelfOrderList({ status: activeSataus.value, page: page.value, pageSize: pageSize.value })
+    if (res.code === 0 && res.data.list && res.data.list.length > 0) {
+      orderList.value = [...orderList.value, ...res.data.list]
+      if (orderList.value.length >= (res.data.total || 0)) isBottom.value = true
+    } else {
+      isBottom.value = true
+    }
+  } finally {
+    isLoading.value = false
+  }
   startCountdown()
 }
 
@@ -225,6 +272,16 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
 onLoad((options) => {
   loadConfig()
   init(options.status)
+})
+
+let isFirstShow = true
+onShow(() => {
+  if (isFirstShow) { isFirstShow = false; return }
+  init(activeSataus.value)
+})
+
+onReachBottom(() => {
+  loadMore()
 })
 
 const formatOrderDate = (t) => {
@@ -287,9 +344,7 @@ const goCommentAll = (order) => {
 }
 
 const tapBtn = async (item) => {
-  activeSataus.value = item.id
-  const res = await SelfOrderList(item.id)
-  if (res.code === 0) { orderList.value = res.data.list || [] }
+  init(item.id)
 }
 
 const goBack = () => { uni.navigateBack() }
@@ -330,7 +385,7 @@ page { background-color: #000; }
 .nf-tab {
   display: inline-flex; padding: 20rpx 28rpx;
   font-size: 26rpx; color: rgba(255, 255, 255, 0.5); font-weight: 500;
-  position: relative;
+  position: relative; white-space: nowrap; flex-shrink: 0;
   &.active {
     color: #fff; font-weight: 700;
     &::after {
@@ -432,5 +487,17 @@ page { background-color: #000; }
   &.cancelled { color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.04); }
   &.refunding { color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
   &.refunded { color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.04); }
+}
+
+.nf-load-more {
+  display: flex; justify-content: center; align-items: center;
+  padding: 32rpx 0 16rpx;
+}
+.nf-load-text { font-size: 24rpx; color: rgba(255, 255, 255, 0.3); }
+.nf-load-btn {
+  font-size: 26rpx; color: rgba(255, 255, 255, 0.6);
+  padding: 16rpx 48rpx; border-radius: 30rpx;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(255, 255, 255, 0.12);
 }
 </style>

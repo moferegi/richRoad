@@ -88,6 +88,13 @@
           @click="onDelete"
         >删除</el-button>
       </div>
+      <div v-if="enabledLangs.length" style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:8px;">
+        <span style="margin-right:6px;font-size:13px;color:#666;">表格语言：</span>
+        <el-select v-model="tableLang" size="small" style="width:120px;">
+          <el-option label="默认" value="" />
+          <el-option v-for="l in enabledLangs" :key="l.code" :label="l.name || l.code" :value="l.code" />
+        </el-select>
+      </div>
       <el-table
         ref="multipleTable"
         style="width: 100%"
@@ -114,23 +121,25 @@
         <el-table-column
           align="left"
           label="商品名称"
-          prop="title"
           width="120"
-        />
+        >
+          <template #default="scope">{{ formatI18nField(scope.row.title) }}</template>
+        </el-table-column>
         <el-table-column
           align="left"
           label="商品描述"
-          prop="description"
           width="120"
-        />
+        >
+          <template #default="scope">{{ formatI18nField(scope.row.description) }}</template>
+        </el-table-column>
         <el-table-column
-          label="商品图片URL"
+          label="商品图片"
           width="200"
         >
           <template #default="scope">
             <el-image
               style="width: 100px; height: 100px"
-              :src="getUrl(scope.row.imageUrl)"
+              :src="scope.row.externalImagePath ? resolveExtUrl(scope.row.externalImagePath) : getUrl(scope.row.imageUrl)"
               fit="cover"
             />
           </template>
@@ -156,7 +165,7 @@
         <el-table-column
           align="left"
           label="浏览量"
-          prop="viewNum"
+          prop="view_num"
           width="90"
         />
         <el-table-column
@@ -168,7 +177,7 @@
         <el-table-column
           align="left"
           label="收藏数"
-          prop="collectNum"
+          prop="collect_num"
           width="90"
         />
         <el-table-column
@@ -387,13 +396,17 @@
 
         </el-row>
         <el-form-item
-          label="商品图片URL:"
+          label="商品图片(上传):"
           prop="imageUrl"
         >
           <SelectImage
             v-model="formData.imageUrl"
             file-type="image"
           />
+        </el-form-item>
+        <el-form-item label="商品图片外链(优先于上传):" prop="externalImagePath">
+          <el-input v-model="formData.externalImagePath" placeholder="相对路径如 /images/product.jpg 自动拼接外部域名" clearable />
+          <div v-if="extDomain" class="text-xs text-gray-400 mt-1">当前外部域名: {{ extDomain }}</div>
         </el-form-item>
         <el-form-item
           label="商品轮播图:"
@@ -422,9 +435,15 @@
                 <el-input v-model="item.externalUrl" placeholder="https://example.com/media.jpg" clearable />
               </el-form-item>
               <el-row :gutter="12" class="mt-2">
-                <el-col :span="8">
-                  <el-form-item label="文字:" class="mb-0" label-width="auto">
-                    <el-input v-model="item.text" placeholder="轮播图文字" clearable />
+                <el-col :span="12">
+                  <el-form-item label="文字(多语言):" class="mb-0" label-width="auto">
+                    <el-input v-model="item.text" placeholder="默认文字" clearable />
+                    <div v-if="enabledLangs.length" class="w-full mt-1">
+                      <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
+                        <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
+                        <el-input v-model="item.textI18n[lang.code]" :placeholder="lang.name" size="small" />
+                      </div>
+                    </div>
                   </el-form-item>
                 </el-col>
                 <el-col :span="4">
@@ -448,7 +467,7 @@
                 </el-col>
               </el-row>
             </div>
-            <el-button type="primary" icon="plus" @click="formData.banner.push({ url: '', type: 'image', externalUrl: '', text: '', textColor: '#FFFFFF', textSize: 14, textPosition: 'bottom' })">添加轮播项</el-button>
+            <el-button type="primary" icon="plus" @click="formData.banner.push({ url: '', type: 'image', externalUrl: '', text: '', textI18n: {}, textColor: '#FFFFFF', textSize: 14, textPosition: 'bottom' })">添加轮播项</el-button>
           </div>
         </el-form-item>
         <el-form-item
@@ -600,14 +619,17 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="预售弹窗标题(多语言):" prop="presalePopupTitle" v-if="formData.isPresale">
+        <el-form-item label="预售弹窗开关:" prop="presalePopupEnabled" v-if="formData.isPresale">
+          <el-switch v-model="formData.presalePopupEnabled" />
+        </el-form-item>
+        <el-form-item label="预售弹窗标题(多语言):" prop="presalePopupTitle" v-if="formData.isPresale && formData.presalePopupEnabled">
           <el-tabs type="border-card" style="width:100%;">
             <el-tab-pane v-for="lang in enabledLangs" :key="lang.code" :label="lang.name">
               <el-input v-model="presalePopupTitleI18n[lang.code]" :placeholder="`${lang.name} 弹窗标题`" />
             </el-tab-pane>
           </el-tabs>
         </el-form-item>
-        <el-form-item label="预售弹窗内容(多语言):" prop="presalePopupContent" v-if="formData.isPresale">
+        <el-form-item label="预售弹窗内容(多语言):" prop="presalePopupContent" v-if="formData.isPresale && formData.presalePopupEnabled">
           <el-tabs type="border-card" style="width:100%;">
             <el-tab-pane v-for="lang in enabledLangs" :key="lang.code" :label="lang.name">
               <el-input v-model="presalePopupContentI18n[lang.code]" type="textarea" :rows="3" :placeholder="`${lang.name} 弹窗内容`" />
@@ -616,115 +638,123 @@
         </el-form-item>
 
         <h4 class="flex justify-between items-center">
-          <span>商品规格(可作为商品选项的属性，例：尺码，颜色) <el-tag size="small" type="info">名称支持JSON多语言</el-tag></span>
-          <el-button
-            type="primary"
-            icon="plus"
-            @click="formData.specs.push({
-              name: '',
-              value: ''
-            })"
-          >添加</el-button>
+          <span>商品规格(可作为商品选项的属性，例：尺码，颜色)</span>
+          <div>
+            <el-dropdown v-if="specDictList.length" @command="selectSpecFromDict" style="margin-right:8px;">
+              <el-button type="success" size="small">从字典选择<el-icon class="el-icon--right"><arrow-down /></el-icon></el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-for="d in specDictList" :key="d.ID" :command="d">{{ d.label }} - {{ d.value }}</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+            <el-button
+              type="primary"
+              icon="plus"
+              size="small"
+              @click="formData.specs.push({
+                name: '',
+                nameI18n: {},
+                value: '',
+                valueI18n: {}
+              })"
+            >手动添加</el-button>
+          </div>
         </h4>
-        <el-row
+        <div
           v-for="(item,index) in formData.specs"
-          :key="index"
-          :gutter="12"
+          :key="'spec'+index"
+          class="mb-2 p-2" style="border: 1px solid #ebeef5; border-radius: 4px;"
         >
-          <el-col
-            :key="index"
-            :span="8"
-          >
-            <el-form-item
-              :label="!index?'规格名称:':''"
-              prop="specs"
-            >
-              <el-input
-                v-model="item.name"
-                :clearable="true"
-                placeholder="请输入规格名称"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item
-              :label="!index?'规格编码:':''"
-              prop="specs"
-            >
-              <el-input
-                v-model="item.value"
-                :clearable="true"
-                placeholder="请输入规格编码"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item
-              :label="!index?'操作':''"
-            >
-              <el-button
-                type="danger"
-                icon="delete"
-                @click="formData.specs.splice(index,1)"
-              >删除</el-button>
-            </el-form-item>
-          </el-col>
-        </el-row>
+          <el-row :gutter="12">
+            <el-col :span="8">
+              <el-form-item label="规格名称(默认):" class="mb-0">
+                <el-input v-model="item.name" :clearable="true" placeholder="默认规格名称" />
+              </el-form-item>
+              <div v-if="enabledLangs.length" class="pl-2 mt-1">
+                <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
+                  <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
+                  <el-input v-model="item.nameI18n[lang.code]" :placeholder="lang.name" size="small" />
+                </div>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item label="规格编码(默认):" class="mb-0">
+                <el-input v-model="item.value" :clearable="true" placeholder="请输入规格编码" />
+              </el-form-item>
+              <div v-if="enabledLangs.length" class="pl-2 mt-1">
+                <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
+                  <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
+                  <el-input v-model="item.valueI18n[lang.code]" :placeholder="lang.name" size="small" />
+                </div>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item label="操作:">
+                <el-button type="danger" icon="delete" @click="formData.specs.splice(index,1)">删除</el-button>
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </div>
         <h4 class="flex justify-between items-center">
-          <span>商品属性(仅作为展示属性，例：厂商，材料) <el-tag size="small" type="info">名称支持JSON多语言</el-tag></span>
-          <el-button
-            type="primary"
-            icon="plus"
-            @click="formData.attrs.push({
-              name: '',
-              value: ''
-            })"
-          >添加</el-button>
+          <span>商品属性(仅作为展示属性，例：厂商，材料)</span>
+          <div>
+            <el-dropdown v-if="attrDictList.length" @command="selectAttrFromDict" style="margin-right:8px;">
+              <el-button type="success" size="small">从字典选择<el-icon class="el-icon--right"><arrow-down /></el-icon></el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-for="d in attrDictList" :key="d.ID" :command="d">{{ d.label }} - {{ d.value }}</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+            <el-button
+              type="primary"
+              icon="plus"
+              size="small"
+              @click="formData.attrs.push({
+                name: '',
+                nameI18n: {},
+                value: '',
+                valueI18n: {}
+              })"
+            >手动添加</el-button>
+          </div>
         </h4>
-        <el-row
+        <div
           v-for="(item,index) in formData.attrs"
-          :key="index"
-          :gutter="12"
+          :key="'attr'+index"
+          class="mb-2 p-2" style="border: 1px solid #ebeef5; border-radius: 4px;"
         >
-          <el-col
-            :key="index"
-            :span="8"
-          >
-            <el-form-item
-              :label="!index?'属性值:':''"
-              prop="specs"
-            >
-              <el-input
-                v-model="item.name"
-                :clearable="true"
-                placeholder="请输入属性值"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item
-              :label="!index?'属性编码:':''"
-              prop="specs"
-            >
-              <el-input
-                v-model="item.value"
-                :clearable="true"
-                placeholder="请输入属性编码"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item
-              :label="!index?'操作':''"
-            >
-              <el-button
-                type="danger"
-                icon="delete"
-                @click="formData.attrs.splice(index,1)"
-              >删除</el-button>
-            </el-form-item>
-          </el-col>
-        </el-row>
+          <el-row :gutter="12">
+            <el-col :span="8">
+              <el-form-item label="属性名称(默认):" class="mb-0">
+                <el-input v-model="item.name" :clearable="true" placeholder="默认属性名称" />
+              </el-form-item>
+              <div v-if="enabledLangs.length" class="pl-2 mt-1">
+                <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
+                  <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
+                  <el-input v-model="item.nameI18n[lang.code]" :placeholder="lang.name" size="small" />
+                </div>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item label="属性编码(默认):" class="mb-0">
+                <el-input v-model="item.value" :clearable="true" placeholder="请输入属性编码" />
+              </el-form-item>
+              <div v-if="enabledLangs.length" class="pl-2 mt-1">
+                <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
+                  <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
+                  <el-input v-model="item.valueI18n[lang.code]" :placeholder="lang.name" size="small" />
+                </div>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item label="操作:">
+                <el-button type="danger" icon="delete" @click="formData.attrs.splice(index,1)">删除</el-button>
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </div>
         <el-form-item
             label="商品详情:"
             prop="detail"
@@ -773,7 +803,9 @@ import {
 import {
   getCategoryList
 } from '@/api/shop/category'
+import { getAllSkuSpecs } from '@/api/shop/skuSpec'
 import { getEnabledLanguages } from '@/api/client/language'
+import { getDefaultDomain } from '@/api/client/externalLinkDomain'
 import { getUrl } from '@/utils/image'
 // 图片选择组件
 import SelectImage from '@/components/selectImage/selectImage.vue'
@@ -789,6 +821,53 @@ defineOptions({
 })
 
 const router = useRouter()
+
+// === 外部链接域名 ===
+const extDomain = ref('')
+const loadExtDomain = async () => {
+  try {
+    const res = await getDefaultDomain()
+    if (res.code === 0 && res.data) {
+      extDomain.value = res.data.replace(/\/+$/, '')
+    }
+  } catch (e) { /* ignore */ }
+}
+const resolveExtUrl = (path) => {
+  if (!path) return ''
+  if (path.startsWith('http')) return path
+  if (extDomain.value) {
+    const sep = path.startsWith('/') ? '' : '/'
+    return extDomain.value + sep + path
+  }
+  return path
+}
+
+// === SKU规格字典 ===
+const specDictList = ref([])
+const attrDictList = ref([])
+const loadSkuSpecDict = async () => {
+  try {
+    const [specRes, attrRes] = await Promise.all([getAllSkuSpecs('spec'), getAllSkuSpecs('attr')])
+    if (specRes.code === 0) specDictList.value = specRes.data || []
+    if (attrRes.code === 0) attrDictList.value = attrRes.data || []
+  } catch(e) { /* ignore */ }
+}
+const selectSpecFromDict = (dictItem) => {
+  if (!formData.value.specs) formData.value.specs = []
+  const nameI18n = {}
+  try { Object.assign(nameI18n, typeof dictItem.labelI18n === 'string' ? JSON.parse(dictItem.labelI18n || '{}') : (dictItem.labelI18n || {})) } catch {}
+  const valueI18n = {}
+  try { Object.assign(valueI18n, typeof dictItem.valueI18n === 'string' ? JSON.parse(dictItem.valueI18n || '{}') : (dictItem.valueI18n || {})) } catch {}
+  formData.value.specs.push({ name: dictItem.label, nameI18n, value: dictItem.value, valueI18n })
+}
+const selectAttrFromDict = (dictItem) => {
+  if (!formData.value.attrs) formData.value.attrs = []
+  const nameI18n = {}
+  try { Object.assign(nameI18n, typeof dictItem.labelI18n === 'string' ? JSON.parse(dictItem.labelI18n || '{}') : (dictItem.labelI18n || {})) } catch {}
+  const valueI18n = {}
+  try { Object.assign(valueI18n, typeof dictItem.valueI18n === 'string' ? JSON.parse(dictItem.valueI18n || '{}') : (dictItem.valueI18n || {})) } catch {}
+  formData.value.attrs.push({ name: dictItem.label, nameI18n, value: dictItem.value, valueI18n })
+}
 
 // === i18n 多语言支持 ===
 const enabledLangs = ref([])
@@ -825,7 +904,21 @@ const serializeI18nJson = (obj) => {
   return Object.keys(filtered).length ? JSON.stringify(filtered) : ''
 }
 
-onMounted(() => { loadLangs() })
+onMounted(() => { loadLangs(); loadExtDomain(); loadSkuSpecDict() })
+
+const tableLang = ref('')
+
+const formatI18nField = (val) => {
+  if (!val) return ''
+  if (typeof val === 'string' && val.startsWith('{')) {
+    try {
+      const obj = JSON.parse(val)
+      if (tableLang.value && obj[tableLang.value]) return obj[tableLang.value]
+      return obj['zh'] || Object.values(obj)[0] || val
+    } catch { return val }
+  }
+  return val
+}
 
 const setSKU = (row) => {
   router.push({ name: 'sku', query: { id: row.ID }})
@@ -855,6 +948,7 @@ getTags()
 const formData = ref({
   description: '',
   imageUrl: '',
+  externalImagePath: '',
   banner: [],
   price: 0,
   rating: 0,
@@ -878,6 +972,7 @@ const formData = ref({
   presaleEnd: null,
   presaleEnabled: true,
   presaleSort: 0,
+  presalePopupEnabled: false,
   presalePopupTitle: '',
   presalePopupContent: '',
 })
@@ -1049,9 +1144,26 @@ const updateGoodFunc = async(row) => {
     // 兼容旧数据：如果 banner 是简单字符串数组，转为新结构
     if (formData.value.banner.length > 0 && typeof formData.value.banner[0] === 'string') {
       formData.value.banner = formData.value.banner.map(url => ({
-        url, type: 'image', externalUrl: '', text: '', textColor: '#FFFFFF', textSize: 14, textPosition: 'bottom'
+        url, type: 'image', externalUrl: '', text: '', textI18n: {}, textColor: '#FFFFFF', textSize: 14, textPosition: 'bottom'
       }))
     }
+    // 解析 banner 文字 i18n
+    formData.value.banner.forEach(item => {
+      if (!item.textI18n) {
+        item.textI18n = parseI18nJson(item.text)
+      }
+    })
+    // 解析 specs/attrs 名称和编码 i18n
+    formData.value.specs.forEach(item => {
+      item.nameI18n = parseI18nJson(item.name)
+      if (!item.valueI18n) item.valueI18n = parseI18nJson(item.value)
+      else if (typeof item.valueI18n === 'string') item.valueI18n = parseI18nJson(item.valueI18n)
+    })
+    formData.value.attrs.forEach(item => {
+      item.nameI18n = parseI18nJson(item.name)
+      if (!item.valueI18n) item.valueI18n = parseI18nJson(item.value)
+      else if (typeof item.valueI18n === 'string') item.valueI18n = parseI18nJson(item.valueI18n)
+    })
     // 解析 i18n 字段
     titleI18n.value = parseI18nJson(formData.value.title)
     descI18n.value = parseI18nJson(formData.value.description)
@@ -1101,6 +1213,9 @@ const closeDialog = () => {
   presalePopupContentI18n.value = {}
   formData.value = {
     description: '',
+    imageUrl: '',
+    externalImagePath: '',
+    banner: [],
     price: 0,
     rating: 0,
     reviewCount: 0,
@@ -1123,6 +1238,7 @@ const closeDialog = () => {
     presaleEnd: null,
     presaleEnabled: true,
     presaleSort: 0,
+    presalePopupEnabled: false,
     presalePopupTitle: '',
     presalePopupContent: '',
   }
@@ -1142,6 +1258,26 @@ const enterDialog = async() => {
       formData.value.detail = serializeI18nJson(detailI18n.value) || formData.value.detail
       formData.value.presalePopupTitle = serializeI18nJson(presalePopupTitleI18n.value) || formData.value.presalePopupTitle
       formData.value.presalePopupContent = serializeI18nJson(presalePopupContentI18n.value) || formData.value.presalePopupContent
+      // 序列化 banner 文字 i18n
+      formData.value.banner.forEach(item => {
+        if (item.textI18n) {
+          item.text = serializeI18nJson(item.textI18n) || item.text
+          delete item.textI18n
+        }
+      })
+      // 序列化 specs/attrs 名称 i18n
+      formData.value.specs.forEach(item => {
+        if (item.nameI18n) {
+          item.name = serializeI18nJson(item.nameI18n) || item.name
+          delete item.nameI18n
+        }
+      })
+      formData.value.attrs.forEach(item => {
+        if (item.nameI18n) {
+          item.name = serializeI18nJson(item.nameI18n) || item.name
+          delete item.nameI18n
+        }
+      })
     }
     let res
     switch (type.value) {

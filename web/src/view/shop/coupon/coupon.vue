@@ -159,13 +159,13 @@
         <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item label="开始时间:" prop="startTime">
-              <el-date-picker v-model="formData.startTime" type="date" style="width:100%" placeholder="选择日期"
+              <el-date-picker v-model="formData.startTime" type="datetime" style="width:100%" placeholder="选择日期时间"
                 :clearable="false" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="结束时间:" prop="endTime">
-              <el-date-picker v-model="formData.endTime" type="date" style="width:100%" placeholder="选择日期"
+              <el-date-picker v-model="formData.endTime" type="datetime" style="width:100%" placeholder="选择日期时间"
                 :clearable="false" />
             </el-form-item>
           </el-col>
@@ -404,8 +404,8 @@ const searchInfo = ref({})
 // 排序
 const sortChange = ({ prop, order }) => {
   const sortMap = {
-    CreatedAt: "CreatedAt",
-    ID: "ID",
+    CreatedAt: "created_at",
+    ID: "id",
     name: 'name',
     startTime: 'start_time',
     endTime: 'end_time',

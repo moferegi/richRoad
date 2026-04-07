@@ -39,6 +39,21 @@
         <text class="nf-label-dot" style="background: #f59e0b;"></text>
         <text>{{ $t('presaleTime') }}：{{ formatDate(data.presaleStart) }} ~ {{ formatDate(data.presaleEnd) }}</text>
       </view>
+      <!-- 预售倒计时 + 进度条 -->
+      <view class="nf-presale-countdown-section" v-if="data.isPresale">
+        <view class="nf-presale-countdown-row">
+          <text class="nf-countdown-label" v-if="presaleCountdownType === 'start'">{{ $t('presaleStartsIn') }}</text>
+          <text class="nf-countdown-label" v-else-if="presaleCountdownType === 'end'">{{ $t('presaleEndsIn') }}</text>
+          <text class="nf-countdown-label nf-countdown-ended" v-else>{{ $t('presaleEnded') }}</text>
+          <text class="nf-countdown-time" v-if="presaleCountdownType !== 'ended'">{{ presaleCountdownText }}</text>
+        </view>
+        <view class="nf-presale-progress" v-if="data.presaleQty > 0">
+          <view class="nf-progress-bar">
+            <view class="nf-progress-fill" :style="{ width: presaleProgress + '%' }"></view>
+          </view>
+          <text class="nf-progress-text">{{ $t('sold') }} {{ data.presaleSold || 0 }}/{{ data.presaleQty }}</text>
+        </view>
+      </view>
     </view>
 
     <!-- 商品属性 -->
@@ -49,8 +64,8 @@
       </view>
       <view class="nf-attrs-grid">
         <view class="nf-attr-item" v-for="(attr, idx) in parsedAttrs" :key="idx">
-          <text class="nf-attr-label">{{ $lt(attr.label) }}</text>
-          <text class="nf-attr-value">{{ $lt(attr.value) }}</text>
+          <text class="nf-attr-label">{{ $lt(attr.labelI18n) || attr.label }}</text>
+          <text class="nf-attr-value">{{ $lt(attr.valueI18n) || attr.value }}</text>
         </view>
       </view>
     </view>
@@ -162,7 +177,7 @@
 import goodsSwiper from './components/goods-swiper.vue'
 import goodsSku from './components/goods-sku.vue'
 import goodsDetail from './components/goods-detail.vue'
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { findGood } from '@/api/product.js'
 import { myRouter } from '@/utils/permission'
@@ -170,6 +185,7 @@ import { findCollect, createCollect } from '@/api/collect.js'
 import { claimCouponByUser, getAllClaimCoupon } from '@/api/coupon.js'
 import { useUserStore } from '@/pinia/modules/user'
 import { getUrl } from '@/utils/url.js'
+import { localText } from '@/utils/i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 const langStore = useLangStore()
@@ -195,7 +211,16 @@ onLoad((options) => {
 
 const init = async () => {
   const res = await findGood(goodID.value)
-  if (res.code === 0) data.value = res.data.regood
+  if (res.code === 0) {
+    data.value = res.data.regood
+    if (data.value.isPresale) startCountdown()
+    // 预售弹窗开关开启时自动弹出
+    if (data.value.isPresale && data.value.presalePopupEnabled) {
+      const title = localText(data.value.presalePopupTitle) || $t.value('presale')
+      const content = localText(data.value.presalePopupContent) || ''
+      uni.showModal({ title, content, showCancel: false, confirmText: $t.value('confirm') })
+    }
+  }
   if (token) {
     const status = await findCollect({ goodID: goodID.value })
     if (status.code === 0) collectionFlag.value = status.data
@@ -207,7 +232,27 @@ const parsedAttrs = computed(() => {
   if (!data.value.attrs) return []
   try {
     const arr = typeof data.value.attrs === 'string' ? JSON.parse(data.value.attrs) : data.value.attrs
-    return Array.isArray(arr) ? arr : []
+    if (!Array.isArray(arr)) return []
+    const tryParseJson = (s) => {
+      if (!s || typeof s !== 'string' || s.charAt(0) !== '{') return null
+      try { return JSON.parse(s) } catch { return null }
+    }
+    return arr.map(item => {
+      // name 可能是序列化的i18n JSON字符串，nameI18n 可能被删除
+      let labelI18n = item.nameI18n || item.labelI18n
+      let label = item.name || item.label || ''
+      if (!labelI18n && typeof label === 'string') {
+        const parsed = tryParseJson(label)
+        if (parsed) { labelI18n = parsed; label = parsed['zh'] || Object.values(parsed)[0] || label }
+      }
+      let valueI18n = item.valueI18n
+      let value = item.value || ''
+      if (!valueI18n && typeof value === 'string') {
+        const parsed = tryParseJson(value)
+        if (parsed) { valueI18n = parsed; value = parsed['zh'] || Object.values(parsed)[0] || value }
+      }
+      return { label, value, labelI18n, valueI18n }
+    })
   } catch { return [] }
 })
 
@@ -234,6 +279,54 @@ const formatDate = (d) => {
   const dt = new Date(d)
   return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`
 }
+
+// ========== 预售倒计时 ==========
+const countdownTick = ref(0)
+let countdownTimer = null
+
+const presaleCountdownType = computed(() => {
+  void countdownTick.value
+  if (!data.value.isPresale) return 'ended'
+  const now = Date.now()
+  const start = new Date(data.value.presaleStart).getTime()
+  const end = new Date(data.value.presaleEnd).getTime()
+  if (now < start) return 'start'
+  if (now < end) return 'end'
+  return 'ended'
+})
+
+const presaleCountdownText = computed(() => {
+  void countdownTick.value
+  if (!data.value.isPresale) return ''
+  const now = Date.now()
+  const type = presaleCountdownType.value
+  let target
+  if (type === 'start') target = new Date(data.value.presaleStart).getTime()
+  else if (type === 'end') target = new Date(data.value.presaleEnd).getTime()
+  else return ''
+  const diff = Math.max(0, target - now)
+  const dd = Math.floor(diff / 86400000)
+  const hh = Math.floor((diff % 86400000) / 3600000)
+  const mm = Math.floor((diff % 3600000) / 60000)
+  const ss = Math.floor((diff % 60000) / 1000)
+  const dayUnit = $t.value('countdownDay') || '天'
+  if (dd > 0) return `${dd}${dayUnit} ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`
+  return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`
+})
+
+const presaleProgress = computed(() => {
+  if (!data.value.presaleQty || data.value.presaleQty === 0) return 0
+  return Math.min(100, Math.round((data.value.presaleSold || 0) / data.value.presaleQty * 100))
+})
+
+const startCountdown = () => {
+  if (countdownTimer) clearInterval(countdownTimer)
+  countdownTimer = setInterval(() => { countdownTick.value++ }, 1000)
+}
+
+onUnmounted(() => {
+  if (countdownTimer) clearInterval(countdownTimer)
+})
 
 const goodsSkuRef = ref()
 const isCart = ref(false)
@@ -361,6 +454,33 @@ page { background-color: #000; }
   display: flex; align-items: center; gap: 10rpx; margin-top: 16rpx; padding: 16rpx 20rpx;
   background: rgba(245, 158, 11, 0.08); border: 1rpx solid rgba(245, 158, 11, 0.15);
   border-radius: 12rpx; font-size: 24rpx; color: #f59e0b;
+}
+/* 预售倒计时+进度条 */
+.nf-presale-countdown-section {
+  margin-top: 16rpx; padding: 20rpx 24rpx;
+  background: rgba(245, 158, 11, 0.06); border: 1rpx solid rgba(245, 158, 11, 0.12);
+  border-radius: 12rpx;
+}
+.nf-presale-countdown-row {
+  display: flex; align-items: center; gap: 12rpx; margin-bottom: 16rpx;
+}
+.nf-countdown-label { font-size: 24rpx; color: #f59e0b; font-weight: 600; }
+.nf-countdown-ended { color: rgba(255,255,255,0.4); }
+.nf-countdown-time {
+  font-size: 28rpx; color: #fff; font-weight: 700;
+  padding: 4rpx 16rpx; background: rgba(229,9,20,0.15); border-radius: 8rpx;
+  font-variant-numeric: tabular-nums;
+}
+.nf-presale-progress { margin-top: 4rpx; }
+.nf-progress-bar {
+  height: 12rpx; background: rgba(255,255,255,0.08); border-radius: 6rpx; overflow: hidden;
+}
+.nf-progress-fill {
+  height: 100%; background: linear-gradient(90deg, #f59e0b, #ef4444); border-radius: 6rpx;
+  transition: width 0.3s;
+}
+.nf-progress-text {
+  display: block; margin-top: 8rpx; font-size: 22rpx; color: rgba(255,255,255,0.4); text-align: right;
 }
 
 /* 属性网格 */

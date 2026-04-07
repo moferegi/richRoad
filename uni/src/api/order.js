@@ -146,8 +146,11 @@ export const selfOrderList = (params) => {
 }
 
 export const SelfOrderList = (params) => {
+  const query = typeof params === 'string'
+    ? `status=${params}`
+    : Object.entries(params).filter(([,v]) => v !== undefined && v !== '').map(([k,v]) => `${k}=${v}`).join('&')
   return request({
-    url: `/order/selfOrderList?status=${params}`,
+    url: `/order/selfOrderList?${query}`,
     method: 'get',
   })
 }

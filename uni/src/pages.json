@@ -73,7 +73,8 @@
 				"navigationBarTitleText": "",
 				"navigationBarBackgroundColor": "#000",
 				"navigationBarTextStyle": "white",
-				"enablePullDownRefresh": false
+				"enablePullDownRefresh": false,
+				"onReachBottomDistance": 200
 			}
 		},{
 			"path": "pages/pay/index",

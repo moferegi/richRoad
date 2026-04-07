@@ -17,7 +17,7 @@
     <view class="nf-body">
       <!-- product info card -->
       <view class="nf-item-card">
-        <image :src="getUrl(SKU.picture)" class="nf-item-img" mode="aspectFill" />
+        <image :src="SKU.externalPicturePath ? getExternalUrl(SKU.externalPicturePath) : getUrl(SKU.picture)" class="nf-item-img" mode="aspectFill" />
         <view class="nf-item-info">
           <text class="nf-item-name">{{ $lt(SKU.name) || SKU.name }}</text>
           <view v-for="(sku, index) in SKU.attrs" :key="index" class="nf-item-spec">
@@ -107,7 +107,7 @@ import { createComment } from '@/api/comment'
 import { getSysConfigByKey } from '@/api/sysConfig.js'
 import { onLoad } from '@dcloudio/uni-app'
 import { baseUrl } from '@/utils/request.js'
-import { getUrl } from '@/utils/url.js'
+import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()

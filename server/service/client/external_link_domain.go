@@ -76,7 +76,10 @@ func (s *ExternalLinkDomainService) SetDefaultDomain(id uint) error {
 		if err := tx.Model(&client.ExternalLinkDomain{}).Where("is_default = ?", true).Update("is_default", false).Error; err != nil {
 			return err
 		}
-		// 设置新默认
-		return tx.Model(&client.ExternalLinkDomain{}).Where("id = ?", id).Update("is_default", true).Error
+		// 设置新默认并确保启用
+		return tx.Model(&client.ExternalLinkDomain{}).Where("id = ?", id).Updates(map[string]interface{}{
+			"is_default": true,
+			"is_enabled": true,
+		}).Error
 	})
 }

@@ -21,9 +21,11 @@ type RouterGroup struct {
 	MarketingRewardRouter
 	DashboardRouter
 	PresaleRouter
+	SkuSpecRouter
 }
 
 var (
+	skuSpecApi = api.ApiGroupApp.ShopApiGroup.SkuSpecApi
 	commentApi = api.ApiGroupApp.ShopApiGroup.CommentApi
 	tagApi     = api.ApiGroupApp.ShopApiGroup.TagApi
 	CouApi     = api.ApiGroupApp.ShopApiGroup.CouponApi

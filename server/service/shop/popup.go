@@ -96,8 +96,8 @@ func (s *PopupService) GetActivePopups(position string, clientType string, page 
 					}
 				}
 			} else if p.Position != "" {
-				// 兼容旧逻辑
-				if p.Position == matchPath || p.Position == "all" {
+				// 兼容旧逻辑：position="home" 匹配首页路径
+				if p.Position == matchPath || p.Position == "all" || isPositionMatch(p.Position, matchPath) {
 					filtered = append(filtered, p)
 				}
 			} else {
@@ -108,6 +108,20 @@ func (s *PopupService) GetActivePopups(position string, clientType string, page 
 		list = filtered
 	}
 	return
+}
+
+// isPositionMatch 旧版 position 值与新版页面路径的兼容映射
+func isPositionMatch(position string, pagePath string) bool {
+	positionMap := map[string]string{
+		"home":     "/pages/tabBar/index",
+		"category": "/pages/tabBar/category",
+		"cart":     "/pages/tabBar/cart",
+		"mine":     "/pages/tabBar/mine",
+	}
+	if mapped, ok := positionMap[position]; ok {
+		return mapped == pagePath
+	}
+	return false
 }
 
 // splitPages 将逗号分隔的页面路径拆分为切片

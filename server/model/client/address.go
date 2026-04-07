@@ -10,6 +10,7 @@ type Address struct {
 	global.GVA_MODEL
 	Name        string `json:"name" form:"name" gorm:"column:name;comment:收件人名称;" binding:"required"`                          //收件人名称
 	Phone       string `json:"phone" form:"phone" gorm:"column:phone;comment:收件人电话;" binding:"required"`                       //收件人电话
+	AreaCode    string `json:"areaCode" form:"areaCode" gorm:"column:area_code;comment:手机区号;default:+86"`                      //手机区号
 	Province    *int   `json:"province" form:"province" gorm:"column:province;comment:收件省份;" binding:"required"`               //收件省份
 	ProvinceStr string `json:"provinceStr" form:"provinceStr" gorm:"column:province_str;comment:收件省份（回显）;" binding:"required"` //收件省份
 	City        *int   `json:"city" form:"city" gorm:"column:city;comment:收件城市;" binding:"required"`                           //收件城市

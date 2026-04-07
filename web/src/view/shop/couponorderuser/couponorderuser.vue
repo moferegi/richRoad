@@ -66,7 +66,8 @@
       </div>
       <el-table ref="multipleTable" style="width: 100%" tooltip-effect="dark" :data="tableData" row-key="ID"
         :default-sort="{ prop: 'ID', order: 'descending' }"
-        @selection-change="handleSelectionChange">
+        @selection-change="handleSelectionChange"
+        @sort-change="sortChange">
         <el-table-column type="selection" width="55" />
         <el-table-column align="left" label="ID" prop="ID" width="70" sortable />
 
@@ -276,6 +277,22 @@ const total = ref(0)
 const pageSize = ref(10)
 const tableData = ref([])
 const searchInfo = ref({})
+
+// 排序
+const sortChange = ({ prop, order }) => {
+  const sortMap = {
+    CreatedAt: 'created_at',
+    ID: 'id',
+  }
+  let sort = sortMap[prop]
+  if (!sort) {
+    sort = prop.replace(/[A-Z]/g, match => `_${match.toLowerCase()}`)
+  }
+  searchInfo.value.sort = sort
+  searchInfo.value.order = order
+  getTableData()
+}
+
 // 重置
 const onReset = () => {
   searchInfo.value = {}

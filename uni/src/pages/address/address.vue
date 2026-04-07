@@ -21,7 +21,7 @@
             <view class="nf-addr-header">
               <view class="nf-addr-name-phone">
                 <text class="nf-addr-name">{{ item.name }}</text>
-                <text class="nf-addr-phone">{{ item.phone }}</text>
+                <text class="nf-addr-phone">{{ item.areaCode && item.areaCode !== '+86' ? item.areaCode + ' ' : '' }}{{ item.phone }}</text>
               </view>
               <view class="nf-addr-default-tag" v-if="item.active">
                 <text>{{ $t('defaultAddr') }}</text>

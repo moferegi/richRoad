@@ -156,6 +156,14 @@ func initShopApis(db *gorm.DB) {
 		{ApiGroup: "客户端用户", Method: "PUT", Path: "/clientUser/updateUser", Description: "更新用户"},
 		{ApiGroup: "客户端用户", Method: "DELETE", Path: "/clientUser/deleteUser", Description: "删除用户"},
 		{ApiGroup: "客户端用户", Method: "POST", Path: "/clientUser/changePassword", Description: "修改密码"},
+		// SKU规格字典
+		{ApiGroup: "SKU规格字典", Method: "POST", Path: "/skuSpec/createSkuSpec", Description: "创建SKU规格字典"},
+		{ApiGroup: "SKU规格字典", Method: "DELETE", Path: "/skuSpec/deleteSkuSpec", Description: "删除SKU规格字典"},
+		{ApiGroup: "SKU规格字典", Method: "DELETE", Path: "/skuSpec/deleteSkuSpecByIds", Description: "批量删除SKU规格字典"},
+		{ApiGroup: "SKU规格字典", Method: "PUT", Path: "/skuSpec/updateSkuSpec", Description: "更新SKU规格字典"},
+		{ApiGroup: "SKU规格字典", Method: "GET", Path: "/skuSpec/findSkuSpec", Description: "查找SKU规格字典"},
+		{ApiGroup: "SKU规格字典", Method: "GET", Path: "/skuSpec/getSkuSpecList", Description: "获取SKU规格字典列表"},
+		{ApiGroup: "SKU规格字典", Method: "GET", Path: "/skuSpec/getAllSkuSpecs", Description: "获取所有SKU规格字典"},
 	}
 	for _, api := range apis {
 		var count int64
@@ -309,6 +317,14 @@ func initShopCasbin(db *gorm.DB) {
 		{"/clientUser/updateUser", "PUT"},
 		{"/clientUser/deleteUser", "DELETE"},
 		{"/clientUser/changePassword", "POST"},
+		// SKU规格字典
+		{"/skuSpec/createSkuSpec", "POST"},
+		{"/skuSpec/deleteSkuSpec", "DELETE"},
+		{"/skuSpec/deleteSkuSpecByIds", "DELETE"},
+		{"/skuSpec/updateSkuSpec", "PUT"},
+		{"/skuSpec/findSkuSpec", "GET"},
+		{"/skuSpec/getSkuSpecList", "GET"},
+		{"/skuSpec/getAllSkuSpecs", "GET"},
 	}
 
 	for _, auth := range authorities {

@@ -1,6 +1,6 @@
 <template>
   <view class="nf-popup-mask" v-if="visible" @tap.self="onClose">
-    <view class="nf-popup-wrap">
+    <view class="nf-popup-wrap" :key="'popup_' + currentIndex">
       <!-- 图片类型 -->
       <image
         v-if="popup.popupType !== 'content' && (popup.image || popup.externalPath)"
@@ -24,7 +24,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { getActivePopups } from '@/api/popup.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
@@ -40,6 +40,10 @@ const $lt = computed(() => langStore.$lt)
 
 const visible = ref(false)
 const popup = ref({})
+
+// 弹窗队列，支持多个连续弹窗
+const popupQueue = ref([])
+const currentIndex = ref(0)
 
 const parsedTitle = computed(() => {
   if (!popup.value.title) return ''
@@ -60,10 +64,18 @@ const getCurrentPagePath = () => {
   return ''
 }
 
+const showNext = () => {
+  if (currentIndex.value >= popupQueue.value.length) {
+    visible.value = false
+    return
+  }
+  popup.value = popupQueue.value[currentIndex.value]
+  visible.value = true
+}
+
 const loadPopup = async () => {
   const currentPage = getCurrentPagePath()
   const params = { clientType: props.clientType }
-  // 优先用页面路径，兼容旧 position
   if (currentPage) {
     params.page = currentPage
   }
@@ -73,23 +85,37 @@ const loadPopup = async () => {
 
   const res = await getActivePopups(params)
   if (res.code === 0 && res.data && res.data.length > 0) {
-    const p = res.data[0]
     const storageKey = 'popup_shown_' + (currentPage || props.position || 'default')
-    // 如果设置为只弹一次，检查是否已展示过
-    if (p.onceOnly) {
-      const shown = uni.getStorageSync(storageKey)
-      if (shown === String(p.ID)) return
-    }
-    popup.value = p
-    visible.value = true
-    if (p.onceOnly) {
-      uni.setStorageSync(storageKey, String(p.ID))
-    }
+    // 过滤掉已弹过的 onceOnly 弹窗
+    const filtered = res.data.filter(p => {
+      if (p.onceOnly) {
+        const shown = uni.getStorageSync(storageKey + '_' + p.ID)
+        if (shown) return false
+      }
+      return true
+    })
+    if (filtered.length === 0) return
+    popupQueue.value = filtered
+    currentIndex.value = 0
+    // 标记 onceOnly
+    filtered.forEach(p => {
+      if (p.onceOnly) {
+        uni.setStorageSync(storageKey + '_' + p.ID, '1')
+      }
+    })
+    showNext()
   }
 }
 
 const onClose = () => {
   visible.value = false
+  currentIndex.value++
+  // 确保 DOM 先销毁再创建下一个弹窗
+  nextTick(() => {
+    setTimeout(() => {
+      showNext()
+    }, 200)
+  })
 }
 
 const onImageTap = () => {

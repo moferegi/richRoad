@@ -238,8 +238,8 @@ const searchInfo = ref({})
 // 排序
 const sortChange = ({ prop, order }) => {
   const sortMap = {
-    CreatedAt:"CreatedAt",
-    ID:"ID",
+    CreatedAt:"created_at",
+    ID:"id",
             promotionImage: 'promotion_name',
   }
 

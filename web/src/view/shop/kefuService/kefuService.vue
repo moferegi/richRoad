@@ -63,7 +63,7 @@
 
             <el-table-column label="头像" prop="avatar" width="200">
     <template #default="scope">
-      <el-image preview-teleported style="width: 100px; height: 100px" :src="getUrl(scope.row.avatar)" fit="cover"/>
+      <el-image preview-teleported style="width: 100px; height: 100px" :src="scope.row.externalAvatar || getUrl(scope.row.avatar)" fit="cover"/>
     </template>
 </el-table-column>
             <el-table-column align="left" label="状态" prop="status" width="120" />
@@ -105,11 +105,14 @@
             <el-form-item label="姓名:" prop="name">
     <el-input v-model="formData.name" :clearable="false" placeholder="请输入姓名" />
 </el-form-item>
-            <el-form-item label="头像:" prop="avatar">
+            <el-form-item label="头像(上传):" prop="avatar">
     <SelectImage
      v-model="formData.avatar"
      file-type="image"
     />
+</el-form-item>
+            <el-form-item label="头像外链(优先):">
+    <el-input v-model="formData.externalAvatar" placeholder="https://example.com/avatar.jpg 或相对路径" clearable />
 </el-form-item>
             <el-form-item label="状态:" prop="status">
     <el-select v-model="formData.status" placeholder="请选择状态" style="width:100%" filterable :clearable="false">
@@ -184,6 +187,7 @@ const showAllQuery = ref(false)
 const formData = ref({
             name: '',
             avatar: "",
+            externalAvatar: "",
             status: null,
             link: '',
         })

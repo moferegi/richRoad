@@ -20,6 +20,11 @@
         <text class="nf-pay-amount-label">{{ $t('payAmount') }}</text>
         <text class="nf-pay-amount-value">{{ cs }}{{ amount }}</text>
         <text class="nf-pay-order-no" v-if="orderNo">{{ $t('orderNo') }}: {{ orderNo }}</text>
+        <!-- 倒计时 -->
+        <view class="nf-pay-countdown" v-if="payCountdown">
+          <text class="nf-pay-countdown-label">{{ $t('remainPayTime') }}</text>
+          <text class="nf-pay-countdown-time">{{ payCountdown }}</text>
+        </view>
       </view>
 
       <!-- 支付二维码 -->
@@ -78,23 +83,29 @@
         </view>
       </view>
 
-      <!-- 已支付确认 -->
-      <view class="nf-pay-confirm" @tap="confirmPaid">
-        <text>{{ $t('alreadyPaid') }}</text>
+      <!-- 底部操作 -->
+      <view class="nf-pay-bottom-actions">
+        <view class="nf-pay-bottom-btn nf-pay-bottom-home" @tap="goHome">
+          <text>{{ $t('goHome') }}</text>
+        </view>
+        <view class="nf-pay-bottom-btn nf-pay-bottom-paid" @tap="confirmPaid">
+          <text>{{ $t('alreadyPaid') }}</text>
+        </view>
       </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed, onUnmounted } from 'vue'
+import { onLoad, onBackPress } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { request } from '@/utils/request.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { getEnabledQrcodePayments } from '@/api/qrcodePayment.js'
 import { localText } from '@/utils/i18n'
+import { selfOrder, updateOrderStatus } from '@/api/order.js'
 
 const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
@@ -129,8 +140,79 @@ onLoad((options) => {
   if (options.amount) amount.value = options.amount
   if (options.orderNo) orderNo.value = options.orderNo
   if (options.orderId) orderId.value = options.orderId
+  if (options.closeTime) closeTime.value = decodeURIComponent(options.closeTime)
   loadQrCodes()
   loadPaymentTip()
+  loadOrderCloseTime()
+})
+
+// ========== 倒计时 ==========
+const closeTime = ref('')
+const payCountdown = ref('')
+let payTimer = null
+
+const loadOrderCloseTime = async () => {
+  // 如果没有传入closeTime，从订单接口获取
+  if (!closeTime.value && orderId.value) {
+    try {
+      const res = await selfOrder(orderId.value)
+      if (res.code === 0 && res.data && res.data.closeTime) {
+        closeTime.value = res.data.closeTime
+      }
+    } catch (e) {}
+  }
+  if (closeTime.value) startPayCountdown()
+}
+
+const startPayCountdown = () => {
+  if (payTimer) clearInterval(payTimer)
+  updatePayCountdown()
+  payTimer = setInterval(updatePayCountdown, 1000)
+}
+
+const updatePayCountdown = () => {
+  if (!closeTime.value) { payCountdown.value = ''; return }
+  const remain = Math.max(0, Math.floor((new Date(closeTime.value).getTime() - Date.now()) / 1000))
+  if (remain <= 0) {
+    payCountdown.value = ''
+    if (payTimer) clearInterval(payTimer)
+    uni.showToast({ title: $t.value('payTimeout'), icon: 'none' })
+    setTimeout(() => {
+      cancelAndGo('/pages/order/order')
+    }, 1500)
+    return
+  }
+  const h = Math.floor(remain / 3600)
+  const m = Math.floor((remain % 3600) / 60)
+  const s = remain % 60
+  payCountdown.value = h > 0
+    ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+onUnmounted(() => { if (payTimer) clearInterval(payTimer) })
+
+// ========== 取消订单并离开 ==========
+const cancelAndGo = async (url, isTab = false) => {
+  if (orderId.value) {
+    try { await updateOrderStatus({ ID: orderId.value, status: '4' }) } catch (e) {}
+  }
+  if (isTab) { uni.switchTab({ url }) } else { uni.redirectTo({ url }) }
+}
+
+// ========== 返回拦截 ==========
+onBackPress(() => {
+  uni.showModal({
+    title: $t.value('payTitle'),
+    content: $t.value('leavePayConfirm'),
+    confirmColor: '#e50914',
+    success: (res) => {
+      if (res.confirm) {
+        cancelAndGo('/pages/order/order')
+      }
+    }
+  })
+  return true // 阻止默认返回
 })
 
 const loadQrCodes = async () => {
@@ -210,8 +292,30 @@ const confirmPaid = () => {
   }, 1500)
 }
 
+const goHome = () => {
+  uni.showModal({
+    title: $t.value('payTitle'),
+    content: $t.value('leavePayConfirm'),
+    confirmColor: '#e50914',
+    success: (res) => {
+      if (res.confirm) {
+        cancelAndGo('/pages/tabBar/index', true)
+      }
+    }
+  })
+}
+
 const goBack = () => {
-  uni.navigateBack()
+  uni.showModal({
+    title: $t.value('payTitle'),
+    content: $t.value('leavePayConfirm'),
+    confirmColor: '#e50914',
+    success: (res) => {
+      if (res.confirm) {
+        cancelAndGo('/pages/order/order')
+      }
+    }
+  })
 }
 </script>
 
@@ -288,6 +392,27 @@ const goBack = () => {
   color: rgba(255,255,255,0.3);
   margin-top: 12rpx;
   display: block;
+}
+.nf-pay-countdown {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  margin-top: 20rpx;
+  padding: 16rpx 24rpx;
+  background: rgba(229,9,20,0.1);
+  border: 1rpx solid rgba(229,9,20,0.2);
+  border-radius: 12rpx;
+}
+.nf-pay-countdown-label {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.5);
+}
+.nf-pay-countdown-time {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #e50914;
+  font-variant-numeric: tabular-nums;
 }
 .nf-pay-qr-card {
   background: rgba(255,255,255,0.06);
@@ -429,5 +554,30 @@ const goBack = () => {
   font-size: 28rpx;
   color: rgba(255,255,255,0.5);
   text-decoration: underline;
+}
+.nf-pay-bottom-actions {
+  display: flex;
+  gap: 24rpx;
+  margin-top: 10rpx;
+}
+.nf-pay-bottom-btn {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+.nf-pay-bottom-home {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.6);
+}
+.nf-pay-bottom-paid {
+  background: rgba(229, 9, 20, 0.15);
+  border: 1rpx solid rgba(229, 9, 20, 0.3);
+  color: #e50914;
 }
 </style>

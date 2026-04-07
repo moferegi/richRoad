@@ -2,6 +2,7 @@ package shop
 
 import (
 	"context"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
@@ -69,8 +70,8 @@ func (promoService *PromotionService) GetPromotionInfoList(ctx context.Context, 
 	}
 	var OrderStr string
 	orderMap := make(map[string]bool)
-	orderMap["ID"] = true
-	orderMap["CreatedAt"] = true
+	orderMap["id"] = true
+	orderMap["created_at"] = true
 	orderMap["promotion_name"] = true
 	if orderMap[info.Sort] {
 		OrderStr = info.Sort

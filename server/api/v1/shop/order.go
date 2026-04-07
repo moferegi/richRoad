@@ -253,12 +253,21 @@ func (orderApi *OrderApi) SelfOrderList(c *gin.Context) {
 		return
 	}
 	order.UserID = utils.Pointer(int(userID))
-	if list, _, err := orderService.GetOrderInfoList(order); err != nil {
-		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage("创建失败", c)
+	if order.PageSize == 0 {
+		order.PageSize = 10
+	}
+	if order.Page == 0 {
+		order.Page = 1
+	}
+	if list, total, err := orderService.GetOrderInfoList(order); err != nil {
+		global.GVA_LOG.Error("获取失败!", zap.Error(err))
+		response.FailWithMessage("获取失败", c)
 	} else {
 		response.OkWithData(response.PageResult{
-			List: list,
+			List:     list,
+			Total:    total,
+			Page:     order.Page,
+			PageSize: order.PageSize,
 		}, c)
 	}
 }

@@ -82,6 +82,7 @@
   "/src/view/shop/promotion/promotionForm.vue": "PromotionForm",
   "/src/view/shop/qrcodePayment/qrcodePayment.vue": "QrcodePayment",
   "/src/view/shop/sku/sku.vue": "Sku",
+  "/src/view/shop/skuSpec/skuSpec.vue": "SkuSpec",
   "/src/view/shop/tag/tag.vue": "Tag",
   "/src/view/superAdmin/api/api.vue": "Api",
   "/src/view/superAdmin/authority/authority.vue": "Authority",

@@ -24,7 +24,13 @@
       <!-- 手机号 -->
       <view class="nf-form-item">
         <text class="nf-form-label">{{ $t('recipientPhone') }}</text>
-        <input class="nf-form-input" v-model="formData.phone" :placeholder="$t('phoneRequired')" :maxlength="20" />
+        <view class="nf-phone-row">
+          <view class="nf-area-code-btn" @tap="showAreaCodePicker = true">
+            <text class="nf-area-code-text">{{ selectedAreaCode }}</text>
+            <text class="nf-area-code-arrow">▼</text>
+          </view>
+          <input class="nf-form-input nf-phone-input" v-model="formData.phone" :placeholder="$t('phoneRequired')" :maxlength="20" />
+        </view>
       </view>
 
       <!-- 地区 -->
@@ -65,18 +71,33 @@
         <text>{{ $t('saveAddr') }}</text>
       </view>
     </view>
+
+    <!-- 区号选择弹窗 -->
+    <view class="nf-popup-mask" v-if="showAreaCodePicker" @tap="showAreaCodePicker = false">
+      <view class="nf-popup-content" @tap.stop>
+        <view class="nf-popup-title">{{ $t('selectAreaCode') }}</view>
+        <scroll-view scroll-y class="nf-popup-scroll">
+          <view class="nf-area-item" v-for="item in areaCodes" :key="item.ID" @tap="selectArea(item)">
+            <text class="nf-area-name">{{ $lt(item.countryName) }}</text>
+            <text class="nf-area-code-val">{{ item.areaCode }}</text>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getGeos, updateAddress, findAddress } from '@/api/address.js'
+import { getEnabledPhoneAreaCodes } from '@/api/phoneAreaCode.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { localText } from '@/utils/i18n'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
+const $lt = computed(() => langStore.$lt)
 
 const formData = ref({})
 const areaProvince = ref([])
@@ -86,6 +107,9 @@ const isCity = ref(false)
 const isCounty = ref(false)
 const orderID = ref('')
 const addrID = ref('')
+const showAreaCodePicker = ref(false)
+const areaCodes = ref([])
+const selectedAreaCode = ref('+86')
 
 const changeKey = (data) => {
   return data.map(item => ({
@@ -99,10 +123,27 @@ const findCodeByValue = (data, selectedValue) => {
   return data.find(item => item.value === selectedValue) || null
 }
 
+const loadAreaCodes = async () => {
+  try {
+    const res = await getEnabledPhoneAreaCodes()
+    if (res.code === 0 && res.data) {
+      const list = Array.isArray(res.data) ? res.data : (res.data.list || [])
+      areaCodes.value = list
+    }
+  } catch(e) {}
+}
+
+const selectArea = (item) => {
+  selectedAreaCode.value = item.areaCode
+  formData.value.areaCode = item.areaCode
+  showAreaCodePicker.value = false
+}
+
 onLoad(async (e) => {
   orderID.value = e.orderID
   const province = await getGeos({ level: 2, code: 0 })
   areaProvince.value = changeKey(province.data)
+  loadAreaCodes()
 
   const res = await findAddress({ id: e.ID })
   if (res.code === 0) {
@@ -114,6 +155,8 @@ onLoad(async (e) => {
     formData.value.citySelect = String(info.city)
     formData.value.countySelect = String(info.area)
     addrID.value = info.ID
+    // 回显区号
+    selectedAreaCode.value = info.areaCode || '+86'
   }
 })
 
@@ -190,6 +233,7 @@ const confirm = async () => {
     ID: addrID.value,
     name: formData.value.name,
     phone: formData.value.phone,
+    areaCode: formData.value.areaCode || selectedAreaCode.value,
     province: Number(formData.value.provinceSelect),
     provinceStr: formData.value.provinceStr,
     city: Number(formData.value.citySelect),
@@ -326,5 +370,81 @@ const goBack = () => {
   font-size: 30rpx;
   font-weight: bold;
   color: #fff;
+}
+
+/* 手机号输入行 */
+.nf-phone-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.nf-area-code-btn {
+  height: 72rpx;
+  padding: 0 20rpx;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  flex-shrink: 0;
+}
+.nf-area-code-text {
+  color: #fff;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+.nf-area-code-arrow {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 20rpx;
+}
+.nf-phone-input {
+  flex: 1;
+}
+
+/* 区号弹窗 */
+.nf-popup-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.nf-popup-content {
+  width: 100%;
+  max-height: 60vh;
+  background: #1a1a1a;
+  border-radius: 28rpx 28rpx 0 0;
+  padding: 32rpx 0;
+}
+.nf-popup-title {
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #fff;
+  padding-bottom: 24rpx;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+.nf-popup-scroll {
+  max-height: 50vh;
+}
+.nf-area-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx 40rpx;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.05);
+  &:active { background: rgba(255, 255, 255, 0.05); }
+}
+.nf-area-name {
+  color: #fff;
+  font-size: 28rpx;
+}
+.nf-area-code-val {
+  color: rgba(229, 9, 20, 0.8);
+  font-size: 28rpx;
+  font-weight: 600;
 }
 </style>

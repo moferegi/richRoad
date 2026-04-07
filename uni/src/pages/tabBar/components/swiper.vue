@@ -8,7 +8,10 @@
           <view v-if="item.maskEnabled && $lt(item.maskText)" class="swiper-mask"
             :style="{
               height: (item.maskHeight || 40) + 'px',
-              background: item.maskBgColor || 'rgba(0,0,0,0.5)'
+              background: item.maskBgColor || 'rgba(0,0,0,0.5)',
+              justifyContent: item.maskTextAlign === 'left' ? 'flex-start' : item.maskTextAlign === 'right' ? 'flex-end' : 'center',
+              paddingLeft: item.maskTextAlign === 'left' ? '24rpx' : '0',
+              paddingRight: item.maskTextAlign === 'right' ? '24rpx' : '0'
             }">
             <text class="swiper-mask-text"
               :style="{
@@ -39,9 +42,15 @@ const props = defineProps({
 
 // 处理轮播图点击事件
 const handleSwiperClick = (item) => {
+  // 优先跳转链接，其次关联商品
   if (item.href && item.href.trim() !== '') {
     uni.navigateTo({
-      url: item.href
+      url: item.href,
+      fail: () => {}
+    });
+  } else if (item.goodID) {
+    uni.navigateTo({
+      url: '/pages/goodsDetails/goodsDetails?id=' + item.goodID
     });
   }
 };
@@ -82,7 +91,6 @@ const handleSwiperClick = (item) => {
   right: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
   z-index: 2;
   border-radius: 0 0 20rpx 20rpx;
 }

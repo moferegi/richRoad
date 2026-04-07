@@ -67,7 +67,7 @@
               :key="idx"
               @tap="goGoodsDetail(item)"
             >
-              <image class="nf-presale-img" :src="getUrl(item.externalImagePath || item.imageUrl)" mode="aspectFill" />
+              <image class="nf-presale-img" :src="item.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(item.imageUrl)" mode="aspectFill" />
               <view class="nf-presale-info">
                 <text class="nf-presale-name">{{ $lt(item.title) }}</text>
                 <text class="nf-presale-price">{{ cs }}{{ formatPrice(item.price) }}</text>
@@ -153,7 +153,7 @@ import popupModal from '@/components/popup-modal/popup-modal.vue'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { useUserStore } from '@/pinia/modules/user.js'
-import { getUrl } from '@/utils/url.js'
+import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { onShow } from '@dcloudio/uni-app'
 
 const langStore = useLangStore()
@@ -194,11 +194,15 @@ const initAnnouncement = async () => {
     const res = await getAnnouncementConfig()
     if (res.code === 0 && res.data) {
       const d = res.data
+      const enabled = d.announcement_enabled || d.enabled
+      const content = d.announcement_content || d.content
+      const textColor = d.announcement_text_color || d.textColor || '#fff'
+      const speed = d.announcement_speed || d.speed || '60'
       announcementConfig.value = {
-        enabled: d.enabled === true || d.enabled === 'true',
-        text: typeof d.content === 'string' ? (langStore.$lt(d.content) || d.content) : (d.content || ''),
-        textColor: d.textColor || '#fff',
-        speed: parseInt(d.speed) || 60
+        enabled: enabled === true || enabled === 'true',
+        text: typeof content === 'string' ? (langStore.$lt(content) || content) : (content || ''),
+        textColor: textColor,
+        speed: parseInt(speed) || 60
       }
     }
   } catch (e) {
@@ -215,14 +219,15 @@ const initPresale = async () => {
   try {
     // 获取后台配置的首页展示数量
     const countRes = await getPresaleHomeCount()
-    if (countRes.code === 0 && countRes.data && countRes.data.configValue) {
-      presaleHomeCount.value = parseInt(countRes.data.configValue) || 4
+    if (countRes.code === 0 && countRes.data) {
+      const val = typeof countRes.data === 'object' ? countRes.data.configValue : countRes.data
+      presaleHomeCount.value = parseInt(val) || 4
     }
   } catch (e) {}
 
   try {
     const res = await getPresaleGoodList({ page: 1, pageSize: presaleHomeCount.value })
-    if (res.code === 0 && res.data.list) {
+    if (res.code === 0 && res.data && res.data.list && res.data.list.length > 0) {
       presaleList.value = res.data.list
     }
   } catch (e) {
@@ -285,8 +290,9 @@ const signInEnabled = ref(false)
 const initSignIn = async () => {
   try {
     const res = await getSignInEnabled()
-    if (res.code === 0 && res.data && res.data.configValue) {
-      signInEnabled.value = res.data.configValue === 'true'
+    if (res.code === 0 && res.data) {
+      const val = typeof res.data === 'object' ? res.data.configValue : res.data
+      signInEnabled.value = val === 'true' || val === true
     }
   } catch (e) {}
 }

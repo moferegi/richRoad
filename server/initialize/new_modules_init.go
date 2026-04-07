@@ -115,6 +115,7 @@ func initNewModulesMenus(db *gorm.DB) {
 			menuDef{"shopDashboard", "shopDashboard", "view/shop/dashboard/dashboard.vue", "数据看板", "data-analysis", shopParent.ID, 1},
 			menuDef{"presale", "presale", "view/shop/presale/presale.vue", "预售管理", "clock", shopParent.ID, 24},
 			menuDef{"couponorderuser", "couponorderuser", "view/shop/couponorderuser/couponorderuser.vue", "领券记录", "ticket", shopParent.ID, 25},
+			menuDef{"skuSpec", "skuSpec", "view/shop/skuSpec/skuSpec.vue", "规格字典", "notebook", shopParent.ID, 26},
 		)
 	}
 

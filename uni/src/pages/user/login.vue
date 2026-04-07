@@ -164,8 +164,9 @@
 	const loadAreaCodes = async () => {
 		try {
 			const res = await getEnabledPhoneAreaCodes()
-			if (res.code === 0 && res.data && res.data.list) {
-				areaCodes.value = res.data.list
+			if (res.code === 0 && res.data) {
+				const list = Array.isArray(res.data) ? res.data : (res.data.list || [])
+				areaCodes.value = list
 				if (areaCodes.value.length > 0) {
 					selectedAreaCode.value = areaCodes.value[0].areaCode
 					form.areaCode = areaCodes.value[0].areaCode
@@ -251,7 +252,6 @@ page { background-color: #000; }
   min-height: 100vh;
   background: #000;
   position: relative;
-  overflow: hidden;
 }
 
 .nf-bg {

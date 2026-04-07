@@ -55,11 +55,25 @@ func (s *GoodPurchaseService) GetGoodPurchaseList(info shopReq.GoodPurchaseSearc
 		return
 	}
 
+	var OrderStr string
+	orderMap := make(map[string]bool)
+	orderMap["id"] = true
+	orderMap["created_at"] = true
+	if orderMap[info.Sort] {
+		OrderStr = info.Sort
+		if info.Order == "descending" {
+			OrderStr = OrderStr + " desc"
+		}
+		db = db.Order(OrderStr)
+	} else {
+		db = db.Order("created_at DESC")
+	}
+
 	if limit != 0 {
 		db = db.Limit(limit).Offset(offset)
 	}
 
-	err = db.Order("created_at DESC").Preload("Good").Preload("Sku").Find(&list).Error
+	err = db.Preload("Good").Preload("Sku").Find(&list).Error
 	return
 }
 

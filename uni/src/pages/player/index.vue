@@ -331,6 +331,10 @@ const init = async () => {
       data.value = res.data.regood
       episodes.value = res.data.regood.skus || []
       startPresaleTimer()
+      // 预售弹窗开关开启时自动弹出
+      if (data.value.isPresale && data.value.presalePopupEnabled) {
+        showPresalePopup()
+      }
     }
     if (token) {
       const status = await findCollect({ goodID: goodID.value })

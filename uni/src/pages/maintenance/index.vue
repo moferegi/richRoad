@@ -44,6 +44,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { baseUrl } from '@/utils/request.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
@@ -55,13 +56,24 @@ const popupTitle = ref('')
 const popupContent = ref('')
 const homeBtnEnabled = ref(false)
 
+const resolveImageUrl = (url) => {
+  if (!url) return ''
+  // 已经是完整URL
+  if (url.startsWith('http')) return url
+  if (url.startsWith('data')) return url
+  // 相对路径：直接用 baseUrl 拼接（维护模式下外部域名API可能不可用）
+  const base = (baseUrl === '/api') ? '' : baseUrl
+  const sep = url.startsWith('/') ? '' : '/'
+  return base + sep + url
+}
+
 const loadConfig = () => {
   try {
     // 从缓存中读取维护模式配置（由 request.js 在收到503时写入）
     const cached = uni.getStorageSync('maintenance_config')
     if (cached) {
       const data = JSON.parse(cached)
-      bgImage.value = data.maintenance_bg_image || ''
+      bgImage.value = resolveImageUrl(data.maintenance_bg_image || '')
       popupEnabled.value = data.maintenance_popup_enabled === 'true'
       popupTitle.value = data.maintenance_popup_title || ''
       popupContent.value = data.maintenance_popup_content || ''

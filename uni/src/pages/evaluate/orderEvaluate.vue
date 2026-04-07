@@ -8,12 +8,12 @@
 			<view class="item-card" v-for="(item, index) in orderItems" :key="index">
 				<view class="item-header">
           <image
-              :src="getUrl(item.good.imageUrl)"
+              :src="item.good.externalImagePath ? getExternalUrl(item.good.externalImagePath) : getUrl(item.good.imageUrl)"
               class="evaluate_pic_img"
               mode="aspectFill"
           />
 					<view class="item-info">
-						<text class="item-name">{{ item.name }}</text>
+						<text class="item-name">{{ $lt(item.name) || item.name }}</text>
 						<text class="item-spec" v-if="item.spec">{{ item.spec }}</text>
 						<text class="item-price">{{ cs }}{{ item.price }}</text>
 					</view>
@@ -89,13 +89,14 @@ import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { selfOrder, selfOrderComment } from '@/api/order.js'
 import { createComment } from '@/api/comment.js'
-import { getUrl } from '@/utils/url.js'
+import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { baseUrl } from '@/utils/request.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
+const $lt = computed(() => langStore.$lt)
 const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 
@@ -259,7 +260,7 @@ const initOrderItems = () => {
 // 格式化规格
 const formatSpec = (attrs) => {
 	if (!attrs || !Array.isArray(attrs)) return ''
-	return attrs.map(attr => `${attr.label}：${attr.value}`).join('；')
+	return attrs.map(attr => `${$lt.value(attr.label)}：${$lt.value(attr.value)}`).join('；')
 }
 
 // 设置评分

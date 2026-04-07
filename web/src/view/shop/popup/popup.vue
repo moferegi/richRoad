@@ -74,7 +74,7 @@
         </el-table-column>
         <el-table-column label="图片" width="100">
             <template #default="scope">
-              <el-image v-if="scope.row.image" style="width: 50px; height: 50px" :src="getUrl(scope.row.image)" fit="cover" :preview-src-list="[getUrl(scope.row.image)]" preview-teleported />
+              <el-image v-if="scope.row.externalPath || scope.row.image" style="width: 50px; height: 50px" :src="scope.row.externalPath || getUrl(scope.row.image)" fit="cover" :preview-src-list="[scope.row.externalPath || getUrl(scope.row.image)]" preview-teleported />
               <span v-else>-</span>
             </template>
         </el-table-column>
@@ -152,8 +152,12 @@
             </el-form-item>
 
             <!-- 弹窗图片 -->
-            <el-form-item label="弹窗图片:" prop="image">
+            <el-form-item label="弹窗图片(上传):" prop="image">
               <SelectImage v-model="formData.image" file-type="image" />
+            </el-form-item>
+
+            <el-form-item label="外部图片路径(优先于上传):" prop="externalPath">
+              <el-input v-model="formData.externalPath" :clearable="true" placeholder="https://example.com/popup.jpg" />
             </el-form-item>
 
             <!-- 富文本内容(多语言) - 仅 content 类型 -->
@@ -336,6 +340,7 @@ watch(pagesList, (val) => {
 const defaultForm = () => ({
   title: '',
   image: '',
+  externalPath: '',
   link: '',
   content: '',
   popupType: 'image',

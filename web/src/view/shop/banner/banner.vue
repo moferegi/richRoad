@@ -165,6 +165,15 @@
                   <el-input-number v-model="formData.maskTextSize" :min="8" :max="72" style="width:100%" />
                 </el-form-item>
               </el-col>
+              <el-col :span="5">
+                <el-form-item label="文字对齐:" prop="maskTextAlign">
+                  <el-select v-model="formData.maskTextAlign" placeholder="居中" style="width:100%">
+                    <el-option label="左对齐" value="left" />
+                    <el-option label="居中" value="center" />
+                    <el-option label="右对齐" value="right" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
             </el-row>
             <el-form-item label="遮罩文字(JSON多语言):" prop="maskText">
               <div v-if="enabledLangs.length" class="w-full">
@@ -287,6 +296,7 @@ const formData = ref({
         maskText: '',
         maskTextColor: '#FFFFFF',
         maskTextSize: 14,
+        maskTextAlign: 'center',
         sort: 0,
         isEnabled: true,
         goodID: null,
@@ -510,6 +520,7 @@ const closeDetailShow = () => {
           maskText: '',
           maskTextColor: '#FFFFFF',
           maskTextSize: 14,
+          maskTextAlign: 'center',
           sort: 0,
           }
 }
@@ -536,6 +547,7 @@ const closeDialog = () => {
         maskText: '',
         maskTextColor: '#FFFFFF',
         maskTextSize: 14,
+        maskTextAlign: 'center',
         sort: 0,
         }
 }

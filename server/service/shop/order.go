@@ -98,7 +98,13 @@ func (orderService *OrderService) ChangeOrderCoupon(userID uint, orderID string,
 			return err
 		}
 		// 使用新的券
-		err = tx.Model(&shop.CouponOrderUser{}).Where("coupon_num = ?", couponNum).Update("order_id", order.ID).Error
+		used := true
+		now := time.Now()
+		err = tx.Model(&shop.CouponOrderUser{}).Where("coupon_num = ?", couponNum).Updates(map[string]interface{}{
+			"order_id": order.ID,
+			"status":   &used,
+			"used_at":  &now,
+		}).Error
 		if err != nil {
 			return err
 		}
@@ -328,7 +334,13 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 			return err
 		}
 		OrderID = order.ID
-		err = tx.Model(&shop.CouponOrderUser{}).Where("coupon_num = ?", order.CouponNum).Update("order_id", order.ID).Error
+		used := true
+		now := time.Now()
+		err = tx.Model(&shop.CouponOrderUser{}).Where("coupon_num = ?", order.CouponNum).Updates(map[string]interface{}{
+			"order_id": order.ID,
+			"status":   &used,
+			"used_at":  &now,
+		}).Error
 		if err != nil {
 			return err
 		}
@@ -699,6 +711,9 @@ func (orderService *OrderService) GetOrderInfoList(info shopReq.OrderSearch) (li
 	if limit > 0 {
 		db = db.Limit(limit).Offset(offset)
 	}
+
+	// 按创建时间倒序
+	db = db.Order("created_at desc")
 
 	// 执行查询
 	err = db.Find(&orders).Error

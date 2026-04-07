@@ -107,6 +107,18 @@ func (couService *CouponOrderUserService) GetCouponOrderUserInfoList(ctx context
 		return
 	}
 
+	var OrderStr string
+	orderMap := make(map[string]bool)
+	orderMap["id"] = true
+	orderMap["created_at"] = true
+	if orderMap[info.Sort] {
+		OrderStr = info.Sort
+		if info.Order == "descending" {
+			OrderStr = OrderStr + " desc"
+		}
+		db = db.Order(OrderStr)
+	}
+
 	if limit != 0 {
 		db = db.Limit(limit).Offset(offset)
 	}

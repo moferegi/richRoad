@@ -25,7 +25,7 @@
             :key="index"
             @tap="goto(item, index)"
           >
-            <image class="nf-cate-tab-icon" :src="getUrl(item.externalIconPath || item.icons)" mode="aspectFill"></image>
+            <image class="nf-cate-tab-icon" :src="item.externalIconPath ? getExternalUrl(item.externalIconPath) : getUrl(item.icons)" mode="aspectFill"></image>
             <text class="nf-cate-tab-text">{{ $lt(item.title) }}</text>
           </view>
         </view>
@@ -43,7 +43,7 @@
           @tap="handleGoodsClick(item)"
         >
           <view class="nf-grid-img-wrap">
-            <image class="nf-grid-img" :src="getUrl(item.externalImagePath || item.imageUrl)" mode="aspectFill"></image>
+            <image class="nf-grid-img" :src="item.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(item.imageUrl)" mode="aspectFill"></image>
             <view class="nf-grid-img-overlay"></view>
             <!-- 折扣标签 -->
             <view class="nf-grid-badge" v-if="item.discount && item.discount < 10">
@@ -93,7 +93,7 @@
 import { ref, computed } from 'vue'
 import { getCategoryMobile, getGoodList } from '@/api/homePage.js'
 import { onLoad } from '@dcloudio/uni-app'
-import { getUrl } from '@/utils/url'
+import { getUrl, getExternalUrl } from '@/utils/url'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 

@@ -30,12 +30,12 @@
           </view>
         </view>
         <!-- 商品图片 -->
-        <image class="nf-cart-img" :src="getUrl(item.sku.picture)" mode="aspectFill"></image>
+        <image class="nf-cart-img" :src="item.sku.externalPicturePath ? getExternalUrl(item.sku.externalPicturePath) : getUrl(item.sku.picture)" mode="aspectFill"></image>
         <!-- 商品信息 -->
         <view class="nf-cart-info">
-          <text class="nf-cart-name">{{ item.sku.name }}</text>
+          <text class="nf-cart-name">{{ $lt(item.sku.name) || item.sku.name }}</text>
           <view class="nf-cart-specs" v-if="item.sku.specs && item.sku.specs.length">
-            <text class="nf-cart-spec-tag">{{ item.sku.specs.map(s => s.value).join(' / ') }}</text>
+            <text class="nf-cart-spec-tag">{{ item.sku.specs.map(s => $lt(s.value) || s.value).join(' / ') }}</text>
           </view>
           <view class="nf-cart-specs" v-else-if="item.sku.description">
             <text class="nf-cart-spec-tag">{{ item.sku.description }}</text>
@@ -91,9 +91,9 @@
 	import { useLangStore } from '@/pinia/modules/lang.js'
 	import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 	import { placeOrderByCart } from '@/api/order.js'
-	import { getUrl } from "@/utils/url.js"
+	import { getUrl, getExternalUrl } from "@/utils/url.js"
 
-	const { $t } = useLangStore()
+	const { $t, $lt } = useLangStore()
 	const appConfigStore = useAppConfigStore()
 	const cs = computed(() => appConfigStore.currencySymbol)
 	const cartList = ref([])

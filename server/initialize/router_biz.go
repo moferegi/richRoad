@@ -45,6 +45,7 @@ func initBizRouter(routers ...*gin.RouterGroup) {
 		shopRouter.InitMarketingRewardRouter(privateGroup, publicGroup)
 		shopRouter.InitDashboardRouter(privateGroup, publicGroup)
 		shopRouter.InitPresaleRouter(privateGroup, publicGroup)
+		shopRouter.InitSkuSpecRouter(privateGroup, publicGroup)
 	}
 	holder(publicGroup, privateGroup)
 }

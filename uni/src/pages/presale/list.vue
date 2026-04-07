@@ -205,7 +205,9 @@ const goBack = () => {
 }
 
 const goDetail = (item) => {
-  uni.navigateTo({ url: `/pages/player/index?id=${item.ID}` })
+  if (item.ID) {
+    uni.navigateTo({ url: '/pages/goodsDetails/goodsDetails?id=' + item.ID })
+  }
 }
 </script>
 

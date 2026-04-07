@@ -14,4 +14,6 @@ type CouponOrderUserSearch struct {
 	Status         *bool      `json:"status" form:"status"`
 	UserID         *uint      `json:"userID" form:"userID"`
 	request.PageInfo
+	Sort  string `json:"sort" form:"sort"`
+	Order string `json:"order" form:"order"`
 }

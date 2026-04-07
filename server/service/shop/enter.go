@@ -19,4 +19,5 @@ type ServiceGroup struct {
 	MarketingRewardService
 	DashboardService
 	PresaleService
+	SkuSpecService
 }

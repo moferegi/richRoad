@@ -72,6 +72,14 @@ func (clientUserApi *ClientUserApi) Login(c *gin.Context) {
 		return
 	}
 
+	// 检查登录失败限制
+	var securityService = service.ServiceGroupApp.ClientServiceGroup.SecurityService
+	allowed, waitSec, _ := securityService.CheckLoginFail(l.Username)
+	if !allowed {
+		response.FailWithMessage(i18n.T(c, "loginLocked")+" "+strconv.Itoa(waitSec)+"s", c)
+		return
+	}
+
 	// 判断验证码是否开启
 	openCaptcha := global.GVA_CONFIG.Captcha.OpenCaptcha               // 是否开启防爆次数
 	openCaptchaTimeOut := global.GVA_CONFIG.Captcha.OpenCaptchaTimeOut // 缓存超时时间
@@ -88,14 +96,17 @@ func (clientUserApi *ClientUserApi) Login(c *gin.Context) {
 			global.GVA_LOG.Error("登陆失败! 用户名不存在或者密码错误!", zap.Error(err))
 			// 验证码次数+1
 			global.BlackCache.Increment(key, 1)
+			securityService.RecordLoginFail(l.Username)
 			response.FailWithMessage(i18n.T(c, "loginFail"), c)
 			return
 		}
+		securityService.ClearLoginFail(l.Username)
 		clientUserApi.TokenNext(c, user)
 		return
 	}
 	// 验证码次数+1
 	global.BlackCache.Increment(key, 1)
+	securityService.RecordLoginFail(l.Username)
 	response.FailWithMessage(i18n.T(c, "captchaError"), c)
 }
 
@@ -110,6 +121,14 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 	// 验证码校验
 	if register.CaptchaId == "" || register.Captcha == "" || !store.Verify(register.CaptchaId, register.Captcha, true) {
 		response.FailWithMessage(i18n.T(c, "captchaError"), c)
+		return
+	}
+
+	// IP注册限制
+	var securityService = service.ServiceGroupApp.ClientServiceGroup.SecurityService
+	allowed, _ := securityService.CheckRegisterIPLimit(c.ClientIP())
+	if !allowed {
+		response.FailWithMessage(i18n.T(c, "registerIPLimit"), c)
 		return
 	}
 
@@ -136,6 +155,9 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
+
+	// 记录IP注册次数
+	securityService.IncrementRegisterIP(c.ClientIP())
 
 	// 邀请奖励：给邀请人发放 sub_register 营销奖励（积分+优惠券）
 	if clientUser.InvitedBy > 0 {

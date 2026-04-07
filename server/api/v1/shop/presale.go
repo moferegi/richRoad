@@ -79,7 +79,7 @@ func (api *PresaleApi) CheckPresaleAvailable(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /presale/getPresaleParticipants [get]
 func (api *PresaleApi) GetPresaleParticipants(c *gin.Context) {
-	goodId := c.Query("goodId")
+	goodId := c.Query("goodID")
 	gid, _ := strconv.ParseUint(goodId, 10, 64)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))

@@ -38,7 +38,7 @@
       <!-- 商品列表 -->
       <view class="nf-card nf-goods-card">
         <view class="nf-goods-item" v-for="(d, i) in data.detail" :key="i">
-          <image class="nf-goods-img" :src="getUrl(d.sku?.picture)" mode="aspectFill"></image>
+          <image class="nf-goods-img" :src="d.sku?.externalPicturePath ? getExternalUrl(d.sku.externalPicturePath) : getUrl(d.sku?.picture)" mode="aspectFill"></image>
           <view class="nf-goods-info">
             <text class="nf-goods-name">{{ $lt(d?.sku?.name) || d?.sku?.name }}</text>
             <text class="nf-goods-desc">{{ $lt(d?.good?.description) || d?.good?.description }}</text>
@@ -188,12 +188,12 @@
 
 <script setup>
 import { ref, computed, onUnmounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onBackPress } from '@dcloudio/uni-app'
 import { selfOrder, changeOrderCoupon, placeOrder } from '@/api/order.js'
 import { claimCouponByUser, getAllClaimCoupon } from '@/api/coupon.js'
 import { checkNeedPay } from '@/api/base.js'
 import { getUserInfo } from '@/api/base.js'
-import { getUrl } from "@/utils/url.js"
+import { getUrl, getExternalUrl } from "@/utils/url.js"
 import { changeOrderPoints } from '@/api/order.js'
 import RefundApplyPopup from '@/components/refund-apply-popup/refund-apply-popup.vue'
 import { useLangStore } from '@/pinia/modules/lang.js'
@@ -205,7 +205,24 @@ const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
 
-const goBack = () => { uni.navigateBack() }
+const isNewOrder = ref(false) // 从SKU直接下单进入
+
+const goBack = () => {
+  if (isNewOrder.value && orderReady.value) {
+    // 从SKU下单进来的已创建订单，返回去订单列表而非SKU页
+    uni.redirectTo({ url: '/pages/order/order' })
+  } else {
+    uni.navigateBack()
+  }
+}
+
+onBackPress(() => {
+  if (isNewOrder.value && orderReady.value) {
+    uni.redirectTo({ url: '/pages/order/order' })
+    return true
+  }
+  return false
+})
 
 const toAddress = () => {
   uni.navigateTo({ url: `/pages/address/address?ID=${data.value.ID}` })
@@ -328,6 +345,7 @@ onLoad(async (options) => {
     await initSingleOrder()
   } else if (options.goodID && options.skuID) {
     // 模式2: 从SKU弹窗跳过来，需先创建订单
+    isNewOrder.value = true
     creating.value = true
     try {
       const orderData = {

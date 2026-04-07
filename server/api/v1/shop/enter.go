@@ -21,9 +21,11 @@ type ApiGroup struct {
 	MarketingRewardApi
 	DashboardApi
 	PresaleApi
+	SkuSpecApi
 }
 
 var (
+	skuSpecService = service.ServiceGroupApp.ShopServiceGroup.SkuSpecService
 	commentService = service.ServiceGroupApp.ShopServiceGroup.CommentService
 	tagService     = service.ServiceGroupApp.ShopServiceGroup.TagService
 	couponService  = service.ServiceGroupApp.ShopServiceGroup.CouponService

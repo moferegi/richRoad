@@ -2,6 +2,7 @@ package shop
 
 import (
 	"context"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
@@ -66,8 +67,8 @@ func (CouService *CouponService) GetCouponInfoList(ctx context.Context, info sho
 	}
 	var OrderStr string
 	orderMap := make(map[string]bool)
-	orderMap["ID"] = true
-	orderMap["CreatedAt"] = true
+	orderMap["id"] = true
+	orderMap["created_at"] = true
 	orderMap["name"] = true
 	orderMap["start_time"] = true
 	orderMap["end_time"] = true

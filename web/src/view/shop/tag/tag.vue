@@ -55,7 +55,15 @@
         
             <el-table-column sortable align="left" label="标签名" prop="name" width="120" />
 
-            <el-table-column align="left" label="颜色" prop="color" width="120" />
+            <el-table-column align="left" label="颜色" prop="color" width="120">
+              <template #default="scope">
+                <div v-if="scope.row.color" style="display:flex;align-items:center;gap:8px;">
+                  <span :style="{ display:'inline-block', width:'20px', height:'20px', borderRadius:'4px', backgroundColor: scope.row.color, border: '1px solid #dcdfe6' }" />
+                  <span>{{ scope.row.color }}</span>
+                </div>
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
 
         <el-table-column align="left" label="操作" fixed="right" :min-width="appStore.operateMinWith">
             <template #default="scope">
@@ -250,8 +258,8 @@ const searchInfo = ref({})
 // 排序
 const sortChange = ({ prop, order }) => {
   const sortMap = {
-    CreatedAt:"CreatedAt",
-    ID:"ID",
+    CreatedAt:"created_at",
+    ID:"id",
             name: 'name',
   }
 

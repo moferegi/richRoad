@@ -37,9 +37,9 @@
       <view class="nf-qty-section">
         <text class="nf-spec-title">{{ $t('itemCount') }}</text>
         <view class="nf-qty-stepper">
-          <view class="nf-qty-btn" :class="{ 'nf-qty-disabled': quantity <= 1 }" @tap="changeQty(-1)">-</view>
+          <view class="nf-qty-btn" :class="{ 'nf-qty-disabled': quantity <= 1 }" @tap="changeQty(-1)"><text>-</text></view>
           <text class="nf-qty-num">{{ quantity }}</text>
-          <view class="nf-qty-btn" :class="{ 'nf-qty-disabled': quantity >= maxStock }" @tap="changeQty(1)">+</view>
+          <view class="nf-qty-btn" :class="{ 'nf-qty-disabled': quantity >= maxStock }" @tap="changeQty(1)"><text>+</text></view>
         </view>
       </view>
     </scroll-view>
@@ -56,7 +56,7 @@
 import { ref, computed } from 'vue'
 import { useUserStore } from '@/pinia/modules/user'
 import { addCart } from '@/api/cart.js'
-import { getUrl } from '@/utils/url.js'
+import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
@@ -80,26 +80,47 @@ const quantity = ref(1)
 const specGroups = ref([])
 const matchedSku = ref(null)
 
-// 构建规格分组
+// 辅助：判断 i18n 对象是否有实际内容
+const hasI18n = (obj) => obj && typeof obj === 'object' && Object.keys(obj).length > 0
+
+// 辅助：获取规格的 labelKey（用于按标签匹配而非按位置匹配）
+const getSpecLabelKey = (spec) => {
+  return hasI18n(spec.labelI18n) ? JSON.stringify(spec.labelI18n) : JSON.stringify(spec.label)
+}
+
+// 辅助：获取规格的实际值（优先 i18n 对象，空对象则回退到纯文本）
+const getSpecVal = (spec) => {
+  return hasI18n(spec.valueI18n) ? spec.valueI18n : spec.value
+}
+
+// 构建规格分组（使用 specs 即规格配置）
 const buildSpecGroups = () => {
   if (!props.good.skus || props.good.skus.length === 0) return
   const groupMap = {}
+  const groupOrder = []
   props.good.skus.forEach(sku => {
     if (!sku.specs) return
     const specs = typeof sku.specs === 'string' ? JSON.parse(sku.specs) : sku.specs
     if (!Array.isArray(specs)) return
     specs.forEach(spec => {
-      const key = JSON.stringify(spec.label)
-      if (!groupMap[key]) {
-        groupMap[key] = { label: spec.label, values: [], selected: null }
+      const labelKey = getSpecLabelKey(spec)
+      if (!groupMap[labelKey]) {
+        groupMap[labelKey] = {
+          labelKey,
+          label: hasI18n(spec.labelI18n) ? spec.labelI18n : spec.label,
+          values: [],
+          selected: null
+        }
+        groupOrder.push(labelKey)
       }
-      const valKey = JSON.stringify(spec.value)
-      if (!groupMap[key].values.find(v => JSON.stringify(v.value) === valKey)) {
-        groupMap[key].values.push({ value: spec.value, disabled: false })
+      const val = getSpecVal(spec)
+      const valStr = JSON.stringify(val)
+      if (!groupMap[labelKey].values.find(v => JSON.stringify(v.value) === valStr)) {
+        groupMap[labelKey].values.push({ value: val, disabled: false })
       }
     })
   })
-  specGroups.value = Object.values(groupMap)
+  specGroups.value = groupOrder.map(k => groupMap[k])
   matchSku()
 }
 
@@ -117,16 +138,26 @@ const selectSpec = (gIdx, opt) => {
   matchSku()
 }
 
-// 匹配SKU
+// 匹配SKU（按 label 匹配，不依赖 specs 数组顺序）
 const matchSku = () => {
-  const selections = specGroups.value.map(g => g.selected)
-  const allSelected = selections.every(s => s !== null)
+  // 构建 labelKey → 用户选中值 的映射
+  const selectionMap = {}
+  specGroups.value.forEach(g => {
+    if (g.selected !== null) selectionMap[g.labelKey] = g.selected
+  })
+  const allSelected = specGroups.value.every(g => g.selected !== null)
 
   if (allSelected && props.good.skus) {
     const found = props.good.skus.find(sku => {
       const specs = typeof sku.specs === 'string' ? JSON.parse(sku.specs) : sku.specs
       if (!Array.isArray(specs)) return false
-      return specs.every((spec, i) => JSON.stringify(spec.value) === JSON.stringify(selections[i]))
+      // 每个 spec 按 labelKey 查找对应用户选择，而非按位置索引
+      return specs.every(spec => {
+        const labelKey = getSpecLabelKey(spec)
+        const selected = selectionMap[labelKey]
+        if (selected === undefined) return false
+        return JSON.stringify(getSpecVal(spec)) === JSON.stringify(selected)
+      })
     })
     matchedSku.value = found || null
   } else {
@@ -139,20 +170,24 @@ const matchSku = () => {
   }
 }
 
-// 更新不可选状态
+// 更新不可选状态（按 label 匹配）
 const updateDisabledState = () => {
   specGroups.value.forEach((group, gIdx) => {
     group.values.forEach(opt => {
-      const testSelections = specGroups.value.map((g, i) => {
-        if (i === gIdx) return opt.value
-        return g.selected
+      // 构建测试选择映射：当前组用 opt.value，其他组用已选中的值
+      const testMap = {}
+      specGroups.value.forEach((g, i) => {
+        if (i === gIdx) testMap[g.labelKey] = opt.value
+        else if (g.selected !== null) testMap[g.labelKey] = g.selected
       })
       const hasStock = props.good.skus?.some(sku => {
         const specs = typeof sku.specs === 'string' ? JSON.parse(sku.specs) : sku.specs
         if (!Array.isArray(specs)) return false
-        const match = specs.every((spec, i) => {
-          if (testSelections[i] === null) return true
-          return JSON.stringify(spec.value) === JSON.stringify(testSelections[i])
+        const match = specs.every(spec => {
+          const labelKey = getSpecLabelKey(spec)
+          const testVal = testMap[labelKey]
+          if (testVal === undefined) return true // 该维度未选择，不约束
+          return JSON.stringify(getSpecVal(spec)) === JSON.stringify(testVal)
         })
         return match && sku.inventory > 0
       })
@@ -162,7 +197,11 @@ const updateDisabledState = () => {
 }
 
 const currentCover = computed(() => {
-  if (matchedSku.value?.picture) return getUrl(matchedSku.value.picture)
+  if (matchedSku.value) {
+    if (matchedSku.value.externalPicturePath) return getExternalUrl(matchedSku.value.externalPicturePath)
+    if (matchedSku.value.picture) return getUrl(matchedSku.value.picture)
+  }
+  if (props.good.externalImagePath) return getExternalUrl(props.good.externalImagePath)
   return getUrl(props.good.imageUrl)
 })
 
@@ -285,7 +324,7 @@ defineExpose({ showSku, closeSku })
   width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center;
   background: rgba(255,255,255,0.08); border-radius: 50%;
 }
-.nf-sku-body { flex: 1; padding: 24rpx 32rpx; overflow-y: auto; }
+.nf-sku-body { flex: 1; padding: 24rpx 32rpx; overflow-y: auto; overflow-x: visible; }
 .nf-spec-group { margin-bottom: 32rpx; }
 .nf-spec-title { display: block; font-size: 26rpx; color: rgba(255,255,255,0.6); margin-bottom: 16rpx; font-weight: 600; }
 .nf-spec-options { display: flex; flex-wrap: wrap; gap: 16rpx; }
@@ -302,12 +341,13 @@ defineExpose({ showSku, closeSku })
 .nf-qty-section {
   display: flex; align-items: center; justify-content: space-between;
   padding: 24rpx 0; border-top: 1rpx solid rgba(255,255,255,0.06);
+  overflow: visible;
 }
-.nf-qty-stepper { display: flex; align-items: center; gap: 4rpx; }
+.nf-qty-stepper { display: flex; align-items: center; gap: 4rpx; flex-shrink: 0; overflow: visible; }
 .nf-qty-btn {
-  width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center;
+  width: 60rpx; height: 60rpx; min-width: 60rpx; display: flex; align-items: center; justify-content: center;
   background: rgba(255,255,255,0.08); border-radius: 10rpx; font-size: 32rpx;
-  color: #fff; font-weight: 600;
+  color: #fff; font-weight: 600; flex-shrink: 0; box-sizing: border-box;
 }
 .nf-qty-disabled { opacity: 0.3; }
 .nf-qty-num { min-width: 72rpx; text-align: center; font-size: 30rpx; color: #fff; font-weight: 600; }

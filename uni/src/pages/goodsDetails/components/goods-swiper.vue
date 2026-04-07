@@ -36,6 +36,7 @@
 <script setup>
 import { computed } from "vue"
 import { getUrl, getExternalUrl } from "@/utils/url.js"
+import { localText } from "@/utils/i18n.js"
 
 const props = defineProps({
   list: {
@@ -53,10 +54,13 @@ const normalizedList = computed(() => {
     }
     if (typeof item === 'object' && item !== null) {
       const src = item.externalUrl ? getExternalUrl(item.externalUrl) : getUrl(item.url || '')
+      // 支持多语言文字：text 可能是 JSON 多语言字符串
+      const rawText = item.text || ''
+      const displayText = localText(rawText) || rawText
       return {
         src,
         type: item.type || 'image',
-        text: item.text || '',
+        text: displayText,
         textColor: item.textColor || '#fff',
         textSize: item.textSize || 14,
         textPosition: item.textPosition || 'bottom'
