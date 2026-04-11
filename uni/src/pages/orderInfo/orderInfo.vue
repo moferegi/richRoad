@@ -9,13 +9,13 @@
         <view class="nf-navbar-back" @tap="goBack">
           <uni-icons type="left" size="20" color="#fff"></uni-icons>
         </view>
-        <text class="nf-navbar-title">{{ orderReady ? ($t('orderDetail')) : ($t('orderConfirm')) }}</text>
+        <text class="nf-navbar-title">{{ $t('orderConfirm') }}</text>
         <view style="width: 64rpx;"></view>
       </view>
     </view>
 
-    <!-- 创建中loading -->
-    <view v-if="creating" class="nf-creating">
+    <!-- 提交中loading -->
+    <view v-if="submitting" class="nf-creating">
       <view class="nf-creating-spinner"></view>
       <text class="nf-creating-text">{{ $t('orderCreating') }}</text>
     </view>
@@ -25,8 +25,8 @@
       <view class="nf-card nf-address-card" @tap="toAddress">
         <view class="nf-address-icon">📍</view>
         <view class="nf-address-info" v-if="hasAddress">
-          <text class="nf-address-name">{{ data.name }} {{ data.phone }}</text>
-          <text class="nf-address-detail">{{ data.province }}{{ data.city }}{{ data.area }} {{ data.street }}</text>
+          <text class="nf-address-name">{{ address.name }} {{ address.phone }}</text>
+          <text class="nf-address-detail">{{ address.provinceStr }}{{ address.cityStr }}{{ address.areaStr }} {{ address.street }}</text>
         </view>
         <view class="nf-address-info" v-else>
           <text class="nf-address-name">{{ $t('selectAddress') }}</text>
@@ -37,7 +37,7 @@
 
       <!-- 商品列表 -->
       <view class="nf-card nf-goods-card">
-        <view class="nf-goods-item" v-for="(d, i) in data.detail" :key="i">
+        <view class="nf-goods-item" v-for="(d, i) in goodsList" :key="i">
           <image class="nf-goods-img" :src="d.sku?.externalPicturePath ? getExternalUrl(d.sku.externalPicturePath) : getUrl(d.sku?.picture)" mode="aspectFill"></image>
           <view class="nf-goods-info">
             <text class="nf-goods-name">{{ $lt(d?.sku?.name) || d?.sku?.name }}</text>
@@ -59,7 +59,7 @@
             <text>{{ $t('selectCoupon') }}</text>
           </view>
           <view class="nf-option-value">
-            <text class="nf-discount-text" v-if="data.discount > 0">-{{ cs }}{{ data.discount / 100 }}</text>
+            <text class="nf-discount-text" v-if="selectedCouponDiscount > 0">-{{ cs }}{{ selectedCouponDiscount / 100 }}</text>
             <text class="nf-discount-hint" v-else>{{ $t('selectCoupon') }}</text>
             <uni-icons type="right" size="14" color="rgba(255,255,255,0.3)"></uni-icons>
           </view>
@@ -70,18 +70,18 @@
       <view class="nf-card nf-price-card">
         <view class="nf-price-row">
           <text class="nf-price-label">{{ $t('productAmount') }}</text>
-          <text class="nf-price-val">{{ cs }}{{ (data.originPrice || 0) / 100 }}</text>
+          <text class="nf-price-val">{{ cs }}{{ (originPrice / 100).toFixed(2) }}</text>
         </view>
-        <view class="nf-price-row nf-price-discount" v-if="data.discount > 0">
+        <view class="nf-price-row nf-price-discount" v-if="selectedCouponDiscount > 0">
           <text class="nf-price-label">{{ $t('discountAmount') }}</text>
-          <text class="nf-price-val">-{{ cs }}{{ data.discount / 100 }}</text>
+          <text class="nf-price-val">-{{ cs }}{{ (selectedCouponDiscount / 100).toFixed(2) }}</text>
         </view>
         <view class="nf-price-row nf-price-points">
-          <view class="nf-points-left">
+          <view class="nf-points-left" @tap="onPointsTap">
             <checkbox-group @change="onPointsChange">
               <view class="nf-points-check">
-                <checkbox value="points" :checked="usePoints" color="#e50914" style="transform: scale(0.7); margin-right: 6rpx;" />
-                <text>{{ $t('pointsDeduction') }}</text>
+                <checkbox value="points" :checked="usePoints" :disabled="!pointsAllowed || userPoints <= 0" color="#e50914" style="transform: scale(0.7); margin-right: 6rpx;" />
+                <text :style="(!pointsAllowed || userPoints <= 0) ? 'opacity:0.4' : ''">{{ $t('pointsDeduction') }}</text>
               </view>
             </checkbox-group>
           </view>
@@ -89,61 +89,20 @@
         </view>
         <view class="nf-points-detail" v-if="userPoints > 0">
           <text>{{ $t('pointsBalance') }}: {{ userPoints }}</text>
-          <text v-if="usePoints && data.pointsUsed > 0" class="nf-points-used">  -{{ data.pointsUsed }} = {{ userPoints - (data.pointsUsed || 0) }}</text>
+          <text v-if="usePoints && previewPointsUsed > 0" class="nf-points-used">  -{{ previewPointsUsed }} = {{ userPoints - previewPointsUsed }}</text>
         </view>
-      </view>
-
-      <!-- 订单信息 (仅已创建的订单显示) -->
-      <view class="nf-card nf-info-card" v-if="orderReady && data.ID">
-        <view class="nf-info-row">
-          <text class="nf-info-label">{{ $t('orderNo') }}</text>
-          <view class="nf-info-value" @tap="copyOrderNo">
-            <text>{{ data.ID }}</text>
-            <text class="nf-copy-btn">{{ $t('copy') }}</text>
-          </view>
-        </view>
-        <view class="nf-info-row">
-          <text class="nf-info-label">{{ $t('orderTime') }}</text>
-          <text class="nf-info-value">{{ formatTime(data.CreatedAt) }}</text>
-        </view>
-        <view class="nf-info-row" v-if="data.payMethod">
-          <text class="nf-info-label">{{ $t('paymentMethod') }}</text>
-          <text class="nf-info-value">{{ data.payMethod === 'qrcode' ? ($t('payByQrcode')) : ($t('payByContact')) }}</text>
-        </view>
-        <view class="nf-info-row" v-if="data.paidAt">
-          <text class="nf-info-label">{{ $t('paymentTime') }}</text>
-          <text class="nf-info-value">{{ formatTime(data.paidAt) }}</text>
-        </view>
-        <view class="nf-info-row" v-if="data.express">
-          <text class="nf-info-label">{{ $t('trackingNo') }}</text>
-          <text class="nf-info-value">{{ data.express }}</text>
-        </view>
-        <view class="nf-info-row" v-if="data.receivedAt">
-          <text class="nf-info-label">{{ $t('deliveryTime') }}</text>
-          <text class="nf-info-value">{{ formatTime(data.receivedAt) }}</text>
-        </view>
-        <view class="nf-info-row" v-if="data.status === '0' && data.closeTime">
-          <text class="nf-info-label">{{ $t('remainPayTime') }}</text>
-          <text class="nf-info-value nf-countdown-val">{{ payCountdown }}</text>
-        </view>
-      </view>
-
-      <!-- 退款操作 -->
-      <view class="nf-card nf-refund-card" v-if="canApplyRefund || isRefunding || isRefunded">
-        <view v-if="canApplyRefund" class="nf-refund-btn" @tap="openRefund">{{ $t('applyRefund') }}</view>
-        <view v-else class="nf-refund-status">{{ isRefunding ? $t('refundProcessing') : $t('refunded') }}</view>
       </view>
 
       <view style="height: 140rpx;"></view>
     </view>
 
     <!-- 底部支付栏 -->
-    <view class="nf-footer" v-if="!creating">
+    <view class="nf-footer" v-if="!submitting">
       <view class="nf-footer-info">
         <text class="nf-footer-label">{{ $t('actualPayment') }}</text>
         <text class="nf-footer-price">{{ cs }}{{ (totalPrice / 100).toFixed(2) }}</text>
       </view>
-      <view class="nf-footer-btn" @tap="tapPay">
+      <view class="nf-footer-btn" @tap="submitOrder">
         <text>{{ $t('submitOrder') }}</text>
       </view>
     </view>
@@ -160,42 +119,37 @@
           <text>{{ $t('noCoupons') }}</text>
         </view>
         <view v-for="(c, idx) in couponList" :key="idx"
-              class="nf-coupon-item" :class="{ 'nf-coupon-selected': data.couponNum && data.couponNum === c.couponNum }"
+              class="nf-coupon-item" :class="{ 'nf-coupon-selected': selectedCouponNum === c.couponNum }"
               @tap="onCouponTap(c)">
           <view class="nf-coupon-left">
             <text class="nf-coupon-amount">{{ cs }}{{ (c.discount || 0) / 100 }}</text>
-            <text class="nf-coupon-cond" v-if="c.minAmount > 0">{{ $t('couponNoMin') || '' }} {{ cs }}{{ c.minAmount / 100 }}</text>
-            <text class="nf-coupon-cond" v-else>{{ $t('couponNoMin') || '' }}</text>
+            <text class="nf-coupon-cond" v-if="c.minSpend > 0">{{ $t('couponFull').replace('{min}', c.minSpend / 100).replace('{off}', (c.discount || 0) / 100) }}</text>
+            <text class="nf-coupon-cond" v-else>{{ $t('couponNoLimit') }}</text>
           </view>
           <view class="nf-coupon-right">
             <text class="nf-coupon-name">{{ $lt(c.name) || c.name }}</text>
             <text class="nf-coupon-exp">{{ $t('couponExpiry') || '' }} {{ formatCouponDate(c.endTime) }}</text>
-            <view v-if="data.couponNum && data.couponNum === c.couponNum" class="nf-coupon-deselect">
+            <view v-if="selectedCouponNum === c.couponNum" class="nf-coupon-deselect">
               <text>{{ $t('cancelCoupon') }}</text>
             </view>
           </view>
         </view>
       </scroll-view>
     </view>
-
-    <refund-apply-popup
-      v-model:visible="refundVisible"
-      :order-id="orderID"
-      @success="initSingleOrder"
-    />
   </view>
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted } from 'vue'
-import { onLoad, onBackPress } from '@dcloudio/uni-app'
-import { selfOrder, changeOrderCoupon, placeOrder } from '@/api/order.js'
+import { ref, computed } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
+import { placeOrder } from '@/api/order.js'
+import { changeOrderPoints } from '@/api/order.js'
 import { claimCouponByUser, getAllClaimCoupon } from '@/api/coupon.js'
 import { checkNeedPay } from '@/api/base.js'
 import { getUserInfo } from '@/api/base.js'
+import { findGood } from '@/api/product.js'
+import { getDefaultAddress } from '@/api/address.js'
 import { getUrl, getExternalUrl } from "@/utils/url.js"
-import { changeOrderPoints } from '@/api/order.js'
-import RefundApplyPopup from '@/components/refund-apply-popup/refund-apply-popup.vue'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
@@ -205,49 +159,74 @@ const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
 
-const isNewOrder = ref(false) // 从SKU直接下单进入
+const goBack = () => { uni.navigateBack() }
 
-const goBack = () => {
-  if (isNewOrder.value && orderReady.value) {
-    // 从SKU下单进来的已创建订单，返回去订单列表而非SKU页
-    uni.redirectTo({ url: '/pages/order/order' })
-  } else {
-    uni.navigateBack()
-  }
-}
-
-onBackPress(() => {
-  if (isNewOrder.value && orderReady.value) {
-    uni.redirectTo({ url: '/pages/order/order' })
-    return true
-  }
-  return false
-})
-
-const toAddress = () => {
-  uni.navigateTo({ url: `/pages/address/address?ID=${data.value.ID}` })
-}
-
-const totalPrice = ref(0)
-const hasAddress = ref(false)
+/* =================== 数据 =================== */
+const submitting = ref(false)
 const usePoints = ref(false)
-const availablePointsAmount = ref(0)
 const userPoints = ref(0)
-const creating = ref(false)
-const orderReady = ref(false)
-const data = ref({
-  detail: [],
-  originPrice: 0,
-  discount: 0,
-})
-const orderID = ref("")
-const refundVisible = ref(false)
 const couponShow = ref(false)
 const couponList = ref([])
+const selectedCouponNum = ref('')
+const selectedCouponDiscount = ref(0)
+
+// 地址
+const address = ref({})
+const hasAddress = ref(false)
+
+// 商品信息（本地预览）
+const goodsList = ref([])         // [{ good, sku, quantity }]
+const originPrice = ref(0)        // 原价合计（分）
+
+// 订单参数（从路由传入）
+const paramGoodID = ref(0)
+const paramSkuID = ref(0)
+const paramQuantity = ref(1)
+const paramCouponNum = ref('')
+
+/* =================== 价格计算（本地预览） =================== */
+// 检查所有商品是否允许积分抵扣
+const pointsAllowed = computed(() => {
+  if (goodsList.value.length === 0) return false
+  return goodsList.value.every(d => d.good?.pointsEnabled === true)
+})
+
+// 商品层面允许的最大积分总和
+const goodMaxPoints = computed(() => {
+  let total = 0
+  for (const d of goodsList.value) {
+    const maxUse = d.good?.pointsMaxUse || 0
+    if (maxUse > 0) {
+      total += maxUse * (d.quantity || 1)
+    }
+  }
+  return total  // 0 表示无商品层面限制（仅受订单金额和用户余额限制）
+})
+
+const previewPointsUsed = computed(() => {
+  if (!usePoints.value || !pointsAllowed.value) return 0
+  const afterDiscount = Math.max(0, originPrice.value - selectedCouponDiscount.value)
+  let max = afterDiscount
+  if (goodMaxPoints.value > 0 && goodMaxPoints.value < max) {
+    max = goodMaxPoints.value
+  }
+  return Math.min(userPoints.value, max)
+})
+
+const totalPrice = computed(() => {
+  let price = originPrice.value - selectedCouponDiscount.value
+  if (usePoints.value) price -= previewPointsUsed.value
+  return Math.max(0, price)
+})
 
 const maxDeductDisplay = computed(() => {
-  const afterDiscount = (data.value.originPrice || 0) - (data.value.discount || 0)
-  return (Math.min(availablePointsAmount.value, Math.max(0, afterDiscount)) / 100).toFixed(2)
+  if (!pointsAllowed.value) return '0.00'
+  const afterDiscount = Math.max(0, originPrice.value - selectedCouponDiscount.value)
+  let max = afterDiscount
+  if (goodMaxPoints.value > 0 && goodMaxPoints.value < max) {
+    max = goodMaxPoints.value
+  }
+  return (Math.min(userPoints.value, max) / 100).toFixed(2)
 })
 
 const formatSpecs = (specs) => {
@@ -259,6 +238,21 @@ const formatSpecs = (specs) => {
   }).join('  ')
 }
 
+/* =================== 地址 =================== */
+const loadAddress = async () => {
+  try {
+    const res = await getDefaultAddress()
+    if (res.code === 0 && res.data) {
+      address.value = res.data
+      hasAddress.value = !!(res.data.name && res.data.phone)
+    }
+  } catch (e) { /* ignore */ }
+}
+
+const toAddress = () => {
+  uni.navigateTo({ url: '/pages/address/address?from=orderInfo' })
+}
+
 /* =================== 优惠券 =================== */
 const openCouponPopup = async () => {
   couponShow.value = true
@@ -268,10 +262,11 @@ const closeCouponPopup = () => { couponShow.value = false }
 
 const loadCoupons = async () => {
   try {
-    const res = await getAllClaimCoupon({ page: 1, pageSize: 50 })
-    if (res.code === 0 && res.data?.list) {
-      couponList.value = res.data.list.filter(c => {
-        if (c.couponNum && c.used) return false
+    const res = await getAllClaimCoupon({ goodIds: goodsList.value.map(g => g.good.ID) })
+    if (res.code === 0 && res.data) {
+      // 只显示可用的优惠券：未使用、未过期、商品可用
+      couponList.value = (Array.isArray(res.data) ? res.data : res.data.list || []).filter(c => {
+        if (c.used || c.expired || c.canUse === 0) return false
         return true
       })
     }
@@ -279,29 +274,26 @@ const loadCoupons = async () => {
 }
 
 const onCouponTap = async (item) => {
-  // 取消选择：如果已选中的是同一个，移除优惠券
-  if (data.value.couponNum && data.value.couponNum === item.couponNum) {
-    uni.showLoading({ mask: true })
-    try {
-      await changeOrderCoupon({ orderID: orderID.value, couponNum: '' })
-      await initSingleOrder()
-      closeCouponPopup()
-    } catch (e) { /* ignore */ }
-    finally { uni.hideLoading() }
+  // 取消选择
+  if (selectedCouponNum.value === item.couponNum) {
+    selectedCouponNum.value = ''
+    selectedCouponDiscount.value = 0
+    closeCouponPopup()
     return
   }
-  // 选择优惠券
-  uni.showLoading({ title: item.couponNum ? ($t.value('selecting') || '...') : ($t.value('claiming') || '...'), mask: true })
-  try {
-    if (!item.couponNum) {
+  // 需要先领取
+  if (!item.couponNum) {
+    uni.showLoading({ title: $t.value('claiming') || '...', mask: true })
+    try {
       const res = await claimCouponByUser({ couponID: item.couponID })
       item.couponNum = res.data
-    }
-    await changeOrderCoupon({ orderID: orderID.value, couponNum: item.couponNum })
-    await initSingleOrder()
-    closeCouponPopup()
-  } catch (e) { /* ignore */ }
-  finally { uni.hideLoading() }
+    } catch (e) { uni.hideLoading(); return }
+    uni.hideLoading()
+  }
+  // 选择优惠券（本地设置）
+  selectedCouponNum.value = item.couponNum
+  selectedCouponDiscount.value = item.discount || 0
+  closeCouponPopup()
 }
 
 const formatCouponDate = (t) => {
@@ -312,172 +304,174 @@ const formatCouponDate = (t) => {
 }
 
 /* =================== 积分 =================== */
-const getUserPoints = async () => {
+const loadUserPoints = async () => {
   try {
     const res = await getUserInfo()
     if (res.code === 0) {
       userPoints.value = res.data.point || 0
-      availablePointsAmount.value = userPoints.value
     }
   } catch (e) { /* ignore */ }
 }
 
-const onPointsChange = async (e) => {
-  const isChecked = e.detail.value.includes('points')
-  usePoints.value = isChecked
-  try {
-    const res = await changeOrderPoints({ orderID: orderID.value, usePoints: usePoints.value })
-    if (res.code === 0) { await initSingleOrder() }
-    else { uni.showToast({ title: $t.value('pointsFail'), icon: 'none' }); usePoints.value = !isChecked }
-  } catch (e) {
-    uni.showToast({ title: $t.value('pointsFail'), icon: 'none' }); usePoints.value = !isChecked
+const onPointsTap = () => {
+  if (!pointsAllowed.value) {
+    uni.showToast({ title: $t.value('pointsNotAllowed') || '该商品不支持积分抵扣', icon: 'none' })
+    return
   }
+  if (userPoints.value <= 0) {
+    uni.showToast({ title: $t.value('noPointsAvailable') || '暂无可用积分', icon: 'none' })
+  }
+}
+
+const onPointsChange = (e) => {
+  if (!pointsAllowed.value) {
+    usePoints.value = false
+    return
+  }
+  usePoints.value = e.detail.value.includes('points')
 }
 
 /* =================== 初始化 =================== */
 onLoad(async (options) => {
-  getUserPoints()
+  if (options.goodID && options.skuID) {
+    paramGoodID.value = Number(options.goodID)
+    paramSkuID.value = Number(options.skuID)
+    paramQuantity.value = Number(options.quantity) || 1
+    paramCouponNum.value = (options.couponNum && options.couponNum !== '0') ? options.couponNum : ''
+    selectedCouponNum.value = paramCouponNum.value
+    await loadGoodInfo()
+  }
+  loadAddress()
+  loadUserPoints()
+})
 
-  if (options.orderID) {
-    // 模式1: 查看/操作已有订单
-    orderID.value = options.orderID
-    orderReady.value = true
-    await initSingleOrder()
-  } else if (options.goodID && options.skuID) {
-    // 模式2: 从SKU弹窗跳过来，需先创建订单
-    isNewOrder.value = true
-    creating.value = true
-    try {
-      const orderData = {
-        couponNum: (options.couponNum && options.couponNum !== '0') ? options.couponNum : '',
-        detail: [{
-          goodID: Number(options.goodID),
-          skuID: Number(options.skuID),
-          quantity: Number(options.quantity) || 1,
-        }]
-      }
-      const res = await placeOrder(orderData)
-      if (res.code === 0 && res.data?.orderID) {
-        orderID.value = String(res.data.orderID)
-        orderReady.value = true
-        await initSingleOrder()
-      } else {
-        uni.showToast({ title: res.msg || $t.value('orderCreateFail'), icon: 'none' })
-        setTimeout(() => uni.navigateBack(), 1500)
-      }
-    } catch (e) {
-      uni.showToast({ title: $t.value('orderCreateFail'), icon: 'none' })
-      setTimeout(() => uni.navigateBack(), 1500)
-    } finally {
-      creating.value = false
-    }
+// 每次页面显示时刷新地址（用户可能从地址页返回 / 选择了指定地址）
+onShow(() => {
+  const selected = uni.getStorageSync('selectedAddress')
+  if (selected) {
+    uni.removeStorageSync('selectedAddress')
+    address.value = selected
+    hasAddress.value = !!(selected.name && selected.phone)
+  } else {
+    loadAddress()
   }
 })
 
-const canApplyRefund = computed(() => ['1', '2', '3', '7'].includes(String(data.value.status || '')))
-const isRefunding = computed(() => String(data.value.status || '') === '6')
-const isRefunded = computed(() => String(data.value.status || '') === '5')
-const openRefund = () => { refundVisible.value = true }
-
-const initSingleOrder = async () => {
-  const order = await selfOrder(orderID.value)
-  if (order.code === 0) {
-    data.value = order.data
-    totalPrice.value = order.data.totalPrice
-    usePoints.value = !!order.data.usePoints
-    hasAddress.value = !!order.data.city
-    startPayCountdown()
+const loadGoodInfo = async () => {
+  try {
+    const res = await findGood(paramGoodID.value)
+    if (res.code === 0 && res.data) {
+      const good = res.data.regood || res.data.good || res.data
+      const skus = good.skus || good.SKUS || []
+      const matchedSku = skus.find(s => s.ID === paramSkuID.value)
+      if (matchedSku) {
+        goodsList.value = [{
+          good: good,
+          sku: matchedSku,
+          quantity: paramQuantity.value
+        }]
+        originPrice.value = matchedSku.price * paramQuantity.value
+        // 如果有预选优惠券，找到其折扣额
+        if (selectedCouponNum.value) {
+          await loadCoupons()
+          const found = couponList.value.find(c => c.couponNum === selectedCouponNum.value)
+          if (found) selectedCouponDiscount.value = found.discount || 0
+        }
+      }
+    }
+  } catch (e) {
+    uni.showToast({ title: $t.value('loadFail') || 'Load failed', icon: 'none' })
   }
 }
 
-const formatTime = (t) => {
-  if (!t) return ''
-  const d = new Date(t)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-}
-
-const copyOrderNo = () => {
-  uni.setClipboardData({
-    data: String(data.value.ID),
-    success: () => { uni.showToast({ title: $t.value('orderNoCopied'), icon: 'none' }) }
-  })
-}
-
-/* =================== 倒计时 =================== */
-const payCountdown = ref('')
-let payTimer = null
-
-const startPayCountdown = () => {
-  if (payTimer) clearInterval(payTimer)
-  if (data.value.status !== '0' || !data.value.closeTime) return
-  updatePayCountdown()
-  payTimer = setInterval(updatePayCountdown, 1000)
-}
-
-const updatePayCountdown = () => {
-  if (data.value.status !== '0' || !data.value.closeTime) {
-    payCountdown.value = ''
-    if (payTimer) clearInterval(payTimer)
-    return
-  }
-  const remain = Math.max(0, Math.floor((new Date(data.value.closeTime).getTime() - Date.now()) / 1000))
-  if (remain <= 0) {
-    payCountdown.value = $t.value('payTimeout')
-    if (payTimer) clearInterval(payTimer)
-    // 超时自动跳转订单列表
-    uni.showToast({ title: $t.value('payTimeout'), icon: 'none' })
-    setTimeout(() => {
-      uni.redirectTo({ url: '/pages/order/order' })
-    }, 1500)
-    return
-  }
-  const h = Math.floor(remain / 3600)
-  const m = Math.floor((remain % 3600) / 60)
-  const s = remain % 60
-  payCountdown.value = h > 0
-    ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-    : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-}
-
-onUnmounted(() => { if (payTimer) clearInterval(payTimer) })
-
-/* =================== 支付 =================== */
-const tapPay = async () => {
-  if (!data.value.name || !data.value.phone || !data.value.province) {
+/* =================== 提交订单 =================== */
+const submitOrder = async () => {
+  if (!hasAddress.value) {
     uni.showToast({ title: $t.value('addressMissing'), icon: 'none' })
-    setTimeout(() => {
-      uni.navigateTo({ url: `/pages/address/address?ID=${data.value.ID}` })
-    }, 500)
+    setTimeout(() => { uni.navigateTo({ url: '/pages/address/address' }) }, 500)
     return
   }
-  const params = { orderID: Number(orderID.value), openid: uni.getStorageSync('openid') }
-  const needPayRes = await checkNeedPay(params)
-  if (!needPayRes.data) {
-    uni.showToast({ title: $t.value('orderSubmitSuccess'), icon: 'success', duration: 2000 })
-    setTimeout(() => { uni.navigateTo({ url: `/pages/order/order?orderID=${orderID.value}` }) }, 2000)
-    return
-  }
+  if (goodsList.value.length === 0) return
+
+  // 先选择支付方式，再创建订单
   showPayMethodSelect()
 }
 
 const showPayMethodSelect = () => {
   uni.showActionSheet({
     itemList: [$t.value('payByQrcode'), $t.value('payByContact')],
-    success: (res) => {
-      if (res.tapIndex === 0) {
-        uni.navigateTo({ url: `/pages/pay/index?amount=${(totalPrice.value / 100).toFixed(2)}&orderNo=${data.value.ID}&orderId=${orderID.value}` })
-      } else if (res.tapIndex === 1) {
-        uni.setClipboardData({
-          data: String(data.value.ID),
-          success: () => {
-            uni.showToast({ title: $t.value('orderNoCopied') + '：' + data.value.ID, icon: 'none', duration: 2000 })
-            setTimeout(() => { uni.navigateTo({ url: '/pages/kefu/index' }) }, 1500)
-          }
-        })
-      }
+    success: async (sheetRes) => {
+      await doCreateOrder(sheetRes.tapIndex)
+    },
+    fail: () => {
+      // 用户取消选择，不做任何操作
     }
   })
+}
+
+const doCreateOrder = async (payMethodIndex) => {
+  submitting.value = true
+  const payMethodMap = { 0: 'qrcode', 1: 'contact' }
+  try {
+    // 1. 创建订单（携带地址和支付方式）
+    const orderData = {
+      couponNum: selectedCouponNum.value,
+      payMethod: payMethodMap[payMethodIndex] || '',
+      name: address.value.name || '',
+      phone: address.value.phone || '',
+      province: address.value.provinceStr || '',
+      city: address.value.cityStr || '',
+      area: address.value.areaStr || '',
+      street: address.value.street || '',
+      detail: goodsList.value.map(d => ({
+        goodID: d.good.ID,
+        skuID: d.sku.ID,
+        quantity: d.quantity,
+      }))
+    }
+    const res = await placeOrder(orderData)
+    if (res.code !== 0 || !res.data?.orderID) {
+      uni.showToast({ title: res.msg || $t.value('orderCreateFail'), icon: 'none' })
+      submitting.value = false
+      return
+    }
+    const newOrderID = String(res.data.orderID)
+
+    // 2. 如果使用积分，调用积分抵扣
+    if (usePoints.value) {
+      try {
+        await changeOrderPoints({ orderID: newOrderID, usePoints: true })
+      } catch (e) { /* 积分失败不阻断流程 */ }
+    }
+
+    // 3. 检查是否需要支付
+    const needPayRes = await checkNeedPay({ orderID: Number(newOrderID), openid: uni.getStorageSync('openid') })
+    if (!needPayRes.data) {
+      // 0元购，无需支付
+      uni.showToast({ title: $t.value('orderSubmitSuccess'), icon: 'success', duration: 2000 })
+      setTimeout(() => { uni.redirectTo({ url: '/pages/order/order' }) }, 2000)
+      return
+    }
+
+    // 4. 按选择的支付方式跳转（统一用 redirectTo 离开本页，防止返回重复提交）
+    if (payMethodIndex === 0) {
+      // 二维码支付
+      uni.redirectTo({ url: `/pages/pay/index?amount=${(totalPrice.value / 100).toFixed(2)}&orderNo=${newOrderID}&orderId=${newOrderID}` })
+    } else if (payMethodIndex === 1) {
+      // 联系客服支付：redirectTo 替换本页，防止返回重复提交
+      uni.setClipboardData({
+        data: String(newOrderID),
+        success: () => {
+          uni.showToast({ title: $t.value('orderNoCopied') + '：' + newOrderID, icon: 'none', duration: 2000 })
+          setTimeout(() => { uni.redirectTo({ url: '/pages/kefu/index' }) }, 1500)
+        }
+      })
+    }
+  } catch (e) {
+    uni.showToast({ title: $t.value('orderCreateFail'), icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -578,31 +572,6 @@ page { background-color: #000; }
   display: flex; align-items: center;
 }
 .nf-points-used { color: #e50914; }
-
-/* 订单信息卡片 */
-.nf-info-card { padding: 24rpx 28rpx; }
-.nf-info-row {
-  display: flex; justify-content: space-between; align-items: center; padding: 10rpx 0;
-}
-.nf-info-label { font-size: 24rpx; color: rgba(255, 255, 255, 0.4); min-width: 140rpx; }
-.nf-info-value { font-size: 24rpx; color: rgba(255, 255, 255, 0.7); text-align: right; flex: 1; }
-.nf-copy-btn {
-  font-size: 22rpx; color: #e50914; margin-left: 12rpx;
-  padding: 4rpx 12rpx; border: 1rpx solid rgba(229, 9, 20, 0.3);
-  border-radius: 8rpx; background: rgba(229, 9, 20, 0.1);
-}
-.nf-countdown-val { color: #e50914; font-weight: 700; }
-
-/* 退款 */
-.nf-refund-card { padding: 20rpx 28rpx; display: flex; justify-content: flex-end; }
-.nf-refund-btn {
-  padding: 12rpx 28rpx; border-radius: 30rpx; font-size: 26rpx; font-weight: 600;
-  background: rgba(245, 158, 11, 0.15); border: 1rpx solid rgba(245, 158, 11, 0.3); color: #f59e0b;
-}
-.nf-refund-status {
-  padding: 12rpx 28rpx; border-radius: 30rpx; font-size: 26rpx;
-  background: rgba(255, 255, 255, 0.04); border: 1rpx solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.4);
-}
 
 /* 底部支付栏 */
 .nf-footer {

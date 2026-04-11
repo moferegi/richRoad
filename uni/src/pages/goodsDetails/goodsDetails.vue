@@ -1,5 +1,7 @@
 <template>
   <view class="nf-goods-detail">
+    <!-- 页面滚动锁定：SKU弹窗打开时禁止body滚动 -->
+    <page-meta :page-style="skuVisible ? 'overflow: hidden;' : ''" />
     <!-- 自定义导航栏（悬浮在轮播上方） -->
     <view class="nf-navbar">
       <view class="nf-navbar-status"></view>
@@ -107,6 +109,7 @@
       :isCart="isCart"
       :good="data"
       :selectedCoupon="selectedCoupon"
+      @skuVisibleChange="onSkuVisibleChange"
     ></goods-sku>
 
     <!-- 底部导航 -->
@@ -162,9 +165,9 @@
           <view class="nf-coupon-action">
             <view v-if="item.status === 1" class="nf-coupon-btn nf-coupon-btn-used">{{ $t('couponInUse') }}</view>
             <view v-else-if="item.canUse === 0" class="nf-coupon-btn nf-coupon-btn-disabled"></view>
-            <view v-else class="nf-coupon-btn" :class="item.couponNum > 0 ? 'nf-coupon-btn-use' : 'nf-coupon-btn-claim'"
+            <view v-else class="nf-coupon-btn" :class="item.couponNum ? 'nf-coupon-btn-use' : 'nf-coupon-btn-claim'"
               @tap="onReceive(item, index)">
-              {{ item.couponNum > 0 ? $t('couponUse') : $t('couponClaim') }}
+              {{ item.couponNum ? $t('couponUse') : $t('couponClaim') }}
             </view>
           </view>
         </view>
@@ -180,6 +183,7 @@ import goodsDetail from './components/goods-detail.vue'
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { findGood } from '@/api/product.js'
+import { SelfOrderList } from '@/api/order.js'
 import { myRouter } from '@/utils/permission'
 import { findCollect, createCollect } from '@/api/collect.js'
 import { claimCouponByUser, getAllClaimCoupon } from '@/api/coupon.js'
@@ -330,6 +334,8 @@ onUnmounted(() => {
 
 const goodsSkuRef = ref()
 const isCart = ref(false)
+const skuVisible = ref(false)
+const onSkuVisibleChange = (visible) => { skuVisible.value = visible }
 
 const addToCart = () => {
   if (!token) {
@@ -352,7 +358,36 @@ const toOrder = () => {
   myRouter(`/pages/orderInfo/orderInfo?skuID=${data.value.skus[0].ID}&goodID=${data.value.skus[0].goodID}`)
 }
 
-const goodsTapPay = () => {
+const goodsTapPay = async () => {
+  // 检查是否有该商品的待付款订单
+  try {
+    const token = uni.getStorageSync('x-token')
+    if (token) {
+      const res = await SelfOrderList({ status: '0', page: 1, pageSize: 50 })
+      if (res.code === 0 && res.data?.list) {
+        const pending = res.data.list.find(order =>
+          order.detail && order.detail.some(d => String(d.goodID) === String(goodID.value))
+        )
+        if (pending) {
+          uni.showModal({
+            title: $t.value('pendingOrderTitle') || '提示',
+            content: $t.value('pendingOrderExist') || '您有该商品的待付款订单，是否前往支付？',
+            confirmText: $t.value('goToPay') || '去支付',
+            cancelText: $t.value('continueBuy') || '继续购买',
+            success: (modalRes) => {
+              if (modalRes.confirm) {
+                uni.navigateTo({ url: `/pages/orderDetail/orderDetail?orderID=${pending.ID}` })
+                return
+              }
+              isCart.value = false
+              goodsSkuRef.value.showSku()
+            }
+          })
+          return
+        }
+      }
+    }
+  } catch (e) { /* ignore */ }
   isCart.value = false
   goodsSkuRef.value.showSku()
 }
@@ -383,8 +418,11 @@ const opencoupon = async () => {
   couponshow.value = true
   const res = await getAllClaimCoupon({ goodIds: [data.value.ID] })
   if (res.code === 0) {
-    // 过滤掉已使用的优惠券（status === 1 且非当前选中的）
-    couponList.value = (res.data || []).filter(c => c.status !== 1 || c.couponID === selectedCoupon.value.couponID)
+    // 只显示可用的优惠券：未使用、未过期、商品可用
+    couponList.value = (res.data || []).filter(c => {
+      if (c.used || c.expired || c.canUse === 0) return false
+      return true
+    })
   }
 }
 const hidecoupon = () => { couponshow.value = false }
@@ -392,7 +430,7 @@ const hidecoupon = () => { couponshow.value = false }
 const onReceive = async (item) => {
   uni.showLoading({ title: item.couponNum == 0 ? $t.value('claiming') : $t.value('selecting'), mask: true })
   try {
-    if (item.couponNum == 0) {
+    if (!item.couponNum) {
       const res = await claimCouponByUser({ couponID: item.couponID })
       item.couponNum = res.data
       uni.showToast({ title: $t.value('claimSuccess'), icon: 'success', duration: 1500 })

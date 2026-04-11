@@ -38,7 +38,7 @@ func Timer() {
 
 		// 其他定时任务定在这里 参考上方使用方法
 
-		_, err = global.GVA_Timer.AddTaskByFunc("ClearOrder", "0 */5 * * * *", func() {
+		_, err = global.GVA_Timer.AddTaskByFunc("ClearOrder", "*/10 * * * * *", func() {
 			if global.GVA_DB == nil {
 				return
 			}

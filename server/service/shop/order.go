@@ -59,14 +59,19 @@ func (orderService *OrderService) ChangeOrderCoupon(userID uint, orderID string,
 		}
 
 		var couponOrderUser shop.CouponOrderUser
-		err = tx.Where("coupon_num = ? and order_id IS NULL", couponNum).First(&couponOrderUser).Error
+		shopUserID := int(userID)
+		err = tx.Where("coupon_num = ? AND order_id IS NULL AND shop_user_id = ?", couponNum, shopUserID).First(&couponOrderUser).Error
 		if err != nil {
-			return err
+			return errors.New("优惠券不可用")
 		}
 		var coupon shop.Coupon
 		err = tx.Where("id = ?", couponOrderUser.CouponID).First(&coupon).Error
 		if err != nil {
 			return err
+		}
+		// 校验优惠券是否过期
+		if coupon.EndTime != nil && time.Now().After(*coupon.EndTime) {
+			return errors.New("\u4f18\u60e0\u5238\u5df2\u8fc7\u671f")
 		}
 		if coupon.ProductID != nil || coupon.ProductIDs != "" {
 			allowedIDs := couponAllowedProductIDs(coupon)
@@ -140,7 +145,6 @@ func (orderService *OrderService) ChangeOrderPoints(userID uint, orderID string,
 				Reason:         &reason,
 				RelatedOrderId: &relatedOrderId,
 			}
-			// 将事务挂在context上传递
 			ctxWithTx := context.WithValue(context.Background(), "tx", tx)
 			err = pointRecordService.CreatePointRecord(ctxWithTx, &pointRecord)
 			if err != nil {
@@ -155,22 +159,57 @@ func (orderService *OrderService) ChangeOrderPoints(userID uint, orderID string,
 
 		// 3. 如果现在要使用积分，进行积分扣除
 		if usePoints {
+			// 3a. 校验每个商品是否允许积分抵扣，并计算总的最大可用积分
+			var goodMaxPoints int // 商品层面允许的最大积分总和
+			allGoodsAllow := true
+			for _, detail := range order.Detail {
+				var good shop.Good
+				if e := tx.Where("id = ?", detail.GoodID).First(&good).Error; e != nil {
+					return errors.New("查询商品信息失败")
+				}
+				if good.PointsEnabled == nil || !*good.PointsEnabled {
+					allGoodsAllow = false
+					break
+				}
+				// 检查同商品使用积分次数限制
+				if good.PointsUseTimes != nil && *good.PointsUseTimes > 0 {
+					var usedCount int64
+					tx.Model(&shop.Order{}).
+						Where("user_id = ? AND id != ? AND use_points = ? AND status NOT IN ?", order.UserID, order.ID, true, []string{"4", "5"}).
+						Joins("JOIN shop_order_detail ON shop_order_detail.order_id = shop_order.id").
+						Where("shop_order_detail.good_id = ?", detail.GoodID).
+						Count(&usedCount)
+					if int(usedCount) >= *good.PointsUseTimes {
+						return fmt.Errorf("商品积分抵扣次数已达上限(%d次)", *good.PointsUseTimes)
+					}
+				}
+				// 累加每个商品的最大可用积分（按数量乘）
+				if good.PointsMaxUse != nil && *good.PointsMaxUse > 0 {
+					goodMaxPoints += *good.PointsMaxUse * int(detail.Quantity)
+				}
+			}
+			if !allGoodsAllow {
+				return errors.New("订单中存在不支持积分抵扣的商品")
+			}
+
 			var user client.ClientUser
 			err = tx.Where("id = ?", order.UserID).First(&user).Error
 			if err != nil {
 				return err
 			}
-			// 计算可抵扣的积分数（不能超过订单金额）
+			// 3b. 计算可抵扣的积分数：min(用户积分, 订单金额, 商品最大可用积分)
 			maxPointsCanUse := order.TotalPrice
+			if goodMaxPoints > 0 && goodMaxPoints < maxPointsCanUse {
+				maxPointsCanUse = goodMaxPoints
+			}
 			pointsToUse := user.Point
 			if pointsToUse > maxPointsCanUse {
 				pointsToUse = maxPointsCanUse
 			}
 			if pointsToUse > 0 {
-				// 扣除积分
 				pointRecordService := clientService.PointRecordService{}
 				userID := int(order.UserID)
-				pointChange := -int(pointsToUse) // 扣除积分，负数
+				pointChange := -int(pointsToUse)
 				changeType := "decrease"
 				operationType := "point_exchange"
 				reason := "订单积分抵扣"
@@ -184,13 +223,11 @@ func (orderService *OrderService) ChangeOrderPoints(userID uint, orderID string,
 					Reason:         &reason,
 					RelatedOrderId: &relatedOrderId,
 				}
-				// 将事务挂在context上传递
 				ctxWithTx := context.WithValue(context.Background(), "tx", tx)
 				err = pointRecordService.CreatePointRecord(ctxWithTx, &pointRecord)
 				if err != nil {
 					return err
 				}
-				// 更新订单价格和积分使用信息
 				order.TotalPrice -= pointsToUse
 				order.PointsUsed = uint(pointsToUse)
 			}
@@ -202,11 +239,11 @@ func (orderService *OrderService) ChangeOrderPoints(userID uint, orderID string,
 		}
 
 		// 5. 更新订单信息
-		err = tx.Model(&order).
-			Update("total_price", order.TotalPrice).
-			Update("use_points", order.UsePoints).
-			Update("points_used", order.PointsUsed).
-			Error
+		err = tx.Model(&order).Updates(map[string]interface{}{
+			"total_price": order.TotalPrice,
+			"use_points":  order.UsePoints,
+			"points_used": order.PointsUsed,
+		}).Error
 		if err != nil {
 			return err
 		}
@@ -260,16 +297,7 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 			if result.RowsAffected == 0 {
 				return errors.New("库存不足，请重试")
 			}
-			err = tx.Model(&shop.Sku{}).Where("id = ?", order.Detail[i].SKUID).
-				Update("sale_num", gorm.Expr("sale_num + ?", order.Detail[i].Quantity)).Error
-			if err != nil {
-				return err
-			}
-			err = tx.Model(&shop.Good{}).Where("id = ?", sku.GoodID).
-				Update("sale_num", gorm.Expr("sale_num + ?", order.Detail[i].Quantity)).Error
-			if err != nil {
-				return err
-			}
+			// sale_num 在付款确认时增加，而非下单时
 			order.Detail[i].Price = sku.Price
 			order.OriginPrice += order.Detail[i].Quantity * order.Detail[i].Price
 			// 减扣库存
@@ -277,14 +305,19 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 		order.TotalPrice = int(order.OriginPrice)
 		if order.CouponNum != "" {
 			var couponOrderUser shop.CouponOrderUser
-			err = tx.Where("coupon_num = ? and order_id IS NULL", order.CouponNum).First(&couponOrderUser).Error
+			shopUserID := int(order.UserID)
+			err = tx.Where("coupon_num = ? AND order_id IS NULL AND shop_user_id = ?", order.CouponNum, shopUserID).First(&couponOrderUser).Error
 			if err != nil {
-				return err
+				return errors.New("优惠券不可用")
 			}
 			var coupon shop.Coupon
 			err = tx.Where("id = ?", couponOrderUser.CouponID).First(&coupon).Error
 			if err != nil {
 				return err
+			}
+			// 校验优惠券是否过期
+			if coupon.EndTime != nil && time.Now().After(*coupon.EndTime) {
+				return errors.New("\u4f18\u60e0\u5238\u5df2\u8fc7\u671f")
 			}
 			if coupon.ProductID != nil {
 				hasGoods := false
@@ -311,18 +344,21 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, e
 		}
 		order.Status = "0"
 
-		if addr, err := orderService.GetDefaultAddress(order.UserID); err == nil {
-			order.Name = addr.Name
-			order.Phone = addr.Phone
-			order.Province = addr.ProvinceStr
-			order.City = addr.CityStr
-			order.Area = addr.AreaStr
-			order.Street = addr.Street
+		// 只有在前端未提供地址信息时，才使用默认地址
+		if order.Name == "" && order.Phone == "" {
+			if addr, err := orderService.GetDefaultAddress(order.UserID); err == nil {
+				order.Name = addr.Name
+				order.Phone = addr.Phone
+				order.Province = addr.ProvinceStr
+				order.City = addr.CityStr
+				order.Area = addr.AreaStr
+				order.Street = addr.Street
+			}
 		}
 		// 从系统配置读取订单自动关闭时间（分钟），默认15分钟
 		closeMinutes := 15
 		var sysConf client.SysConfig
-		if e := tx.Where("config_key = ?", "order_auto_close_minutes").First(&sysConf).Error; e == nil {
+		if e := tx.Where("config_key = ?", "order_close_minutes").First(&sysConf).Error; e == nil {
 			if v, pe := strconv.Atoi(sysConf.ConfigValue); pe == nil && v > 0 {
 				closeMinutes = v
 			}
@@ -409,29 +445,24 @@ func (orderService *OrderService) PlaceOrderByCart(userID uint, req shopReq.Plac
 			if result.RowsAffected == 0 {
 				return errors.New("库存不足，请重试")
 			}
-			err = tx.Model(&shop.Sku{}).Where("id = ?", carts[i].SKUID).
-				Update("sale_num", gorm.Expr("sale_num + ?", carts[i].Quantity)).Error
-			if err != nil {
-				return err
-			}
-			err = tx.Model(&shop.Good{}).Where("id = ?", carts[i].GoodID).Update("sale_num", gorm.Expr("sale_num + ?", carts[i].Quantity)).Error
-			if err != nil {
-				return err
-			}
+			// sale_num 在付款确认时增加，而非下单时
 		}
 
-		if addr, err := orderService.GetDefaultAddress(order.UserID); err == nil {
-			order.Name = addr.Name
-			order.Phone = addr.Phone
-			order.Province = addr.ProvinceStr
-			order.City = addr.CityStr
-			order.Area = addr.AreaStr
-			order.Street = addr.Street
+		// 只有在前端未提供地址信息时，才使用默认地址
+		if order.Name == "" && order.Phone == "" {
+			if addr, err := orderService.GetDefaultAddress(order.UserID); err == nil {
+				order.Name = addr.Name
+				order.Phone = addr.Phone
+				order.Province = addr.ProvinceStr
+				order.City = addr.CityStr
+				order.Area = addr.AreaStr
+				order.Street = addr.Street
+			}
 		}
 		// 从系统配置读取订单自动关闭时间（分钟），默认15分钟
 		closeMinutes := 15
 		var sysConf client.SysConfig
-		if e := tx.Where("config_key = ?", "order_auto_close_minutes").First(&sysConf).Error; e == nil {
+		if e := tx.Where("config_key = ?", "order_close_minutes").First(&sysConf).Error; e == nil {
 			if v, pe := strconv.Atoi(sysConf.ConfigValue); pe == nil && v > 0 {
 				closeMinutes = v
 			}
@@ -474,7 +505,11 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 	err = db.Transaction(func(tx *gorm.DB) error {
 		var order shop.Order
 		var user client.ClientUser
-		err = tx.First(&order, "id = ?", orderID).Update("status", status).Error
+		err = tx.First(&order, "id = ?", orderID).Error
+		if err != nil {
+			return err
+		}
+		err = tx.Model(&order).Update("status", status).Error
 		if err != nil {
 			return err
 		}
@@ -494,6 +529,15 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 				err = tx.Model(&shop.Sku{}).Where("id = ?", detail.SKUID).Update("inventory", gorm.Expr("inventory + ?", detail.Quantity)).Error
 				if err != nil {
 					return err
+				}
+			}
+			// 退款（status="5"）时恢复销量（销量在付款确认时增加的）
+			if status == "5" {
+				for _, detail := range order.Detail {
+					tx.Model(&shop.Sku{}).Where("id = ? AND sale_num >= ?", detail.SKUID, detail.Quantity).
+						Update("sale_num", gorm.Expr("sale_num - ?", detail.Quantity))
+					tx.Model(&shop.Good{}).Where("id = ? AND sale_num >= ?", detail.GoodID, detail.Quantity).
+						Update("sale_num", gorm.Expr("sale_num - ?", detail.Quantity))
 				}
 			}
 			// 如果是预售商品，恢复预售已售数量
@@ -518,6 +562,43 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 						"order_id": nil,
 						"status":   &unused,
 					})
+				}
+			}
+
+			// 如果订单未付款但使用了积分，也需要返还积分
+			if !order.Pointed && order.UsePoints && order.PointsUsed > 0 {
+				pointRecordService := &clientService.PointRecordService{}
+				userIdInt := int(user.ID)
+				changeType := "increase"
+				pointChange := int(order.PointsUsed)
+				operationType := "point_refund"
+				reason := "订单取消，返还已使用积分"
+				orderIdStr := strconv.Itoa(int(order.ID))
+				orderIdInt, _ := strconv.Atoi(orderIdStr)
+				remark := "订单ID: " + orderIdStr
+
+				pointRecord := &client.PointRecord{
+					UserId:         &userIdInt,
+					ChangeType:     &changeType,
+					PointChange:    &pointChange,
+					OperationType:  &operationType,
+					Reason:         &reason,
+					RelatedOrderId: &orderIdInt,
+					Remark:         &remark,
+				}
+
+				ctxWithTx := context.WithValue(context.Background(), "tx", tx)
+				err = pointRecordService.CreatePointRecord(ctxWithTx, pointRecord)
+				if err != nil {
+					return err
+				}
+				// 清除订单积分使用标记
+				err = tx.Model(&order).Updates(map[string]interface{}{
+					"use_points":  false,
+					"points_used": 0,
+				}).Error
+				if err != nil {
+					return err
 				}
 			}
 
@@ -587,6 +668,18 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 		}
 
 		if status == "1" && !order.Pointed {
+			// 付款确认后增加销量
+			err = tx.Preload("Detail").First(&order, "id = ?", orderID).Error
+			if err != nil {
+				return err
+			}
+			for _, detail := range order.Detail {
+				tx.Model(&shop.Sku{}).Where("id = ?", detail.SKUID).
+					Update("sale_num", gorm.Expr("sale_num + ?", detail.Quantity))
+				tx.Model(&shop.Good{}).Where("id = ?", detail.GoodID).
+					Update("sale_num", gorm.Expr("sale_num + ?", detail.Quantity))
+			}
+
 			// 幂等检查：查看该订单是否已经发放过奖励（防止取消后重新支付重复发放）
 			var rewardCount int64
 			tx.Model(&client.PointRecord{}).Where("related_order_id = ? AND operation_type = ?", order.ID, "order_complete").Count(&rewardCount)
@@ -712,8 +805,21 @@ func (orderService *OrderService) GetOrderInfoList(info shopReq.OrderSearch) (li
 		db = db.Limit(limit).Offset(offset)
 	}
 
-	// 按创建时间倒序
-	db = db.Order("created_at desc")
+	// 按排序字段排序（白名单限制）
+	orderClause := "created_at desc"
+	orderMap := map[string]bool{
+		"id":          true,
+		"created_at":  true,
+		"total_price": true,
+		"status":      true,
+	}
+	if orderMap[info.Sort] {
+		orderClause = info.Sort
+		if info.Order == "descending" {
+			orderClause += " desc"
+		}
+	}
+	db = db.Order(orderClause)
 
 	// 执行查询
 	err = db.Find(&orders).Error

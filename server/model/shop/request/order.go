@@ -13,6 +13,8 @@ type OrderSearch struct {
 	UserID         *int       `json:"userID" form:"userID"`
 	IsPresale      *bool      `json:"isPresale" form:"isPresale"`
 	PayMethod      string     `json:"payMethod" form:"payMethod"`
+	Sort           string     `json:"sort" form:"sort"`
+	Order          string     `json:"order" form:"order"`
 	request.PageInfo
 }
 

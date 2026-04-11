@@ -79,6 +79,7 @@ const isShow = ref(false)
 const orderID = ref('')
 const isBottom = ref(false)
 const addressSource = ref([])
+const fromPage = ref('')
 
 onLoad(async (options) => {
   if (options.ID) {
@@ -86,6 +87,9 @@ onLoad(async (options) => {
     isShow.value = true
   } else {
     isShow.value = false
+  }
+  if (options.from) {
+    fromPage.value = options.from
   }
   addressList.value = []
   await getAddressDataSources()
@@ -183,18 +187,36 @@ const delAddress = (item) => {
 }
 
 const editAddress = (item) => {
-  uni.redirectTo({
+  uni.navigateTo({
     url: `/pages/address/editAddress?ID=${item.ID}&orderID=${orderID.value}`
   })
 }
 
 const toAddress = () => {
-  uni.redirectTo({
+  uni.navigateTo({
     url: `/pages/address/addAddress?ID=${orderID.value}`
   })
 }
 
 const selectAddr = async (item) => {
+  // 从 orderInfo 页面进入（订单尚未创建），将选中地址存入 storage 后返回
+  if (fromPage.value === 'orderInfo') {
+    uni.setStorageSync('selectedAddress', {
+      ID: item.ID,
+      name: item.name,
+      phone: item.phone,
+      province: item.province,
+      city: item.city,
+      area: item.area,
+      provinceStr: item.provinceTrans || item.provinceStr || '',
+      cityStr: item.cityTrans || item.cityStr || '',
+      areaStr: item.areaTrans || item.areaStr || '',
+      street: item.street,
+      active: item.active,
+    })
+    uni.navigateBack()
+    return
+  }
   if (isShow.value) {
     const req = {
       ID: Number(orderID.value),
@@ -209,9 +231,14 @@ const selectAddr = async (item) => {
     }
     const res = await updateOrder(req)
     if (res.code === 0) {
-      uni.redirectTo({
-        url: `/pages/orderInfo/orderInfo?orderID=${orderID.value}`
-      })
+      // 根据来源页面返回
+      if (fromPage.value === 'orderDetail') {
+        uni.navigateBack()
+      } else {
+        uni.redirectTo({
+          url: `/pages/orderInfo/orderInfo?orderID=${orderID.value}`
+        })
+      }
     }
   }
 }

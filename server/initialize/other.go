@@ -85,7 +85,6 @@ func initDefaultSysConfigs() {
 		{ConfigKey: "points_exchange_rate", ConfigValue: "100", ConfigName: "积分兑换比率", ConfigGroup: "points", Remark: "多少积分兑换1货币单位，如100积分=1元"},
 		// order 分组
 		{ConfigKey: "order_close_minutes", ConfigValue: "20", ConfigName: "订单自动关闭时间", ConfigGroup: "order", Remark: "未支付订单自动关闭的分钟数"},
-		{ConfigKey: "order_auto_close_minutes", ConfigValue: "20", ConfigName: "订单自动关闭时间(旧key)", ConfigGroup: "order", Remark: "兼容旧key，同order_close_minutes"},
 		// display 分组
 		{ConfigKey: "presale_home_count", ConfigValue: "4", ConfigName: "首页预售展示数", ConfigGroup: "display", Remark: "uni首页展示的预售商品数量"},
 		{ConfigKey: "sign_in_enabled", ConfigValue: "true", ConfigName: "签到功能开关", ConfigGroup: "display", Remark: "uni端是否显示签到悬浮按钮(true/false)"},

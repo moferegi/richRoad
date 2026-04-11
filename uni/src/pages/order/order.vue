@@ -121,14 +121,10 @@
     </view>
 
     <!-- 加载更多提示 -->
-    <view v-if="isLoading && orderList.length > 0" class="nf-load-more">
-      <text class="nf-load-text">{{ $t('loading') }}</text>
-    </view>
-    <view v-else-if="!isBottom && !isLoading && orderList.length > 0" class="nf-load-more" @tap="loadMore">
-      <text class="nf-load-btn">{{ $t('loadMore') || 'Load More' }}</text>
-    </view>
-    <view v-else-if="isBottom && orderList.length > 0" class="nf-load-more">
-      <text class="nf-load-text">— END —</text>
+    <view class="nf-load-more" v-if="orderList.length > 0">
+      <text class="nf-load-text" v-if="isLoading">{{ $t('loading') }}</text>
+      <text class="nf-load-text" v-else-if="isBottom">— END —</text>
+      <text class="nf-load-btn" v-else @tap="loadMore">{{ $t('loadMore') || 'Load More' }}</text>
     </view>
 
     <view style="height: 40rpx;"></view>
@@ -245,6 +241,7 @@ let countdownTimer = null
 
 const updateCountdowns = () => {
   const map = {}
+  let hasExpired = false
   orderList.value.forEach(item => {
     if (item.status === '0' && item.closeTime) {
       const remain = Math.max(0, Math.floor((new Date(item.closeTime).getTime() - Date.now()) / 1000))
@@ -255,10 +252,16 @@ const updateCountdowns = () => {
         map[item.ID] = h > 0
           ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
           : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+      } else {
+        hasExpired = true
       }
     }
   })
   countdownMap.value = map
+  // 有订单倒计时到期，刷新列表
+  if (hasExpired) {
+    setTimeout(() => { init(activeSataus.value) }, 1000)
+  }
 }
 
 const startCountdown = () => {
@@ -303,14 +306,14 @@ const cancelOrder = (item) => {
   })
 }
 
-const payOff = (ID) => { uni.navigateTo({ url: `/pages/orderInfo/orderInfo?orderID=${ID}` }) }
+const payOff = (ID) => { uni.navigateTo({ url: `/pages/orderDetail/orderDetail?orderID=${ID}` }) }
 const trackLogistics = (item) => { uni.navigateTo({ url: `/pages/logistics/logistics?express=${item.express}` }) }
 const canApplyRefund = (item) => ['1', '2', '3', '7'].includes(item.status)
 const openRefund = (item) => { refundOrderId.value = item.ID; refundVisible.value = true }
 const onRefundSuccess = () => { init(activeSataus.value) }
 
 const goOrderDetail = (item) => {
-  uni.navigateTo({ url: `/pages/orderInfo/orderInfo?orderID=${item.ID}` })
+  uni.navigateTo({ url: `/pages/orderDetail/orderDetail?orderID=${item.ID}` })
 }
 
 const buyAgain = (item) => {
@@ -491,7 +494,7 @@ page { background-color: #000; }
 
 .nf-load-more {
   display: flex; justify-content: center; align-items: center;
-  padding: 32rpx 0 16rpx;
+  padding: 32rpx 0 16rpx; min-height: 80rpx;
 }
 .nf-load-text { font-size: 24rpx; color: rgba(255, 255, 255, 0.3); }
 .nf-load-btn {

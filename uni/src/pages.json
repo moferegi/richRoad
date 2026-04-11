@@ -77,6 +77,15 @@
 				"onReachBottomDistance": 200
 			}
 		},{
+			"path": "pages/orderDetail/orderDetail",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
+				"enablePullDownRefresh": false
+			}
+		},{
 			"path": "pages/pay/index",
 			"style": {
 				"navigationStyle": "custom",

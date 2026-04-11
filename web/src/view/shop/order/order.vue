@@ -35,10 +35,11 @@
         :data="tableData"
         row-key="ID"
         :default-sort="{ prop: 'ID', order: 'descending' }"
+        @sort-change="sortChange"
         >
 
-        <el-table-column align="left" label="ID" prop="ID" width="70" sortable />
-        <el-table-column align="left" label="日期" width="180" sortable>
+        <el-table-column align="left" label="ID" prop="ID" width="70" sortable="custom" />
+        <el-table-column align="left" label="日期" prop="CreatedAt" width="180" sortable="custom">
             <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
 
@@ -475,6 +476,19 @@ const getTableData = async() => {
     page.value = table.data.page
     pageSize.value = table.data.pageSize
   }
+}
+
+// 排序
+const sortChange = ({ prop, order }) => {
+  const sortMap = {
+    ID: 'id',
+    CreatedAt: 'created_at',
+    totalPrice: 'total_price',
+    status: 'status',
+  }
+  searchInfo.value.sort = sortMap[prop] || ''
+  searchInfo.value.order = order || ''
+  getTableData()
 }
 
 getTableData()

@@ -2,6 +2,7 @@ package task
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"strconv"
@@ -22,13 +23,17 @@ func ClearOrder(db *gorm.DB) error {
 	if err != nil {
 		return err
 	}
+	var lastErr error
 	for _, order := range orders {
 		e := service.ServiceGroupApp.ShopServiceGroup.UpdateOrderStatus(db, strconv.Itoa(int(order.ID)), "4")
 		if e != nil {
-			return e
+			fmt.Printf("[ClearOrder] 自动取消订单 %d 失败: %v\n", order.ID, e)
+			lastErr = e
+			continue
 		}
+		fmt.Printf("[ClearOrder] 自动取消订单 %d 成功\n", order.ID)
 	}
-	return nil
+	return lastErr
 }
 
 // ClearExpiredOrders 清理超时未支付的订单（基于expire_at字段）
@@ -44,11 +49,15 @@ func ClearExpiredOrders(db *gorm.DB) error {
 	if err != nil {
 		return err
 	}
+	var lastErr error
 	for _, order := range orders {
 		e := service.ServiceGroupApp.ShopServiceGroup.UpdateOrderStatus(db, strconv.Itoa(int(order.ID)), "4")
 		if e != nil {
-			return e
+			fmt.Printf("[ClearExpiredOrders] 自动取消订单 %d 失败: %v\n", order.ID, e)
+			lastErr = e
+			continue
 		}
+		fmt.Printf("[ClearExpiredOrders] 自动取消订单 %d 成功\n", order.ID)
 	}
-	return nil
+	return lastErr
 }

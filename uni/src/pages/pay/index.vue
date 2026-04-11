@@ -105,7 +105,7 @@ import { request } from '@/utils/request.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { getEnabledQrcodePayments } from '@/api/qrcodePayment.js'
 import { localText } from '@/utils/i18n'
-import { selfOrder, updateOrderStatus } from '@/api/order.js'
+import { selfOrder } from '@/api/order.js'
 
 const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
@@ -178,7 +178,7 @@ const updatePayCountdown = () => {
     if (payTimer) clearInterval(payTimer)
     uni.showToast({ title: $t.value('payTimeout'), icon: 'none' })
     setTimeout(() => {
-      cancelAndGo('/pages/order/order')
+      goToOrders()
     }, 1500)
     return
   }
@@ -192,34 +192,24 @@ const updatePayCountdown = () => {
 
 onUnmounted(() => { if (payTimer) clearInterval(payTimer) })
 
-// ========== 取消订单并离开 ==========
-const cancelAndGo = async (url, isTab = false) => {
-  if (orderId.value) {
-    try { await updateOrderStatus({ ID: orderId.value, status: '4' }) } catch (e) {}
-  }
-  if (isTab) { uni.switchTab({ url }) } else { uni.redirectTo({ url }) }
+// ========== 离开页面（不取消订单） ==========
+const goToOrders = (isTab = false) => {
+  if (isTab) { uni.switchTab({ url: '/pages/tabBar/index' }) } else { uni.redirectTo({ url: '/pages/order/order' }) }
 }
 
 // ========== 返回拦截 ==========
 onBackPress(() => {
-  uni.showModal({
-    title: $t.value('payTitle'),
-    content: $t.value('leavePayConfirm'),
-    confirmColor: '#e50914',
-    success: (res) => {
-      if (res.confirm) {
-        cancelAndGo('/pages/order/order')
-      }
-    }
-  })
-  return true // 阻止默认返回
+  goToOrders()
+  return true // 阻止默认返回，直接跳转订单列表
 })
 
 const loadQrCodes = async () => {
   try {
     const res = await getEnabledQrcodePayments()
-    if (res.code === 0 && res.data && res.data.list) {
-      qrList.value = res.data.list
+    if (res.code === 0 && res.data) {
+      // API返回的data可能是数组（直接是列表）或对象（含list字段）
+      const list = Array.isArray(res.data) ? res.data : (res.data.list || [])
+      qrList.value = list
     }
     // 如果多码列表为空，尝试旧的单码配置作为兜底
     if (qrList.value.length === 0) {
@@ -293,29 +283,11 @@ const confirmPaid = () => {
 }
 
 const goHome = () => {
-  uni.showModal({
-    title: $t.value('payTitle'),
-    content: $t.value('leavePayConfirm'),
-    confirmColor: '#e50914',
-    success: (res) => {
-      if (res.confirm) {
-        cancelAndGo('/pages/tabBar/index', true)
-      }
-    }
-  })
+  goToOrders(true)
 }
 
 const goBack = () => {
-  uni.showModal({
-    title: $t.value('payTitle'),
-    content: $t.value('leavePayConfirm'),
-    confirmColor: '#e50914',
-    success: (res) => {
-      if (res.confirm) {
-        cancelAndGo('/pages/order/order')
-      }
-    }
-  })
+  goToOrders()
 }
 </script>
 

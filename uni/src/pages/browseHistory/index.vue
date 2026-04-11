@@ -35,7 +35,7 @@
           @tap="goDetail(item)"
         >
           <view class="nf-goods-img-wrap">
-            <image class="nf-goods-img" :src="getUrl(item.imageUrl)" mode="aspectFill" />
+            <image class="nf-goods-img" :src="item.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(item.imageUrl)" mode="aspectFill" />
             <view class="nf-goods-img-overlay"></view>
           </view>
           <view class="nf-goods-info">
@@ -67,7 +67,7 @@
 import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getGoodHistory } from '@/api/order'
-import { getUrl } from '@/utils/url.js'
+import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { usePlayHistoryStore } from '@/pinia/modules/playHistory.js'

@@ -1,8 +1,8 @@
 <template>
   <!-- 遮罩 -->
-  <view class="nf-sku-mask" v-if="skuShow" @tap="closeSku"></view>
+  <view class="nf-sku-mask" v-if="skuShow" @tap="closeSku" @touchmove.stop.prevent></view>
   <!-- SKU弹窗 -->
-  <view class="nf-sku-popup" :class="{ show: skuShow }">
+  <view class="nf-sku-popup" :class="{ show: skuShow }" @touchmove.stop.prevent>
     <!-- 顶部商品信息 -->
     <view class="nf-sku-header">
       <image class="nf-sku-cover" :src="currentCover" mode="aspectFill"></image>
@@ -17,7 +17,7 @@
     </view>
 
     <!-- 规格选择区 -->
-    <scroll-view class="nf-sku-body" scroll-y>
+    <scroll-view class="nf-sku-body" scroll-y @touchmove.stop>
       <view v-for="(group, gIdx) in specGroups" :key="gIdx" class="nf-spec-group">
         <text class="nf-spec-title">{{ $lt(group.label) }}</text>
         <view class="nf-spec-options">
@@ -282,12 +282,18 @@ const handleCheckout = () => {
   uni.navigateTo({ url: `/pages/orderInfo/orderInfo?${query}` })
 }
 
+const emit = defineEmits(['skuVisibleChange'])
+
 const showSku = () => {
   quantity.value = 1
   buildSpecGroups()
   skuShow.value = true
+  emit('skuVisibleChange', true)
 }
-const closeSku = () => { skuShow.value = false }
+const closeSku = () => {
+  skuShow.value = false
+  emit('skuVisibleChange', false)
+}
 
 defineExpose({ showSku, closeSku })
 </script>
@@ -324,7 +330,7 @@ defineExpose({ showSku, closeSku })
   width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center;
   background: rgba(255,255,255,0.08); border-radius: 50%;
 }
-.nf-sku-body { flex: 1; padding: 24rpx 32rpx; overflow-y: auto; overflow-x: visible; }
+.nf-sku-body { flex: 1; padding: 24rpx 32rpx; overflow-y: auto; }
 .nf-spec-group { margin-bottom: 32rpx; }
 .nf-spec-title { display: block; font-size: 26rpx; color: rgba(255,255,255,0.6); margin-bottom: 16rpx; font-weight: 600; }
 .nf-spec-options { display: flex; flex-wrap: wrap; gap: 16rpx; }
@@ -341,9 +347,8 @@ defineExpose({ showSku, closeSku })
 .nf-qty-section {
   display: flex; align-items: center; justify-content: space-between;
   padding: 24rpx 0; border-top: 1rpx solid rgba(255,255,255,0.06);
-  overflow: visible;
 }
-.nf-qty-stepper { display: flex; align-items: center; gap: 4rpx; flex-shrink: 0; overflow: visible; }
+.nf-qty-stepper { display: flex; align-items: center; gap: 4rpx; flex-shrink: 0; margin-left: 20rpx; }
 .nf-qty-btn {
   width: 60rpx; height: 60rpx; min-width: 60rpx; display: flex; align-items: center; justify-content: center;
   background: rgba(255,255,255,0.08); border-radius: 10rpx; font-size: 32rpx;

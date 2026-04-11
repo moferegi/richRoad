@@ -3,6 +3,7 @@ package shop
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -45,6 +46,25 @@ func generateSnowflakeID() (string, error) {
 // CreateCouponOrderUser 创建优惠券记录
 // Author [yourname](https://github.com/yourname)
 func (couService *CouponOrderUserService) CreateCouponOrderUser(ctx context.Context, cou *shop.CouponOrderUser) (err error) {
+	// 自动生成优惠券编号
+	if cou.CouponNum == "" {
+		cou.CouponNum = fmt.Sprintf("CPN%d%04d", time.Now().UnixMilli(), cou.UserID%10000)
+	}
+	// 默认未使用
+	if cou.Status == nil {
+		unused := false
+		cou.Status = &unused
+	}
+	// 默认领取时间
+	if cou.ClaimedAt == nil {
+		now := time.Now()
+		cou.ClaimedAt = &now
+	}
+	// 同步 ShopUserID（查询用此字段）
+	if cou.ShopUserID == nil && cou.UserID > 0 {
+		uid := int(cou.UserID)
+		cou.ShopUserID = &uid
+	}
 	err = global.GVA_DB.Create(cou).Error
 	return err
 }
@@ -147,40 +167,70 @@ func (couService *CouponOrderUserService) GetCouponOrderUserPublic(ctx context.C
 func (couService *CouponOrderUserService) GetAllClaimCoupon(ctx context.Context, userID uint, goodIds []int) (coupons []map[string]interface{}, err error) {
 	// 初始化返回结果切片
 	coupons = make([]map[string]interface{}, 0)
+	shopUserID := int(userID)
 
-	// 1. 查询所有可用的优惠券
-	var availableCoupons []shop.Coupon
-	db := global.GVA_DB.Model(&shop.Coupon{})
-
-	// 查询条件：优惠券有效且在有效期内
-	db = db.Where("status = ? AND start_time <= NOW() AND end_time >= NOW()", true)
-
-	// 执行查询
-	if err = db.Find(&availableCoupons).Error; err != nil {
+	// 1. 查询所有启用的优惠券（包括已过期的，后面按是否已领分别处理）
+	var allCoupons []shop.Coupon
+	if err = global.GVA_DB.Where("status = ?", true).Find(&allCoupons).Error; err != nil {
 		return nil, errors.New("查询优惠券失败: " + err.Error())
 	}
 
-	// 2. 遍历优惠券，查询用户是否已领取
-	for _, coupon := range availableCoupons {
-		// 创建返回数据结构
+	// 2. 一次性查询用户所有已领取的券记录
+	var allUserCoupons []shop.CouponOrderUser
+	global.GVA_DB.Where("shop_user_id = ?", shopUserID).Find(&allUserCoupons)
+	// 按 coupon_id 分组
+	userCouponMap := make(map[uint][]shop.CouponOrderUser)
+	for _, uc := range allUserCoupons {
+		if uc.CouponID != nil {
+			userCouponMap[uint(*uc.CouponID)] = append(userCouponMap[uint(*uc.CouponID)], uc)
+		}
+	}
+
+	now := time.Now()
+	for _, coupon := range allCoupons {
+		inPeriod := coupon.StartTime != nil && coupon.EndTime != nil &&
+			!now.Before(*coupon.StartTime) && !now.After(*coupon.EndTime)
+
+		userCoupons := userCouponMap[coupon.ID]
+
+		// 如果券不在有效期内且用户没有已领取的未使用券，跳过
+		hasUnused := false
+		for _, uc := range userCoupons {
+			if uc.OrderID == nil {
+				hasUnused = true
+				break
+			}
+		}
+		if !inPeriod && !hasUnused {
+			continue
+		}
+
+		// 构建基础券数据
 		couponData := map[string]interface{}{
-			"couponNum":       0, // 默认为0，表示未领取
+			"couponNum":       0,
 			"couponID":        coupon.ID,
-			"name":            *coupon.Name,
+			"name":            "",
 			"minSpend":        coupon.MinSpend,
 			"discount":        coupon.Discount,
 			"productID":       0,
-			"startTime":       coupon.StartTime.Format("2006-01-02"),
-			"endTime":         coupon.EndTime.Format("2006-01-02"),
-			"status":          0, // 默认为0，表示未使用
+			"startTime":       "",
+			"endTime":         "",
+			"status":          0,
 			"canUse":          0,
 			"nameI18n":        coupon.NameI18n,
 			"descriptionI18n": coupon.DescriptionI18n,
 			"backgroundImage": coupon.BackgroundImage,
 			"externalBgPath":  coupon.ExternalBgPath,
 		}
-
-		// 如果有关联商品，设置productID
+		if coupon.Name != nil {
+			couponData["name"] = *coupon.Name
+		}
+		if coupon.StartTime != nil {
+			couponData["startTime"] = coupon.StartTime.Format("2006-01-02")
+		}
+		if coupon.EndTime != nil {
+			couponData["endTime"] = coupon.EndTime.Format("2006-01-02")
+		}
 		if coupon.ProductID != nil {
 			couponData["productID"] = *coupon.ProductID
 		}
@@ -188,11 +238,11 @@ func (couService *CouponOrderUserService) GetAllClaimCoupon(ctx context.Context,
 			couponData["description"] = *coupon.Description
 		}
 
+		// 判断该券对当前商品是否可用
 		if len(goodIds) > 0 {
-			// 检查商品ID是否在goodIds中 — 支持 ProductIDs (逗号分隔多商品)
 			allowedIDs := couponAllowedProductIDs(coupon)
 			if len(allowedIDs) == 0 {
-				couponData["canUse"] = 1 // 没有商品限制，默认可用
+				couponData["canUse"] = 1
 			} else {
 				for _, goodID := range goodIds {
 					if allowedIDs[goodID] {
@@ -202,24 +252,38 @@ func (couService *CouponOrderUserService) GetAllClaimCoupon(ctx context.Context,
 				}
 			}
 		} else {
-			couponData["canUse"] = 1 // 没有商品限制，默认可用
+			couponData["canUse"] = 1
 		}
 
-		// 查询用户是否已领取此优惠券
-		var userCoupon shop.CouponOrderUser
-		shopUserID := int(userID)
-		result := global.GVA_DB.Where("coupon_id = ? AND shop_user_id = ?", coupon.ID, shopUserID).First(&userCoupon)
-
-		// 如果用户已领取，设置券码和使用状态
-		if result.Error == nil {
-			couponData["couponNum"] = userCoupon.CouponNum
-			if userCoupon.OrderID != nil {
-				couponData["status"] = 1 // 占用状态 不能领取 不能使用
+		if len(userCoupons) == 0 {
+			// 未领取过，仅在有效期内才显示可领取
+			if inPeriod {
+				coupons = append(coupons, couponData)
+			}
+		} else {
+			// 为每张已领取的券生成一条记录
+			for _, uc := range userCoupons {
+				item := make(map[string]interface{})
+				for k, v := range couponData {
+					item[k] = v
+				}
+				item["couponNum"] = uc.CouponNum
+				if uc.OrderID != nil {
+					item["status"] = 1
+					item["used"] = true
+				} else if !inPeriod {
+					// 已领取但优惠券已过期，标记为过期不可用
+					item["status"] = 2
+					item["used"] = false
+					item["expired"] = true
+					item["canUse"] = 0
+				} else {
+					item["status"] = 0
+					item["used"] = false
+				}
+				coupons = append(coupons, item)
 			}
 		}
-
-		// 添加到结果集
-		coupons = append(coupons, couponData)
 	}
 
 	return coupons, nil

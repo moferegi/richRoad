@@ -111,6 +111,8 @@ type OrderRes struct {
 	OriginPrice uint             `json:"originPrice" form:"originPrice" gorm:"column:origin_price;comment:原价;"` //原价（分）
 	Discount    uint             `json:"discount" form:"discount" gorm:"column:discount;comment:优惠金额;"`         //优惠金额（分）
 	TotalPrice  uint             `json:"totalPrice" form:"totalPrice" gorm:"column:total_price;comment:订单价格;"`  //订单价格（分）
+	UsePoints   bool             `json:"usePoints" form:"usePoints" gorm:"column:use_points;comment:是否使用积分;"`   //是否使用积分
+	PointsUsed  uint             `json:"pointsUsed" form:"pointsUsed" gorm:"column:points_used;comment:使用的积分数;"` //使用的积分数
 	Status      string           `json:"status" form:"status" gorm:"column:status;comment:订单状态;"`               //订单状态
 	RefundReason    string         `json:"refundReason" form:"refundReason" gorm:"column:refund_reason;comment:退款原因;"`           //退款原因
 	RefundImages    datatypes.JSON `json:"refundImages" form:"refundImages" gorm:"column:refund_images;comment:退款图片;"`          //退款图片
