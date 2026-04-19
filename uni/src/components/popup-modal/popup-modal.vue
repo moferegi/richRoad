@@ -1,5 +1,5 @@
 <template>
-  <view class="nf-popup-mask" v-if="visible" @tap.self="onClose">
+  <view class="nf-popup-mask" v-if="visible" @tap.self="onClose" @touchmove.stop.prevent>
     <view class="nf-popup-wrap" :key="'popup_' + currentIndex">
       <!-- 图片类型 -->
       <image

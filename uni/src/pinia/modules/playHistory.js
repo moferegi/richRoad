@@ -46,6 +46,31 @@ export const usePlayHistoryStore = defineStore('playHistory', () => {
   }
 
   /**
+   * 保存浏览记录（仅记录商品ID、图片、标题，不含播放进度）
+   * 用于未登录时本地浏览历史
+   */
+  function saveBrowse(goodID, { imageUrl, title }) {
+    if (!goodID) return
+    const id = String(goodID)
+    // 如果已存在完整播放记录，只更新时间和基础信息
+    if (histories.value[id]) {
+      histories.value[id].updatedAt = Date.now()
+      if (imageUrl) histories.value[id].imageUrl = imageUrl
+      if (title) histories.value[id].title = title
+    } else {
+      // 创建一个仅有浏览信息的记录
+      histories.value[id] = {
+        lastEpisodeIndex: 0,
+        episodes: {},
+        imageUrl: imageUrl || '',
+        title: title || '',
+        updatedAt: Date.now()
+      }
+    }
+    persist()
+  }
+
+  /**
    * 获取最后观看的集的进度（用于“我的”页面和播放按鈕）
    * 返回 null 表示没有有效进度
    */
@@ -134,12 +159,22 @@ export const usePlayHistoryStore = defineStore('playHistory', () => {
     histories.value = loadFromStorage()
   }
 
+  /**
+   * 清空所有播放历史
+   */
+  function clearAll() {
+    histories.value = {}
+    persist()
+  }
+
   return {
     histories,
     saveProgress,
+    saveBrowse,
     getProgress,
     getEpisodeProgress,
     getRecentList,
-    reload
+    reload,
+    clearAll
   }
 })

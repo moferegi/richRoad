@@ -47,6 +47,12 @@
           <el-input v-model="searchInfo.keyword" placeholder="名称/描述/标签" clearable style="width:160px;" />
         </el-form-item>
 
+        <el-form-item label="商品分类">
+          <el-select v-model="searchInfo.categoryID" clearable placeholder="全部分类" style="width:160px;">
+            <el-option v-for="cat in categoryList" :key="cat.ID" :label="cat.title" :value="cat.ID" />
+          </el-select>
+        </el-form-item>
+
         <el-form-item label="排序">
           <el-select v-model="searchInfo.orderBy" clearable placeholder="排序字段" style="width:120px;">
             <el-option label="浏览量" value="view_num" />

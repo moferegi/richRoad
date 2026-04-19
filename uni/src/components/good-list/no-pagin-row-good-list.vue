@@ -20,7 +20,7 @@
             </text>
           </view>
           <view class="price-container">
-            <text class="discount-price">{{ cs }}{{ item.price / 100 }}</text>
+            <text class="discount-price">{{ cs }}{{ (item.price / 100).toFixed(2) }}</text>
             <text class="original-price">{{ cs }}{{ item.originalPrice }}</text>
           </view>
           <!-- 优惠券/积分标记 -->

@@ -17,7 +17,13 @@
         </view>
         <view class="nf-user-info">
           <text class="nf-username">{{ info.nickname || $t('defaultUser') }}</text>
-          <input name="nickName" type="nickname" :placeholder="$t('nicknamePlaceholder')" class="nf-nickname-input" @change="onInputNickName" v-model="info.nickname" />
+          <!-- <input name="nickName" type="nickname" :placeholder="$t('nicknamePlaceholder')" class="nf-nickname-input" @change="onInputNickName" v-model="info.nickname" /> -->
+          <!-- 手机号显示/设置 -->
+          <view class="nf-phone-row" @tap="goSetPhone">
+            <text class="nf-phone-text" v-if="info.phone">{{ maskPhone(info.phone) }}</text>
+            <text class="nf-phone-set" v-else>{{ $t('setPhone') }}</text>
+            <uni-icons type="right" size="14" color="rgba(255,255,255,0.3)" />
+          </view>
         </view>
       </view>
 
@@ -140,6 +146,23 @@
 
     <!-- 语言切换弹窗 -->
     <lang-switch v-model="showLangPicker" @change="onLangChange" />
+
+    <!-- Netflix风格退出登录弹窗 -->
+    <view class="nf-logout-mask" v-if="showLogoutModal" @tap.self="showLogoutModal = false" @touchmove.stop.prevent>
+      <view class="nf-logout-dialog">
+        <view class="nf-logout-dialog-glow"></view>
+        <text class="nf-logout-dialog-title">{{ $t('logout') }}</text>
+        <text class="nf-logout-dialog-desc">{{ $t('confirmLogout') }}</text>
+        <view class="nf-logout-dialog-btns">
+          <view class="nf-logout-btn-cancel" @tap="showLogoutModal = false">
+            <text class="nf-logout-btn-text">{{ $t('cancel') }}</text>
+          </view>
+          <view class="nf-logout-btn-confirm" @tap="confirmLogout">
+            <text class="nf-logout-btn-text-white">{{ $t('confirm') }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -242,6 +265,23 @@ const avatarUrl = ref('')
 const nickName = ref('默认用户')
 avatarUrl.value = defaultAvatarUrl
 
+// 手机号掩码显示
+const maskPhone = (phone) => {
+  if (!phone) return ''
+  const p = String(phone)
+  if (p.length < 4) return p
+  const visibleStart = Math.ceil(p.length * 0.3)
+  const visibleEnd = Math.ceil(p.length * 0.3)
+  const maskedLen = p.length - visibleStart - visibleEnd
+  return p.slice(0, visibleStart) + '*'.repeat(Math.max(maskedLen, 2)) + p.slice(p.length - visibleEnd)
+}
+
+// 跳转设置手机号页面
+const goSetPhone = () => {
+  const phone = info.value.phone || ''
+  uni.navigateTo({ url: '/pages/user/setPhone' + (phone ? '?phone=' + encodeURIComponent(phone) : '') })
+}
+
 const info = ref({})
 const userStore = useUserStore()
 onShow(() => {
@@ -284,11 +324,9 @@ const getHistory = async () => {
       }
     } catch (e) {}
   }
-  // 未登录或API无数据时，用本地播放历史
+  // 未登录或API无数据时，用本地浏览/播放历史
   const localList = playHistoryStore.getRecentList(10)
-  if (localList.length) {
-    historyList.value = localList
-  }
+  historyList.value = localList
 }
 
 // 跳转到商品详情
@@ -316,14 +354,14 @@ const goToPoints = () => {
 // 跳转订单页面
 const goToOrder = (status) => {
   const statusMap = {
-    'pending': '待支付',
-    'shipping': '待发货',
-    'receiving': '待收货',
-    'completed': '已完成',
+    'pending': '0',
+    'shipping': '1',
+    'receiving': '2',
+    'completed': '3',
     '': ''
   }
-  const orderStatus = statusMap[status] || ''
-  myRouter(`/pages/order/order${orderStatus ? '?status=' + encodeURIComponent(orderStatus) : ''}`, true)
+  const orderStatus = statusMap[status] !== undefined ? statusMap[status] : ''
+  myRouter(`/pages/order/order${orderStatus ? '?status=' + orderStatus : ''}`, true)
 }
 
 // 用户积分和优惠券数量
@@ -380,25 +418,24 @@ const onInputNickName = async (e) => {
 }
 
 
+const showLogoutModal = ref(false)
+
+const confirmLogout = () => {
+  showLogoutModal.value = false
+  userStore.loginOut()
+  uni.showToast({
+    icon: 'none',
+    title: $t.value('logoutSuccess')
+  })
+}
+
 const toPages = (pages) => {
   if(pages === 'lang'){
     openLangPicker()
     return
   }
   if(pages === 'exit'){
-    uni.showModal({
-      title: $t.value('logout') || '退出登录',
-      content: $t.value('confirmLogout') || '确定要退出登录吗？',
-      success: (res) => {
-        if (res.confirm) {
-          userStore.loginOut()
-          uni.showToast({
-            icon: 'none',
-            title: $t.value('logoutSuccess')
-          })
-        }
-      }
-    })
+    showLogoutModal.value = true
     return
   }
   if (!pages) {
@@ -563,6 +600,36 @@ page {
   &:focus {
     border-color: rgba(229, 9, 20, 0.4);
   }
+}
+
+/* 手机号显示 */
+.nf-phone-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 10rpx 16rpx;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 12rpx;
+  transition: background 0.3s;
+
+  &:active {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+.nf-phone-text {
+  flex: 1;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 2rpx;
+}
+
+.nf-phone-set {
+  flex: 1;
+  font-size: 24rpx;
+  color: #e50914;
+  font-weight: 500;
 }
 
 /* 未登录 */
@@ -889,5 +956,87 @@ page {
 
   &::after { border: none; }
   &:last-child { border-bottom: none; }
+}
+
+/* ===== Netflix风格退出登录弹窗 ===== */
+.nf-logout-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: nfFadeIn 0.2s ease;
+}
+@keyframes nfFadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.nf-logout-dialog {
+  width: 560rpx;
+  background: #1a1a1a;
+  border-radius: 20rpx;
+  padding: 48rpx 40rpx 36rpx;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  animation: nfDialogIn 0.3s ease;
+}
+@keyframes nfDialogIn {
+  0% { opacity: 0; transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.nf-logout-dialog-glow {
+  position: absolute;
+  top: -40rpx; left: 50%;
+  transform: translateX(-50%);
+  width: 200rpx; height: 80rpx;
+  background: radial-gradient(ellipse, rgba(229, 9, 20, 0.3), transparent);
+  pointer-events: none;
+}
+.nf-logout-dialog-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #fff;
+  display: block;
+  margin-bottom: 16rpx;
+}
+.nf-logout-dialog-desc {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.6);
+  display: block;
+  margin-bottom: 40rpx;
+}
+.nf-logout-dialog-btns {
+  display: flex;
+  gap: 20rpx;
+}
+.nf-logout-btn-cancel {
+  flex: 1;
+  height: 76rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12rpx;
+  background: rgba(255, 255, 255, 0.1);
+}
+.nf-logout-btn-confirm {
+  flex: 1;
+  height: 76rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12rpx;
+  background: #e50914;
+}
+.nf-logout-btn-text {
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+.nf-logout-btn-text-white {
+  font-size: 28rpx;
+  color: #fff;
+  font-weight: 600;
 }
 </style>

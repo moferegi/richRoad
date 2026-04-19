@@ -213,7 +213,7 @@ const loadQrCodes = async () => {
     }
     // 如果多码列表为空，尝试旧的单码配置作为兜底
     if (qrList.value.length === 0) {
-      const res2 = await request({ url: '/sysConfig/getConfigByKey', method: 'get', params: { key: 'payment_qr_code' } })
+      const res2 = await request({ url: '/sysConfig/getSysConfigByKey', method: 'get', params: { configKey: 'payment_qr_code' } })
       if (res2.code === 0 && res2.data) {
         qrList.value = [{ name: 'QR', image: res2.data, externalPath: '' }]
       }
@@ -226,9 +226,9 @@ const loadQrCodes = async () => {
 const loadPaymentTip = async () => {
   try {
     const [tipRes, sizeRes, colorRes] = await Promise.all([
-      request({ url: '/sysConfig/getConfigByKey', method: 'get', params: { key: 'payment_tip_text' } }),
-      request({ url: '/sysConfig/getConfigByKey', method: 'get', params: { key: 'payment_tip_text_size' } }),
-      request({ url: '/sysConfig/getConfigByKey', method: 'get', params: { key: 'payment_tip_text_color' } }),
+      request({ url: '/sysConfig/getSysConfigByKey', method: 'get', params: { configKey: 'payment_tip_text' } }),
+      request({ url: '/sysConfig/getSysConfigByKey', method: 'get', params: { configKey: 'payment_tip_text_size' } }),
+      request({ url: '/sysConfig/getSysConfigByKey', method: 'get', params: { configKey: 'payment_tip_text_color' } }),
     ])
     if (tipRes.code === 0 && tipRes.data) {
       paymentTipText.value = localText(tipRes.data)

@@ -22,6 +22,9 @@ func (clientUserService *ClientUserService) Login(loginInfo *clientReq.Login) (c
 	if err != nil {
 		return clientUser, errors.New("用户不存在")
 	}
+	if clientUser.Banned != nil && *clientUser.Banned {
+		return clientUser, errors.New("BANNED")
+	}
 	if !utils.BcryptCheck(loginInfo.Password, clientUser.Password) {
 		return clientUser, errors.New("密码错误")
 	}

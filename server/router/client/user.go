@@ -23,6 +23,7 @@ func (s *ClientUserRouter) InitClientUserRouter(Router *gin.RouterGroup, PublicR
 		clientUserRouter.PUT("updateClientUser", clientUserApi.UpdateClientUser)              // 更新客户端用户
 		clientUserRouter.GET("getUserInfo", clientUserApi.GetUserInfo)                        // 客户端获取自身信息
 		clientUserRouter.POST("changePassword", clientUserApi.ChangePassword)                 // 修改密码
+		clientUserRouter.POST("setPhoneVerified", clientUserApi.SetPhoneVerified)             // 验证后设置手机号
 	}
 	{
 		clientUserRouterWithoutRecord.GET("findClientUser", clientUserApi.FindClientUser)       // 根据ID获取客户端用户

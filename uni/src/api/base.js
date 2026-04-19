@@ -116,3 +116,12 @@ export const changePassword = (data) => {
         data
     })
 }
+
+// 验证后设置手机号
+export const setPhoneVerified = (data) => {
+    return request({
+        url: '/clientUser/setPhoneVerified',
+        method: 'post',
+        data
+    })
+}

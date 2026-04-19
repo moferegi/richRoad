@@ -33,10 +33,11 @@
         </view>
 
         <!-- 手机号 -->
-        <view class="nf-info-item">
+        <view class="nf-info-item" @tap="editPhone">
           <text class="nf-info-label">{{ $t('phone') }}</text>
           <view class="nf-info-value-row">
             <text class="nf-info-value">{{ maskedPhone }}</text>
+            <uni-icons type="right" size="14" color="rgba(255,255,255,0.3)" />
           </view>
         </view>
 
@@ -87,6 +88,28 @@
             <text>{{ $t('cancel') }}</text>
           </view>
           <view class="nf-modal-btn nf-modal-confirm" @tap="saveNickName">
+            <text>{{ $t('confirm') }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 修改手机号弹窗 -->
+    <view v-if="showPhoneModal" class="nf-modal-mask" @tap.stop="showPhoneModal = false" @touchmove.stop.prevent>
+      <view class="nf-modal-box" @tap.stop>
+        <text class="nf-modal-title">{{ $t('editPhone') }}</text>
+        <input
+          class="nf-modal-input"
+          v-model="newPhone"
+          :placeholder="$t('enterPhone')"
+          type="number"
+          maxlength="20"
+        />
+        <view class="nf-modal-btns">
+          <view class="nf-modal-btn nf-modal-cancel" @tap="showPhoneModal = false">
+            <text>{{ $t('cancel') }}</text>
+          </view>
+          <view class="nf-modal-btn nf-modal-confirm" @tap="savePhone">
             <text>{{ $t('confirm') }}</text>
           </view>
         </view>
@@ -184,10 +207,36 @@ const saveNickName = async () => {
     return
   }
   try {
-    const res = await setClientUserInfo({ nickName: newNickName.value.trim() })
+    const res = await setClientUserInfo({ key: 'nickname', value: newNickName.value.trim() })
     if (res.code === 0) {
       userInfo.value.nickName = newNickName.value.trim()
       showNickNameModal.value = false
+      uni.showToast({ title: $t.value('updateSuccess'), icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: $t.value('operationFailed'), icon: 'none' })
+  }
+}
+
+// 手机号编辑
+const showPhoneModal = ref(false)
+const newPhone = ref('')
+
+const editPhone = () => {
+  newPhone.value = userInfo.value.phone || ''
+  showPhoneModal.value = true
+}
+
+const savePhone = async () => {
+  if (!newPhone.value.trim()) {
+    uni.showToast({ title: $t.value('enterPhone'), icon: 'none' })
+    return
+  }
+  try {
+    const res = await setClientUserInfo({ key: 'phone', value: newPhone.value.trim() })
+    if (res.code === 0) {
+      userInfo.value.phone = newPhone.value.trim()
+      showPhoneModal.value = false
       uni.showToast({ title: $t.value('updateSuccess'), icon: 'none' })
     }
   } catch (e) {

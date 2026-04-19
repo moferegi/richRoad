@@ -93,6 +93,10 @@ func (clientUserApi *ClientUserApi) Login(c *gin.Context) {
 	if !oc || (l.CaptchaId != "" && l.Captcha != "" && store.Verify(l.CaptchaId, l.Captcha, true)) {
 		user, err := clientUserService.Login(&l)
 		if err != nil {
+			if err.Error() == "BANNED" {
+				response.FailWithDetailed(gin.H{"banned": true}, i18n.T(c, "accountBanned"), c)
+				return
+			}
 			global.GVA_LOG.Error("登陆失败! 用户名不存在或者密码错误!", zap.Error(err))
 			// 验证码次数+1
 			global.BlackCache.Increment(key, 1)
@@ -676,4 +680,54 @@ func (clientUserApi *ClientUserApi) ChangePassword(c *gin.Context) {
 	}
 
 	response.OkWithMessage(i18n.T(c, "changeSuccess"), c)
+}
+
+// SetPhoneVerified 验证密码后设置手机号
+// @Tags ClientUser
+// @Summary 验证密码和验证码后设置手机号
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data body clientReq.SetPhoneRequest true "设置手机号参数"
+// @Success 200 {string} string "{"success":true,"data":{},"msg":"设置成功"}"
+// @Router /clientUser/setPhoneVerified [post]
+func (clientUserApi *ClientUserApi) SetPhoneVerified(c *gin.Context) {
+	var req clientReq.SetPhoneRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+
+	if req.Phone == "" {
+		response.FailWithMessage(i18n.T(c, "phoneRequired"), c)
+		return
+	}
+
+	// 验证码校验
+	if !store.Verify(req.CaptchaId, req.Captcha, true) {
+		response.FailWithMessage(i18n.T(c, "captchaError"), c)
+		return
+	}
+
+	userID := utils.GetUserID(c)
+
+	// 验证密码
+	var user client.ClientUser
+	if err := global.GVA_DB.Where("id = ?", userID).First(&user).Error; err != nil {
+		response.FailWithMessage(i18n.T(c, "userNotExist"), c)
+		return
+	}
+	if !utils.BcryptCheck(req.Password, user.Password) {
+		response.FailWithMessage(i18n.T(c, "passwordError"), c)
+		return
+	}
+
+	// 设置手机号
+	if err := clientUserService.SetClientUserInfo("phone", req.Phone, userID); err != nil {
+		global.GVA_LOG.Error("设置手机号失败!", zap.Error(err))
+		response.FailWithMessage(i18n.T(c, "setFail")+":"+err.Error(), c)
+		return
+	}
+
+	response.OkWithMessage(i18n.T(c, "setSuccess"), c)
 }

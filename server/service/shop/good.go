@@ -1,6 +1,7 @@
 package shop
 
 import (
+	"encoding/json"
 	"errors"
 	"strconv"
 
@@ -125,6 +126,9 @@ func (goodService *GoodService) GetGoodInfoList(info shopReq.GoodSearch) (list [
 
 	if info.CategoryID != 0 {
 		db = db.Where("category_id = ?", info.CategoryID)
+	} else if info.ExcludeHiddenCategories {
+		// 排除showInUni=false的分类下的商品
+		db = db.Where("category_id NOT IN (SELECT id FROM shop_category WHERE show_in_uni = ?)", false)
 	}
 
 	if info.Recommend != nil {
@@ -165,5 +169,86 @@ func (goodService *GoodService) GetGoodInfoList(info shopReq.GoodSearch) (list [
 	err = db.Preload("SKUS", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id, good_id, inventory")
 	}).Find(&goods).Error
+	if err != nil {
+		return goods, total, err
+	}
+
+	// 用最新的 tag 数据刷新商品 tags JSON（确保 color/nameI18n 同步）
+	enrichGoodsTags(goods)
+
 	return goods, total, err
+}
+
+// enrichGoodsTags 用数据库中最新的 Tag 信息刷新商品 tags JSON
+func enrichGoodsTags(goods []shop.Good) {
+	// 1. 收集所有 tag ID
+	tagIDSet := map[uint]struct{}{}
+	type tagEntry struct {
+		ID       uint   `json:"ID"`
+		Name     string `json:"name"`
+		NameI18n string `json:"nameI18n"`
+		Color    string `json:"color"`
+	}
+	goodTagsMap := make([][]tagEntry, len(goods))
+	for i, g := range goods {
+		if len(g.Tags) == 0 {
+			continue
+		}
+		var entries []tagEntry
+		if err := json.Unmarshal(g.Tags, &entries); err != nil {
+			continue
+		}
+		goodTagsMap[i] = entries
+		for _, e := range entries {
+			if e.ID > 0 {
+				tagIDSet[e.ID] = struct{}{}
+			}
+		}
+	}
+	if len(tagIDSet) == 0 {
+		return
+	}
+
+	// 2. 批量查询最新 tag 数据
+	ids := make([]uint, 0, len(tagIDSet))
+	for id := range tagIDSet {
+		ids = append(ids, id)
+	}
+	var dbTags []shop.Tag
+	if err := global.GVA_DB.Where("id IN ?", ids).Find(&dbTags).Error; err != nil {
+		return
+	}
+	tagMap := map[uint]shop.Tag{}
+	for _, t := range dbTags {
+		tagMap[t.ID] = t
+	}
+
+	// 3. 用最新数据替换并写回 JSON
+	for i, entries := range goodTagsMap {
+		if entries == nil {
+			continue
+		}
+		changed := false
+		for j, e := range entries {
+			if t, ok := tagMap[e.ID]; ok {
+				newEntry := tagEntry{ID: t.ID}
+				if t.Name != nil {
+					newEntry.Name = *t.Name
+				}
+				newEntry.NameI18n = t.NameI18n
+				if t.Color != nil {
+					newEntry.Color = *t.Color
+				}
+				if newEntry.Name != e.Name || newEntry.NameI18n != e.NameI18n || newEntry.Color != e.Color {
+					changed = true
+				}
+				entries[j] = newEntry
+			}
+		}
+		if changed {
+			if data, err := json.Marshal(entries); err == nil {
+				goods[i].Tags = data
+			}
+		}
+	}
 }

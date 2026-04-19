@@ -66,6 +66,19 @@
               {{ scope.row.invitedBy > 0 ? scope.row.invitedBy : '-' }}
             </template>
         </el-table-column>
+        <el-table-column align="left" label="状态" prop="banned" width="100">
+            <template #default="scope">
+              <el-switch
+                v-model="scope.row.banned"
+                :active-value="false"
+                :inactive-value="true"
+                active-text="正常"
+                inactive-text="封禁"
+                inline-prompt
+                @change="toggleBan(scope.row)"
+              />
+            </template>
+        </el-table-column>
         <el-table-column align="left" label="操作" fixed="right" min-width="290">
             <template #default="scope">
             <el-button type="primary" link class="table-button" @click="getDetails(scope.row)">
@@ -474,6 +487,16 @@ const enterDialog = async () => {
                 getTableData()
               }
       })
+}
+
+// ============== 封禁用户 ===============
+const toggleBan = async (row) => {
+  const res = await updateClientUser({ ID: row.ID, banned: row.banned })
+  if (res.code === 0) {
+    ElMessage({ type: 'success', message: row.banned ? '已封禁' : '已解封' })
+  } else {
+    row.banned = !row.banned
+  }
 }
 
 // ============== 下级用户 ===============

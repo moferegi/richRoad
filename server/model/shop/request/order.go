@@ -11,11 +11,18 @@ type OrderSearch struct {
 	EndCreatedAt   *time.Time `json:"endCreatedAt" form:"endCreatedAt"`
 	Status         string     `json:"status" form:"status"`
 	UserID         *int       `json:"userID" form:"userID"`
+	GoodID         *int       `json:"goodID" form:"goodID"`
 	IsPresale      *bool      `json:"isPresale" form:"isPresale"`
 	PayMethod      string     `json:"payMethod" form:"payMethod"`
 	Sort           string     `json:"sort" form:"sort"`
 	Order          string     `json:"order" form:"order"`
 	request.PageInfo
+}
+
+// BatchUpdateOrderStatusReq 批量更新订单状态请求
+type BatchUpdateOrderStatusReq struct {
+	IDs    []string `json:"IDs" binding:"required"`    // 订单ID列表
+	Status string   `json:"status" binding:"required"` // 目标状态
 }
 
 type RefundApplyReq struct {
@@ -40,7 +47,7 @@ type PlaceOrderByCartRequest struct {
 
 // PresaleListRequest 预售商品列表请求
 type PresaleListRequest struct {
-	Limit     int   `json:"limit" form:"limit"`         // 限制数量(首页用)
-	IsPresale *bool `json:"isPresale" form:"isPresale"` // 是否预售筛选
+	Limit          int   `json:"limit" form:"limit"`                   // 限制数量(首页用)
+	PresaleEnabled *bool `json:"presaleEnabled" form:"presaleEnabled"` // 预售开关筛选
 	request.PageInfo
 }

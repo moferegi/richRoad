@@ -84,7 +84,8 @@
         </el-table-column>
         <el-table-column align="left" label="订单ID" prop="orderID" width="120">
           <template #default="scope">
-            <span>{{ filterDataSource(dataSource.orderID, scope.row.orderID) }}</span>
+            <span v-if="scope.row.orderID">{{ scope.row.orderID }}</span>
+            <span v-else>-</span>
           </template>
         </el-table-column>
         <el-table-column align="left" label="用户ID" prop="userID" width="100" />
@@ -168,7 +169,7 @@
           {{ filterDataSource(dataSource.couponID, detailFrom.couponID) }}
         </el-descriptions-item>
         <el-descriptions-item label="订单ID">
-          {{ filterDataSource(dataSource.orderID, detailFrom.orderID) }}
+          {{ detailFrom.orderID || '-' }}
         </el-descriptions-item>
         <el-descriptions-item label="用户ID">{{ detailFrom.userID }}</el-descriptions-item>
         <el-descriptions-item label="领取时间">{{ detailFrom.claimedAt ? formatDate(detailFrom.claimedAt) : '-' }}</el-descriptions-item>

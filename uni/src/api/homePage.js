@@ -24,7 +24,7 @@ export const getGoodList = (params) => {
     return request({
 		url:`/good/getGoodList`,
         method: 'get',
-        params: { ...params, status: true } 
+        params: { ...params, status: true, excludeHiddenCategories: true, isPresale: false } 
     })
 }
 

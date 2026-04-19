@@ -243,6 +243,14 @@
 			}
 		},
 		{
+			"path": "pages/user/setPhone",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
 			"path": "pages/maintenance/index",
 			"style": {
 				"navigationStyle": "custom",

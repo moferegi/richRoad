@@ -15,16 +15,21 @@ type PresaleService struct{}
 // GetPresaleGoodList 获取预售商品列表
 func (s *PresaleService) GetPresaleGoodList(info shopReq.PresaleListRequest) (list []shop.Good, total int64, err error) {
 	db := global.GVA_DB.Model(&shop.Good{})
-	if info.IsPresale != nil {
-		db = db.Where("is_presale = ?", *info.IsPresale)
-	} else {
-		// 默认仅显示预售商品
-		db = db.Where("is_presale = ?", true)
+	// 始终仅查询预售商品(is_presale=true)
+	db = db.Where("is_presale = ?", true)
+
+	if info.PresaleEnabled != nil {
+		db = db.Where("presale_enabled = ?", *info.PresaleEnabled)
 	}
 
 	err = db.Count(&total).Error
 	if err != nil {
 		return
+	}
+
+	// presale_home_count=0 时不展示预售区域
+	if info.Limit == 0 && info.PageSize == 0 {
+		return list, 0, nil
 	}
 
 	if info.Limit > 0 {

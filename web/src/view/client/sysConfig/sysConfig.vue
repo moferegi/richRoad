@@ -169,8 +169,12 @@ const isBooleanConfig = (row) => booleanKeys.includes(row.configKey)
 const colorKeys = ['announcement_text_color', 'payment_tip_text_color']
 const isColorConfig = (row) => colorKeys.includes(row.configKey)
 
-// JSON键列表
-const jsonKeys = ['payment_tip_text', 'maintenance_popup_title', 'maintenance_popup_content']
+// JSON键列表（多语言配置）
+const jsonKeys = [
+  'payment_tip_text', 'maintenance_popup_title', 'maintenance_popup_content',
+  'announcement_content', 'maintenance_message',
+  'username_regex_tip', 'password_regex_tip'
+]
 const isJsonConfig = (row) => jsonKeys.includes(row.configKey)
 
 // 数字键列表

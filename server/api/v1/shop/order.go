@@ -453,3 +453,31 @@ func (orderApi *OrderApi) CheckRouters(c *gin.Context) {
 		response.OkWithData(req, c)
 	}
 }
+
+// BatchUpdateOrderStatus 批量更新订单状态
+// @Tags Order
+// @Summary 批量更新订单状态
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data body shopReq.BatchUpdateOrderStatusReq true "批量更新订单状态"
+// @Success 200 {string} string "{"success":true,"data":{},"msg":"批量更新成功"}"
+// @Router /order/batchUpdateOrderStatus [post]
+func (orderApi *OrderApi) BatchUpdateOrderStatus(c *gin.Context) {
+	var req shopReq.BatchUpdateOrderStatusReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	authorityID := utils.GetUserAuthorityId(c)
+	if authorityID != 888 {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
+	if err := orderService.BatchUpdateOrderStatus(req.IDs, req.Status); err != nil {
+		global.GVA_LOG.Error("批量更新失败!", zap.Error(err))
+		response.FailWithMessage(err.Error(), c)
+	} else {
+		response.OkWithMessage("批量更新成功", c)
+	}
+}

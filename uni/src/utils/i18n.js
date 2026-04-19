@@ -176,6 +176,15 @@ const messages = {
     confirmChange: '确认修改',
     changeSuccess: '修改成功',
 
+    // 设置手机号
+    setPhone: '设置手机号',
+    setPhoneDesc: '为确保账户安全，设置手机号需验证密码',
+    currentPhone: '当前手机号',
+    newPhone: '新手机号',
+    enterNewPhone: '请输入手机号',
+    confirmSet: '确认设置',
+    setSuccess: '设置成功',
+
     // 预售
     presale: '预售',
     countdownDay: '天',
@@ -238,6 +247,8 @@ const messages = {
     registerTime: '注册时间',
     editNickname: '修改昵称',
     enterNickname: '请输入昵称',
+    editPhone: '修改手机号',
+    enterPhone: '请输入手机号',
     confirm: '确定',
     updateSuccess: '更新成功',
     operationFailed: '操作失败',
@@ -648,6 +659,15 @@ const messages = {
     confirmChange: 'Confirm',
     changeSuccess: 'Password changed',
 
+    // Set Phone
+    setPhone: 'Set Phone',
+    setPhoneDesc: 'Password verification required for security',
+    currentPhone: 'Current Phone',
+    newPhone: 'New Phone',
+    enterNewPhone: 'Enter phone number',
+    confirmSet: 'Confirm',
+    setSuccess: 'Set successfully',
+
     // presale
     presale: 'Pre-sale',
     countdownDay: ' days ',
@@ -710,6 +730,8 @@ const messages = {
     registerTime: 'Joined',
     editNickname: 'Edit Nickname',
     enterNickname: 'Enter nickname',
+    editPhone: 'Edit Phone',
+    enterPhone: 'Enter phone number',
     confirm: 'Confirm',
     updateSuccess: 'Updated',
     operationFailed: 'Operation failed',
@@ -1106,6 +1128,15 @@ const messages = {
     confirmChange: 'Баталгаажуулах',
     changeSuccess: 'Амжилттай солигдлоо',
 
+    // Утасны дугаар тохируулах
+    setPhone: 'Утас тохируулах',
+    setPhoneDesc: 'Аюулгүй байдлын үүднээс нууц үг шаардлагатай',
+    currentPhone: 'Одоогийн утас',
+    newPhone: 'Шинэ утас',
+    enterNewPhone: 'Утасны дугаар оруулна уу',
+    confirmSet: 'Баталгаажуулах',
+    setSuccess: 'Амжилттай тохируулалаа',
+
     // Урьдчилсан худалдаа
     presale: 'Урьдчилсан',
     countdownDay: ' өдөр ',
@@ -1168,6 +1199,8 @@ const messages = {
     registerTime: 'Бүртгүүлсэн',
     editNickname: 'Нэр солих',
     enterNickname: 'Нэрээ оруулна уу',
+    editPhone: 'Утасны дугаар засах',
+    enterPhone: 'Утасны дугаар оруулна уу',
     confirm: 'Баталгаажуулах',
     updateSuccess: 'Шинэчлэгдсэн',
     operationFailed: 'Үйлдэл амжилтгүй',
@@ -1547,6 +1580,16 @@ const messages = {
     passwordMismatch: '兩次輸入的密碼不一致',
     confirmChange: '確認修改',
     changeSuccess: '修改成功',
+
+    // 設置手機號
+    setPhone: '設置手機號',
+    setPhoneDesc: '為確保帳戶安全，設置手機號需驗證密碼',
+    currentPhone: '當前手機號',
+    newPhone: '新手機號',
+    enterNewPhone: '請輸入手機號',
+    confirmSet: '確認設置',
+    setSuccess: '設置成功',
+
     presale: '預售',
     countdownDay: '天',
     presaleGoods: '預售商品',
@@ -1598,6 +1641,8 @@ const messages = {
     registerTime: '註冊時間',
     editNickname: '修改暱稱',
     enterNickname: '請輸入暱稱',
+    editPhone: '修改手機號',
+    enterPhone: '請輸入手機號',
     confirm: '確定',
     updateSuccess: '更新成功',
     operationFailed: '操作失敗',
@@ -1971,6 +2016,16 @@ const messages = {
     passwordMismatch: 'รหัสผ่านไม่ตรง',
     confirmChange: 'ยืนยัน',
     changeSuccess: 'เปลี่ยนสำเร็จ',
+
+    // ตั้งค่าโทรศัพท์
+    setPhone: 'ตั้งเบอร์โทร',
+    setPhoneDesc: 'ต้องยืนยันรหัสผ่านเพื่อความปลอดภัย',
+    currentPhone: 'เบอร์ปัจจุบัน',
+    newPhone: 'เบอร์ใหม่',
+    enterNewPhone: 'กรอกเบอร์โทร',
+    confirmSet: 'ยืนยัน',
+    setSuccess: 'ตั้งค่าสำเร็จ',
+
     presale: 'พรีเซล',
     countdownDay: ' วัน ',
     presaleGoods: 'สินค้าพรีเซล',
@@ -2022,6 +2077,8 @@ const messages = {
     registerTime: 'วันที่สมัคร',
     editNickname: 'แก้ชื่อเล่น',
     enterNickname: 'กรอกชื่อเล่น',
+    editPhone: 'แก้เบอร์โทร',
+    enterPhone: 'กรอกเบอร์โทร',
     confirm: 'ยืนยัน',
     updateSuccess: 'อัปเดตแล้ว',
     operationFailed: 'ดำเนินการล้มเหลว',
@@ -2393,6 +2450,16 @@ const messages = {
     passwordMismatch: 'पासवर्ड मेल नहीं खाते',
     confirmChange: 'पुष्टि करें',
     changeSuccess: 'पासवर्ड बदला गया',
+
+    // फ़ोन सेट करें
+    setPhone: 'फ़ोन सेट करें',
+    setPhoneDesc: 'सुरक्षा के लिए पासवर्ड सत्यापन आवश्यक',
+    currentPhone: 'वर्तमान फ़ोन',
+    newPhone: 'नया फ़ोन',
+    enterNewPhone: 'फ़ोन नंबर दर्ज करें',
+    confirmSet: 'पुष्टि करें',
+    setSuccess: 'सेट हो गया',
+
     presale: 'प्री-सेल',
     countdownDay: ' दिन ',
     presaleGoods: 'प्री-सेल उत्पाद',
@@ -2444,6 +2511,8 @@ const messages = {
     registerTime: 'शामिल हुए',
     editNickname: 'उपनाम संपादित करें',
     enterNickname: 'उपनाम दर्ज करें',
+    editPhone: 'फ़ोन नंबर संपादित करें',
+    enterPhone: 'फ़ोन नंबर दर्ज करें',
     confirm: 'पुष्टि',
     updateSuccess: 'अपडेट किया',
     operationFailed: 'कार्य विफल',
@@ -2815,6 +2884,16 @@ const messages = {
     passwordMismatch: 'Kata sandi tidak cocok',
     confirmChange: 'Konfirmasi',
     changeSuccess: 'Berhasil diubah',
+
+    // Atur Telepon
+    setPhone: 'Atur Telepon',
+    setPhoneDesc: 'Verifikasi kata sandi diperlukan untuk keamanan',
+    currentPhone: 'Telepon Saat Ini',
+    newPhone: 'Telepon Baru',
+    enterNewPhone: 'Masukkan nomor telepon',
+    confirmSet: 'Konfirmasi',
+    setSuccess: 'Berhasil diatur',
+
     presale: 'Pre-order',
     countdownDay: ' hari ',
     presaleGoods: 'Produk Pre-order',
@@ -2866,6 +2945,8 @@ const messages = {
     registerTime: 'Terdaftar',
     editNickname: 'Edit Nama',
     enterNickname: 'Masukkan nama',
+    editPhone: 'Edit Nomor Telepon',
+    enterPhone: 'Masukkan nomor telepon',
     confirm: 'Konfirmasi',
     updateSuccess: 'Diperbarui',
     operationFailed: 'Operasi gagal',

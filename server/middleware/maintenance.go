@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -57,10 +58,18 @@ func Maintenance() gin.HandlerFunc {
 			}
 		}
 
+		// 从配置中读取维护提示语，支持多语言JSON格式
+		maintenanceMsg := "系统维护中，请稍后再试"
+		if msgVal, ok := maintenanceData["maintenance_message"]; ok {
+			if s, ok2 := msgVal.(string); ok2 && s != "" {
+				maintenanceMsg = resolveI18nMsg(s, c.GetHeader("Accept-Language"))
+			}
+		}
+
 		// 维护模式生效，返回维护信息
 		c.JSON(http.StatusServiceUnavailable, response.Response{
 			Code: 503,
-			Msg:  "系统维护中，请稍后再试",
+			Msg:  maintenanceMsg,
 			Data: maintenanceData,
 		})
 		c.Abort()
@@ -93,4 +102,41 @@ func isAdminPath(path string) bool {
 		}
 	}
 	return false
+}
+
+// resolveI18nMsg 解析多语言JSON消息，根据Accept-Language返回对应语言
+// 支持格式: {"zh":"中文","en":"English","mn":"Монгол"} 或纯文本
+func resolveI18nMsg(raw string, acceptLang string) string {
+	raw = strings.TrimSpace(raw)
+	if !strings.HasPrefix(raw, "{") {
+		return raw // 纯文本直接返回
+	}
+	var langMap map[string]string
+	if err := json.Unmarshal([]byte(raw), &langMap); err != nil {
+		return raw
+	}
+	// 解析Accept-Language获取首选语言
+	lang := "zh"
+	if acceptLang != "" {
+		parts := strings.Split(acceptLang, ",")
+		if len(parts) > 0 {
+			lang = strings.TrimSpace(strings.Split(parts[0], ";")[0])
+		}
+	}
+	if v, ok := langMap[lang]; ok && v != "" {
+		return v
+	}
+	// fallback: zh > en > 第一个
+	if v, ok := langMap["zh"]; ok && v != "" {
+		return v
+	}
+	if v, ok := langMap["en"]; ok && v != "" {
+		return v
+	}
+	for _, v := range langMap {
+		if v != "" {
+			return v
+		}
+	}
+	return raw
 }

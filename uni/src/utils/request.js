@@ -1,4 +1,5 @@
 import { myRouter }from  '@/utils/permission.js'
+import { t, localText } from '@/utils/i18n.js'
 
 // 定义并导出 baseUrl 变量
 export let baseUrl = '/api'
@@ -38,21 +39,32 @@ export const request = ({url, data, header, method, params}) => {
                 ...header
             },
             success: (res) => {
-                if(res.data.code != 0){
-					uni.showToast({
-						title: res.data.msg,
-						icon: 'none'
-					});
-				}
 				if (res.header['new-token']) {
                     uni.setStorageSync('x-token',res.header['new-token'])
                 }
                 if (res.statusCode === 401) {
                     uni.removeStorageSync('x-token')
-                    myRouter("/pages/home/index")
+                    uni.removeStorageSync('userInfo')
+                    uni.reLaunch({ url: '/pages/user/login' })
                     return
                 }
-                // 维护模式：503 + maintenance=true → 缓存配置并跳转维护页
+                // 封禁检测：后端返回 banned=true 时强制退出登录并跳转登录页
+                if (res.data && res.data.data && res.data.data.banned) {
+                    uni.removeStorageSync('x-token')
+                    uni.removeStorageSync('userInfo')
+                    uni.showModal({
+                        title: '',
+                        content: res.data.msg || 'Account banned',
+                        showCancel: false,
+                        confirmText: t('confirm'),
+                        success: () => {
+                            uni.reLaunch({ url: '/pages/user/login' })
+                        }
+                    })
+                    resolve(res.data)
+                    return
+                }
+                // 维护模式：503 + maintenance=true → 缓存配置并跳转维护页（不弹toast）
                 if (res.statusCode === 503 && res.data && res.data.data && res.data.data.maintenance) {
                     uni.setStorageSync('maintenance_config', JSON.stringify(res.data.data))
                     const pages = getCurrentPages()
@@ -63,6 +75,13 @@ export const request = ({url, data, header, method, params}) => {
                     resolve(res.data)
                     return
                 }
+                // 通用错误提示：排除上面已处理的特殊状态
+                if(res.data.code != 0){
+					uni.showToast({
+						title: res.data.msg,
+						icon: 'none'
+					});
+				}
                 resolve(res.data)
 
             },

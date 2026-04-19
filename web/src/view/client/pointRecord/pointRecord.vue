@@ -104,12 +104,13 @@
         tooltip-effect="dark"
         :data="tableData"
         row-key="ID"
+        :default-sort="{ prop: 'CreatedAt', order: 'descending' }"
         @selection-change="handleSelectionChange"
         @sort-change="sortChange"
         >
         <el-table-column type="selection" width="55" />
         
-        <el-table-column sortable align="left" label="日期" prop="CreatedAt"width="180">
+        <el-table-column sortable="custom" align="left" label="日期" prop="CreatedAt"width="180">
             <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
         
@@ -128,7 +129,7 @@
                 </template>
             </el-table-column>
 
-            <el-table-column sortable align="left" label="积分变化" prop="pointChange" width="120">
+            <el-table-column sortable="custom" align="left" label="积分变化" prop="pointChange" width="120">
                 <template #default="scope">
                     <span :class="scope.row.pointChange > 0 ? 'text-green-600' : 'text-red-600'">
                         {{ scope.row.pointChange > 0 ? '+' : '' }}{{ scope.row.pointChange }}
@@ -364,12 +365,12 @@ const page = ref(1)
 const total = ref(0)
 const pageSize = ref(10)
 const tableData = ref([])
-const searchInfo = ref({})
+const searchInfo = ref({ sort: 'created_at', order: 'descending' })
 // 排序
 const sortChange = ({ prop, order }) => {
   const sortMap = {
-    CreatedAt:"CreatedAt",
-    ID:"ID",
+    CreatedAt:"created_at",
+    ID:"id",
             pointChange: 'point_change',
   }
 
@@ -384,7 +385,7 @@ const sortChange = ({ prop, order }) => {
 }
 // 重置
 const onReset = () => {
-  searchInfo.value = {}
+  searchInfo.value = { sort: 'created_at', order: 'descending' }
   getTableData()
 }
 

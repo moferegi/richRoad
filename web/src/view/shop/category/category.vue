@@ -105,6 +105,14 @@
           </template>
         </el-table-column>
         <el-table-column align="left" label="外部图标路径" prop="externalIconPath" width="160" show-overflow-tooltip />
+        <el-table-column align="center" label="uni显示" width="100">
+          <template #default="scope">
+            <el-switch
+              :model-value="scope.row.showInUni !== false"
+              @change="(val) => toggleShowInUni(scope.row, val)"
+            />
+          </template>
+        </el-table-column>
         <el-table-column
           align="left"
           label="分类描述"
@@ -301,7 +309,8 @@ const formData = ref({
   title: '',
   desc: '',
   icons: '',
-  externalIconPath: ''
+  externalIconPath: '',
+  showInUni: true
 })
 
 // 验证规则
@@ -374,6 +383,15 @@ const getTableData = async() => {
 }
 
 getTableData()
+
+// 切换uni显示开关
+const toggleShowInUni = async (row, val) => {
+  const res = await updateCategory({ ...row, showInUni: val })
+  if (res.code === 0) {
+    ElMessage.success('设置成功')
+    getTableData()
+  }
+}
 
 // ============== 表格控制部分结束 ===============
 
@@ -494,7 +512,8 @@ const closeDetailShow = () => {
     title: '',
     desc: '',
     icons: '',
-    externalIconPath: ''
+    externalIconPath: '',
+    showInUni: true
   }
 }
 
@@ -519,7 +538,8 @@ const closeDialog = () => {
     title: '',
     desc: '',
     icons: '',
-    externalIconPath: ''
+    externalIconPath: '',
+    showInUni: true
   }
 }
 // 弹窗确定

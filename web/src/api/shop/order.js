@@ -125,3 +125,33 @@ export const confirmPayment = (params) => {
     params
   })
 }
+
+/**
+ * 批量更新订单状态
+ * @param {Object} data
+ * @param {string[]} data.IDs 订单ID列表
+ * @param {string} data.status 目标状态
+ * @returns {Promise}
+ */
+export const batchUpdateOrderStatus = (data) => {
+  return service({
+    url: '/order/batchUpdateOrderStatus',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 更新订单状态（客户端）
+ * @param {Object} params
+ * @param {string} params.ID 订单ID
+ * @param {string} params.status 订单状态
+ * @returns {Promise}
+ */
+export const updateOrderStatus = (params) => {
+  return service({
+    url: '/order/updateOrderStatus',
+    method: 'post',
+    params
+  })
+}

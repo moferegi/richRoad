@@ -59,6 +59,9 @@ func (categoryService *CategoryService) GetCategoryInfoList(info shopReq.Categor
 	if info.Title != "" {
 		db = db.Where("title LIKE ?", "%"+info.Title+"%")
 	}
+	if info.ShowInUni != nil {
+		db = db.Where("show_in_uni = ?", *info.ShowInUni)
+	}
 	err = db.Count(&total).Error
 	if err != nil {
 		return
@@ -103,7 +106,7 @@ func makeCategoryTree(list []shop.Category) []shop.Category {
 }
 
 func (categoryService *CategoryService) GetCategoryMobile(parentID int) (list []shop.Category, err error) {
-	err = global.GVA_DB.Find(&list, "parent_id = ?", parentID).Error
+	err = global.GVA_DB.Where("parent_id = ? AND (show_in_uni IS NULL OR show_in_uni = ?)", parentID, true).Find(&list).Error
 	return
 }
 

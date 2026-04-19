@@ -2,10 +2,10 @@
   <div>
     <div class="gva-search-box">
       <el-form ref="elSearchFormRef" :inline="true" :model="searchInfo" class="demo-form-inline" @keyup.enter="onSubmit">
-        <el-form-item label="预售状态">
-          <el-select v-model="searchInfo.isPresale" placeholder="全部" clearable>
-            <el-option label="预售中" :value="true" />
-            <el-option label="非预售" :value="false" />
+        <el-form-item label="预售开关">
+          <el-select v-model="searchInfo.presaleEnabled" placeholder="全部" clearable>
+            <el-option label="已开启" :value="true" />
+            <el-option label="未开启" :value="false" />
           </el-select>
         </el-form-item>
         <el-form-item>

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
+	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/golang-jwt/jwt/v5"
@@ -53,6 +54,17 @@ func JWTAuth() gin.HandlerFunc {
 		//	response.FailWithDetailed(gin.H{"reload": true}, err.Error(), c)
 		//	c.Abort()
 		//}
+		// 客户端用户封禁检查(AuthorityId=8080)
+		if claims.AuthorityId == 8080 {
+			var u client.ClientUser
+			if err := global.GVA_DB.Select("banned").Where("id = ?", claims.BaseClaims.ID).First(&u).Error; err == nil {
+				if u.Banned != nil && *u.Banned {
+					response.FailWithDetailed(gin.H{"banned": true, "reload": true}, i18n.T(c, "accountBanned"), c)
+					c.Abort()
+					return
+				}
+			}
+		}
 		c.Set("claims", claims)
 		if claims.ExpiresAt.Unix()-time.Now().Unix() < claims.BufferTime {
 			dr, _ := utils.ParseDuration(global.GVA_CONFIG.JWT.ExpiresTime)

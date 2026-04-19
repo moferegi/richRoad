@@ -43,10 +43,14 @@ var messages = map[string]map[string]string{
 	"cannotModify":     {LangZh: "无法修改", LangEn: "Cannot modify", LangMn: "Өөрчлөх боломжгүй"},
 	"seriesNotFound":   {LangZh: "剧集不存在", LangEn: "Series not found", LangMn: "Цуврал олдсонгүй"},
 	"loginLocked":      {LangZh: "登录失败次数过多，请稍后再试", LangEn: "Too many failed attempts, please try again later", LangMn: "Нэвтрэлт хэт олон удаа амжилтгүй, дараа дахин оролдоно уу"},
+	"accountBanned":    {LangZh: "账号已被封禁", LangEn: "Account has been banned", LangMn: "Бүртгэл хориглогдсон"},
 	"registerIPLimit":  {LangZh: "该IP注册次数已达上限", LangEn: "Registration limit reached for this IP", LangMn: "Энэ IP-ээс бүртгэх хязгаарт хүрсэн"},
 	"areaCodeInvalid":  {LangZh: "区号无效或未启用", LangEn: "Invalid or disabled area code", LangMn: "Бүсийн код буруу эсвэл идэвхгүй"},
 	"phoneFormatError": {LangZh: "手机号格式不正确", LangEn: "Invalid phone number format", LangMn: "Утасны дугаарын формат буруу"},
 	"changeSuccess":    {LangZh: "修改成功", LangEn: "Changed successfully", LangMn: "Амжилттай өөрчлөлөө"},
+	"phoneRequired":    {LangZh: "手机号不能为空", LangEn: "Phone number is required", LangMn: "Утасны дугаар хоосон байж болохгүй"},
+	"passwordError":    {LangZh: "密码错误", LangEn: "Incorrect password", LangMn: "Нууц үг буруу"},
+	"userNotExist":     {LangZh: "用户不存在", LangEn: "User not found", LangMn: "Хэрэглэгч олдсонгүй"},
 
 	// ========== JWT 中间件 ==========
 	"notLogin":     {LangZh: "未登录或非法访问，请登录", LangEn: "Please login to continue", LangMn: "Нэвтэрнэ үү"},

@@ -16,17 +16,17 @@ export const useAppConfigStore = defineStore('appConfig', () => {
         getAppName(),
         getAppLogo(),
       ])
-      if (symRes.code === 0 && symRes.data && symRes.data.configValue) {
-        currencySymbol.value = symRes.data.configValue
-        uni.setStorageSync('currency_symbol', symRes.data.configValue)
+      if (symRes.code === 0 && symRes.data) {
+        const sym = typeof symRes.data === 'object' ? symRes.data.configValue : symRes.data
+        if (sym) { currencySymbol.value = sym; uni.setStorageSync('currency_symbol', sym) }
       }
-      if (nameRes.code === 0 && nameRes.data && nameRes.data.configValue) {
-        appName.value = nameRes.data.configValue
-        uni.setStorageSync('app_name', nameRes.data.configValue)
+      if (nameRes.code === 0 && nameRes.data) {
+        const name = typeof nameRes.data === 'object' ? nameRes.data.configValue : nameRes.data
+        if (name) { appName.value = name; uni.setStorageSync('app_name', name) }
       }
-      if (logoRes.code === 0 && logoRes.data && logoRes.data.configValue) {
-        appLogo.value = logoRes.data.configValue
-        uni.setStorageSync('app_logo', logoRes.data.configValue)
+      if (logoRes.code === 0 && logoRes.data) {
+        const logo = typeof logoRes.data === 'object' ? logoRes.data.configValue : logoRes.data
+        if (logo) { appLogo.value = logo; uni.setStorageSync('app_logo', logo) }
       }
       loaded.value = true
     } catch (e) {

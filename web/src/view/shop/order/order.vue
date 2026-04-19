@@ -17,9 +17,21 @@
       </el-form-item>
 
         <el-form-item label="购买者ID" prop="userID">
-
              <el-input v-model.number="searchInfo.userID" placeholder="搜索条件" />
-
+        </el-form-item>
+        <el-form-item label="订单状态" prop="status">
+          <el-select v-model="searchInfo.status" placeholder="全部" clearable style="width: 130px">
+            <el-option v-for="item in orderStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="商品ID" prop="goodID">
+          <el-input v-model.number="searchInfo.goodID" placeholder="商品ID" style="width: 120px" />
+        </el-form-item>
+        <el-form-item label="预售" prop="isPresale">
+          <el-select v-model="searchInfo.isPresale" placeholder="全部" clearable style="width: 100px">
+            <el-option label="预售" :value="true" />
+            <el-option label="普通" :value="false" />
+          </el-select>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" icon="search" @click="onSubmit">查询</el-button>
@@ -28,6 +40,17 @@
       </el-form>
     </div>
     <div class="gva-table-box">
+        <div class="gva-btn-list">
+          <el-button icon="delete" style="margin-left: 10px;" :disabled="!multipleSelection.length" @click="onBatchDelete">批量删除</el-button>
+          <el-popover placement="bottom" :width="200" trigger="click" :disabled="!multipleSelection.length">
+            <template #reference>
+              <el-button :disabled="!multipleSelection.length">批量变更状态</el-button>
+            </template>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <el-button v-for="item in batchStatusOptions" :key="item.value" size="small" @click="onBatchUpdateStatus(item.value)">{{ item.label }}</el-button>
+            </div>
+          </el-popover>
+        </div>
         <el-table
         ref="multipleTable"
         style="width: 100%"
@@ -36,7 +59,9 @@
         row-key="ID"
         :default-sort="{ prop: 'ID', order: 'descending' }"
         @sort-change="sortChange"
+        @selection-change="handleSelectionChange"
         >
+        <el-table-column type="selection" width="55" />
 
         <el-table-column align="left" label="ID" prop="ID" width="70" sortable="custom" />
         <el-table-column align="left" label="日期" prop="CreatedAt" width="180" sortable="custom">
@@ -47,9 +72,17 @@
         <el-table-column align="left" label="订单价格（分）" prop="totalPrice" width="200" />
         <el-table-column align="left" label="订单状态" prop="status" width="120">
             <template #default="scope">
-            {{ filterDict(scope.row.status,orderStatusOptions) }}
+              <el-tag :type="getStatusType(scope.row.status)" size="small">
+                {{ filterDict(scope.row.status,orderStatusOptions) }}
+              </el-tag>
             </template>
         </el-table-column>
+          <el-table-column align="left" label="预售" prop="isPresale" width="80">
+            <template #default="scope">
+              <el-tag v-if="scope.row.isPresale" type="warning" size="small">预售</el-tag>
+              <span v-else>-</span>
+            </template>
+          </el-table-column>
           <el-table-column align="left" label="收货人" prop="name" width="120" />
           <el-table-column align="left" label="收货电话" prop="phone" width="120" />
           <el-table-column align="left" label="收货地址" prop="addr" width="120">
@@ -380,9 +413,11 @@
 import {
   createOrder,
   deleteOrder,
+  deleteOrderByIds,
   updateOrder,
   findOrder,
-  getOrderList, checkRouters, refundOrder, confirmPayment
+  getOrderList, checkRouters, refundOrder, confirmPayment,
+  batchUpdateOrderStatus
 } from '@/api/shop/order'
 
 // 全量引入格式化工具 请按需保留
@@ -438,6 +473,17 @@ const total = ref(0)
 const pageSize = ref(10)
 const tableData = ref([])
 const searchInfo = ref({})
+const multipleSelection = ref([])
+
+// 批量变更的状态选项
+const batchStatusOptions = [
+  { label: '取消订单', value: '4' },
+  { label: '已发货', value: '2' },
+]
+
+const handleSelectionChange = (val) => {
+  multipleSelection.value = val
+}
 
 // 重置
 const onReset = () => {
@@ -469,7 +515,11 @@ const handleCurrentChange = (val) => {
 
 // 查询
 const getTableData = async() => {
-  const table = await getOrderList({ page: page.value, pageSize: pageSize.value, ...searchInfo.value })
+  const params = { page: page.value, pageSize: pageSize.value, ...searchInfo.value }
+  // 清理无效的数值搜索条件（v-model.number 清空后会变成 0 或 NaN）
+  if (!params.userID) delete params.userID
+  if (!params.goodID) delete params.goodID
+  const table = await getOrderList(params)
   if (table.code === 0) {
     tableData.value = table.data.list
     total.value = table.data.total
@@ -516,6 +566,42 @@ const deleteRow = (row) => {
             deleteOrderFunc(row)
         })
     }
+
+// 批量删除
+const onBatchDelete = () => {
+  ElMessageBox.confirm(`确定要删除选中的 ${multipleSelection.value.length} 条订单吗?`, '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    const IDs = multipleSelection.value.map(item => item.ID)
+    const res = await deleteOrderByIds({ 'IDs[]': IDs })
+    if (res.code === 0) {
+      ElMessage({ type: 'success', message: '批量删除成功' })
+      if (tableData.value.length === multipleSelection.value.length && page.value > 1) {
+        page.value--
+      }
+      getTableData()
+    }
+  })
+}
+
+// 批量变更状态
+const onBatchUpdateStatus = (status) => {
+  const statusLabel = orderStatusOptions.value.find(i => i.value === status)?.label || status
+  ElMessageBox.confirm(`确定要将选中的 ${multipleSelection.value.length} 条订单状态变更为"${statusLabel}"吗?`, '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    const IDs = multipleSelection.value.map(item => String(item.ID))
+    const res = await batchUpdateOrderStatus({ IDs, status })
+    if (res.code === 0) {
+      ElMessage({ type: 'success', message: '批量变更成功' })
+      getTableData()
+    }
+  })
+}
 
 
 // 行为控制标记（弹窗内部需要增还是改）
@@ -692,7 +778,8 @@ const getStatusType = (status) => {
     '3': 'success',  // 已完成
     '4': 'danger',   // 已取消
     '5': 'danger',   // 已退款
-    '6': 'warning'   // 退款中
+    '6': 'warning',  // 退款中
+    '7': 'success'   // 已评价
   }
   return statusMap[status] || 'info'
 }

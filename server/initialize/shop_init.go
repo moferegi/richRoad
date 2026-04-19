@@ -71,6 +71,7 @@ func initShopApis(db *gorm.DB) {
 		{ApiGroup: "订单管理", Method: "POST", Path: "/order/refundOrder", Description: "处理退款"},
 		{ApiGroup: "订单管理", Method: "POST", Path: "/order/updateOrderStatus", Description: "更新订单状态"},
 		{ApiGroup: "订单管理", Method: "POST", Path: "/order/confirmPayment", Description: "确认收款"},
+		{ApiGroup: "订单管理", Method: "POST", Path: "/order/batchUpdateOrderStatus", Description: "批量更新订单状态"},
 		{ApiGroup: "订单管理", Method: "GET", Path: "/order/selfOrder", Description: "我的订单详情"},
 		{ApiGroup: "订单管理", Method: "GET", Path: "/order/selfOrderList", Description: "我的订单列表"},
 		{ApiGroup: "订单管理", Method: "GET", Path: "/order/selfOrderComment", Description: "我的订单评论"},
@@ -156,6 +157,7 @@ func initShopApis(db *gorm.DB) {
 		{ApiGroup: "客户端用户", Method: "PUT", Path: "/clientUser/updateUser", Description: "更新用户"},
 		{ApiGroup: "客户端用户", Method: "DELETE", Path: "/clientUser/deleteUser", Description: "删除用户"},
 		{ApiGroup: "客户端用户", Method: "POST", Path: "/clientUser/changePassword", Description: "修改密码"},
+		{ApiGroup: "客户端用户", Method: "POST", Path: "/clientUser/setPhoneVerified", Description: "验证后设置手机号"},
 		// SKU规格字典
 		{ApiGroup: "SKU规格字典", Method: "POST", Path: "/skuSpec/createSkuSpec", Description: "创建SKU规格字典"},
 		{ApiGroup: "SKU规格字典", Method: "DELETE", Path: "/skuSpec/deleteSkuSpec", Description: "删除SKU规格字典"},
@@ -232,6 +234,7 @@ func initShopCasbin(db *gorm.DB) {
 		{"/order/refundOrder", "POST"},
 		{"/order/updateOrderStatus", "POST"},
 		{"/order/confirmPayment", "POST"},
+		{"/order/batchUpdateOrderStatus", "POST"},
 		{"/order/selfOrder", "GET"},
 		{"/order/selfOrderList", "GET"},
 		{"/order/selfOrderComment", "GET"},
@@ -317,6 +320,7 @@ func initShopCasbin(db *gorm.DB) {
 		{"/clientUser/updateUser", "PUT"},
 		{"/clientUser/deleteUser", "DELETE"},
 		{"/clientUser/changePassword", "POST"},
+		{"/clientUser/setPhoneVerified", "POST"},
 		// SKU规格字典
 		{"/skuSpec/createSkuSpec", "POST"},
 		{"/skuSpec/deleteSkuSpec", "DELETE"},

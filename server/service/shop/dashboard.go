@@ -25,16 +25,18 @@ func (s *DashboardService) GetDashboardOverview() (overview shop.DashboardOvervi
 	db := global.GVA_DB
 	today := time.Now().Format("2006-01-02")
 
+	paidStatuses := []string{"1", "2", "3", "7"}
+
 	// === 销售额 ===
-	scanOrLog("totalSales", db.Model(&shop.Order{}).Where("status IN ?", []string{"1", "2", "3"}).
+	scanOrLog("totalSales", db.Model(&shop.Order{}).Where("status IN ?", paidStatuses).
 		Select("COALESCE(SUM(total_price),0)").Scan(&overview.TotalSales))
-	scanOrLog("todaySales", db.Model(&shop.Order{}).Where("status IN ? AND DATE(created_at) = ?", []string{"1", "2", "3"}, today).
+	scanOrLog("todaySales", db.Model(&shop.Order{}).Where("status IN ? AND DATE(created_at) = ?", paidStatuses, today).
 		Select("COALESCE(SUM(total_price),0)").Scan(&overview.TodaySales))
 
 	// === 订单统计 ===
 	scanOrLog("orderTotal", db.Model(&shop.Order{}).Count(&overview.OrderTotal))
 	scanOrLog("orderPending", db.Model(&shop.Order{}).Where("status = ?", "0").Count(&overview.OrderPending))
-	scanOrLog("orderPaid", db.Model(&shop.Order{}).Where("status IN ?", []string{"1", "2", "3"}).Count(&overview.OrderPaid))
+	scanOrLog("orderPaid", db.Model(&shop.Order{}).Where("status IN ?", paidStatuses).Count(&overview.OrderPaid))
 	scanOrLog("orderShipped", db.Model(&shop.Order{}).Where("status = ?", "2").Count(&overview.OrderShipped))
 	scanOrLog("orderReceived", db.Model(&shop.Order{}).Where("status = ?", "3").Count(&overview.OrderReceived))
 	scanOrLog("orderCancelled", db.Model(&shop.Order{}).Where("status = ?", "4").Count(&overview.OrderCancelled))
@@ -47,17 +49,28 @@ func (s *DashboardService) GetDashboardOverview() (overview shop.DashboardOvervi
 	scanOrLog("couponClaimedCount", db.Model(&shop.Coupon{}).Select("COALESCE(SUM(claimed),0)").Scan(&overview.CouponClaimedCount))
 	scanOrLog("couponIssuedAmount", db.Model(&shop.Coupon{}).Select("COALESCE(SUM(quantity * discount),0)").Scan(&overview.CouponIssuedAmount))
 	var usedCouponAmount int64
-	scanOrLog("couponUsedAmount", db.Model(&shop.CouponOrderUser{}).Where("status = ?", true).
+	scanOrLog("couponUsedAmount", db.Model(&shop.CouponOrderUser{}).Where("coupon_order_user.status = ?", true).
 		Joins("LEFT JOIN shop_coupon ON coupon_order_user.coupon_id = shop_coupon.id").
+		Joins("LEFT JOIN shop_order ON coupon_order_user.order_id = shop_order.id").
+		Where("shop_order.status IN ?", paidStatuses).
 		Select("COALESCE(SUM(shop_coupon.discount),0)").Scan(&usedCouponAmount))
 	overview.CouponUsedAmount = usedCouponAmount
 
 	// === 积分统计 ===
-	var pointsIssued, pointsUsed int64
-	scanOrLog("pointsIssued", db.Model(&client.PointRecord{}).Where("change_type = ?", "increase").
+	var pointsIssued int64
+	// 发放积分：所有增加记录，排除退还积分(point_refund)
+	scanOrLog("pointsIssued", db.Model(&client.PointRecord{}).Where("change_type = ? AND operation_type != ?", "increase", "point_refund").
 		Select("COALESCE(SUM(point_change),0)").Scan(&pointsIssued))
-	scanOrLog("pointsUsed", db.Model(&client.PointRecord{}).Where("change_type = ?", "decrease").
-		Select("COALESCE(SUM(ABS(point_change)),0)").Scan(&pointsUsed))
+	// 消耗积分（净值）：point_exchange 总额 - point_refund 退还总额
+	var pointExchangeTotal, pointRefundTotal int64
+	scanOrLog("pointExchange", db.Model(&client.PointRecord{}).Where("operation_type = ?", "point_exchange").
+		Select("COALESCE(SUM(ABS(point_change)),0)").Scan(&pointExchangeTotal))
+	scanOrLog("pointRefund", db.Model(&client.PointRecord{}).Where("operation_type = ?", "point_refund").
+		Select("COALESCE(SUM(ABS(point_change)),0)").Scan(&pointRefundTotal))
+	pointsUsed := pointExchangeTotal - pointRefundTotal
+	if pointsUsed < 0 {
+		pointsUsed = 0
+	}
 	overview.PointsIssued = pointsIssued
 	overview.PointsUsed = pointsUsed
 
@@ -102,7 +115,7 @@ func (s *DashboardService) get7DaySalesTrend() []shop.DayValue {
 		d := time.Now().AddDate(0, 0, -i).Format("2006-01-02")
 		var val int64
 		db.Model(&shop.Order{}).
-			Where("status IN ? AND DATE(created_at) = ?", []string{"1", "2", "3"}, d).
+			Where("status IN ? AND DATE(created_at) = ?", []string{"1", "2", "3", "7"}, d).
 			Select("COALESCE(SUM(total_price),0)").Scan(&val)
 		result[6-i] = shop.DayValue{Date: d, Value: val}
 	}

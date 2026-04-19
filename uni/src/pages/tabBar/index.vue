@@ -42,6 +42,26 @@
       <!-- 轮播图区域 -->
       <swpiers :lists="list"></swpiers>
 
+      <!-- App品牌展示：Logo/名称轮播切换 -->
+      <view class="nf-brand" v-if="appConfigStore.appName || appConfigStore.appLogo">
+        <view class="nf-brand-stage">
+          <!-- Logo -->
+          <image
+            v-if="appConfigStore.appLogo"
+            class="nf-brand-logo"
+            :class="(!appConfigStore.appName || brandShowLogo) ? 'nf-brand-in' : 'nf-brand-out'"
+            :src="getExternalUrl(appConfigStore.appLogo)"
+            mode="aspectFit"
+          />
+          <!-- 名称 -->
+          <text
+            v-if="appConfigStore.appName"
+            class="nf-brand-name"
+            :class="(!appConfigStore.appLogo || !brandShowLogo) ? 'nf-brand-in' : 'nf-brand-out'"
+          >{{ appConfigStore.appName }}</text>
+        </view>
+      </view>
+
       <!-- 1. 公告走马灯 -->
       <announcement-marquee
         :enabled="announcementConfig.enabled"
@@ -168,6 +188,23 @@ const langLabel = computed(() => {
 })
 const showLangPicker = ref(false)
 
+// ========== 品牌Logo/名称轮播 ==========
+const brandShowLogo = ref(true)
+let brandTimer = null
+
+const startBrandTimer = () => {
+  // 只有同时有Logo和名称时才轮播
+  if (appConfigStore.appLogo && appConfigStore.appName) {
+    brandTimer = setInterval(() => {
+      brandShowLogo.value = !brandShowLogo.value
+    }, 5000)
+  }
+}
+
+onUnmounted(() => {
+  if (brandTimer) { clearInterval(brandTimer); brandTimer = null }
+})
+
 // 启动时恢复 tabBar 语言
 langStore.updateTabBar(langStore.locale)
 
@@ -219,11 +256,18 @@ const initPresale = async () => {
   try {
     // 获取后台配置的首页展示数量
     const countRes = await getPresaleHomeCount()
-    if (countRes.code === 0 && countRes.data) {
+    if (countRes.code === 0 && countRes.data != null) {
       const val = typeof countRes.data === 'object' ? countRes.data.configValue : countRes.data
-      presaleHomeCount.value = parseInt(val) || 4
+      const parsed = parseInt(val)
+      presaleHomeCount.value = isNaN(parsed) ? 4 : parsed
     }
   } catch (e) {}
+
+  // presale_home_count=0 时不展示预售区域
+  if (presaleHomeCount.value <= 0) {
+    presaleList.value = []
+    return
+  }
 
   try {
     const res = await getPresaleGoodList({ page: 1, pageSize: presaleHomeCount.value })
@@ -434,6 +478,8 @@ lower(true)
 // 延迟获取分类锚点位置
 onShow(() => {
   setTimeout(getCategoryAnchorTop, 500)
+  // 启动品牌轮播
+  if (!brandTimer) startBrandTimer()
 })
 
 const debounce = (func, delay) => {
@@ -473,6 +519,56 @@ page {
   background:
     radial-gradient(ellipse at 20% 0%, rgba(229, 9, 20, 0.12) 0%, transparent 60%),
     radial-gradient(ellipse at 80% 10%, rgba(229, 9, 20, 0.08) 0%, transparent 50%);
+}
+
+/* ===== App品牌展示 - 轮播切换 ===== */
+.nf-brand {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 24rpx 48rpx 16rpx;
+}
+.nf-brand-stage {
+  position: relative;
+  width: 260rpx;
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nf-brand-logo {
+  position: absolute;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 12rpx;
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.nf-brand-name {
+  position: absolute;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.78);
+  letter-spacing: 3rpx;
+  white-space: nowrap;
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+/* 显示状态 */
+.nf-brand-in.nf-brand-logo {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+.nf-brand-in.nf-brand-name {
+  opacity: 1;
+  transform: translateY(0) scaleX(1);
+}
+/* 隐藏状态 */
+.nf-brand-out.nf-brand-logo {
+  opacity: 0;
+  transform: scale(0.5) rotate(-90deg);
+}
+.nf-brand-out.nf-brand-name {
+  opacity: 0;
+  transform: translateY(10rpx) scaleX(0.85);
 }
 
 /* ===== 顶部栏 ===== */
