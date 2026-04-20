@@ -7,7 +7,7 @@
       <view class="nf-navbar-status"></view>
       <view class="nf-navbar-content">
         <view class="nf-navbar-back" @tap="goBack">
-          <text class="nf-back-icon">&#xe603;</text>
+          <uni-icons type="left" size="20" color="#fff"></uni-icons>
         </view>
         <text class="nf-navbar-title">{{ $t('navLogin') }}</text>
         <view class="nf-lang-btn" @tap="showLangPicker = true">
@@ -38,7 +38,7 @@
         <!-- 用户名模式 -->
         <view class="nf-field" v-if="loginMode === 'username'">
           <text class="nf-label">{{ $t('account') }}</text>
-          <input class="nf-input" name="username" :placeholder="$t('accountPlaceholder')" maxlength="30" v-model="form.username" />
+          <input class="nf-input" name="username" :placeholder="usernamePlaceholder" maxlength="30" v-model="form.username" />
         </view>
 
         <!-- 手机号模式 -->
@@ -55,7 +55,7 @@
 
         <view class="nf-field">
           <text class="nf-label">{{ $t('password') }}</text>
-          <input class="nf-input" type="password" name="password" maxlength="18" :placeholder="$t('passwordPlaceholder')" v-model="form.password" />
+          <input class="nf-input" type="password" name="password" maxlength="18" :placeholder="passwordPlaceholder" v-model="form.password" />
         </view>
         <view class="nf-field nf-captcha-field">
           <text class="nf-label">{{ $t('captcha') }}</text>
@@ -115,7 +115,7 @@
 	const showLangPicker = ref(false)
 
 	const goBack = () => {
-	  uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/tabBar/index' }) })
+	  uni.switchTab({ url: '/pages/tabBar/index' })
 	}
 
 	const userStore = useUserStore()
@@ -127,6 +127,33 @@
 	const showAreaCodePicker = ref(false)
 	const areaCodes = ref([])
 	const selectedAreaCode = ref('+86')
+
+	// 正则和提示配置
+	const usernameRegex = ref('')
+	const passwordRegex = ref('')
+	const usernameRegexTip = ref('')
+	const passwordRegexTip = ref('')
+
+	// 解析多语言JSON配置
+	const parseLangTip = (jsonStr) => {
+		if (!jsonStr) return ''
+		try {
+			const obj = JSON.parse(jsonStr)
+			return obj[langStore.locale] || obj['zh'] || obj['en'] || ''
+		} catch(e) {
+			return jsonStr
+		}
+	}
+
+	// 计算 placeholder
+	const usernamePlaceholder = computed(() => {
+		const tip = parseLangTip(usernameRegexTip.value)
+		return tip || $t.value('accountPlaceholder')
+	})
+	const passwordPlaceholder = computed(() => {
+		const tip = parseLangTip(passwordRegexTip.value)
+		return tip || $t.value('passwordPlaceholder')
+	})
 
 	const form = reactive({
 		username: '',
@@ -156,6 +183,11 @@
 				} else {
 					loginMode.value = 'username'
 				}
+				// 正则和提示
+				usernameRegex.value = res.data.username_regex || ''
+				passwordRegex.value = res.data.password_regex || ''
+				usernameRegexTip.value = res.data.username_regex_tip || ''
+				passwordRegexTip.value = res.data.password_regex_tip || ''
 			}
 		} catch(e) {}
 	}
@@ -178,8 +210,10 @@
 	const selectArea = (item) => {
 		selectedAreaCode.value = item.areaCode
 		form.areaCode = item.areaCode
+		selectedAreaItem.value = item
 		showAreaCodePicker.value = false
 	}
+	const selectedAreaItem = ref(null)
 
 	const captchaImg = ref("")
 
@@ -205,15 +239,47 @@
 				uni.showToast({ title: $t.value('enterUsername'), icon: 'none' })
 				return
 			}
+			// 用户名正则验证
+			if (usernameRegex.value) {
+				try {
+					const regex = new RegExp(usernameRegex.value)
+					if (!regex.test(form.username)) {
+						const tip = parseLangTip(usernameRegexTip.value)
+						uni.showToast({ title: tip || $t.value('enterUsername'), icon: 'none' })
+						return
+					}
+				} catch(e) {}
+			}
 		} else {
 			if (!form.phone) {
 				uni.showToast({ title: $t.value('phonePlaceholder'), icon: 'none' })
 				return
 			}
+			// Phone regex validation
+			if (selectedAreaItem.value && selectedAreaItem.value.phoneRegex) {
+				try {
+					const regex = new RegExp(selectedAreaItem.value.phoneRegex)
+					if (!regex.test(form.phone)) {
+						uni.showToast({ title: $t.value('phoneFormatInvalid'), icon: 'none' })
+						return
+					}
+				} catch(e) {}
+			}
 		}
 		if (!form.password) {
 			uni.showToast({ title: $t.value('enterPassword'), icon: 'none' })
 			return
+		}
+		// 密码正则验证
+		if (passwordRegex.value) {
+			try {
+				const regex = new RegExp(passwordRegex.value)
+				if (!regex.test(form.password)) {
+					const tip = parseLangTip(passwordRegexTip.value)
+					uni.showToast({ title: tip || $t.value('enterPassword'), icon: 'none' })
+					return
+				}
+			} catch(e) {}
 		}
 		if (!form.captcha) {
 			uni.showToast({ title: $t.value('enterCaptcha'), icon: 'none' })
@@ -296,19 +362,14 @@ page { background-color: #000; }
   align-items: center;
   justify-content: center;
   border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
   transition: background 0.3s;
 
   &:active {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.12);
+    transform: scale(0.93);
   }
-}
-
-.nf-back-icon {
-  font-size: 36rpx;
-  color: #fff;
-  font-family: 'iconfont';
-  /* fallback arrow */
-  &::before { content: '←'; font-family: inherit; }
 }
 
 .nf-navbar-title {

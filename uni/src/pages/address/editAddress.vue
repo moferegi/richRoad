@@ -183,8 +183,12 @@ const changeProvince = async (e) => {
   if (formData.value.provinceSelect) {
     isCity.value = true
     formData.value.province = selectedItems.name
+    formData.value.provinceStr = selectedItems.name
     formData.value.citySelect = null
     formData.value.countySelect = null
+    formData.value.cityStr = ''
+    formData.value.county = ''
+    formData.value.areaStr = ''
     const city = await getGeos({ level: 0, code: selectedItems.code })
     areaCity.value = changeKey(city.data)
   } else {
@@ -197,6 +201,7 @@ const changeCity = async (e) => {
   if (formData.value.citySelect) {
     isCounty.value = true
     formData.value.city = selectedItems.name
+    formData.value.cityStr = selectedItems.name
     const counties = await getGeos({ level: 1, code: selectedItems.code })
     areaCounty.value = changeKey(counties.data)
   } else {
@@ -208,6 +213,7 @@ const changeCounty = (e) => {
   const selectedItems = findCodeByValue(areaCounty.value, e)
   if (formData.value.countySelect) {
     formData.value.county = selectedItems.name
+    formData.value.areaStr = selectedItems.name
   }
 }
 
@@ -235,11 +241,11 @@ const confirm = async () => {
     phone: formData.value.phone,
     areaCode: formData.value.areaCode || selectedAreaCode.value,
     province: Number(formData.value.provinceSelect),
-    provinceStr: formData.value.provinceStr,
+    provinceStr: formData.value.provinceStr || formData.value.province,
     city: Number(formData.value.citySelect),
-    cityStr: formData.value.cityStr,
+    cityStr: formData.value.cityStr || formData.value.city,
     area: Number(formData.value.countySelect),
-    areaStr: formData.value.county,
+    areaStr: formData.value.areaStr || formData.value.county,
     street: formData.value.street,
     active: formData.value.active,
   }
@@ -247,7 +253,7 @@ const confirm = async () => {
   const res = await updateAddress(data)
   if (res.code === 0) {
     uni.showToast({ icon: 'none', title: $t.value('saveSuccess') })
-    uni.navigateTo({ url: `/pages/address/address?ID=${orderID.value}` })
+    uni.navigateBack()
   }
 }
 

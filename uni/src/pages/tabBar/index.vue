@@ -352,7 +352,7 @@ const goSignIn = async () => {
   try {
     // 检查是否已签到
     const statusRes = await getSignInStatus()
-    if (statusRes.code === 0 && statusRes.data && statusRes.data.signedToday) {
+    if (statusRes.code === 0 && statusRes.data && statusRes.data.signed) {
       uni.showToast({ title: $t.value('alreadySigned'), icon: 'none' })
       return
     }

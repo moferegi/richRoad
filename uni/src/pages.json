@@ -132,21 +132,24 @@
 		}, {
 			"path": "pages/address/address",
 			"style": {
-				"navigationBarTitleText": "收货地址",
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
 				"enablePullDownRefresh": false
 			}
 
 		}, {
 			"path": "pages/address/addAddress",
 			"style": {
-				"navigationBarTitleText": "新增地址",
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
 				"enablePullDownRefresh": false
 			}
 
 		}, {
 			"path": "pages/address/editAddress",
 			"style": {
-				"navigationBarTitleText": "编辑地址",
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
 				"enablePullDownRefresh": false
 			}
 

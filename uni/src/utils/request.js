@@ -1,6 +1,22 @@
 import { myRouter }from  '@/utils/permission.js'
 import { t, localText } from '@/utils/i18n.js'
 
+// 后端中文错误消息 → i18n key 映射
+const backendErrorMap = {
+    '验证码请求过于频繁，请稍后再试': 'captchaRateLimit',
+    '旧密码错误': 'oldPasswordWrong',
+    '用户不存在': 'userNotFound',
+    '密码错误': 'passwordWrong',
+    '该手机号已注册': 'phoneAlreadyRegistered',
+    '手机号格式不正确': 'phoneFormatInvalid',
+    '手机号不存在或密码错误': 'phoneOrPasswordWrong',
+    '用户名或密码错误': 'usernameOrPasswordWrong',
+    '用户名不存在或者密码错误': 'usernameOrPasswordWrong',
+    '登录失败次数过多，请稍后再试': 'loginLocked',
+    '注册次数已达上限': 'registerIPLimit',
+    '今日已签到': 'alreadySigned',
+}
+
 // 定义并导出 baseUrl 变量
 export let baseUrl = '/api'
 if (process.env.NODE_ENV === 'development') {
@@ -77,8 +93,10 @@ export const request = ({url, data, header, method, params}) => {
                 }
                 // 通用错误提示：排除上面已处理的特殊状态
                 if(res.data.code != 0){
+                    const i18nKey = backendErrorMap[res.data.msg]
+                    const msg = i18nKey ? t(i18nKey) : res.data.msg
 					uni.showToast({
-						title: res.data.msg,
+						title: msg,
 						icon: 'none'
 					});
 				}

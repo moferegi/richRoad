@@ -123,7 +123,7 @@
     <!-- 加载更多提示 -->
     <view class="nf-load-more" v-if="orderList.length > 0">
       <text class="nf-load-text" v-if="isLoading">{{ $t('loading') }}</text>
-      <text class="nf-load-text" v-else-if="isBottom">— END —</text>
+      <text class="nf-load-text" v-else-if="isBottom">— {{ $t('noMoreData') }} —</text>
       <text class="nf-load-btn" v-else @tap="loadMore">{{ $t('loadMore') || 'Load More' }}</text>
     </view>
 
@@ -296,7 +296,7 @@ const formatOrderDate = (t) => {
 
 const cancelOrder = (item) => {
   uni.showModal({
-    title: $t.value('cancelOrderHint'), content: $t.value('cancelOrderConfirm'), confirmColor: "#e50914",
+    title: $t.value('cancelOrderHint'), content: $t.value('cancelOrderConfirm'), confirmColor: "#e50914", cancelText: $t.value('cancel'), confirmText: $t.value('confirm'),
     success: async (res) => {
       if (res.confirm) {
         const r = await updateOrderStatus({ ID: item.ID, status: "4" })

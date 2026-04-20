@@ -64,6 +64,8 @@ func initNewModulesApis(db *gorm.DB) {
 		{ApiGroup: "签到管理", Method: "POST", Path: "/signIn/doSignIn", Description: "用户签到"},
 		{ApiGroup: "签到管理", Method: "GET", Path: "/signIn/getSignInStatus", Description: "获取签到状态"},
 		{ApiGroup: "签到管理", Method: "GET", Path: "/signIn/getSignInRecords", Description: "获取签到记录"},
+		{ApiGroup: "签到管理", Method: "GET", Path: "/signIn/getSignInList", Description: "管理端获取签到列表"},
+		{ApiGroup: "签到管理", Method: "DELETE", Path: "/signIn/deleteSignIn", Description: "管理端删除签到记录"},
 		// 外部链接域名
 		{ApiGroup: "外部链接域名", Method: "POST", Path: "/extDomain/createExternalLinkDomain", Description: "创建外部链接域名"},
 		{ApiGroup: "外部链接域名", Method: "DELETE", Path: "/extDomain/deleteExternalLinkDomain", Description: "删除外部链接域名"},
@@ -124,6 +126,7 @@ func initNewModulesMenus(db *gorm.DB) {
 			menuDef{"language", "language", "view/client/language/language.vue", "语言管理", "edit", clientParent.ID, 13},
 			menuDef{"phoneAreaCode", "phoneAreaCode", "view/client/phoneAreaCode/phoneAreaCode.vue", "国际区号", "phone", clientParent.ID, 14},
 			menuDef{"externalLinkDomain", "externalLinkDomain", "view/client/externalLinkDomain/externalLinkDomain.vue", "外部链接域名", "link", clientParent.ID, 15},
+			menuDef{"signInManage", "signInManage", "view/client/signIn/signIn.vue", "签到管理", "calendar", clientParent.ID, 16},
 		)
 	}
 
@@ -208,6 +211,8 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/signIn/doSignIn", "POST"},
 		{"/signIn/getSignInStatus", "GET"},
 		{"/signIn/getSignInRecords", "GET"},
+		{"/signIn/getSignInList", "GET"},
+		{"/signIn/deleteSignIn", "DELETE"},
 		// 外部链接域名
 		{"/extDomain/createExternalLinkDomain", "POST"},
 		{"/extDomain/deleteExternalLinkDomain", "DELETE"},

@@ -81,3 +81,69 @@ func (api *SignInApi) GetSignInRecords(c *gin.Context) {
 		}, "获取成功", c)
 	}
 }
+
+// GetSignInList 管理端获取签到记录列表
+// @Tags SignIn
+// @Summary 管理端获取所有用户签到记录列表
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
+// @Param userId query string false "用户ID"
+// @Param username query string false "用户名(模糊搜索)"
+// @Param orderKey query string false "排序字段(sign_date/total_days)"
+// @Param desc query bool false "是否降序"
+// @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
+// @Router /signIn/getSignInList [get]
+func (api *SignInApi) GetSignInList(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	userId := c.Query("userId")
+	username := c.Query("username")
+	orderKey := c.Query("orderKey")
+	desc := c.Query("desc") == "true"
+	startDate := ""
+	endDate := ""
+	dateRange := c.QueryArray("signDateRange[]")
+	if len(dateRange) == 2 {
+		startDate = dateRange[0]
+		endDate = dateRange[1]
+	}
+
+	if list, total, err := signInService.GetSignInList(page, pageSize, userId, username, startDate, endDate, orderKey, desc); err != nil {
+		global.GVA_LOG.Error("获取签到列表失败!", zap.Error(err))
+		response.FailWithMessage("获取失败", c)
+	} else {
+		response.OkWithDetailed(response.PageResult{
+			List:     list,
+			Total:    total,
+			Page:     page,
+			PageSize: pageSize,
+		}, "获取成功", c)
+	}
+}
+
+// DeleteSignIn 管理端删除签到记录
+// @Tags SignIn
+// @Summary 管理端删除签到记录
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param ID query int true "签到记录ID"
+// @Success 200 {object} response.Response{msg=string} "删除成功"
+// @Router /signIn/deleteSignIn [delete]
+func (api *SignInApi) DeleteSignIn(c *gin.Context) {
+	idStr := c.Query("ID")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id == 0 {
+		response.FailWithMessage("参数错误", c)
+		return
+	}
+	if err := signInService.DeleteSignIn(uint(id)); err != nil {
+		global.GVA_LOG.Error("删除签到记录失败!", zap.Error(err))
+		response.FailWithMessage("删除失败", c)
+	} else {
+		response.OkWithMessage("删除成功", c)
+	}
+}

@@ -30,11 +30,6 @@ export const useUserStore = defineStore('user', () => {
 			})
             return true
         }
-        uni.showToast({	// 提示错误信息
-            icon:'none',
-            title: res.msg,
-            duration: 3000
-        })
         return false
     }
 
@@ -48,11 +43,6 @@ export const useUserStore = defineStore('user', () => {
 			})
             return true
         }
-        uni.showToast({
-            icon:'none',
-            title: res.msg,
-            duration: 3000
-        })
         return false
     }
 

@@ -234,7 +234,7 @@ const confirm = async () => {
   const res = await createAddress(data)
   if (res.code === 0) {
     uni.showToast({ icon: 'none', title: $t.value('saveSuccess') })
-    uni.navigateTo({ url: `/pages/address/address?ID=${orderID.value}` })
+    uni.navigateBack()
   }
 }
 

@@ -2,7 +2,7 @@
   <view class="goods-list">
     <view class="goods-row"  v-if="props.goodsList.length">
       <view v-for="(item, index) in props.goodsList" :key="index" class="goods-item" @tap="handleGoodsClick(item)">
-        <image :src="getUrl(item.externalImagePath || item.imageUrl)" class="goods-image" mode="aspectFill"></image>
+        <image :src="item.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(item.imageUrl)" class="goods-image" mode="aspectFill"></image>
         <view class="goods-info">
           <text class="goods-name">{{ $lt(item.title) }}</text>
           <view class="price-container">
@@ -49,7 +49,7 @@
 
 <script setup>
 import {ref, computed, onMounted, onUnmounted} from 'vue'
-import {getUrl} from "@/utils/url";
+import {getUrl, getExternalUrl} from "@/utils/url";
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
@@ -242,6 +242,8 @@ onUnmounted(() => {
 /* 商品卡片 */
 .goods-item {
   width: calc(50% - 16rpx);
+  flex: 0 0 calc(50% - 16rpx);
+  max-width: calc(50% - 16rpx);
   background: rgba(255, 255, 255, 0.04);
   border: 1rpx solid rgba(255, 255, 255, 0.06);
   border-radius: 20rpx;
@@ -250,6 +252,7 @@ onUnmounted(() => {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   transition: all 0.3s ease;
+  box-sizing: border-box;
 
   &:active {
     transform: scale(0.97);

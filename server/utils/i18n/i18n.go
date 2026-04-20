@@ -32,7 +32,8 @@ var messages = map[string]map[string]string{
 
 	// ========== 认证/登录 ==========
 	"loginSuccess":     {LangZh: "登录成功", LangEn: "Login successful", LangMn: "Амжилттай нэвтэрлээ"},
-	"loginFail":        {LangZh: "用户名不存在或者密码错误", LangEn: "Invalid username or password", LangMn: "Хэрэглэгчийн нэр эсвэл нууц үг буруу"},
+	"loginFail":        {LangZh: "用户名或密码错误", LangEn: "Invalid username or password", LangMn: "Хэрэглэгчийн нэр эсвэл нууц үг буруу"},
+	"phoneLoginFail":   {LangZh: "手机号不存在或密码错误", LangEn: "Phone number not found or wrong password", LangMn: "Утасны дугаар эсвэл нууц үг буруу"},
 	"captchaError":     {LangZh: "验证码错误", LangEn: "Invalid captcha", LangMn: "Баталгаажуулах код буруу"},
 	"codeEmpty":        {LangZh: "code不能为空", LangEn: "Code is required", LangMn: "Код хоосон байж болохгүй"},
 	"openidFail":       {LangZh: "获取openid失败", LangEn: "Failed to get OpenID", LangMn: "OpenID авч чадсангүй"},

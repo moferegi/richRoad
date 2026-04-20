@@ -42,7 +42,7 @@
           <view class="nf-goods-info">
             <text class="nf-goods-name">{{ $lt(d?.sku?.name) || d?.sku?.name }}</text>
             <text class="nf-goods-desc">{{ $lt(d?.good?.description) || d?.good?.description }}</text>
-            <text class="nf-goods-specs">{{ formatSpecs(d?.sku?.specs) }}</text>
+            <text class="nf-goods-specs">{{ formatSpecs(d?.sku?.specs, d?.sku?.attrs) }}</text>
             <view class="nf-goods-bottom">
               <text class="nf-goods-price">{{ cs }}{{ (d.sku?.price || 0) / 100 }}</text>
               <text class="nf-goods-qty">×{{ d.quantity }}</text>
@@ -170,7 +170,7 @@
 <script setup>
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { selfOrder, updateOrderStatus } from '@/api/order.js'
+import { selfOrder, updateOrderStatus, updateOrder } from '@/api/order.js'
 import { checkNeedPay } from '@/api/base.js'
 import { getSysConfigByKey } from '@/api/sysConfig.js'
 import { getUrl, getExternalUrl } from "@/utils/url.js"
@@ -187,6 +187,7 @@ const $lt = computed(() => langStore.$lt)
 const orderID = ref('')
 const data = ref({})
 const hasAddress = ref(false)
+const pendingAddress = ref(null)
 const refundVisible = ref(false)
 const showRefundBtn = ref(true)
 const showLogisticsBtn = ref(true)
@@ -207,11 +208,12 @@ const getStatusLabel = (status) => {
   return map[status] || ''
 }
 
-const formatSpecs = (specs) => {
-  if (!specs || !Array.isArray(specs)) return ''
-  return specs.map(s => {
-    const label = $lt.value(s.label) || s.label || ''
-    const value = $lt.value(s.value) || s.value || ''
+const formatSpecs = (specs, attrs) => {
+  const arr = [...(Array.isArray(specs) ? specs : []), ...(Array.isArray(attrs) ? attrs : [])]
+  if (!arr.length) return ''
+  return arr.map(s => {
+    const label = $lt.value(s.labelI18n || s.nameI18n) || $lt.value(s.label || s.name) || s.label || s.name || ''
+    const value = $lt.value(s.valueI18n) || $lt.value(s.value) || s.value || ''
     return label ? `${label}: ${value}` : value
   }).join('  ')
 }
@@ -242,6 +244,20 @@ onLoad(async (options) => {
 let isFirstShow = true
 onShow(() => {
   if (isFirstShow) { isFirstShow = false; return }
+  // 检查是否有从地址页选回的地址
+  const addr = uni.getStorageSync('selectedAddress')
+  if (addr) {
+    uni.removeStorageSync('selectedAddress')
+    pendingAddress.value = addr
+    data.value.name = addr.name
+    data.value.phone = addr.phone
+    data.value.province = addr.provinceStr || addr.province
+    data.value.city = addr.cityStr || addr.city
+    data.value.area = addr.areaStr || addr.area
+    data.value.street = addr.street
+    hasAddress.value = true
+    return
+  }
   if (orderID.value) loadOrder()
 })
 
@@ -297,7 +313,13 @@ const updatePayCountdown = () => {
     if (!payExpiredHandled) {
       payExpiredHandled = true
       uni.showToast({ title: $t.value('payTimeout'), icon: 'none' })
-      setTimeout(() => { loadOrder() }, 1500)
+      // 先尝试从后端刷新，如果后端尚未自动取消，本地也强制展示已取消
+      setTimeout(async () => {
+        await loadOrder()
+        if (data.value.status === '0') {
+          data.value.status = '4'
+        }
+      }, 1500)
     }
     return
   }
@@ -331,6 +353,8 @@ const cancelOrder = () => {
     title: $t.value('cancelOrderHint'),
     content: $t.value('cancelOrderConfirm'),
     confirmColor: '#e50914',
+    cancelText: $t.value('cancel'),
+    confirmText: $t.value('confirm'),
     success: async (res) => {
       if (res.confirm) {
         const r = await updateOrderStatus({ ID: data.value.ID, status: '4' })
@@ -349,6 +373,21 @@ const payNow = async () => {
     setTimeout(() => { toAddress() }, 500)
     return
   }
+  // 如果有待提交的地址变更，先提交
+  if (pendingAddress.value) {
+    const addr = pendingAddress.value
+    await updateOrder({
+      ID: Number(orderID.value),
+      name: addr.name,
+      phone: addr.phone,
+      province: addr.provinceStr || addr.province,
+      city: addr.cityStr || addr.city,
+      area: addr.areaStr || addr.area,
+      Street: addr.street,
+      active: addr.active,
+    })
+    pendingAddress.value = null
+  }
   const needPayRes = await checkNeedPay({ orderID: Number(orderID.value), openid: uni.getStorageSync('openid') })
   if (!needPayRes.data) {
     uni.showToast({ title: $t.value('orderSubmitSuccess'), icon: 'success', duration: 2000 })
@@ -357,7 +396,10 @@ const payNow = async () => {
   }
   uni.showActionSheet({
     itemList: [$t.value('payByQrcode'), $t.value('payByContact')],
-    success: (res) => {
+    success: async (res) => {
+      const payMethod = res.tapIndex === 0 ? 'qrcode' : 'contact'
+      // 同步支付方式到后端
+      await updateOrder({ ID: Number(orderID.value), payMethod })
       if (res.tapIndex === 0) {
         uni.navigateTo({ url: `/pages/pay/index?amount=${((data.value.totalPrice || 0) / 100).toFixed(2)}&orderNo=${data.value.ID}&orderId=${orderID.value}` })
       } else if (res.tapIndex === 1) {

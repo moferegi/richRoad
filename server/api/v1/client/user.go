@@ -570,7 +570,7 @@ func (clientUserApi *ClientUserApi) PhoneLogin(c *gin.Context) {
 	if err != nil {
 		global.GVA_LOG.Error("手机号登录失败!", zap.Error(err))
 		securityService.RecordLoginFail(req.Phone)
-		response.FailWithMessage(i18n.T(c, "loginFail"), c)
+		response.FailWithMessage(i18n.T(c, "phoneLoginFail"), c)
 		return
 	}
 

@@ -127,11 +127,19 @@ func (s *SysConfigApi) GetLoginConfig(c *gin.Context) {
 	usernameEnabled, _ := sysConfigService.GetConfigByKey("username_login_enabled")
 	defaultMethod, _ := sysConfigService.GetConfigByKey("default_login_method")
 	passwordChangeEnabled, _ := sysConfigService.GetConfigByKey("password_change_enabled")
+	usernameRegex, _ := sysConfigService.GetConfigByKey("username_regex")
+	passwordRegex, _ := sysConfigService.GetConfigByKey("password_regex")
+	usernameRegexTip, _ := sysConfigService.GetConfigByKey("username_regex_tip")
+	passwordRegexTip, _ := sysConfigService.GetConfigByKey("password_regex_tip")
 	response.OkWithDetailed(map[string]string{
 		"phone_login_enabled":     phoneEnabled,
 		"username_login_enabled":  usernameEnabled,
 		"default_login_method":    defaultMethod,
 		"password_change_enabled": passwordChangeEnabled,
+		"username_regex":          usernameRegex,
+		"password_regex":          passwordRegex,
+		"username_regex_tip":      usernameRegexTip,
+		"password_regex_tip":      passwordRegexTip,
 	}, "获取成功", c)
 }
 

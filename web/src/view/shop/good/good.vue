@@ -43,6 +43,13 @@
           </el-select>
         </el-form-item>
 
+        <el-form-item label="预售">
+          <el-select v-model="searchInfo.isPresale" clearable placeholder="全部" style="width:100px;">
+            <el-option label="预售" :value="true" />
+            <el-option label="非预售" :value="false" />
+          </el-select>
+        </el-form-item>
+
         <el-form-item label="关键词">
           <el-input v-model="searchInfo.keyword" placeholder="名称/描述/标签" clearable style="width:160px;" />
         </el-form-item>

@@ -81,6 +81,10 @@ func initDefaultSysConfigs() {
 		{ConfigKey: "phone_login_enabled", ConfigValue: "false", ConfigName: "手机号登录开关", ConfigGroup: "auth", Remark: "是否开启手机号+密码登录(true/false)"},
 		{ConfigKey: "password_change_enabled", ConfigValue: "true", ConfigName: "密码修改开关", ConfigGroup: "auth", Remark: "uni端是否允许用户修改密码(true/false)"},
 		{ConfigKey: "username_login_enabled", ConfigValue: "true", ConfigName: "用户名登录开关", ConfigGroup: "auth", Remark: "是否开启用户名+密码登录注册(true/false)"},
+		{ConfigKey: "username_regex", ConfigValue: "", ConfigName: "用户名格式正则式", ConfigGroup: "auth", Remark: "用户名格式正则验证，空则不验证"},
+		{ConfigKey: "password_regex", ConfigValue: "", ConfigName: "密码格式正则式", ConfigGroup: "auth", Remark: "密码格式正则验证，空则不验证"},
+		{ConfigKey: "username_regex_tip", ConfigValue: "", ConfigName: "用户名提示文本", ConfigGroup: "auth", Remark: "用户名输入框内提示文本(JSON多语言)"},
+		{ConfigKey: "password_regex_tip", ConfigValue: "", ConfigName: "密码提示文本", ConfigGroup: "auth", Remark: "密码输入框内提示文本(JSON多语言)"},
 		// points 分组
 		{ConfigKey: "points_exchange_rate", ConfigValue: "100", ConfigName: "积分兑换比率", ConfigGroup: "points", Remark: "多少积分兑换1货币单位，如100积分=1元"},
 		// order 分组

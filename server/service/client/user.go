@@ -20,13 +20,13 @@ type ClientUserService struct {
 func (clientUserService *ClientUserService) Login(loginInfo *clientReq.Login) (clientUser client.ClientUser, err error) {
 	err = global.GVA_DB.Where("username = ?", loginInfo.Username).First(&clientUser).Error
 	if err != nil {
-		return clientUser, errors.New("用户不存在")
+		return clientUser, errors.New("用户名或密码错误")
 	}
 	if clientUser.Banned != nil && *clientUser.Banned {
 		return clientUser, errors.New("BANNED")
 	}
 	if !utils.BcryptCheck(loginInfo.Password, clientUser.Password) {
-		return clientUser, errors.New("密码错误")
+		return clientUser, errors.New("用户名或密码错误")
 	}
 	return
 }
@@ -160,10 +160,10 @@ func (clientUserService *ClientUserService) GetSubordinateCount(userID uint) (in
 func (clientUserService *ClientUserService) LoginByPhone(areaCode, phone, password string) (clientUser client.ClientUser, err error) {
 	err = global.GVA_DB.Where("area_code = ? AND phone = ?", areaCode, phone).First(&clientUser).Error
 	if err != nil {
-		return clientUser, errors.New("用户不存在")
+		return clientUser, errors.New("手机号不存在或密码错误")
 	}
 	if !utils.BcryptCheck(password, clientUser.Password) {
-		return clientUser, errors.New("密码错误")
+		return clientUser, errors.New("手机号不存在或密码错误")
 	}
 	return
 }

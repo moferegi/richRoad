@@ -44,6 +44,11 @@
       </view>
     </scroll-view>
 
+    <!-- 提示信息 -->
+    <view class="nf-sku-tip" v-if="tipMsg" @tap="tipMsg = ''">
+      <text>{{ tipMsg }}</text>
+    </view>
+
     <!-- 底部按钮 -->
     <view class="nf-sku-footer">
       <view class="nf-sku-btn-cart" @tap="handleAddCart">{{ $t('addToCart') }}</view>
@@ -79,13 +84,33 @@ const skuShow = ref(false)
 const quantity = ref(1)
 const specGroups = ref([])
 const matchedSku = ref(null)
+const tipMsg = ref('')
+let tipTimer = null
+
+const showTip = (msg) => {
+  tipMsg.value = msg
+  if (tipTimer) clearTimeout(tipTimer)
+  tipTimer = setTimeout(() => { tipMsg.value = '' }, 2500)
+}
 
 // 辅助：判断 i18n 对象是否有实际内容
 const hasI18n = (obj) => obj && typeof obj === 'object' && Object.keys(obj).length > 0
 
+// 辅助：将对象按key排序后stringify，确保相同内容产生相同字符串
+const stableStringify = (val) => {
+  if (val && typeof val === 'object' && !Array.isArray(val)) {
+    const sorted = {}
+    Object.keys(val).sort().forEach(k => { sorted[k] = val[k] })
+    return JSON.stringify(sorted)
+  }
+  return JSON.stringify(val)
+}
+
 // 辅助：获取规格的 labelKey（用于按标签匹配而非按位置匹配）
 const getSpecLabelKey = (spec) => {
-  return hasI18n(spec.labelI18n) ? JSON.stringify(spec.labelI18n) : JSON.stringify(spec.label)
+  if (hasI18n(spec.labelI18n)) return stableStringify(spec.labelI18n)
+  if (hasI18n(spec.nameI18n)) return stableStringify(spec.nameI18n)
+  return stableStringify(spec.label || spec.name)
 }
 
 // 辅助：获取规格的实际值（优先 i18n 对象，空对象则回退到纯文本）
@@ -107,15 +132,15 @@ const buildSpecGroups = () => {
       if (!groupMap[labelKey]) {
         groupMap[labelKey] = {
           labelKey,
-          label: hasI18n(spec.labelI18n) ? spec.labelI18n : spec.label,
+          label: hasI18n(spec.labelI18n) ? spec.labelI18n : (hasI18n(spec.nameI18n) ? spec.nameI18n : (spec.label || spec.name)),
           values: [],
           selected: null
         }
         groupOrder.push(labelKey)
       }
       const val = getSpecVal(spec)
-      const valStr = JSON.stringify(val)
-      if (!groupMap[labelKey].values.find(v => JSON.stringify(v.value) === valStr)) {
+      const valStr = stableStringify(val)
+      if (!groupMap[labelKey].values.find(v => stableStringify(v.value) === valStr)) {
         groupMap[labelKey].values.push({ value: val, disabled: false })
       }
     })
@@ -156,7 +181,7 @@ const matchSku = () => {
         const labelKey = getSpecLabelKey(spec)
         const selected = selectionMap[labelKey]
         if (selected === undefined) return false
-        return JSON.stringify(getSpecVal(spec)) === JSON.stringify(selected)
+        return stableStringify(getSpecVal(spec)) === stableStringify(selected)
       })
     })
     matchedSku.value = found || null
@@ -187,7 +212,7 @@ const updateDisabledState = () => {
           const labelKey = getSpecLabelKey(spec)
           const testVal = testMap[labelKey]
           if (testVal === undefined) return true // 该维度未选择，不约束
-          return JSON.stringify(getSpecVal(spec)) === JSON.stringify(testVal)
+          return stableStringify(getSpecVal(spec)) === stableStringify(testVal)
         })
         return match && sku.inventory > 0
       })
@@ -238,13 +263,13 @@ const changeQty = (delta) => {
 }
 
 const validateSelection = () => {
-  const allSelected = specGroups.value.every(g => g.selected !== null)
+  const allSelected = specGroups.value.length > 0 && specGroups.value.every(g => g.selected !== null)
   if (!allSelected) {
-    uni.showToast({ title: $t.value('skuSelectFull'), icon: 'none' })
+    showTip($t.value('skuSelectFull'))
     return false
   }
   if (!matchedSku.value || matchedSku.value.inventory <= 0) {
-    uni.showToast({ title: $t.value('skuSoldOut'), icon: 'none' })
+    showTip($t.value('skuSoldOut'))
     return false
   }
   return true
@@ -286,6 +311,7 @@ const emit = defineEmits(['skuVisibleChange'])
 
 const showSku = () => {
   quantity.value = 1
+  tipMsg.value = ''
   buildSpecGroups()
   skuShow.value = true
   emit('skuVisibleChange', true)
@@ -330,7 +356,7 @@ defineExpose({ showSku, closeSku })
   width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center;
   background: rgba(255,255,255,0.08); border-radius: 50%;
 }
-.nf-sku-body { flex: 1; padding: 24rpx 32rpx; overflow-y: auto; }
+.nf-sku-body { flex: 1; padding: 24rpx 32rpx; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; }
 .nf-spec-group { margin-bottom: 32rpx; }
 .nf-spec-title { display: block; font-size: 26rpx; color: rgba(255,255,255,0.6); margin-bottom: 16rpx; font-weight: 600; }
 .nf-spec-options { display: flex; flex-wrap: wrap; gap: 16rpx; }
@@ -347,15 +373,23 @@ defineExpose({ showSku, closeSku })
 .nf-qty-section {
   display: flex; align-items: center; justify-content: space-between;
   padding: 24rpx 0; border-top: 1rpx solid rgba(255,255,255,0.06);
+  box-sizing: border-box; max-width: 100%;
 }
-.nf-qty-stepper { display: flex; align-items: center; gap: 4rpx; flex-shrink: 0; margin-left: 20rpx; }
+.nf-qty-stepper { display: flex; align-items: center; gap: 4rpx; flex-shrink: 0; }
 .nf-qty-btn {
-  width: 60rpx; height: 60rpx; min-width: 60rpx; display: flex; align-items: center; justify-content: center;
+  width: 56rpx; height: 56rpx; min-width: 56rpx; display: flex; align-items: center; justify-content: center;
   background: rgba(255,255,255,0.08); border-radius: 10rpx; font-size: 32rpx;
   color: #fff; font-weight: 600; flex-shrink: 0; box-sizing: border-box;
 }
 .nf-qty-disabled { opacity: 0.3; }
-.nf-qty-num { min-width: 72rpx; text-align: center; font-size: 30rpx; color: #fff; font-weight: 600; }
+.nf-qty-num { min-width: 64rpx; text-align: center; font-size: 30rpx; color: #fff; font-weight: 600; }
+.nf-sku-tip {
+  padding: 16rpx 32rpx; text-align: center;
+  background: rgba(229,9,20,0.15); color: #e50914;
+  font-size: 26rpx; font-weight: 600;
+  animation: tipFadeIn 0.2s ease;
+}
+@keyframes tipFadeIn { from { opacity: 0; } to { opacity: 1; } }
 .nf-sku-footer {
   display: flex; padding: 20rpx 32rpx; gap: 20rpx;
   border-top: 1rpx solid rgba(255,255,255,0.06);

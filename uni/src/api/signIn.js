@@ -15,3 +15,12 @@ export const getSignInStatus = () => {
     method: 'get'
   })
 }
+
+// 获取签到记录
+export const getSignInRecords = (params) => {
+  return request({
+    url: '/signIn/getSignInRecords',
+    method: 'get',
+    params
+  })
+}

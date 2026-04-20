@@ -18,34 +18,40 @@
       <!-- 积分概览卡片 -->
       <view class="nf-points-hero">
         <view class="nf-points-hero-glow"></view>
-        <text class="nf-points-hero-label">可用积分</text>
+        <text class="nf-points-hero-label">{{ $t('availablePoints') }}</text>
         <text class="nf-points-hero-value">{{ userPoints }}</text>
-        <text class="nf-points-hero-tip">积分可用于订单抵扣</text>
+        <text class="nf-points-hero-tip">{{ $t('pointsDeductTip') }}</text>
       </view>
 
       <!-- 积分记录列表 -->
       <view class="nf-section-title">
         <view class="nf-section-line"></view>
-        <text>积分明细</text>
+        <text>{{ $t('pointsDetail') }}</text>
         <view class="nf-section-line"></view>
       </view>
 
-      <view class="nf-empty" v-if="recordList.length === 0">
+      <view class="nf-empty" v-if="recordList.length === 0 && !loading">
         <view class="nf-empty-icon">💎</view>
-        <text class="nf-empty-text">暂无积分记录</text>
+        <text class="nf-empty-text">{{ $t('noPointsRecord') }}</text>
       </view>
 
       <view class="nf-record-list" v-else>
         <view class="nf-record-card" v-for="(item, index) in recordList" :key="index">
-          <view class="nf-record-icon">{{ item.operationType === 'add' ? '⬆' : '⬇' }}</view>
+          <view class="nf-record-icon">{{ item.changeType === 'increase' ? '⬆' : '⬇' }}</view>
           <view class="nf-record-info">
-            <text class="nf-record-reason">{{ item.reason || '积分变动' }}</text>
+            <text class="nf-record-reason">{{ translateReason(item.reason) }}</text>
             <text class="nf-record-time">{{ formatTime(item.CreatedAt) }}</text>
           </view>
-          <text class="nf-record-amount" :class="item.operationType === 'add' ? 'nf-add' : 'nf-sub'">
-            {{ item.operationType === 'add' ? '+' : '-' }}{{ item.points }}
+          <text class="nf-record-amount" :class="item.changeType === 'increase' ? 'nf-add' : 'nf-sub'">
+            {{ item.pointChange > 0 ? '+' : '' }}{{ item.pointChange }}
           </text>
         </view>
+      </view>
+
+      <view class="nf-load-more" v-if="recordList.length > 0">
+        <text class="nf-load-more-text" v-if="loading">...</text>
+        <text class="nf-load-more-text" v-else-if="noMore">{{ $t('reachedBottom') || '— END —' }}</text>
+        <text class="nf-load-more-text" v-else @tap="loadMore">{{ $t('loadMore') || 'Load more' }}</text>
       </view>
     </view>
   </view>
@@ -53,6 +59,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { onReachBottom } from '@dcloudio/uni-app'
 import { getUserInfo } from '@/api/base.js'
 import { request } from '@/utils/request.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
@@ -60,8 +67,30 @@ import { useLangStore } from '@/pinia/modules/lang.js'
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 
+// 后端 reason 中文 → i18n key 映射
+const reasonMap = {
+  '新用户注册奖励': 'reason_newUserReward',
+  '订单完成，获得奖励': 'reason_orderReward',
+  '下级用户首单完成奖励': 'reason_subUserReward',
+  '订单积分抵扣': 'reason_pointDeduct',
+  '订单取消，返还已使用积分': 'reason_orderCancelRefund',
+  '签到奖励': 'reason_signInReward',
+  '订单取消，扣除已获得积分': 'reason_orderCancelDeduct',
+}
+
+const translateReason = (reason) => {
+  if (!reason) return $t.value('pointsChange')
+  const key = reasonMap[reason]
+  if (key) return $t.value(key)
+  return reason
+}
+
 const userPoints = ref(0)
 const recordList = ref([])
+const loading = ref(false)
+const noMore = ref(false)
+const page = ref(1)
+const pageSize = 10
 
 const goBack = () => { uni.navigateBack() }
 
@@ -72,17 +101,33 @@ const loadUserPoints = async () => {
   } catch (e) { console.error('获取积分失败', e) }
 }
 
-const loadRecords = async () => {
+const loadRecords = async (isLoadMore = false) => {
+  if (loading.value) return
+  loading.value = true
   try {
     const res = await request({
       url: '/cpr/getPointRecordList',
       method: 'get',
-      params: { page: 1, pageSize: 50 }
+      params: { page: page.value, pageSize, orderKey: 'id', desc: true }
     })
     if (res.code === 0 && res.data && res.data.list) {
-      recordList.value = res.data.list
+      if (isLoadMore) {
+        recordList.value = [...recordList.value, ...res.data.list]
+      } else {
+        recordList.value = res.data.list
+      }
+      if (res.data.list.length < pageSize || recordList.value.length >= (res.data.total || Infinity)) {
+        noMore.value = true
+      }
     }
   } catch (e) { console.error('获取积分记录失败', e) }
+  loading.value = false
+}
+
+const loadMore = () => {
+  if (noMore.value || loading.value) return
+  page.value++
+  loadRecords(true)
 }
 
 const formatTime = (t) => {
@@ -95,6 +140,10 @@ const formatTime = (t) => {
 onMounted(() => {
   loadUserPoints()
   loadRecords()
+})
+
+onReachBottom(() => {
+  loadMore()
 })
 </script>
 
@@ -182,4 +231,7 @@ page { background-color: #000; }
 .nf-record-amount { font-size: 32rpx; font-weight: 700; }
 .nf-add { color: #22c55e; }
 .nf-sub { color: #e50914; }
+
+.nf-load-more { text-align: center; padding: 24rpx 0 60rpx; }
+.nf-load-more-text { font-size: 24rpx; color: rgba(255, 255, 255, 0.3); }
 </style>

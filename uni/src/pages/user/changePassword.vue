@@ -7,9 +7,10 @@
       <view class="nf-navbar-status"></view>
       <view class="nf-navbar-content">
         <view class="nf-navbar-back" @tap="goBack">
-          <text class="nf-back-icon">&#xe603;</text>
+          <uni-icons type="left" size="20" color="#fff"></uni-icons>
         </view>
         <text class="nf-navbar-title">{{ $t('changePassword') }}</text>
+        <view style="width: 64rpx;"></view>
       </view>
     </view>
 
@@ -43,6 +44,7 @@
 
       <view class="nf-actions">
         <button class="nf-btn nf-btn-primary" @tap="onSubmit">{{ $t('confirmChange') }}</button>
+        <button class="nf-btn nf-btn-kefu" @tap="goKefu">{{ $t('contactCustomerService') }}</button>
       </view>
     </view>
   </view>
@@ -58,6 +60,18 @@ const $t = computed(() => langStore.$t)
 
 const goBack = () => {
   uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/tabBar/my/index' }) })
+}
+
+const goKefu = () => {
+  uni.navigateTo({ url: '/pages/kefu/index' })
+}
+
+// Backend error message i18n mapping
+const errorMsgMap = {
+  '旧密码错误': 'oldPasswordWrong',
+  '用户不存在': 'userNotFound',
+  '验证码请求过于频繁，请稍后再试': 'captchaRateLimit',
+  '密码错误': 'passwordWrong',
 }
 
 const form = reactive({
@@ -108,6 +122,10 @@ const onSubmit = async () => {
     uni.showToast({ title: $t.value('changeSuccess'), icon: 'success' })
     setTimeout(() => goBack(), 1500)
   } else {
+    const key = errorMsgMap[res.msg]
+    if (key) {
+      uni.showToast({ title: $t.value(key), icon: 'none' })
+    }
     getCaptchaFunc()
   }
 }
@@ -119,8 +137,8 @@ const onSubmit = async () => {
 .nf-navbar { position: relative; z-index: 10; }
 .nf-navbar-status { height: var(--status-bar-height, 44px); }
 .nf-navbar-content { display: flex; align-items: center; height: 88rpx; padding: 0 24rpx; }
-.nf-navbar-back { width: 60rpx; height: 60rpx; display: flex; align-items: center; justify-content: center; }
-.nf-back-icon { font-family: 'iconfont'; font-size: 36rpx; color: #fff; }
+.nf-navbar-back { width: 64rpx; height: 64rpx; border-radius: 50%; background: rgba(255,255,255,0.06); border: 1rpx solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; }
+.nf-navbar-back:active { background: rgba(255,255,255,0.12); transform: scale(0.93); }
 .nf-navbar-title { flex: 1; text-align: center; font-size: 32rpx; font-weight: 600; color: #fff; }
 .nf-container { position: relative; z-index: 5; padding: 40rpx; }
 .nf-header { margin-bottom: 60rpx; text-align: center; }
@@ -137,4 +155,6 @@ const onSubmit = async () => {
 .nf-actions { margin-top: 20rpx; }
 .nf-btn { width: 100%; height: 88rpx; line-height: 88rpx; border-radius: 44rpx; font-size: 30rpx; font-weight: 600; text-align: center; margin-bottom: 24rpx; border: none; }
 .nf-btn-primary { background: linear-gradient(135deg, #e50914, #b20710); color: #fff; }
+.nf-btn-kefu { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); border: 1rpx solid rgba(255,255,255,0.1); }
+.nf-btn-kefu:active { background: rgba(255,255,255,0.12); }
 </style>

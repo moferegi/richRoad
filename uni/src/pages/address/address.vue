@@ -67,7 +67,7 @@
 import { ref, computed } from 'vue'
 import { updateOrder } from '@/api/order.js'
 import { getAddressList, getAddressDataSource, deleteAddress } from '@/api/address.js'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { localText } from '@/utils/i18n'
 
@@ -94,6 +94,15 @@ onLoad(async (options) => {
   addressList.value = []
   await getAddressDataSources()
   getAddress({ page: 1, pageSize: 10 })
+})
+
+let loaded = false
+onShow(() => {
+  if (loaded) {
+    addressList.value = []
+    getAddress({ page: 1, pageSize: 10 })
+  }
+  loaded = true
 })
 
 const getAddressDataSources = async () => {
@@ -201,6 +210,24 @@ const toAddress = () => {
 const selectAddr = async (item) => {
   // 从 orderInfo 页面进入（订单尚未创建），将选中地址存入 storage 后返回
   if (fromPage.value === 'orderInfo') {
+    uni.setStorageSync('selectedAddress', {
+      ID: item.ID,
+      name: item.name,
+      phone: item.phone,
+      province: item.province,
+      city: item.city,
+      area: item.area,
+      provinceStr: item.provinceTrans || item.provinceStr || '',
+      cityStr: item.cityTrans || item.cityStr || '',
+      areaStr: item.areaTrans || item.areaStr || '',
+      street: item.street,
+      active: item.active,
+    })
+    uni.navigateBack()
+    return
+  }
+  // 从 orderDetail 页面进入，将选中地址存入 storage 后返回（不立即提交后端）
+  if (fromPage.value === 'orderDetail') {
     uni.setStorageSync('selectedAddress', {
       ID: item.ID,
       name: item.name,

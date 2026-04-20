@@ -1,7 +1,7 @@
 <template>
-  <view class="nf-goods-detail">
-    <!-- 页面滚动锁定：SKU弹窗打开时禁止body滚动 -->
-    <page-meta :page-style="skuVisible ? 'overflow: hidden;' : ''" />
+  <view class="nf-goods-detail" :style="skuVisible || couponshow ? 'height:100vh;overflow:hidden;' : ''">
+    <!-- 页面滚动锁定：弹窗打开时禁止body滚动 -->
+    <page-meta :page-style="skuVisible || couponshow ? 'overflow: hidden; height: 100vh;' : ''" />
     <!-- 自定义导航栏（悬浮在轮播上方） -->
     <view class="nf-navbar">
       <view class="nf-navbar-status"></view>
@@ -27,7 +27,8 @@
         </view>
         <!-- 预售标志 -->
         <view class="nf-presale-badge" v-if="data.isPresale">
-          <text>{{ $t('presaleBadge') }}</text>
+          <text v-if="presaleCountdownType === 'ended'">{{ $t('presaleEnded') }}</text>
+          <text v-else>{{ $t('presaleBadge') }}</text>
         </view>
       </view>
       <text class="nf-product-title">{{ $lt(data.title) }}</text>
@@ -139,7 +140,7 @@
     </view>
 
     <!-- 优惠券弹出层 Netflix风格 -->
-    <view class="nf-mask" v-if="couponshow" @tap="hidecoupon"></view>
+    <view class="nf-mask" v-if="couponshow" @tap="hidecoupon" @touchmove.stop.prevent></view>
     <view class="nf-coupon-popup" :class="{ show: couponshow }">
       <view class="nf-coupon-popup-header">
         <text class="nf-coupon-popup-title">{{ $t('claimCoupon') }}</text>
@@ -350,6 +351,11 @@ const addToCart = () => {
     uni.redirectTo({ url: '/pages/user/login' })
     return
   }
+  // 预售已结束，不能加购
+  if (data.value.isPresale && presaleCountdownType.value === 'ended') {
+    uni.showToast({ title: $t.value('presaleEndedToast'), icon: 'none' })
+    return
+  }
   isCart.value = true
   goodsSkuRef.value.showSku()
 }
@@ -366,6 +372,11 @@ const toOrder = () => {
 }
 
 const goodsTapPay = async () => {
+  // 预售已结束，不能购买
+  if (data.value.isPresale && presaleCountdownType.value === 'ended') {
+    uni.showToast({ title: $t.value('presaleEndedToast'), icon: 'none' })
+    return
+  }
   // 检查是否有该商品的待付款订单
   try {
     const token = uni.getStorageSync('x-token')

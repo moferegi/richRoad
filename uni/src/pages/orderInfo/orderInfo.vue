@@ -42,7 +42,7 @@
           <view class="nf-goods-info">
             <text class="nf-goods-name">{{ $lt(d?.sku?.name) || d?.sku?.name }}</text>
             <text class="nf-goods-desc">{{ $lt(d?.good?.description) || d?.good?.description }}</text>
-            <text class="nf-goods-specs">{{ formatSpecs(d?.sku?.specs) }}</text>
+            <text class="nf-goods-specs">{{ formatSpecs(d?.sku?.specs, d?.sku?.attrs) }}</text>
             <view class="nf-goods-bottom">
               <text class="nf-goods-price">{{ cs }}{{ (d.sku?.price || 0) / 100 }}</text>
               <text class="nf-goods-qty">×{{ d.quantity }}</text>
@@ -77,13 +77,11 @@
           <text class="nf-price-val">-{{ cs }}{{ (selectedCouponDiscount / 100).toFixed(2) }}</text>
         </view>
         <view class="nf-price-row nf-price-points">
-          <view class="nf-points-left" @tap="onPointsTap">
-            <checkbox-group @change="onPointsChange">
-              <view class="nf-points-check">
-                <checkbox value="points" :checked="usePoints" :disabled="!pointsAllowed || userPoints <= 0" color="#e50914" style="transform: scale(0.7); margin-right: 6rpx;" />
-                <text :style="(!pointsAllowed || userPoints <= 0) ? 'opacity:0.4' : ''">{{ $t('pointsDeduction') }}</text>
-              </view>
-            </checkbox-group>
+          <view class="nf-points-left" @tap="togglePoints">
+            <view class="nf-points-check">
+              <checkbox value="points" :checked="usePoints" color="#e50914" style="transform: scale(0.7); margin-right: 6rpx; pointer-events: none;" />
+              <text :style="(!pointsAllowed || userPoints <= 0) ? 'opacity:0.4' : ''">{{ $t('pointsDeduction') }}</text>
+            </view>
           </view>
           <text class="nf-points-amount">{{ $t('maxPointsDeduct') }} {{ cs }}{{ maxDeductDisplay }}</text>
         </view>
@@ -129,7 +127,10 @@
           <view class="nf-coupon-right">
             <text class="nf-coupon-name">{{ $lt(c.name) || c.name }}</text>
             <text class="nf-coupon-exp">{{ $t('couponExpiry') || '' }} {{ formatCouponDate(c.endTime) }}</text>
-            <view v-if="selectedCouponNum === c.couponNum" class="nf-coupon-deselect">
+            <view v-if="!c.couponNum" class="nf-coupon-claim">
+              <text>{{ $t('claimCoupon') }}</text>
+            </view>
+            <view v-else-if="selectedCouponNum === c.couponNum" class="nf-coupon-deselect">
               <text>{{ $t('cancelCoupon') }}</text>
             </view>
           </view>
@@ -229,11 +230,12 @@ const maxDeductDisplay = computed(() => {
   return (Math.min(userPoints.value, max) / 100).toFixed(2)
 })
 
-const formatSpecs = (specs) => {
-  if (!specs || !Array.isArray(specs)) return ''
-  return specs.map(s => {
-    const label = $lt.value(s.label) || s.label || ''
-    const value = $lt.value(s.value) || s.value || ''
+const formatSpecs = (specs, attrs) => {
+  const arr = [...(Array.isArray(specs) ? specs : []), ...(Array.isArray(attrs) ? attrs : [])]
+  if (!arr.length) return ''
+  return arr.map(s => {
+    const label = $lt.value(s.labelI18n || s.nameI18n) || $lt.value(s.label || s.name) || s.label || s.name || ''
+    const value = $lt.value(s.valueI18n) || $lt.value(s.value) || s.value || ''
     return label ? `${label}: ${value}` : value
   }).join('  ')
 }
@@ -289,6 +291,8 @@ const onCouponTap = async (item) => {
       item.couponNum = res.data
     } catch (e) { uni.hideLoading(); return }
     uni.hideLoading()
+    uni.showToast({ title: $t.value('claimSuccess') || '✓', icon: 'success' })
+    return
   }
   // 选择优惠券（本地设置）
   selectedCouponNum.value = item.couponNum
@@ -313,22 +317,16 @@ const loadUserPoints = async () => {
   } catch (e) { /* ignore */ }
 }
 
-const onPointsTap = () => {
+const togglePoints = () => {
   if (!pointsAllowed.value) {
-    uni.showToast({ title: $t.value('pointsNotAllowed') || '该商品不支持积分抵扣', icon: 'none' })
+    uni.showToast({ title: $t.value('pointsNotAllowed'), icon: 'none' })
     return
   }
   if (userPoints.value <= 0) {
-    uni.showToast({ title: $t.value('noPointsAvailable') || '暂无可用积分', icon: 'none' })
-  }
-}
-
-const onPointsChange = (e) => {
-  if (!pointsAllowed.value) {
-    usePoints.value = false
+    uni.showToast({ title: $t.value('noPointsAvailable'), icon: 'none' })
     return
   }
-  usePoints.value = e.detail.value.includes('points')
+  usePoints.value = !usePoints.value
 }
 
 /* =================== 初始化 =================== */
@@ -641,5 +639,10 @@ page { background-color: #000; }
   margin-top: 8rpx; display: inline-flex; align-self: flex-start;
   padding: 4rpx 16rpx; border-radius: 8rpx; font-size: 22rpx;
   color: #e50914; border: 1rpx solid rgba(229,9,20,0.4); background: rgba(229,9,20,0.06);
+}
+.nf-coupon-claim {
+  margin-top: 8rpx; display: inline-flex; align-self: flex-start;
+  padding: 4rpx 16rpx; border-radius: 8rpx; font-size: 22rpx;
+  color: #e5a609; border: 1rpx solid rgba(229,166,9,0.4); background: rgba(229,166,9,0.06);
 }
 </style>
