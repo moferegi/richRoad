@@ -25,6 +25,7 @@
         tooltip-effect="dark"
         :data="tableData"
         row-key="ID"
+        max-height="70vh"
         @selection-change="handleSelectionChange"
         @sort-change="sortChange"
       >

@@ -61,7 +61,20 @@ func (s *PopupService) GetPopupList(info shopReq.PopupSearch) (list []shop.Popup
 	if limit != 0 {
 		db = db.Limit(limit).Offset(offset)
 	}
-	err = db.Order("sort ASC").Find(&list).Error
+
+	// 排序支持
+	orderClause := "sort ASC"
+	if info.OrderBy != "" {
+		allowedCols := map[string]bool{"created_at": true}
+		if allowedCols[info.OrderBy] {
+			dir := "asc"
+			if info.OrderDir == "desc" {
+				dir = "desc"
+			}
+			orderClause = info.OrderBy + " " + dir
+		}
+	}
+	err = db.Order(orderClause).Find(&list).Error
 	return
 }
 

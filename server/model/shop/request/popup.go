@@ -1,8 +1,9 @@
 package request
 
 import (
-	"github.com/flipped-aurora/gin-vue-admin/server/model/common/request"
 	"time"
+
+	"github.com/flipped-aurora/gin-vue-admin/server/model/common/request"
 )
 
 type PopupSearch struct {
@@ -11,5 +12,7 @@ type PopupSearch struct {
 	Position       string     `json:"position" form:"position"`
 	ClientType     string     `json:"clientType" form:"clientType"`
 	IsEnabled      *bool      `json:"isEnabled" form:"isEnabled"`
+	OrderBy        string     `json:"orderBy" form:"orderBy"`
+	OrderDir       string     `json:"orderDir" form:"orderDir"`
 	request.PageInfo
 }

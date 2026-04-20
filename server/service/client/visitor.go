@@ -56,7 +56,19 @@ func (visitorService *VisitorService) GetVisitorLogList(info clientReq.VisitorLo
 	if err != nil {
 		return
 	}
-	err = db.Order("id desc").Limit(limit).Offset(offset).Find(&list).Error
+	// 排序支持
+	orderClause := "id desc"
+	if info.OrderBy != "" {
+		allowedCols := map[string]bool{"created_at": true}
+		if allowedCols[info.OrderBy] {
+			dir := "asc"
+			if info.OrderDir == "desc" {
+				dir = "desc"
+			}
+			orderClause = info.OrderBy + " " + dir
+		}
+	}
+	err = db.Order(orderClause).Limit(limit).Offset(offset).Find(&list).Error
 	return
 }
 

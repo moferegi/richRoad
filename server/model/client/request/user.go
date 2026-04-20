@@ -12,6 +12,8 @@ type ClientUserSearch struct {
 
 	Username string `json:"username" form:"username" `
 	Nickname string `json:"nickname" form:"nickname" `
+	OrderBy  string `json:"orderBy" form:"orderBy"`
+	OrderDir string `json:"orderDir" form:"orderDir"`
 	request.PageInfo
 }
 

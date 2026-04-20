@@ -77,7 +77,21 @@ func (addressService *AddressService) GetAddressInfoList(info clientReq.AddressS
 	if info.UserID != 0 {
 		db = db.Where("user_id = ?", info.UserID)
 	}
-	db.Order("active desc")
+
+	// 排序支持
+	orderClause := "active desc, id desc"
+	if info.OrderBy != "" {
+		allowedCols := map[string]bool{"created_at": true}
+		if allowedCols[info.OrderBy] {
+			dir := "asc"
+			if info.OrderDir == "desc" {
+				dir = "desc"
+			}
+			orderClause = info.OrderBy + " " + dir
+		}
+	}
+	db = db.Order(orderClause)
+
 	err = db.Count(&total).Error
 	if err != nil {
 		return

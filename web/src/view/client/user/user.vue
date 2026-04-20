@@ -41,11 +41,13 @@
         tooltip-effect="dark"
         :data="tableData"
         row-key="ID"
+        max-height="70vh"
         @selection-change="handleSelectionChange"
+        @sort-change="sortChange"
         >
         <el-table-column type="selection" width="55" />
 
-        <el-table-column align="left" label="日期" width="180">
+        <el-table-column align="left" label="日期" width="180" sortable="custom" prop="created_at">
             <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
 
@@ -276,6 +278,18 @@ const searchInfo = ref({})
 // 重置
 const onReset = () => {
   searchInfo.value = {}
+  getTableData()
+}
+
+// 排序
+const sortChange = ({ prop, order }) => {
+  if (order) {
+    searchInfo.value.orderBy = prop
+    searchInfo.value.orderDir = order === 'ascending' ? 'asc' : 'desc'
+  } else {
+    searchInfo.value.orderBy = ''
+    searchInfo.value.orderDir = ''
+  }
   getTableData()
 }
 

@@ -44,40 +44,40 @@
 
     <!-- 优惠券选择 -->
     <view class="coupon-section" @click="chooseCoupon">
-      <text class="section-title">优惠券</text>
+      <text class="section-title">{{ $t('couponSection') }}</text>
       <view class="section-content">
-        <text class="coupon-text">{{ selectedCoupon ? `省${selectedCoupon.amount}元` : '选择优惠券' }}</text>
+        <text class="coupon-text">{{ selectedCoupon ? $t('saveCouponAmount').replace('{}', selectedCoupon.amount) : $t('selectCouponText') }}</text>
         <uni-icons type="right" size="16" color="#999"></uni-icons>
       </view>
     </view>
 
     <!-- 商家促销 -->
     <view class="promotion-section">
-      <text class="section-title">商家促销</text>
+      <text class="section-title">{{ $t('merchantPromotion') }}</text>
       <view class="section-content">
-        <text class="promotion-text">暂无可用优惠</text>
+        <text class="promotion-text">{{ $t('noPromotion') }}</text>
       </view>
     </view>
 
     <!-- 订单备注 -->
     <view class="remark-section">
-      <text class="section-title">备注</text>
-      <input class="remark-input" type="text" v-model="remark" placeholder="请填写备注信息" />
+      <text class="section-title">{{ $t('remark') }}</text>
+      <input class="remark-input" type="text" v-model="remark" :placeholder="$t('remarkPlaceholder')" />
     </view>
 
     <!-- 金额明细 -->
     <view class="amount-section">
       <view class="amount-item">
-        <text>商品金额</text>
+        <text>{{ $t('goodsAmount') }}</text>
         <text>{{ cs }}{{ totalAmount }}</text>
       </view>
       <view class="amount-item">
-        <text>优惠券</text>
+        <text>{{ $t('couponDiscount') }}</text>
         <text class="discount">-{{ cs }}{{ couponAmount }}</text>
       </view>
       <view class="amount-item">
-        <text>运费</text>
-        <text>{{ shipping === 0 ? '免运费' : `${cs}${shipping}` }}</text>
+        <text>{{ $t('shippingFee') }}</text>
+        <text>{{ shipping === 0 ? $t('freeShippingText') : `${cs}${shipping}` }}</text>
       </view>
     </view>
     </scroll-view>
@@ -85,10 +85,10 @@
     <!-- 底部提交栏 -->
     <view class="submit-bar">
       <view class="total-wrap">
-        <text>实付款：</text>
+        <text>{{ $t('actualPay') }}</text>
         <text class="total-amount">{{ cs }}{{ finalAmount }}</text>
       </view>
-      <button class="submit-btn" @click="submitOrder">提交订单</button>
+      <button class="submit-btn" @click="submitOrder">{{ $t('submitOrder') }}</button>
     </view>
   </view>
 </template>
@@ -96,6 +96,9 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
+import { useLangStore } from '@/pinia/modules/lang.js'
+const langStore = useLangStore()
+const $t = computed(() => langStore.$t)
 
 const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)

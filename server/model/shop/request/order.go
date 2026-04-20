@@ -47,7 +47,9 @@ type PlaceOrderByCartRequest struct {
 
 // PresaleListRequest 预售商品列表请求
 type PresaleListRequest struct {
-	Limit          int   `json:"limit" form:"limit"`                   // 限制数量(首页用)
-	PresaleEnabled *bool `json:"presaleEnabled" form:"presaleEnabled"` // 预售开关筛选
+	Limit          int    `json:"limit" form:"limit"`                   // 限制数量(首页用)
+	PresaleEnabled *bool  `json:"presaleEnabled" form:"presaleEnabled"` // 预售开关筛选
+	OrderBy        string `json:"orderBy" form:"orderBy"`
+	OrderDir       string `json:"orderDir" form:"orderDir"`
 	request.PageInfo
 }

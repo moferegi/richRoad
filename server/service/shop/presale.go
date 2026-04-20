@@ -38,7 +38,19 @@ func (s *PresaleService) GetPresaleGoodList(info shopReq.PresaleListRequest) (li
 		db = db.Limit(info.PageSize).Offset(info.PageSize * (info.Page - 1))
 	}
 
-	err = db.Order("presale_sort ASC, created_at DESC").Preload("SKUS").Find(&list).Error
+	// 排序支持
+	orderClause := "presale_sort ASC, created_at DESC"
+	if info.OrderBy != "" {
+		allowedCols := map[string]bool{"created_at": true}
+		if allowedCols[info.OrderBy] {
+			dir := "asc"
+			if info.OrderDir == "desc" {
+				dir = "desc"
+			}
+			orderClause = info.OrderBy + " " + dir
+		}
+	}
+	err = db.Order(orderClause).Preload("SKUS").Find(&list).Error
 	return
 }
 

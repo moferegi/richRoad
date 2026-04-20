@@ -133,7 +133,7 @@
 			res = await addCart({ goodID: item.goodID, skuID: item.skuID, quantity: 1 })
 		}
 		uni.hideLoading()
-		if (res.code !== 0) { uni.showToast({ title: res.msg || '调整失败', icon: 'none' }); return }
+		if (res.code !== 0) { uni.showToast({ title: res.msg || $t('adjustFail'), icon: 'none' }); return }
 		item.quantity = e.value
 		if (e.value == 0) { cartList.value = cartList.value.filter(i => i.ID !== item.ID) }
 	}
@@ -173,7 +173,7 @@
 
 	const toSettlement = async () => {
 		const items = selectedItems.value
-		if (!items.length) { uni.showToast({ title: $t('selectAll') || '请选择商品', icon: 'none' }); return }
+		if (!items.length) { uni.showToast({ title: $t('selectGoods'), icon: 'none' }); return }
 		uni.showLoading({ title: '', mask: true })
 		const res = await placeOrderByCart({ cartIDs: items.map(item => item.ID) })
 		uni.hideLoading()
@@ -182,7 +182,7 @@
 			cartList.value = cartList.value.filter(i => !orderedIDs.has(i.ID))
 			uni.navigateTo({ url: `/pages/orderInfo/orderInfo?orderID=${res.data.orderID}&type=cart` })
 		} else {
-			uni.showToast({ title: res.msg || '生成订单失败', icon: 'none' })
+			uni.showToast({ title: res.msg || $t('createOrderFail'), icon: 'none' })
 		}
 	}
 </script>

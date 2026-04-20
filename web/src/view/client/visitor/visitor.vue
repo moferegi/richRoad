@@ -69,7 +69,7 @@
           </el-form>
         </div>
 
-        <el-table :data="logList" style="width: 100%" tooltip-effect="dark">
+        <el-table :data="logList" style="width: 100%" tooltip-effect="dark" max-height="70vh" @sort-change="sortChange">
           <el-table-column align="left" label="ID" prop="ID" width="80" />
           <el-table-column align="left" label="访客ID" prop="visitorId" width="200" show-overflow-tooltip />
           <el-table-column align="left" label="用户ID" prop="userId" width="80">
@@ -88,7 +88,7 @@
             </template>
           </el-table-column>
           <el-table-column align="left" label="UA" prop="userAgent" min-width="200" show-overflow-tooltip />
-          <el-table-column align="left" label="访问时间" width="180">
+          <el-table-column align="left" label="访问时间" width="180" sortable="custom" prop="created_at">
             <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
           </el-table-column>
         </el-table>
@@ -205,6 +205,18 @@ const getLogList = async () => {
 
 const resetLogSearch = () => {
   logSearch.value = { page: 1, pageSize: 10, startDate: '', endDate: '', visitorId: '', ip: '', platform: '' }
+  getLogList()
+}
+
+// 排序
+const sortChange = ({ prop, order }) => {
+  if (order) {
+    logSearch.value.orderBy = prop
+    logSearch.value.orderDir = order === 'ascending' ? 'asc' : 'desc'
+  } else {
+    logSearch.value.orderBy = ''
+    logSearch.value.orderDir = ''
+  }
   getLogList()
 }
 

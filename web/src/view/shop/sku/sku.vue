@@ -53,6 +53,7 @@
             <el-option label="销量" value="sale_num" />
             <el-option label="价格" value="price" />
             <el-option label="库存" value="inventory" />
+            <el-option label="创建时间" value="created_at" />
           </el-select>
           <el-select v-model="searchInfo.orderDir" clearable placeholder="方向" style="width:80px; margin-left:4px;">
             <el-option label="升序" value="asc" />
@@ -91,6 +92,7 @@
         :data="tableData"
         row-key="ID"
         :default-sort="{ prop: 'ID', order: 'descending' }"
+        max-height="70vh"
         @selection-change="handleSelectionChange"
       >
         <el-table-column

@@ -21,7 +21,12 @@
         tooltip-effect="dark"
         :data="tableData"
         row-key="ID"
+        max-height="70vh"
+        @sort-change="sortChange"
         >
+        <el-table-column align="left" label="日期" width="180" sortable="custom" prop="created_at">
+            <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
+        </el-table-column>
         <el-table-column align="left" label="商品ID" prop="ID" width="80" />
         <el-table-column align="left" label="商品名称" prop="name" width="200" show-overflow-tooltip />
         <el-table-column align="left" label="是否预售" width="100">
@@ -118,6 +123,19 @@ const tableData = ref([])
 const searchInfo = ref({})
 
 const onReset = () => { searchInfo.value = {}; getTableData() }
+
+// 排序
+const sortChange = ({ prop, order }) => {
+  if (order) {
+    searchInfo.value.orderBy = prop
+    searchInfo.value.orderDir = order === 'ascending' ? 'asc' : 'desc'
+  } else {
+    searchInfo.value.orderBy = ''
+    searchInfo.value.orderDir = ''
+  }
+  getTableData()
+}
+
 const onSubmit = () => { page.value = 1; getTableData() }
 const handleSizeChange = (val) => { pageSize.value = val; getTableData() }
 const handleCurrentChange = (val) => { page.value = val; getTableData() }

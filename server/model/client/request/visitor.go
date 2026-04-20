@@ -24,6 +24,8 @@ type VisitorLogSearch struct {
 	VisitorID string `json:"visitorId" form:"visitorId"` // 访客ID
 	IP        string `json:"ip" form:"ip"`               // IP地址
 	Platform  string `json:"platform" form:"platform"`   // 平台
+	OrderBy   string `json:"orderBy" form:"orderBy"`
+	OrderDir  string `json:"orderDir" form:"orderDir"`
 }
 
 // VisitorSummarySearch 访客汇总查询条件

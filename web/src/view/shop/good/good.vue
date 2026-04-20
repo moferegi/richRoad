@@ -115,6 +115,7 @@
         :data="tableData"
         row-key="ID"
         :default-sort="{ prop: 'ID', order: 'descending' }"
+        max-height="70vh"
         @selection-change="handleSelectionChange"
       >
         <el-table-column

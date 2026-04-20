@@ -123,6 +123,20 @@ func (clientUserService *ClientUserService) GetClientUserInfoList(info clientReq
 		return
 	}
 
+	// 排序支持
+	orderClause := "id desc"
+	if info.OrderBy != "" {
+		allowedCols := map[string]bool{"created_at": true}
+		if allowedCols[info.OrderBy] {
+			dir := "asc"
+			if info.OrderDir == "desc" {
+				dir = "desc"
+			}
+			orderClause = info.OrderBy + " " + dir
+		}
+	}
+	db = db.Order(orderClause)
+
 	if limit != 0 {
 		db = db.Limit(limit).Offset(offset)
 	}

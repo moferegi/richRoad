@@ -63,7 +63,7 @@
           </view>
         </view>
         <view class="nf-coupon-footer" v-else>
-          <view class="nf-coupon-used-tag">已使用</view>
+          <view class="nf-coupon-used-tag">{{ t('couponUsedStatus') }}</view>
         </view>
       </view>
     </view>

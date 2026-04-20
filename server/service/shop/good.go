@@ -151,7 +151,7 @@ func (goodService *GoodService) GetGoodInfoList(info shopReq.GoodSearch) (list [
 	// 排序支持
 	orderClause := "id desc"
 	if info.OrderBy != "" {
-		allowedCols := map[string]bool{"price": true, "sales_num": true, "view_num": true, "collect_num": true, "created_at": true, "sort": true, "presale_sort": true}
+		allowedCols := map[string]bool{"price": true, "sale_num": true, "view_num": true, "collect_num": true, "created_at": true, "sort": true, "presale_sort": true}
 		if allowedCols[info.OrderBy] {
 			dir := "asc"
 			if info.OrderDir == "desc" {

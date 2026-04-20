@@ -66,6 +66,7 @@
       </div>
       <el-table ref="multipleTable" style="width: 100%" tooltip-effect="dark" :data="tableData" row-key="ID"
         :default-sort="{ prop: 'ID', order: 'descending' }"
+        max-height="70vh"
         @selection-change="handleSelectionChange"
         @sort-change="sortChange">
         <el-table-column type="selection" width="55" />

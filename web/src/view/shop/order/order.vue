@@ -58,6 +58,7 @@
         :data="tableData"
         row-key="ID"
         :default-sort="{ prop: 'ID', order: 'descending' }"
+        max-height="70vh"
         @sort-change="sortChange"
         @selection-change="handleSelectionChange"
         >

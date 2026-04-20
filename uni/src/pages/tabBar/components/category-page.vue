@@ -47,7 +47,7 @@
             <view class="nf-grid-img-overlay"></view>
             <!-- 折扣标签 -->
             <view class="nf-grid-badge" v-if="item.discount && item.discount < 10">
-              <text class="nf-grid-badge-text">{{ item.discount }}折</text>
+              <text class="nf-grid-badge-text">{{ item.discount }}{{ $t('discountSuffix') }}</text>
             </view>
           </view>
           <view class="nf-grid-info">

@@ -8,48 +8,48 @@
           </image>
         </button>
         <view class="nick-name">
-          <view>昵称</view>
-          <input name="nickName" type="nickname" placeholder="请填写昵称" class="weui-input" @change="onInputNickName"
+          <view>{{ $t('nickname') }}</view>
+          <input name="nickName" type="nickname" :placeholder="$t('nicknamePlaceholder')" class="weui-input" @change="onInputNickName"
                  v-model="info.nickname" />
         </view>
 			</view>
       <view v-if="!isShow" class="flex flex-aic info-box unLogin">
-        <p @tap="logins">请登录后查看</p>
+        <p @tap="logins">{{ $t('loginPrompt') }}</p>
       </view>
 		</view>
 		<view class="my_order_card boxs_bb bgc_fff">
 			<view class="flex-aic flexr-jsb my_order_card_title">
-				<text class="color_333 font_28">我的订单</text>
+				<text class="color_333 font_28">{{ $t('myOrders') }}</text>
 				<view class="flex flex-aic" @tap="toOrder('all')">
-					<text class="color_999 font_28 m_r_8">查看全部</text>
+					<text class="color_999 font_28 m_r_8">{{ $t('viewAll') }}</text>
 					<uni-icons color="#999999" type="forward" size="14"></uni-icons>
 				</view>
 			</view>
       <view class="flex-aic flexr-jsa color_333 font_24">
         <view class="tac" @tap="toNav(`/pages/order/order?status=${0}`)">
           <image class="my_order_icon m_b_8" src="../../../static/images/Wallet.png" mode=""></image>
-          <view>待付款</view>
+          <view>{{ $t('ordersPending') }}</view>
         </view>
         <view class="tac" @tap="toNav(`/pages/order/order?status=${1}`)">
           <image class="my_order_icon m_b_8" src="../../../static/images/delivery.png" mode="">
           </image>
-          <view>待发货</view>
+          <view>{{ $t('ordersShipping') }}</view>
         </view>
         <view class="tac" @tap="toNav(`/pages/order/order?status=${2}`)">
           <image class="my_order_icon m_b_8" src="../../../static/images/package.png"
                  mode=""></image>
-          <view>待收货</view>
+          <view>{{ $t('ordersReceiving') }}</view>
         </view>
         <view class="tac" @tap="toNav(`/pages/order/order?status=${3}`)">
           <image class="my_order_icon m_b_8" src="../../../static/images/comment.png"
                  mode=""></image>
-          <view>待评价</view>
+          <view>{{ $t('ordersToReview') }}</view>
         </view>
 
         <view class="tac" @tap="toNav(`/pages/order/order?status=${7}`)">
           <image class="my_order_icon m_b_8" src="../../../static/images/commented.png"
                  mode=""></image>
-          <view>已评价</view>
+          <view>{{ $t('ordersReviewed') }}</view>
         </view>
 
       </view>
@@ -59,7 +59,7 @@
 				<view @tap="toPages(item.pages)" class="my_tools_item flex-aic flexr-jsb"
 					:class="columns.length-1 == index ? '' : 'b_b_2'">
 					<image class="m_r_16 my_tools_img" :src="item.icon" mode=""></image>
-					<view class="flex-fitem color_333 font_28">{{item.title}}</view>
+					<view class="flex-fitem color_333 font_28">{{$t(item.titleKey)}}</view>
 					<uni-icons color="#ccc" type="forward" size="32"></uni-icons>
 				</view>
 			</template>
@@ -73,19 +73,22 @@ import { myRouter } from "@/utils/permission";
 import { setClientUserInfo } from "@/api/base";
 import {useUserStore} from "@/pinia/modules/user.js"
 import { onShow } from '@dcloudio/uni-app'
+import { useLangStore } from '@/pinia/modules/lang.js'
+import { ref, computed } from 'vue'
+const langStore = useLangStore()
+const $t = computed(() => langStore.$t)
 const isShow = ref(false)
-	import { ref } from 'vue'
 	const columns = ref([
 		{
-			title: '地址管理',
+			titleKey: 'addressManage',
 			pages: '/pages/address/address',
 			icon: '/static/images/address.png'
 		},{
-			title: '我的收藏',
+			titleKey: 'myCollectionMenu',
 			pages: '/pages/collect/collect',
 			icon: '/static/images/collectionIcon.png'
 		},{
-			title: '退出登录',
+			titleKey: 'logout',
 			pages: 'exit',
 			icon: '/static/images/exit.png',
 			hidden: true
@@ -168,7 +171,7 @@ const onInputNickName = async (e) => {
 			userStore.loginOut()
 			uni.showToast({
 				icon: 'none',
-				title: '退出成功'
+				title: $t('logoutSuccess')
 			})
 			
 			return
@@ -176,7 +179,7 @@ const onInputNickName = async (e) => {
 		if (!pages) {
 			uni.showToast({
 				icon: 'none',
-				title: '正在开发中...'
+				title: $t('developing')
 			})
 		} else {
 			uni.navigateTo({

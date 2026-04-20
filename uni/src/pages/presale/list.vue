@@ -29,7 +29,7 @@
           @tap="goDetail(item)"
         >
           <view class="nf-goods-img-wrap">
-            <image class="nf-goods-img" :src="getUrl(item.externalImagePath || item.imageUrl)" mode="aspectFill" />
+            <image class="nf-goods-img" :src="item.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(item.imageUrl)" mode="aspectFill" />
             <view class="nf-goods-img-overlay"></view>
             <!-- 预售标签 -->
             <view class="nf-presale-badge">
@@ -91,7 +91,7 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getPresaleGoodList } from '@/api/presale'
-import { getUrl } from '@/utils/url.js'
+import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
