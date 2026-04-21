@@ -65,3 +65,39 @@ export const uploadFile = (data) => {
     data,
   });
 };
+
+/**
+ * 生成防盗链签名URL
+ * @param {Object} data
+ * @param {string} data.filePath 文件相对路径
+ * @returns {Promise} {url: string} 签名后的完整URL
+ */
+export const signURL = (data) => {
+  return service({
+    url: '/fileUploadAndDownload/signURL',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 获取防盗链配置信息
+ * @returns {Promise} {enabled: boolean, cdnDomain: string}
+ */
+export const getHotlinkConfig = () => {
+  return service({
+    url: '/fileUploadAndDownload/hotlinkConfig',
+    method: 'get'
+  })
+}
+
+/**
+ * 列举OSS存储中的文件夹
+ * @returns {Promise} {folders: string[]}
+ */
+export const getOSSFolders = () => {
+  return service({
+    url: '/fileUploadAndDownload/listFolders',
+    method: 'get'
+  })
+}

@@ -5,7 +5,7 @@
       accept="image/*"
       :show-file-list="false"
       :auto-upload="false"
-      :data="{'classId': props.classId}"
+      :data="{'classId': props.classId, 'folder': props.folder}"
       :on-success="handleImageSuccess"
       :on-change="handleFileChange"
       :headers="{'x-token': token}"
@@ -100,6 +100,10 @@ const props = defineProps({
   classId: {
     type: Number,
     default: 0
+  },
+  folder: {
+    type: String,
+    default: ''
   }
 })
 

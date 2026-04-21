@@ -1,14 +1,16 @@
 package example
 
 import (
+	"strconv"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/example"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/example/request"
 	exampleRes "github.com/flipped-aurora/gin-vue-admin/server/model/example/response"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/upload"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-	"strconv"
 )
 
 type FileUploadAndDownloadApi struct{}
@@ -25,6 +27,7 @@ type FileUploadAndDownloadApi struct{}
 func (b *FileUploadAndDownloadApi) UploadFile(c *gin.Context) {
 	var file example.ExaFileUploadAndDownload
 	noSave := c.DefaultQuery("noSave", "0")
+	folder := c.DefaultPostForm("folder", "")
 	_, header, err := c.Request.FormFile("file")
 	classId, _ := strconv.Atoi(c.DefaultPostForm("classId", "0"))
 	if err != nil {
@@ -32,7 +35,7 @@ func (b *FileUploadAndDownloadApi) UploadFile(c *gin.Context) {
 		response.FailWithMessage("接收文件失败", c)
 		return
 	}
-	file, err = fileUploadAndDownloadService.UploadFile(header, noSave, classId) // 文件上传后拿到文件路径
+	file, err = fileUploadAndDownloadService.UploadFile(header, noSave, classId, folder) // 文件上传后拿到文件路径
 	if err != nil {
 		global.GVA_LOG.Error("上传文件失败!", zap.Error(err))
 		response.FailWithMessage("上传文件失败", c)
@@ -132,4 +135,59 @@ func (b *FileUploadAndDownloadApi) ImportURL(c *gin.Context) {
 		return
 	}
 	response.OkWithMessage("导入URL成功", c)
+}
+
+// SignURL
+// @Tags      ExaFileUploadAndDownload
+// @Summary   生成防盗链签名URL
+// @Security  ApiKeyAuth
+// @accept    application/json
+// @Produce   application/json
+// @Param     data  body      request.SignURLRequest  true  "文件路径"
+// @Success   200   {object}  response.Response{data=object,msg=string}  "生成成功"
+// @Router    /fileUploadAndDownload/signURL [post]
+func (b *FileUploadAndDownloadApi) SignURL(c *gin.Context) {
+	type SignURLReq struct {
+		FilePath string `json:"filePath"`
+	}
+	var req SignURLReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage("参数错误", c)
+		return
+	}
+	signedURL := upload.SignURL(req.FilePath)
+	response.OkWithDetailed(gin.H{"url": signedURL}, "生成成功", c)
+}
+
+// GetHotlinkConfig
+// @Tags      ExaFileUploadAndDownload
+// @Summary   获取防盗链配置信息
+// @Security  ApiKeyAuth
+// @Produce   application/json
+// @Success   200   {object}  response.Response{data=object,msg=string}  "获取成功"
+// @Router    /fileUploadAndDownload/hotlinkConfig [get]
+func (b *FileUploadAndDownloadApi) GetHotlinkConfig(c *gin.Context) {
+	cfg := global.GVA_CONFIG.Hotlink
+	response.OkWithDetailed(gin.H{
+		"enabled":   cfg.Enabled,
+		"cdnDomain": cfg.CdnDomain,
+	}, "获取成功", c)
+}
+
+// ListOSSFolders
+// @Tags      ExaFileUploadAndDownload
+// @Summary   列举OSS存储中的文件夹
+// @Security  ApiKeyAuth
+// @Produce   application/json
+// @Success   200  {object}  response.Response{data=object,msg=string}  "获取成功"
+// @Router    /fileUploadAndDownload/listFolders [get]
+func (b *FileUploadAndDownloadApi) ListOSSFolders(c *gin.Context) {
+	oss := upload.NewOss()
+	folders, err := upload.ListOSSFolders(oss)
+	if err != nil {
+		global.GVA_LOG.Error("列举文件夹失败!", zap.Error(err))
+		response.FailWithMessage("列举文件夹失败: "+err.Error(), c)
+		return
+	}
+	response.OkWithDetailed(gin.H{"folders": folders}, "获取成功", c)
 }

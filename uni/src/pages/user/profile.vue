@@ -122,6 +122,7 @@
 import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getUserInfo, setClientUserInfo } from '@/api/base'
+import { getUrl } from '@/utils/url.js'
 import { useUserStore } from '@/pinia/modules/user'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
@@ -154,7 +155,7 @@ const loadUserInfo = async () => {
     if (res.code === 0 && res.data) {
       userInfo.value = res.data
       if (res.data.headerImg) {
-        avatarUrl.value = res.data.headerImg
+        avatarUrl.value = getUrl(res.data.headerImg)
       }
     }
   } catch (e) {

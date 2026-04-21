@@ -28,6 +28,9 @@ type Server struct {
 	CloudflareR2 CloudflareR2 `mapstructure:"cloudflare-r2" json:"cloudflare-r2" yaml:"cloudflare-r2"`
 	Minio        Minio        `mapstructure:"minio" json:"minio" yaml:"minio"`
 
+	// 防盗链
+	Hotlink Hotlink `mapstructure:"hotlink" json:"hotlink" yaml:"hotlink"`
+
 	Excel Excel `mapstructure:"excel" json:"excel" yaml:"excel"`
 
 	DiskList []DiskList `mapstructure:"disk-list" json:"disk-list" yaml:"disk-list"`

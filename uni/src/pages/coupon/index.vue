@@ -104,7 +104,7 @@ const minSpendText = (item) => {
 }
 
 const couponBgStyle = (item) => {
-  const url = item.externalBgPath || (item.backgroundImage ? getUrl(item.backgroundImage) : '')
+  const url = getUrl(item.externalBgPath || item.backgroundImage || '')
   if (url) {
     return { backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
   }

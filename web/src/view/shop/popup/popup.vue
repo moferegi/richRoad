@@ -76,7 +76,7 @@
         </el-table-column>
         <el-table-column label="图片" width="100">
             <template #default="scope">
-              <el-image v-if="scope.row.externalPath || scope.row.image" style="width: 50px; height: 50px" :src="scope.row.externalPath || getUrl(scope.row.image)" fit="cover" :preview-src-list="[scope.row.externalPath || getUrl(scope.row.image)]" preview-teleported />
+              <el-image v-if="scope.row.externalPath || scope.row.image" style="width: 50px; height: 50px" :src="getUrl(scope.row.externalPath || scope.row.image)" fit="cover" :preview-src-list="[getUrl(scope.row.externalPath || scope.row.image)]" preview-teleported />
               <span v-else>-</span>
             </template>
         </el-table-column>

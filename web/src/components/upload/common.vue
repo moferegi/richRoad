@@ -6,7 +6,7 @@
       :on-error="uploadError"
       :on-success="uploadSuccess"
       :show-file-list="false"
-      :data="{'classId': props.classId}"
+      :data="{'classId': props.classId, 'folder': props.folder}"
       :headers="{'x-token': token}"
       multiple
       class="upload-btn"
@@ -36,6 +36,10 @@
     classId: {
       type: Number,
       default: 0
+    },
+    folder: {
+      type: String,
+      default: ''
     }
   })
 
@@ -45,8 +49,8 @@
 
   const checkFile = (file) => {
     fullscreenLoading.value = true
-    const isLt500K = file.size / 1024 / 1024 < 0.5 // 500K, @todo 应支持在项目中设置
-    const isLt5M = file.size / 1024 / 1024 < 5 // 5MB, @todo 应支持项目中设置
+    const isLt10M = file.size / 1024 / 1024 < 10 // 10MB
+    const isLt500M = file.size / 1024 / 1024 < 500 // 500MB
     const isVideo = isVideoMime(file.type)
     const isImage = isImageMime(file.type)
     let pass = true
@@ -57,13 +61,13 @@
       fullscreenLoading.value = false
       pass = false
     }
-    if (!isLt5M && isVideo) {
-      ElMessage.error('上传视频大小不能超过 5MB')
+    if (!isLt500M && isVideo) {
+      ElMessage.error('上传视频大小不能超过 500MB')
       fullscreenLoading.value = false
       pass = false
     }
-    if (!isLt500K && isImage) {
-      ElMessage.error('未压缩的上传图片大小不能超过 500KB，请使用压缩上传')
+    if (!isLt10M && isImage) {
+      ElMessage.error('上传图片大小不能超过 10MB')
       fullscreenLoading.value = false
       pass = false
     }

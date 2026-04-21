@@ -18,5 +18,8 @@ func (e *FileUploadAndDownloadRouter) InitFileUploadAndDownloadRouter(Router *gi
 		fileUploadAndDownloadRouter.POST("breakpointContinueFinish", exaFileUploadAndDownloadApi.BreakpointContinueFinish) // 切片传输完成
 		fileUploadAndDownloadRouter.POST("removeChunk", exaFileUploadAndDownloadApi.RemoveChunk)                           // 删除切片
 		fileUploadAndDownloadRouter.POST("importURL", exaFileUploadAndDownloadApi.ImportURL)                               // 导入URL
+		fileUploadAndDownloadRouter.POST("signURL", exaFileUploadAndDownloadApi.SignURL)                                   // 生成防盗链签名URL
+		fileUploadAndDownloadRouter.GET("hotlinkConfig", exaFileUploadAndDownloadApi.GetHotlinkConfig)                     // 获取防盗链配置信息
+		fileUploadAndDownloadRouter.GET("listFolders", exaFileUploadAndDownloadApi.ListOSSFolders)                         // 列举OSS文件夹
 	}
 }

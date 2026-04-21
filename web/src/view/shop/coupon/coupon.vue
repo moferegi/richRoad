@@ -220,7 +220,7 @@
           {{ formatBoolean(detailFrom.status) }}
         </el-descriptions-item>
         <el-descriptions-item label="背景图">
-          <el-image v-if="detailFrom.externalBgPath || detailFrom.backgroundImage" style="width:100px;height:60px" :src="detailFrom.externalBgPath || getUrl(detailFrom.backgroundImage)" fit="cover" />
+          <el-image v-if="detailFrom.externalBgPath || detailFrom.backgroundImage" style="width:100px;height:60px" :src="getUrl(detailFrom.externalBgPath || detailFrom.backgroundImage)" fit="cover" />
           <span v-else>-</span>
         </el-descriptions-item>
       </el-descriptions>

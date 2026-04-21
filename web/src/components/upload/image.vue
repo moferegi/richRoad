@@ -6,7 +6,7 @@
       :on-success="handleImageSuccess"
       :before-upload="beforeImageUpload"
       :multiple="false"
-      :data="{'classId': props.classId}"
+      :data="{'classId': props.classId, 'folder': props.folder}"
       :headers="{'x-token': token}"
     >
       <el-button type="primary" :icon="Upload">压缩上传</el-button>
@@ -42,6 +42,10 @@
     classId: {
       type: Number,
       default: 0
+    },
+    folder: {
+      type: String,
+      default: ''
     }
   })
 

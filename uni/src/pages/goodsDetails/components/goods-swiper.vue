@@ -34,9 +34,10 @@
 </template>
 
 <script setup>
-import { computed } from "vue"
+import { ref, watch } from "vue"
 import { getUrl, getExternalUrl } from "@/utils/url.js"
 import { localText } from "@/utils/i18n.js"
+import { signURL } from "@/api/fileUpload.js"
 
 const props = defineProps({
   list: {
@@ -45,30 +46,58 @@ const props = defineProps({
   }
 })
 
-// 兼容两种 banner 格式：字符串数组 或 对象数组
-const normalizedList = computed(() => {
-  if (!props.list || props.list.length === 0) return []
-  return props.list.map(item => {
-    if (typeof item === 'string') {
-      return { src: getUrl(item), type: 'image', text: '', textColor: '#fff', textSize: 14, textPosition: 'bottom' }
+const normalizedList = ref([])
+
+// 判断是否是视频 URL
+const isVideoUrl = (url) => /\.(mp4|mov|webm|m3u8|ts)(\?|$)/i.test(url || '')
+
+const buildItem = (item) => {
+  if (typeof item === 'string') {
+    return { src: getUrl(item), type: isVideoUrl(item) ? 'video' : 'image', text: '', textColor: '#fff', textSize: 14, textPosition: 'bottom' }
+  }
+  if (typeof item === 'object' && item !== null) {
+    const rawSrc = item.externalUrl ? getExternalUrl(item.externalUrl) : getUrl(item.url || '')
+    const rawText = item.text || ''
+    const displayText = localText(rawText) || rawText
+    return {
+      src: rawSrc,
+      type: item.type || 'image',
+      text: displayText,
+      textColor: item.textColor || '#fff',
+      textSize: item.textSize || 14,
+      textPosition: item.textPosition || 'bottom'
     }
-    if (typeof item === 'object' && item !== null) {
-      const src = item.externalUrl ? getExternalUrl(item.externalUrl) : getUrl(item.url || '')
-      // 支持多语言文字：text 可能是 JSON 多语言字符串
-      const rawText = item.text || ''
-      const displayText = localText(rawText) || rawText
-      return {
-        src,
-        type: item.type || 'image',
-        text: displayText,
-        textColor: item.textColor || '#fff',
-        textSize: item.textSize || 14,
-        textPosition: item.textPosition || 'bottom'
+  }
+  return { src: '', type: 'image', text: '' }
+}
+
+watch(() => props.list, async (list) => {
+  if (!list || list.length === 0) {
+    normalizedList.value = []
+    return
+  }
+  const items = list.map(buildItem)
+
+  // 视频类型先用空 src 占位，避免未签名请求触发 Worker 403
+  normalizedList.value = items.map(item =>
+    item.type === 'video' ? { ...item, src: '' } : item
+  )
+
+  // 异步对视频类型签名，完成后整体替换
+  const signed = await Promise.all(items.map(async (item) => {
+    if (item.type !== 'video' || !item.src) return item
+    try {
+      const res = await signURL(item.src)
+      if (res.code === 0 && res.data && res.data.url) {
+        return { ...item, src: res.data.url }
       }
+    } catch (e) {
+      console.warn('banner视频签名失败', e)
     }
-    return { src: '', type: 'image', text: '' }
-  })
-})
+    return item
+  }))
+  normalizedList.value = signed
+}, { immediate: true })
 </script>
 
 <style lang="scss" scoped>

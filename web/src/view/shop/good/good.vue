@@ -685,7 +685,7 @@
               <el-form-item label="规格名称(默认):" class="mb-0">
                 <el-input v-model="item.name" :clearable="true" placeholder="默认规格名称" />
               </el-form-item>
-              <div v-if="enabledLangs.length" class="pl-2 mt-1">
+              <div v-if="enabledLangs.length && item.nameI18n" class="pl-2 mt-1">
                 <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
                   <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
                   <el-input v-model="item.nameI18n[lang.code]" :placeholder="lang.name" size="small" />
@@ -696,7 +696,7 @@
               <el-form-item label="规格编码(默认):" class="mb-0">
                 <el-input v-model="item.value" :clearable="true" placeholder="请输入规格编码" />
               </el-form-item>
-              <div v-if="enabledLangs.length" class="pl-2 mt-1">
+              <div v-if="enabledLangs.length && item.valueI18n" class="pl-2 mt-1">
                 <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
                   <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
                   <el-input v-model="item.valueI18n[lang.code]" :placeholder="lang.name" size="small" />
@@ -744,7 +744,7 @@
               <el-form-item label="属性名称(默认):" class="mb-0">
                 <el-input v-model="item.name" :clearable="true" placeholder="默认属性名称" />
               </el-form-item>
-              <div v-if="enabledLangs.length" class="pl-2 mt-1">
+              <div v-if="enabledLangs.length && item.nameI18n" class="pl-2 mt-1">
                 <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
                   <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
                   <el-input v-model="item.nameI18n[lang.code]" :placeholder="lang.name" size="small" />
@@ -755,7 +755,7 @@
               <el-form-item label="属性编码(默认):" class="mb-0">
                 <el-input v-model="item.value" :clearable="true" placeholder="请输入属性编码" />
               </el-form-item>
-              <div v-if="enabledLangs.length" class="pl-2 mt-1">
+              <div v-if="enabledLangs.length && item.valueI18n" class="pl-2 mt-1">
                 <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
                   <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
                   <el-input v-model="item.valueI18n[lang.code]" :placeholder="lang.name" size="small" />
@@ -1261,48 +1261,50 @@ const closeDialog = () => {
 const enterDialog = async() => {
   elFormRef.value?.validate(async(valid) => {
     if (!valid) return
-    // 序列化 i18n 字段
+    // 构建深拷贝 payload，避免序列化时污染 formData（导致保存失败后 nameI18n 丢失）
+    const payload = JSON.parse(JSON.stringify(formData.value))
+    // 序列化 i18n 字段（写 payload，不写 formData）
     if (enabledLangs.value.length) {
-      const titleObj = { ...titleI18n.value }
-      if (formData.value.title && !titleObj[enabledLangs.value[0]?.code]) {
-        // 保持默认值在第一语言
-      }
-      formData.value.title = serializeI18nJson(titleI18n.value) || formData.value.title
-      formData.value.description = serializeI18nJson(descI18n.value) || formData.value.description
-      formData.value.detail = serializeI18nJson(detailI18n.value) || formData.value.detail
-      formData.value.presalePopupTitle = serializeI18nJson(presalePopupTitleI18n.value) || formData.value.presalePopupTitle
-      formData.value.presalePopupContent = serializeI18nJson(presalePopupContentI18n.value) || formData.value.presalePopupContent
-      // 序列化 banner 文字 i18n
-      formData.value.banner.forEach(item => {
+      payload.title = serializeI18nJson(titleI18n.value) || payload.title
+      payload.description = serializeI18nJson(descI18n.value) || payload.description
+      payload.detail = serializeI18nJson(detailI18n.value) || payload.detail
+      payload.presalePopupTitle = serializeI18nJson(presalePopupTitleI18n.value) || payload.presalePopupTitle
+      payload.presalePopupContent = serializeI18nJson(presalePopupContentI18n.value) || payload.presalePopupContent
+      payload.banner.forEach(item => {
         if (item.textI18n) {
           item.text = serializeI18nJson(item.textI18n) || item.text
           delete item.textI18n
         }
       })
-      // 序列化 specs/attrs 名称 i18n
-      formData.value.specs.forEach(item => {
+      payload.specs.forEach(item => {
         if (item.nameI18n) {
           item.name = serializeI18nJson(item.nameI18n) || item.name
           delete item.nameI18n
         }
+        if (item.valueI18n) {
+          delete item.valueI18n
+        }
       })
-      formData.value.attrs.forEach(item => {
+      payload.attrs.forEach(item => {
         if (item.nameI18n) {
           item.name = serializeI18nJson(item.nameI18n) || item.name
           delete item.nameI18n
+        }
+        if (item.valueI18n) {
+          delete item.valueI18n
         }
       })
     }
     let res
     switch (type.value) {
       case 'create':
-        res = await createGood(formData.value)
+        res = await createGood(payload)
         break
       case 'update':
-        res = await updateGood(formData.value)
+        res = await updateGood(payload)
         break
       default:
-        res = await createGood(formData.value)
+        res = await createGood(payload)
         break
     }
     if (res.code === 0) {

@@ -14,8 +14,13 @@
   import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
   import Application from '@/components/application/index.vue'
   import { useAppStore } from '@/pinia'
+  import { initCdnDomain } from '@/utils/image'
+  import { onMounted } from 'vue'
   //测试第一次提交
   const appStore = useAppStore()
+  onMounted(() => {
+    initCdnDomain()
+  })
   defineOptions({
     name: 'App'
   })

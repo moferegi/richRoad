@@ -203,6 +203,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { findGood } from '@/api/product.js'
 import { findCollect, createCollect } from '@/api/collect.js'
 import { getUrl } from '@/utils/url.js'
+import { signURL } from '@/api/fileUpload.js'
 import { useUserStore } from '@/pinia/modules/user'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { usePlayHistoryStore } from '@/pinia/modules/playHistory.js'
@@ -222,6 +223,7 @@ const episodes = ref([])
 const currentIndex = ref(-1)
 const currentEpisode = ref({})
 const videoUrl = ref('')
+const currentRawVideoUrl = ref('')
 const collectionFlag = ref(false)
 const isLoading = ref(true)
 const descExpand = ref(false)
@@ -375,6 +377,7 @@ const closeTheater = () => {
   setTimeout(() => {
     showTheater.value = false
     videoUrl.value = ''
+    currentRawVideoUrl.value = ''
     currentTime.value = 0
     duration.value = 0
   }, 300)
@@ -500,6 +503,8 @@ const destroyPlayer = () => {
   clearTimeout(longTimer)
   clearTimeout(tipTimer)
   clearTimeout(switchTimer)
+  clearSignRenewTimer()
+  signRenewing = false
   switchingEpisode = false
   seekingByClick = false
   // 移除原生 video 事件
@@ -637,6 +642,11 @@ let switchingEpisode = false
 let switchTimer = null
 let pendingResumeTime = 0   // 待恢复的播放时间（由 playFirst 设置）
 let lastSaveTime = 0        // 上次保存进度的时间戳（节流用）
+let signRenewTimer = null
+let signRenewing = false
+
+const SIGN_RENEW_AHEAD_SECONDS = 60
+const SIGN_RENEW_RETRY_MS = 20000
 
 const vpProgClick = (e) => {
   const bar = vpProgRef.value
@@ -838,6 +848,135 @@ const resolveVideoUrl = (ep) => {
   return ''
 }
 
+// 获取视频签名URL（防盗链），失败时回退到原始URL
+const resolveSignedVideoUrl = async (rawUrl) => {
+  if (!rawUrl) return ''
+  try {
+    const res = await signURL(rawUrl)
+    if (res.code === 0 && res.data && res.data.url) {
+      return res.data.url
+    }
+  } catch (e) {
+    console.warn('获取签名URL失败，回退明文URL', e)
+  }
+  return rawUrl
+}
+
+const clearSignRenewTimer = () => {
+  if (!signRenewTimer) return
+  clearTimeout(signRenewTimer)
+  signRenewTimer = null
+}
+
+const parseSignDeadline = (signedUrl) => {
+  if (!signedUrl) return 0
+  const matched = signedUrl.match(/[?&]t=([0-9a-fA-F]+)/)
+  if (!matched || !matched[1]) return 0
+  const deadline = parseInt(matched[1], 16)
+  return Number.isFinite(deadline) ? deadline : 0
+}
+
+const scheduleSignRenew = (signedUrl, episodeIdx = currentIndex.value) => {
+  clearSignRenewTimer()
+  const deadline = parseSignDeadline(signedUrl)
+  if (!deadline) return
+  const now = Math.floor(Date.now() / 1000)
+  const renewAt = deadline - SIGN_RENEW_AHEAD_SECONDS
+  const delayMs = Math.max(5000, (renewAt - now) * 1000)
+  signRenewTimer = setTimeout(() => {
+    renewCurrentVideoSignature(episodeIdx)
+  }, delayMs)
+}
+
+const retrySignRenew = (episodeIdx = currentIndex.value) => {
+  clearSignRenewTimer()
+  signRenewTimer = setTimeout(() => {
+    renewCurrentVideoSignature(episodeIdx)
+  }, SIGN_RENEW_RETRY_MS)
+}
+
+const applyRenewedVideoUrl = (nextUrl) => {
+  const v = getVideo()
+  if (!v) {
+    videoUrl.value = nextUrl
+    return
+  }
+
+  const resumeTime = v.currentTime || currentTime.value || 0
+  const wasPaused = v.paused
+  const keepRate = v.playbackRate || playbackSpeed.value
+  let renewSwitchTimer = null
+
+  const cleanup = () => {
+    v.removeEventListener('canplay', onReady)
+    v.removeEventListener('loadedmetadata', onReady)
+    v.removeEventListener('error', onErr)
+    if (renewSwitchTimer) clearTimeout(renewSwitchTimer)
+  }
+
+  const onReady = () => {
+    cleanup()
+    try {
+      if (resumeTime > 0) v.currentTime = resumeTime
+    } catch (e) {}
+    v.playbackRate = keepRate
+    isBuffering.value = false
+    if (!wasPaused) v.play().catch(() => {})
+  }
+
+  const onErr = () => {
+    cleanup()
+    isBuffering.value = false
+    showTip($t.value('playerLoadFail') + '，' + $t.value('playerTapRetry'), 3000)
+  }
+
+  isBuffering.value = true
+  v.addEventListener('canplay', onReady)
+  v.addEventListener('loadedmetadata', onReady)
+  v.addEventListener('error', onErr)
+  renewSwitchTimer = setTimeout(() => {
+    cleanup()
+    isBuffering.value = false
+  }, 8000)
+
+  videoUrl.value = nextUrl
+  v.src = nextUrl
+  v.load()
+}
+
+const renewCurrentVideoSignature = async (episodeIdx = currentIndex.value) => {
+  if (signRenewing || !showTheater.value) return
+  if (episodeIdx !== currentIndex.value) return
+  if (!currentRawVideoUrl.value) return
+  if (switchingEpisode) {
+    retrySignRenew(episodeIdx)
+    return
+  }
+
+  signRenewing = true
+  try {
+    const res = await signURL(currentRawVideoUrl.value)
+    if (res.code === 0 && res.data && res.data.url) {
+      const nextUrl = res.data.url
+      if (episodeIdx === currentIndex.value && nextUrl) {
+        if (nextUrl !== videoUrl.value) {
+          applyRenewedVideoUrl(nextUrl)
+        } else {
+          videoUrl.value = nextUrl
+        }
+        scheduleSignRenew(nextUrl, episodeIdx)
+        return
+      }
+    }
+  } catch (e) {
+    console.warn('视频自动续签失败，将重试', e)
+  } finally {
+    signRenewing = false
+  }
+
+  retrySignRenew(episodeIdx)
+}
+
 const playFirst = () => {
   if (episodes.value.length > 0) {
     const progress = playHistoryStore.getProgress(goodID.value)
@@ -845,16 +984,19 @@ const playFirst = () => {
     playEpisode(epIdx)
   } else {
     pendingResumeTime = 0
+    currentRawVideoUrl.value = ''
     openTheater()
   }
 }
 
-const playEpisode = (idx) => {
+const playEpisode = async (idx) => {
   const ep = episodes.value[idx]
   if (!ep) return
   currentIndex.value = idx
   currentEpisode.value = ep
-  videoUrl.value = resolveVideoUrl(ep)
+  currentRawVideoUrl.value = resolveVideoUrl(ep)
+  videoUrl.value = await resolveSignedVideoUrl(currentRawVideoUrl.value)
+  scheduleSignRenew(videoUrl.value, idx)
   // 查询该集的历史进度
   const epProg = playHistoryStore.getEpisodeProgress(goodID.value, idx)
   pendingResumeTime = epProg ? epProg.currentTime : 0
@@ -862,7 +1004,7 @@ const playEpisode = (idx) => {
   openTheater()
 }
 
-const switchEpisode = (idx) => {
+const switchEpisode = async (idx) => {
   const ep = episodes.value[idx]
   if (!ep) return
   // 切换前先保存当前集进度
@@ -878,7 +1020,9 @@ const switchEpisode = (idx) => {
   }
   currentIndex.value = idx
   currentEpisode.value = ep
-  videoUrl.value = resolveVideoUrl(ep)
+  currentRawVideoUrl.value = resolveVideoUrl(ep)
+  videoUrl.value = await resolveSignedVideoUrl(currentRawVideoUrl.value)
+  scheduleSignRenew(videoUrl.value, idx)
   currentTime.value = 0
   duration.value = 0
   isBuffering.value = true

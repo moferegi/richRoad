@@ -35,6 +35,7 @@ func (fs justFilesFilesystem) Open(name string) (http.File, error) {
 
 func Routers() *gin.Engine {
 	Router := gin.New()
+	Router.MaxMultipartMemory = 8 << 20 // 8MB 内存缓冲，超出自动写磁盘临时文件（支持大视频上传）
 	// 使用自定义的 Recovery 中间件，记录 panic 并入库
 	Router.Use(middleware.GinRecovery(true))
 	if gin.Mode() == gin.DebugMode {

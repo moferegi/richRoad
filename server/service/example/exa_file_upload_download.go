@@ -93,9 +93,9 @@ func (e *FileUploadAndDownloadService) GetFileRecordInfoList(info request.ExaAtt
 //@param: header *multipart.FileHeader, noSave string
 //@return: file model.ExaFileUploadAndDownload, err error
 
-func (e *FileUploadAndDownloadService) UploadFile(header *multipart.FileHeader, noSave string, classId int) (file example.ExaFileUploadAndDownload, err error) {
+func (e *FileUploadAndDownloadService) UploadFile(header *multipart.FileHeader, noSave string, classId int, folder string) (file example.ExaFileUploadAndDownload, err error) {
 	oss := upload.NewOss()
-	filePath, key, uploadErr := oss.UploadFile(header)
+	filePath, key, uploadErr := upload.UploadFileToFolder(oss, header, folder)
 	if uploadErr != nil {
 		return file, uploadErr
 	}

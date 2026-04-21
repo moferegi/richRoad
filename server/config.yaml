@@ -12,14 +12,14 @@ autocode:
     module: github.com/flipped-aurora/gin-vue-admin/server
     ai-path: "https://plugin.gin-vue-admin.com/api/app/K0GWMD088hl2YyRt84gmvEPxdKv-C_LjfBQ6ZIBEXD_yO_snS9nhIAEFWizc42cJ/{FUNC}"
 aws-s3:
-    bucket: xxxxx-10005608
-    region: ap-shanghai
-    endpoint: ""
-    secret-id: your-secret-id
-    secret-key: your-secret-key
-    base-url: https://gin.vue.admin
-    path-prefix: github.com/flipped-aurora/gin-vue-admin/server
-    s3-force-path-style: false
+    bucket: Moffuu
+    region: us-east-005
+    endpoint: s3.us-east-005.backblazeb2.com
+    secret-id: 0055f54da715c850000000001
+    secret-key: K005Sl4Y4CebI5w8ml7YrzMJmR3pEDI
+    base-url: https://video.mnmovie.icu
+    path-prefix: 
+    s3-force-path-style: true
     disable-ssl: false
 captcha:
     key-long: 6
@@ -227,7 +227,7 @@ sqlite:
     log-zap: false
 system:
     db-type: mysql
-    oss-type: local
+    oss-type: aws-s3
     router-prefix: ""
     addr: 8888
     iplimit-count: 15000
@@ -237,6 +237,12 @@ system:
     use-mongo: false
     use-strict-auth: false
     disable-auto-migrate: false
+# 防盗链配置
+hotlink:
+    enabled: true
+    cdn-domain: https://video.mnmovie.icu
+    sign-key: a7K2xP9mL4vQ8nR5sT6uV7wX8yZ9aB0c1D2eF3gH4iJ5kL6mN7oP8qR9sT0uV1wX
+    expire-seconds: 300
 tencent-cos:
     bucket: xxxxx-10005608
     region: ap-shanghai

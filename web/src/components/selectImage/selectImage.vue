@@ -64,10 +64,19 @@
           </div>
           <div class="gva-btn-list gap-2">
             <el-button @click="useSelectedImages" type="danger" :disabled="selectedImages.length === 0" :icon="ArrowLeftBold">选定</el-button>
-            <upload-common :image-common="imageCommon" :classId="search.classId" @on-success="onSuccess" />
-            <cropper-image :classId="search.classId" @on-success="onSuccess" />
+            <upload-common :image-common="imageCommon" :classId="search.classId" :folder="uploadFolder" @on-success="onSuccess" />
+            <cropper-image :classId="search.classId" :folder="uploadFolder" @on-success="onSuccess" />
             <QRCodeUpload :classId="search.classId" @on-success="onSuccess" />
-            <upload-image :image-url="imageUrl" :file-size="2048" :max-w-h="1080" :classId="search.classId" @on-success="onSuccess" />
+            <upload-image :image-url="imageUrl" :file-size="2048" :max-w-h="1080" :classId="search.classId" :folder="uploadFolder" @on-success="onSuccess" />
+            <el-autocomplete
+              v-model="uploadFolder"
+              :fetch-suggestions="queryFolders"
+              clearable
+              class="w-44"
+              placeholder="上传文件夹(可选)"
+              size="small"
+              @focus="onFolderSelectOpen(true)"
+            />
           </div>
           <div class="flex flex-wrap gap-4">
             <div v-for="(item,key) in picList" :key="key" class="w-40">
@@ -169,9 +178,33 @@ import { addCategory, deleteCategory, getCategoryList } from '@/api/attachmentCa
 import CropperImage from "@/components/upload/cropper.vue";
 import QRCodeUpload from "@/components/upload/QR-code.vue";
 import draggable from 'vuedraggable'
+import { getOSSFolders } from '@/api/fileUploadAndDownload'
 
 const imageUrl = ref('')
 const imageCommon = ref('')
+const uploadFolder = ref('')
+const ossFolders = ref([])
+
+const onFolderSelectOpen = async (visible) => {
+  if (visible && ossFolders.value.length === 0) {
+    try {
+      const res = await getOSSFolders()
+      if (res.code === 0 && res.data) {
+        ossFolders.value = res.data.folders || []
+      }
+    } catch (e) {
+      // 静默失败，仍可手动输入
+    }
+  }
+}
+
+// el-autocomplete 的 fetch-suggestions 回调
+const queryFolders = (queryStr, cb) => {
+  const results = queryStr
+    ? ossFolders.value.filter(f => f.toLowerCase().includes(queryStr.toLowerCase()))
+    : ossFolders.value
+  cb(results.map(f => ({ value: f })))
+}
 
 const search = ref({
   keyword: null,

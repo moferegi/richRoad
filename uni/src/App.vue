@@ -6,7 +6,7 @@
 	import {myRouter} from '@/utils/permission.js'
 	import { visitorHeartbeat } from '@/api/visitor.js'
 	import { generateFingerprint, getSessionId, getPlatform } from '@/utils/fingerprint.js'
-	import { initExternalDomain } from '@/utils/url.js'
+	import { initExternalDomain, initCdnDomain } from '@/utils/url.js'
 	export default {
 		onLaunch: function() {
 			const userStore = useUserStore()
@@ -15,6 +15,7 @@
 			userStore.getInfo()
 			langStore.initLangs()
 			initExternalDomain()
+			initCdnDomain()
 			appConfigStore.loadConfig()
       console.log(123)
 			wx.login({

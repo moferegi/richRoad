@@ -102,7 +102,7 @@
         />
         <el-table-column label="图标" width="200">
           <template #default="scope">
-            <el-image style="width: 100px; height: 100px" :src="scope.row.externalIconPath || getUrl(scope.row.icons)" fit="cover"/>
+            <el-image style="width: 100px; height: 100px" :src="getUrl(scope.row.externalIconPath || scope.row.icons)" fit="cover"/>
           </template>
         </el-table-column>
         <el-table-column align="left" label="外部图标路径" prop="externalIconPath" width="160" show-overflow-tooltip />

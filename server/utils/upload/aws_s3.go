@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"mime/multipart"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
@@ -26,22 +28,37 @@ type AwsS3 struct{}
 //@return: string, string, error
 
 func (*AwsS3) UploadFile(file *multipart.FileHeader) (string, string, error) {
+	return new(AwsS3).UploadFileToFolder(file, "")
+}
+
+// UploadFileToFolder 上传文件到指定文件夹
+func (*AwsS3) UploadFileToFolder(file *multipart.FileHeader, folder string) (string, string, error) {
 	session := newSession()
 	uploader := s3manager.NewUploader(session)
 
 	fileKey := fmt.Sprintf("%d%s", time.Now().Unix(), file.Filename)
-	filename := global.GVA_CONFIG.AwsS3.PathPrefix + "/" + fileKey
+	// 构建路径: PathPrefix/folder/fileKey
+	pathParts := []string{}
+	if global.GVA_CONFIG.AwsS3.PathPrefix != "" {
+		pathParts = append(pathParts, global.GVA_CONFIG.AwsS3.PathPrefix)
+	}
+	if folder != "" {
+		pathParts = append(pathParts, folder)
+	}
+	pathParts = append(pathParts, fileKey)
+
+	filename := strings.Join(pathParts, "/")
 	f, openError := file.Open()
 	if openError != nil {
 		global.GVA_LOG.Error("function file.Open() failed", zap.Any("err", openError.Error()))
 		return "", "", errors.New("function file.Open() failed, err:" + openError.Error())
 	}
-	defer f.Close() // 创建文件 defer 关闭
+	defer f.Close()
 
 	_, err := uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String(global.GVA_CONFIG.AwsS3.Bucket),
-		Key:    aws.String(filename),
-		Body:   f,
+		Bucket:      aws.String(global.GVA_CONFIG.AwsS3.Bucket),
+		Key:         aws.String(filename),
+		Body:        f,
 		ContentType: aws.String(file.Header.Get("Content-Type")),
 	})
 	if err != nil {
@@ -49,7 +66,7 @@ func (*AwsS3) UploadFile(file *multipart.FileHeader) (string, string, error) {
 		return "", "", err
 	}
 
-	return global.GVA_CONFIG.AwsS3.BaseURL + "/" + filename, fileKey, nil
+	return global.GVA_CONFIG.AwsS3.BaseURL + "/" + filename, filename, nil
 }
 
 //@author: [WqyJh](https://github.com/WqyJh)
@@ -79,6 +96,61 @@ func (*AwsS3) DeleteFile(key string) error {
 		Key:    aws.String(filename),
 	})
 	return nil
+}
+
+// ListFolders 列举 bucket 中所有层级的文件夹路径（基于 path-prefix），支持分页
+func (*AwsS3) ListFolders() ([]string, error) {
+	sess := newSession()
+	svc := s3.New(sess)
+
+	basePrefix := ""
+	if global.GVA_CONFIG.AwsS3.PathPrefix != "" {
+		basePrefix = strings.TrimRight(global.GVA_CONFIG.AwsS3.PathPrefix, "/") + "/"
+	}
+
+	folderSet := make(map[string]struct{})
+	var continuationToken *string
+
+	for {
+		input := &s3.ListObjectsV2Input{
+			Bucket:  aws.String(global.GVA_CONFIG.AwsS3.Bucket),
+			Prefix:  aws.String(basePrefix),
+			MaxKeys: aws.Int64(1000),
+		}
+		if continuationToken != nil {
+			input.ContinuationToken = continuationToken
+		}
+
+		result, err := svc.ListObjectsV2(input)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, obj := range result.Contents {
+			if obj.Key == nil {
+				continue
+			}
+			// 去掉 basePrefix，取相对路径
+			relKey := strings.TrimPrefix(*obj.Key, basePrefix)
+			parts := strings.Split(relKey, "/")
+			// 提取所有上级目录路径（不含文件名本身）
+			for i := 1; i < len(parts); i++ {
+				folderSet[strings.Join(parts[:i], "/")] = struct{}{}
+			}
+		}
+
+		if result.IsTruncated == nil || !*result.IsTruncated {
+			break
+		}
+		continuationToken = result.NextContinuationToken
+	}
+
+	folders := make([]string, 0, len(folderSet))
+	for f := range folderSet {
+		folders = append(folders, f)
+	}
+	sort.Strings(folders)
+	return folders, nil
 }
 
 // newSession Create S3 session

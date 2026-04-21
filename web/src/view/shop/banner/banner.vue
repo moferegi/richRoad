@@ -47,7 +47,7 @@
         <el-table-column align="left" label="轮播标题" prop="title" width="120" />
           <el-table-column label="图片" width="200">
               <template #default="scope">
-                <el-image style="width: 100px; height: 100px" :src="scope.row.externalPath || getUrl(scope.row.src)" fit="cover"/>
+                <el-image style="width: 100px; height: 100px" :src="getUrl(scope.row.externalPath || scope.row.src)" fit="cover"/>
               </template>
           </el-table-column>
         <el-table-column align="left" label="跳转链接" prop="href" width="120" />
