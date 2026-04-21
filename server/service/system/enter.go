@@ -26,4 +26,5 @@ type ServiceGroup struct {
 	SysErrorService
 	LoginLogService
 	ApiTokenService
+	BannedIPService
 }

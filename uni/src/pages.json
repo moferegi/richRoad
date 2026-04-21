@@ -220,6 +220,15 @@
 			}
 		},
 		{
+			"path": "pages/kefu/chat",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
 			"path": "pages/player/index",
 			"style": {
 				"navigationStyle": "custom",

@@ -25,6 +25,7 @@ type ClientUserApi struct {
 }
 
 var clientUserService = service.ServiceGroupApp.ClientServiceGroup.ClientUserService
+var clientBannedIPService = service.ServiceGroupApp.SystemServiceGroup.BannedIPService
 
 var store = base64Captcha.DefaultMemStore
 
@@ -99,6 +100,7 @@ func (clientUserApi *ClientUserApi) Login(c *gin.Context) {
 			// 验证码次数+1
 			global.BlackCache.Increment(key, 1)
 			securityService.RecordLoginFail(l.Username)
+			clientBannedIPService.RecordAttack(key, "login_fail", l.Username, "密码错误")
 			response.FailWithMessage(i18n.T(c, "loginFail"), c)
 			return
 		}
@@ -109,6 +111,7 @@ func (clientUserApi *ClientUserApi) Login(c *gin.Context) {
 	// 验证码次数+1
 	global.BlackCache.Increment(key, 1)
 	securityService.RecordLoginFail(l.Username)
+	clientBannedIPService.RecordAttack(key, "captcha_fail", l.Username, "验证码错误")
 	response.FailWithMessage(i18n.T(c, "captchaError"), c)
 }
 
@@ -130,6 +133,7 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 	var securityService = service.ServiceGroupApp.ClientServiceGroup.SecurityService
 	allowed, _ := securityService.CheckRegisterIPLimit(c.ClientIP())
 	if !allowed {
+		clientBannedIPService.RecordAttack(c.ClientIP(), "register_limit", "", "注册IP超限")
 		response.FailWithMessage(i18n.T(c, "registerIPLimit"), c)
 		return
 	}
@@ -552,6 +556,7 @@ func (clientUserApi *ClientUserApi) PhoneLogin(c *gin.Context) {
 	if err != nil {
 		global.GVA_LOG.Error("手机号登录失败!", zap.Error(err))
 		securityService.RecordLoginFail(req.Phone)
+		clientBannedIPService.RecordAttack(c.ClientIP(), "login_fail", req.Phone, "手机号密码错误")
 		response.FailWithMessage(i18n.T(c, "phoneLoginFail"), c)
 		return
 	}
@@ -585,6 +590,7 @@ func (clientUserApi *ClientUserApi) PhoneRegister(c *gin.Context) {
 	var securityService = service.ServiceGroupApp.ClientServiceGroup.SecurityService
 	allowed, _ := securityService.CheckRegisterIPLimit(c.ClientIP())
 	if !allowed {
+		clientBannedIPService.RecordAttack(c.ClientIP(), "register_limit", "", "注册IP超限")
 		response.FailWithMessage(i18n.T(c, "registerIPLimit"), c)
 		return
 	}

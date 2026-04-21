@@ -79,6 +79,7 @@ func Routers() *gin.Engine {
 	PublicGroup := Router.Group(global.GVA_CONFIG.System.RouterPrefix)
 	PublicGroup.Use(middleware.Locale())
 	PublicGroup.Use(middleware.Maintenance()) // 维护模式拦截（仅拦截客户端业务请求）
+	PublicGroup.Use(middleware.BanIPCheck())  // IP封禁检查
 	PrivateGroup := Router.Group(global.GVA_CONFIG.System.RouterPrefix)
 	PrivateGroup.Use(middleware.Locale())
 
@@ -116,6 +117,7 @@ func Routers() *gin.Engine {
 		systemRouter.InitLoginLogRouter(PrivateGroup)                       // 登录日志
 		systemRouter.InitApiTokenRouter(PrivateGroup)                       // apiToken签发
 		systemRouter.InitSkillsRouter(PrivateGroup)                         // Skills 定义器
+		systemRouter.InitBannedIPRouter(PrivateGroup)                       // IP封禁管理
 		exampleRouter.InitCustomerRouter(PrivateGroup)                      // 客户路由
 		exampleRouter.InitFileUploadAndDownloadRouter(PrivateGroup)         // 文件上传下载功能路由
 		exampleRouter.InitAttachmentCategoryRouterRouter(PrivateGroup)      // 文件上传下载分类

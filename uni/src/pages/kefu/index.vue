@@ -14,8 +14,26 @@
       </view>
     </view>
 
-    <!-- 客服列表 -->
-    <scroll-view scroll-y :show-scrollbar="false" class="nf-kefu-scroll">
+    <!-- 平台内置客服入口（platEnabled=true 时展示） -->
+    <scroll-view v-if="platEnabled" scroll-y :show-scrollbar="false" class="nf-kefu-scroll">
+      <view class="nf-plat-cs-wrap">
+        <view class="nf-plat-cs-card" @tap="enterPlatChat">
+          <view class="nf-plat-cs-avatar">
+            <uni-icons type="chat-filled" size="40" color="#e50914" />
+          </view>
+          <view class="nf-plat-cs-info">
+            <text class="nf-plat-cs-name">平台专属客服</text>
+            <text class="nf-plat-cs-desc">7×24 小时在线，立即与客服对话</text>
+          </view>
+          <view class="nf-kefu-action">
+            <text class="nf-kefu-action-text">立即咨询</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 外部客服列表（platEnabled=false 时展示） -->
+    <scroll-view v-else scroll-y :show-scrollbar="false" class="nf-kefu-scroll">
       <view v-if="kefuList.length" class="nf-kefu-list">
         <view
           class="nf-kefu-card"
@@ -62,7 +80,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getKefuList } from '@/api/kefu.js'
+import { getKefuList, getCsConfig } from '@/api/kefu.js'
 import { getUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
@@ -73,6 +91,7 @@ const defaultAvatar = 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQ
 
 const kefuList = ref([])
 const isLoading = ref(true)
+const platEnabled = ref(false)
 
 const normalizeStatus = (status) => {
   const map = { '在线': 'online', 'online': 'online', '离线': 'offline', 'offline': 'offline', '忙碌': 'busy', 'busy': 'busy' }
@@ -92,12 +111,18 @@ const getStatusText = (status) => {
 const init = async () => {
   isLoading.value = true
   try {
-    const res = await getKefuList()
-    if (res.code === 0) {
-      kefuList.value = Array.isArray(res.data) ? res.data : (res.data.list || [])
+    const [listRes, cfgRes] = await Promise.allSettled([
+      getKefuList(),
+      getCsConfig()
+    ])
+    if (listRes.status === 'fulfilled' && listRes.value.code === 0) {
+      kefuList.value = Array.isArray(listRes.value.data) ? listRes.value.data : (listRes.value.data?.list || [])
+    }
+    if (cfgRes.status === 'fulfilled' && cfgRes.value.code === 0) {
+      platEnabled.value = !!cfgRes.value.data?.platEnabled
     }
   } catch (e) {
-    console.error('获取客服列表失败', e)
+    console.error('初始化客服页失败', e)
   } finally {
     isLoading.value = false
   }
@@ -105,13 +130,17 @@ const init = async () => {
 
 onShow(() => { init() })
 
+// 进入平台客服聊天室
+const enterPlatChat = () => {
+  uni.navigateTo({ url: '/pages/kefu/chat' })
+}
+
 const contactKefu = (item) => {
   if (normalizeStatus(item.status) === 'offline') {
     uni.showToast({ title: $t.value('kefuOffline'), icon: 'none' })
     return
   }
   if (item.link) {
-    // 如果有外部链接，跳转到webview或复制链接
     // #ifdef H5
     window.open(item.link)
     // #endif
@@ -225,6 +254,58 @@ page {
 /* ===== 客服列表 ===== */
 .nf-kefu-list {
   padding: 24rpx 28rpx;
+}
+
+/* ===== 平台专属客服卡片 ===== */
+.nf-plat-cs-wrap {
+  padding: 40rpx 28rpx;
+}
+
+.nf-plat-cs-card {
+  display: flex;
+  align-items: center;
+  background: rgba(229, 9, 20, 0.08);
+  border: 1rpx solid rgba(229, 9, 20, 0.3);
+  border-radius: 24rpx;
+  padding: 40rpx 32rpx;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: transform 0.3s, background 0.3s;
+
+  &:active {
+    transform: scale(0.985);
+    background: rgba(229, 9, 20, 0.14);
+  }
+}
+
+.nf-plat-cs-avatar {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  background: rgba(229, 9, 20, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 28rpx;
+}
+
+.nf-plat-cs-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.nf-plat-cs-name {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #fff;
+}
+
+.nf-plat-cs-desc {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .nf-kefu-card {

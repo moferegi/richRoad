@@ -27,6 +27,7 @@ type ApiGroup struct {
 	LoginLogApi
 	ApiTokenApi
 	SkillsApi
+	BannedIPApi
 }
 
 var (

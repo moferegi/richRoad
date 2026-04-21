@@ -65,6 +65,8 @@ func RegisterTables() {
 		system.SysError{},
 		system.SysApiToken{},
 		system.SysLoginLog{},
+		system.SysBannedIP{},
+		system.SysAttackLog{},
 
 		example.ExaFile{},
 		example.ExaCustomer{},
@@ -89,6 +91,7 @@ func RegisterTables() {
 	InitInviteData()     // 自动注册邀请系统模块数据
 	InitNewModulesData() // 自动注册新增模块数据（进货、收款码、弹窗、营销、看板、预售、语言、区号、签到）
 	InitHotlinkData()    // 自动注册防盗链API和权限
+	InitSecurityData()   // 自动注册IP封禁管理API和权限
 
 	global.GVA_LOG.Info("register table success")
 }

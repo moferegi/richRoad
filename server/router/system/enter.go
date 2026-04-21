@@ -24,6 +24,7 @@ type RouterGroup struct {
 	LoginLogRouter
 	ApiTokenRouter
 	SkillsRouter
+	BannedIPRouter
 }
 
 var (
