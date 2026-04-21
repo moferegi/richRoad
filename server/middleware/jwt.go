@@ -75,8 +75,12 @@ func JWTAuth() gin.HandlerFunc {
 			c.Header("new-expires-at", strconv.FormatInt(newClaims.ExpiresAt.Unix(), 10))
 			utils.SetToken(c, newToken, int(dr.Seconds()/60))
 			if global.GVA_CONFIG.System.UseMultipoint {
-				// 记录新的活跃jwt
+				// 记录新的活跃jwt（管理员单设备模式）
 				_ = utils.SetRedisJWT(newToken, newClaims.Username)
+			}
+			if global.GVA_CONFIG.System.MaxLoginDevices > 0 && claims.AuthorityId == 8080 {
+				// 客户端用户：续签时替换设备列表中的旧 token
+				utils.RenewDeviceToken(newClaims.Username, token, newToken, dr)
 			}
 		}
 		c.Next()

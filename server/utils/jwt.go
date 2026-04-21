@@ -3,11 +3,13 @@ package utils
 import (
 	"context"
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/system/request"
 	jwt "github.com/golang-jwt/jwt/v5"
+	goredis "github.com/redis/go-redis/v9"
 )
 
 type JWT struct {
@@ -102,4 +104,79 @@ func SetRedisJWT(jwt string, userName string) (err error) {
 	timer := dr
 	err = global.GVA_REDIS.Set(context.Background(), userName, jwt, timer).Err()
 	return err
+}
+
+// DeviceTokenKey 返回用户设备令牌 Redis SortedSet key
+func DeviceTokenKey(username string) string {
+	return "jwt_devices:" + username
+}
+
+// AddDeviceToken 将新 JWT 加入用户设备列表，并强制执行设备数限制。
+// 返回被踢出（最早登录）的令牌列表，调用方应将它们加入黑名单。
+func AddDeviceToken(username, token string, expiry time.Duration, maxDevices int) (evicted []string, err error) {
+	if global.GVA_REDIS == nil {
+		return nil, nil
+	}
+	ctx := context.Background()
+	key := DeviceTokenKey(username)
+	now := time.Now()
+	score := float64(now.Add(expiry).Unix())
+
+	// 先清除已过期的令牌
+	_ = global.GVA_REDIS.ZRemRangeByScore(ctx, key, "-inf", strconv.FormatInt(now.Unix(), 10)).Err()
+
+	if maxDevices > 0 {
+		count, _ := global.GVA_REDIS.ZCard(ctx, key).Result()
+		excess := int(count) - maxDevices + 1 // +1 为新令牌计算需要踢出的数量
+		if excess > 0 {
+			oldest, _ := global.GVA_REDIS.ZRange(ctx, key, 0, int64(excess-1)).Result()
+			evicted = oldest
+			_ = global.GVA_REDIS.ZRemRangeByRank(ctx, key, 0, int64(excess-1)).Err()
+		}
+	}
+
+	err = global.GVA_REDIS.ZAdd(ctx, key, goredis.Z{
+		Score:  score,
+		Member: token,
+	}).Err()
+	if err != nil {
+		return evicted, err
+	}
+	_ = global.GVA_REDIS.Expire(ctx, key, expiry).Err()
+	return evicted, nil
+}
+
+// RemoveDeviceToken 从用户设备列表移除指定令牌
+func RemoveDeviceToken(username, token string) {
+	if global.GVA_REDIS == nil {
+		return
+	}
+	_ = global.GVA_REDIS.ZRem(context.Background(), DeviceTokenKey(username), token).Err()
+}
+
+// RenewDeviceToken 用新令牌替换旧令牌，不改变设备数量（续签时使用）
+func RenewDeviceToken(username, oldToken, newToken string, expiry time.Duration) {
+	if global.GVA_REDIS == nil {
+		return
+	}
+	ctx := context.Background()
+	key := DeviceTokenKey(username)
+	_ = global.GVA_REDIS.ZRem(ctx, key, oldToken).Err()
+	_ = global.GVA_REDIS.ZAdd(ctx, key, goredis.Z{
+		Score:  float64(time.Now().Add(expiry).Unix()),
+		Member: newToken,
+	}).Err()
+	_ = global.GVA_REDIS.Expire(ctx, key, expiry).Err()
+}
+
+// GetDeviceCount 返回用户当前活跃的登录设备数量
+func GetDeviceCount(username string) int64 {
+	if global.GVA_REDIS == nil {
+		return 0
+	}
+	ctx := context.Background()
+	key := DeviceTokenKey(username)
+	_ = global.GVA_REDIS.ZRemRangeByScore(ctx, key, "-inf", strconv.FormatInt(time.Now().Unix(), 10)).Err()
+	count, _ := global.GVA_REDIS.ZCard(ctx, key).Result()
+	return count
 }

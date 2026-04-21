@@ -1,7 +1,6 @@
 package client
 
 import (
-	"errors"
 	"regexp"
 	"strconv"
 	"time"
@@ -19,7 +18,6 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"github.com/mojocn/base64Captcha"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
@@ -380,7 +378,9 @@ func (clientUserApi *ClientUserApi) TokenNext(c *gin.Context, user client.Client
 		response.FailWithMessage(i18n.T(c, "tokenFail"), c)
 		return
 	}
-	if !global.GVA_CONFIG.System.UseMultipoint {
+	maxDevices := global.GVA_CONFIG.System.MaxLoginDevices
+	if maxDevices == 0 {
+		// 未限制设备数，直接登录
 		utils.SetToken(c, token, int(claims.RegisteredClaims.ExpiresAt.Unix()-time.Now().Unix()))
 		response.OkWithDetailed(systemRes.LoginResponse{
 			User:      user,
@@ -389,40 +389,22 @@ func (clientUserApi *ClientUserApi) TokenNext(c *gin.Context, user client.Client
 		}, i18n.T(c, "loginSuccess"), c)
 		return
 	}
-
-	if jwtStr, err := jwtService.GetRedisJWT(user.Username); errors.Is(err, redis.Nil) {
-		if err := utils.SetRedisJWT(token, user.Username); err != nil {
-			global.GVA_LOG.Error("设置登录状态失败!", zap.Error(err))
-			response.FailWithMessage(i18n.T(c, "loginStatusFail"), c)
-			return
-		}
-		utils.SetToken(c, token, int(claims.RegisteredClaims.ExpiresAt.Unix()-time.Now().Unix()))
-		response.OkWithDetailed(systemRes.LoginResponse{
-			User:      user,
-			Token:     token,
-			ExpiresAt: claims.RegisteredClaims.ExpiresAt.Unix() * 1000,
-		}, i18n.T(c, "loginSuccess"), c)
-	} else if err != nil {
-		global.GVA_LOG.Error("设置登录状态失败!", zap.Error(err))
+	dr, _ := utils.ParseDuration(global.GVA_CONFIG.JWT.ExpiresTime)
+	evicted, err := utils.AddDeviceToken(user.Username, token, dr, maxDevices)
+	if err != nil {
+		global.GVA_LOG.Error("设置登录设备失败!", zap.Error(err))
 		response.FailWithMessage(i18n.T(c, "loginStatusFail"), c)
-	} else {
-		var blackJWT system.JwtBlacklist
-		blackJWT.Jwt = jwtStr
-		if err := jwtService.JsonInBlacklist(blackJWT); err != nil {
-			response.FailWithMessage(i18n.T(c, "jwtBlacklistFail"), c)
-			return
-		}
-		if err := utils.SetRedisJWT(token, user.Username); err != nil {
-			response.FailWithMessage(i18n.T(c, "loginStatusFail"), c)
-			return
-		}
-		utils.SetToken(c, token, int(claims.RegisteredClaims.ExpiresAt.Unix()-time.Now().Unix()))
-		response.OkWithDetailed(systemRes.LoginResponse{
-			User:      user,
-			Token:     token,
-			ExpiresAt: claims.RegisteredClaims.ExpiresAt.Unix() * 1000,
-		}, i18n.T(c, "loginSuccess"), c)
+		return
 	}
+	for _, ejwt := range evicted {
+		_ = jwtService.JsonInBlacklist(system.JwtBlacklist{Jwt: ejwt})
+	}
+	utils.SetToken(c, token, int(claims.RegisteredClaims.ExpiresAt.Unix()-time.Now().Unix()))
+	response.OkWithDetailed(systemRes.LoginResponse{
+		User:      user,
+		Token:     token,
+		ExpiresAt: claims.RegisteredClaims.ExpiresAt.Unix() * 1000,
+	}, i18n.T(c, "loginSuccess"), c)
 }
 
 // 类型转换
