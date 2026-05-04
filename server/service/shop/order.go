@@ -509,14 +509,6 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 		if err != nil {
 			return err
 		}
-		// 防止重复操作：如果订单已经处于目标状态，直接跳过
-		if order.Status == status {
-			return nil
-		}
-		// 终态订单不能再变更（已取消、已退款、已评价）
-		if order.Status == "4" || order.Status == "5" || order.Status == "7" {
-			return fmt.Errorf("订单当前状态(%s)不允许变更", order.Status)
-		}
 		err = tx.Model(&order).Update("status", status).Error
 		if err != nil {
 			return err
@@ -744,50 +736,9 @@ func (orderService *OrderService) DeleteOrderByIds(IDs []string) (err error) {
 	return err
 }
 
-// BatchUpdateOrderStatus 批量更新订单状态
-func (orderService *OrderService) BatchUpdateOrderStatus(IDs []string, status string) (err error) {
-	var failedIDs []string
-	for _, id := range IDs {
-		if e := orderService.UpdateOrderStatus(nil, id, status); e != nil {
-			global.GVA_LOG.Error("批量更新订单状态失败", zap.String("orderID", id), zap.Error(e))
-			failedIDs = append(failedIDs, id)
-		}
-	}
-	if len(failedIDs) > 0 {
-		return fmt.Errorf("以下订单变更失败: %v", failedIDs)
-	}
-	return nil
-}
-
 // UpdateOrder 更新订单记录
 // Author [piexlmax](https://github.com/piexlmax)
 func (orderService *OrderService) UpdateOrder(order shop.Order) (err error) {
-	// 如果状态变更到取消/退款，需走 UpdateOrderStatus 以触发库存恢复、优惠券还原、积分退还等逻辑
-	if order.Status == "4" || order.Status == "5" {
-		var oldOrder shop.Order
-		if e := global.GVA_DB.Select("status").First(&oldOrder, "id = ?", order.ID).Error; e != nil {
-			return e
-		}
-		if oldOrder.Status != order.Status {
-			if err = orderService.UpdateOrderStatus(nil, strconv.Itoa(int(order.ID)), order.Status); err != nil {
-				return err
-			}
-		}
-		order.Status = ""
-	}
-	// 如果状态变更到已付款(1)，需走 UpdateOrderStatus 以触发销量增加、积分奖励等逻辑
-	if order.Status == "1" {
-		var oldOrder shop.Order
-		if e := global.GVA_DB.Select("status").First(&oldOrder, "id = ?", order.ID).Error; e != nil {
-			return e
-		}
-		if oldOrder.Status != order.Status {
-			if err = orderService.UpdateOrderStatus(nil, strconv.Itoa(int(order.ID)), order.Status); err != nil {
-				return err
-			}
-		}
-		order.Status = ""
-	}
 	err = global.GVA_DB.Model(&shop.Order{}).Where("id = ?", order.ID).Updates(&order).Error
 	return err
 }
@@ -843,16 +794,6 @@ func (orderService *OrderService) GetOrderInfoList(info shopReq.OrderSearch) (li
 	// 根据info.status查询
 	if info.Status != "" {
 		db = db.Where("status = ?", info.Status)
-	}
-
-	// 根据商品ID查询（通过子查询关联订单详情表）
-	if info.GoodID != nil {
-		db = db.Where("id IN (SELECT order_id FROM shop_order_detail WHERE good_id = ?)", *info.GoodID)
-	}
-
-	// 根据是否预售查询
-	if info.IsPresale != nil {
-		db = db.Where("is_presale = ?", *info.IsPresale)
 	}
 
 	cErr := db.Count(&total).Error
@@ -967,4 +908,11 @@ func (orderService *OrderService) RefundOrder(orderID uint, remark string) (err 
 		return nil
 	})
 	return err
+}
+
+// BatchUpdateOrderStatus 批量更新订单状态
+func (orderService *OrderService) BatchUpdateOrderStatus(IDs []string, status string) error {
+	return global.GVA_DB.Model(&shop.Order{}).
+		Where("id IN ?", IDs).
+		Update("status", status).Error
 }

@@ -24,6 +24,7 @@ func (r *CustomerServiceRouter) InitCustomerServiceRouter(public, private *gin.R
 		csGroup.POST("/conversation/getOrCreate", a.GetOrCreateConversation)
 		csGroup.POST("/conversation/rate", a.RateConversation)
 		csGroup.GET("/message/history", a.GetMessageHistory)
+		csGroup.POST("/message/upload", a.UploadImage)
 		csGroup.POST("/message/revoke", a.RevokeMessage)
 		csGroup.GET("/quickReply/all", a.GetAllQuickReplies)
 	}
@@ -32,9 +33,11 @@ func (r *CustomerServiceRouter) InitCustomerServiceRouter(public, private *gin.R
 	agentGroup := private.Group("/cs/agent")
 	{
 		agentGroup.GET("/conversation/list", a.GetAgentConversationList)
+		agentGroup.POST("/conversation/accept", a.AcceptConversation)
 		agentGroup.POST("/conversation/close", a.CloseConversation)
 		agentGroup.POST("/conversation/transfer", a.TransferConversation)
 		agentGroup.POST("/message/send", a.SendMessage)
+		agentGroup.POST("/message/upload", a.UploadImage)
 		agentGroup.GET("/quickReply/list", a.GetQuickReplyList)
 	}
 

@@ -53,6 +53,11 @@ type CloseConversationReq struct {
 	ClosedBy       string `json:"closedBy"` // user/agent/system
 }
 
+// AcceptConversationReq 坐席接入会话请求
+type AcceptConversationReq struct {
+	ConversationID uint `json:"conversationId" binding:"required"`
+}
+
 // UpdateAgentReq 更新坐席请求
 type UpdateAgentReq struct {
 	ID          uint   `json:"ID" binding:"required"`
@@ -74,7 +79,7 @@ type BlacklistSearch struct {
 
 // WSMessageFrame WebSocket 消息帧(客户端发往服务端)
 type WSMessageFrame struct {
-	Event string `json:"event"` // send_message / revoke / read / typing / ping
+	Event string `json:"event"` // send_message / revoke / read / close / typing / ping
 	// send_message 字段
 	MsgType     string `json:"msgType"`
 	Content     string `json:"content"`

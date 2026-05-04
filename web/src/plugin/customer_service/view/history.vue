@@ -13,8 +13,23 @@
           <el-option label="已结束" value="closed" />
         </el-select>
       </el-form-item>
+      <el-form-item label="用户ID">
+        <el-input v-model.number="query.clientUserId" clearable placeholder="输入客户端用户ID" style="width: 180px" />
+      </el-form-item>
+      <el-form-item label="时间范围">
+        <el-date-picker
+          v-model="dateRange"
+          type="datetimerange"
+          value-format="YYYY-MM-DDTHH:mm:ssZ"
+          range-separator="至"
+          start-placeholder="开始时间"
+          end-placeholder="结束时间"
+          style="width: 340px"
+        />
+      </el-form-item>
       <el-form-item>
         <el-button type="primary" @click="loadList">查询</el-button>
+        <el-button @click="resetQuery">重置</el-button>
       </el-form-item>
     </el-form>
 
@@ -57,11 +72,21 @@ import { getConversationList } from '@/api/customerService'
 const list = ref([])
 const total = ref(0)
 const loading = ref(false)
-const query = ref({ page: 1, pageSize: 20, status: '' })
+const dateRange = ref([])
+const query = ref({
+  page: 1,
+  pageSize: 20,
+  status: '',
+  clientUserId: undefined,
+  startTime: undefined,
+  endTime: undefined,
+})
 
 async function loadList() {
   loading.value = true
   try {
+    query.value.startTime = dateRange.value?.[0] || undefined
+    query.value.endTime = dateRange.value?.[1] || undefined
     const res = await getConversationList(query.value)
     if (res.code === 0) {
       list.value = res.data?.list || []
@@ -70,6 +95,19 @@ async function loadList() {
   } finally {
     loading.value = false
   }
+}
+
+function resetQuery() {
+  query.value = {
+    page: 1,
+    pageSize: 20,
+    status: '',
+    clientUserId: undefined,
+    startTime: undefined,
+    endTime: undefined,
+  }
+  dateRange.value = []
+  loadList()
 }
 
 function statusLabel(s) {

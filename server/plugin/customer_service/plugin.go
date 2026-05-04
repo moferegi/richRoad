@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/customer_service/initialize"
+	"github.com/flipped-aurora/gin-vue-admin/server/plugin/customer_service/service"
 	interfaces "github.com/flipped-aurora/gin-vue-admin/server/utils/plugin/v2"
 	"github.com/gin-gonic/gin"
 )
@@ -31,4 +32,8 @@ func (p *plugin) Register(group *gin.Engine) {
 	initialize.InitCasbin()
 	// 挂载路由
 	initialize.Router(group)
+	// 启动空闲会话超时自动关闭后台任务
+	service.Service.ConfigService.StartAutoCloseWorker()
+	// 启动排队会话重试分配后台任务，降低偶发卡队列概率
+	service.Service.ConversationService.StartPendingDispatchWorker()
 }

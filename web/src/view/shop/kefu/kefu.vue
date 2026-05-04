@@ -1,107 +1,155 @@
 <template>
-  <div class="p-6">
-    <!-- 平台内置客服开关 -->
-    <el-card class="mb-6 shadow-sm">
-      <div class="flex items-center justify-between">
-        <div>
-          <div class="flex items-center gap-3 mb-1">
-            <el-icon :size="22" color="#409eff"><Service /></el-icon>
-            <span class="text-base font-semibold text-gray-800">平台内置客服系统</span>
-            <el-tag v-if="platEnabled" type="success" size="small" effect="plain">已启用</el-tag>
-            <el-tag v-else type="info" size="small" effect="plain">未启用</el-tag>
-          </div>
-          <p class="text-sm text-gray-500 ml-8">
-            开启后，用户在 App 点击"联系客服"将直接进入平台内置的实时聊天；
-            关闭则展示下方外部客服列表。
-          </p>
-        </div>
-        <el-switch
-          v-model="platEnabled"
-          :loading="configLoading"
-          size="large"
-          active-text="内置客服"
-          inactive-text="外部客服"
-          @change="onPlatToggle"
-        />
-      </div>
-
-      <transition name="el-fade-in">
-        <div v-if="platEnabled" class="mt-4 pt-4 border-t border-gray-100 grid grid-cols-3 gap-3">
-          <el-button
-            v-for="link in platformLinks"
-            :key="link.label"
-            :icon="link.icon"
-            plain
-            class="!h-12 text-sm"
-            @click="$router.push(link.to)"
-          >{{ link.label }}</el-button>
-        </div>
-      </transition>
-    </el-card>
-
-    <!-- 外部客服管理 -->
-    <el-card class="shadow-sm" :class="platEnabled ? 'opacity-50 pointer-events-none' : ''">
+  <div class="shop-kefu-page">
+    <el-card class="mb-4" shadow="never">
       <template #header>
-        <div class="flex items-center gap-2">
-          <span class="font-semibold">外部客服列表</span>
-          <el-tooltip content="关闭内置客服后，App 将展示此列表中的客服账号">
-            <el-icon color="#aaa"><QuestionFilled /></el-icon>
-          </el-tooltip>
-          <el-tag v-if="platEnabled" type="warning" size="small" class="ml-auto">内置客服已开启，此列表暂不生效</el-tag>
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-gray-700">客服展示设置</span>
+          <el-tag type="info" size="small">双开关并行</el-tag>
         </div>
       </template>
-      <KefuService />
+
+      <div class="grid gap-4 md:grid-cols-2">
+        <div class="setting-item">
+          <div>
+            <div class="setting-title">外部客服展示（shop/kefu）</div>
+            <div class="setting-desc">控制用户端是否展示外部客服列表</div>
+          </div>
+          <el-switch
+            :model-value="externalEnabled"
+            :loading="savingExternal || loading"
+            active-text="开"
+            inactive-text="关"
+            @change="handleToggleExternal"
+          />
+        </div>
+
+        <div class="setting-item">
+          <div>
+            <div class="setting-title">内置客服展示（customerService/config）</div>
+            <div class="setting-desc">当前状态只读，可前往客服系统配置页调整</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <el-tag :type="platEnabled ? 'success' : 'info'" size="small">
+              {{ platEnabled ? '已开启' : '已关闭' }}
+            </el-tag>
+            <el-button link type="primary" @click="openCsConfig">去设置</el-button>
+          </div>
+        </div>
+      </div>
+
+      <el-alert
+        class="mt-4"
+        type="success"
+        :closable="false"
+        title="展示规则：两个开关互不冲突；若都开启，用户端会先展示外部客服，内置客服入口排在最后。"
+      />
     </el-card>
+
+    <KefuService />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, markRaw } from 'vue'
+import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Service, QuestionFilled, ChatLineRound, User, Lightning, Clock, Document } from '@element-plus/icons-vue'
+import router from '@/router'
 import KefuService from '@/view/shop/kefuService/kefuService.vue'
-import { getCsConfig, updateCsConfig } from '@/api/customerService'
+import { getCsConfig } from '@/api/customerService'
+import { getSysConfigList, updateSysConfig } from '@/api/client/sysConfig'
 
-defineOptions({ name: 'KefuConfig' })
+defineOptions({
+  name: 'KefuRedirect'
+})
 
+const loading = ref(false)
+const savingExternal = ref(false)
 const platEnabled = ref(false)
-const configLoading = ref(false)
+const externalEnabled = ref(true)
+const externalConfigId = ref(0)
+const externalRemark = ref('')
 
-const platformLinks = [
-  { label: '坐席工作台', icon: markRaw(ChatLineRound), to: '/layout/superAdmin/csWorkbench' },
-  { label: '坐席管理', icon: markRaw(User), to: '/layout/superAdmin/csAgents' },
-  { label: '快捷回复', icon: markRaw(Lightning), to: '/layout/superAdmin/csQuickReplies' },
-  { label: '历史会话', icon: markRaw(Clock), to: '/layout/superAdmin/csHistory' },
-  { label: '黑名单', icon: markRaw(Document), to: '/layout/superAdmin/csBlacklist' },
-]
+async function loadShopKefuSwitch() {
+  const res = await getSysConfigList({ page: 1, pageSize: 20, configKey: 'shop_kefu_enabled' })
+  if (res.code !== 0) return
+  const list = res.data?.list || []
+  const row = list.find(item => item.configKey === 'shop_kefu_enabled')
+  if (!row) {
+    ElMessage.warning('未找到 shop_kefu_enabled 配置，请重启后端初始化默认配置')
+    return
+  }
+  externalConfigId.value = row.ID
+  externalRemark.value = row.remark || ''
+  externalEnabled.value = row.configValue === 'true'
+}
 
-async function loadConfig() {
-  configLoading.value = true
-  try {
-    const res = await getCsConfig()
-    if (res.code === 0) platEnabled.value = !!res.data?.platEnabled
-  } finally {
-    configLoading.value = false
+async function loadPlatConfig() {
+  const res = await getCsConfig()
+  if (res.code === 0) {
+    platEnabled.value = !!res.data?.platEnabled
   }
 }
 
-async function onPlatToggle(val) {
-  const action = val ? '启用' : '关闭'
-  configLoading.value = true
+async function loadConfig() {
+  loading.value = true
   try {
-    const res = await updateCsConfig({ platEnabled: val })
-    if (res && res.code === 0) {
-      ElMessage.success(`已${action}内置客服系统`)
-    } else {
-      // 接口失败时回滚开关
-      platEnabled.value = !val
-    }
-  } catch {
-    platEnabled.value = !val
+    await Promise.all([loadShopKefuSwitch(), loadPlatConfig()])
   } finally {
-    configLoading.value = false
+    loading.value = false
   }
+}
+
+async function handleToggleExternal(val) {
+  if (!externalConfigId.value) {
+    externalEnabled.value = !val
+    ElMessage.warning('配置项不存在，无法更新，请重启后端后重试')
+    return
+  }
+  savingExternal.value = true
+  try {
+    const res = await updateSysConfig({
+      id: externalConfigId.value,
+      configValue: val ? 'true' : 'false',
+      remark: externalRemark.value,
+    })
+    if (res.code !== 0) {
+      externalEnabled.value = !val
+      return
+    }
+    externalEnabled.value = val
+    ElMessage.success('外部客服展示开关已更新')
+  } finally {
+    savingExternal.value = false
+  }
+}
+
+function openCsConfig() {
+  router.push({ name: 'csConfig' })
 }
 
 onMounted(loadConfig)
 </script>
+
+<style scoped>
+.setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+}
+
+.setting-title {
+  color: var(--el-text-color-primary);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.setting-desc {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+</style>

@@ -12,12 +12,25 @@
       </el-table-column>
       <el-table-column label="在线状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="row.onlineStatus ? 'success' : 'info'" size="small">
-            {{ row.onlineStatus ? '在线' : '离线' }}
+          <el-tag :type="row.onlineStatus === 'online' ? 'success' : 'info'" size="small">
+            {{ row.onlineStatus === 'online' ? '在线' : '离线' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="activeSessions" label="当前会话" width="100" />
+      <el-table-column label="当前会话" width="180">
+        <template #default="{ row }">
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-600">{{ row.activeSessions || 0 }}/{{ row.maxSessions || 0 }}</span>
+            <el-progress
+              :percentage="Math.min(100, Math.round(((row.activeSessions || 0) / Math.max(1, row.maxSessions || 1)) * 100))"
+              :stroke-width="8"
+              :show-text="false"
+              style="width: 90px"
+              :status="(row.activeSessions || 0) >= (row.maxSessions || 1) ? 'exception' : ''"
+            />
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column prop="maxSessions" label="最大会话" width="100" />
       <el-table-column label="启用状态" width="100">
         <template #default="{ row }">
@@ -39,8 +52,24 @@
     <!-- 新增/编辑对话框 -->
     <el-dialog v-model="dialogVisible" :title="editForm.ID ? '编辑坐席' : '新增坐席'" width="400px">
       <el-form :model="editForm" label-width="90px">
-        <el-form-item v-if="!editForm.ID" label="用户ID">
-          <el-input-number v-model="editForm.userID" :min="1" />
+        <el-form-item v-if="!editForm.ID" label="选择用户">
+          <el-select
+            v-model="editForm.userID"
+            filterable
+            remote
+            reserve-keyword
+            placeholder="搜索用户昵称/ID"
+            :remote-method="searchUsers"
+            :loading="userSearchLoading"
+            style="width:100%"
+          >
+            <el-option
+              v-for="u in userOptions"
+              :key="u.ID"
+              :label="`${u.nickName} (ID:${u.ID})`"
+              :value="u.ID"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="显示昵称">
           <el-input v-model="editForm.nickname" placeholder="可选，留空使用系统昵称" />
@@ -64,17 +93,32 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getAgentList, createAgent, updateAgent, deleteAgent } from '@/api/customerService'
+import { getUserList } from '@/api/user'
 
 const list = ref([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const editForm = ref({ userID: null, nickname: '', maxSessions: 5, isEnabled: true })
 
+// 用户选择器
+const userOptions = ref([])
+const userSearchLoading = ref(false)
+
+async function searchUsers(query) {
+  userSearchLoading.value = true
+  try {
+    const res = await getUserList({ page: 1, pageSize: 20, nickName: query || '' })
+    userOptions.value = res?.data?.list || []
+  } finally {
+    userSearchLoading.value = false
+  }
+}
+
 async function loadList() {
   loading.value = true
   try {
     const res = await getAgentList()
-    if (res.code === 0) list.value = res.data?.list || []
+    if (res.code === 0) list.value = Array.isArray(res.data) ? res.data : (res.data?.list || [])
   } finally {
     loading.value = false
   }
@@ -82,6 +126,9 @@ async function loadList() {
 
 function openCreate() {
   editForm.value = { userID: null, nickname: '', maxSessions: 5, isEnabled: true }
+  userOptions.value = []
+  // 默认加载一批用户
+  searchUsers('')
   dialogVisible.value = true
 }
 
@@ -96,7 +143,7 @@ async function handleSave() {
     if (editForm.value.ID) {
       res = await updateAgent(editForm.value)
     } else {
-      res = await createAgent({ userId: editForm.value.userID, nickname: editForm.value.nickname, maxSessions: editForm.value.maxSessions, isEnabled: editForm.value.isEnabled })
+      res = await createAgent({ userId: editForm.value.userID, nickname: editForm.value.nickname, maxSessions: editForm.value.maxSessions || 5, isEnabled: editForm.value.isEnabled })
     }
     if (res?.code === 0) {
       ElMessage.success('保存成功')
@@ -115,8 +162,11 @@ async function handleDelete(row) {
 }
 
 async function toggleEnabled(row, val) {
-  await updateAgent({ ID: row.ID, isEnabled: val, maxSessions: row.maxSessions })
-  row.isEnabled = val
+  const res = await updateAgent({ ID: row.ID, isEnabled: val, maxSessions: row.maxSessions || 5 })
+  if (res?.code === 0) {
+    row.isEnabled = val
+  }
+  // 失败时 request 拦截器已弹出错误提示，UI 保持不变（el-switch 绑定的是 :model-value 不会自动回滚）
 }
 
 onMounted(loadList)

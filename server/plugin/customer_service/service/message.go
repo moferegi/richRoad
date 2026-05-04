@@ -1,8 +1,13 @@
 package service
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"html"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/customer_service/model"
@@ -12,8 +17,71 @@ import (
 
 type MessageService struct{}
 
+const (
+	maxMessageTextLen = 2000
+	maxImageURLLen    = 2048
+)
+
+// checkRateLimit 检查消息发送频率（Redis INCR，每秒最多 2 条）
+func checkRateLimit(senderType string, senderID uint) error {
+	if global.GVA_REDIS == nil {
+		return nil // Redis 未启用，跳过限流
+	}
+	key := fmt.Sprintf("cs_rate:%s:%d", senderType, senderID)
+	ctx := context.Background()
+	count, err := global.GVA_REDIS.Incr(ctx, key).Result()
+	if err != nil {
+		return nil // Redis 异常不阻断正常流程
+	}
+	if count == 1 {
+		// 第一次计数，设置 1 秒过期
+		global.GVA_REDIS.Expire(ctx, key, time.Second)
+	}
+	if count > 2 {
+		return errors.New("发送过于频繁，请稍后再试")
+	}
+	return nil
+}
+
+// normalizeAndValidateMessage 校验并规范化消息内容
+func normalizeAndValidateMessage(msgType, content string) (string, error) {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return "", errors.New("消息内容不能为空")
+	}
+
+	switch msgType {
+	case model.MsgTypeText, model.MsgTypeEmoji, model.MsgTypeSystem:
+		if utf8.RuneCountInString(content) > maxMessageTextLen {
+			return "", fmt.Errorf("消息长度不能超过 %d 字", maxMessageTextLen)
+		}
+		// 统一做 HTML 转义，降低 XSS 风险
+		return html.EscapeString(content), nil
+	case model.MsgTypeImage:
+		if len(content) > maxImageURLLen {
+			return "", errors.New("图片地址过长")
+		}
+		lower := strings.ToLower(content)
+		if strings.HasPrefix(lower, "data:") || strings.HasPrefix(lower, "javascript:") {
+			return "", errors.New("图片地址不合法")
+		}
+		if !(strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") || strings.HasPrefix(content, "/")) {
+			return "", errors.New("图片地址不合法")
+		}
+		return content, nil
+	default:
+		return "", errors.New("不支持的消息类型")
+	}
+}
+
 // Send 发送消息（REST / WS 共用逻辑）
 func (s *MessageService) Send(senderType string, senderID, convID uint, msgType, content, clientMsgID string) (*model.CsMessage, error) {
+	// 频率限制：用户每秒最多 2 条
+	if senderType == model.SenderTypeUser {
+		if err := checkRateLimit(senderType, senderID); err != nil {
+			return nil, err
+		}
+	}
 	// 检查会话状态
 	var conv model.CsConversation
 	if err := global.GVA_DB.First(&conv, convID).Error; err != nil {
@@ -22,11 +90,44 @@ func (s *MessageService) Send(senderType string, senderID, convID uint, msgType,
 	if conv.Status == model.ConvStatusClosed {
 		return nil, errors.New("会话已关闭")
 	}
+	if senderType == model.SenderTypeAgent && conv.Status == model.ConvStatusPending && conv.AgentUserID == nil {
+		if _, err := Service.ConversationService.AcceptByAgent(convID, senderID); err != nil {
+			return nil, err
+		}
+		if err := global.GVA_DB.First(&conv, convID).Error; err != nil {
+			return nil, errors.New("会话不存在")
+		}
+	}
+
+	// 发送方与会话归属校验，避免越权发送
+	if senderType == model.SenderTypeUser && conv.ClientUserID != senderID {
+		return nil, errors.New("无权向该会话发送消息")
+	}
+	if senderType == model.SenderTypeAgent {
+		if conv.AgentUserID == nil || *conv.AgentUserID != senderID {
+			return nil, errors.New("无权向该会话发送消息")
+		}
+	}
+
+	if clientMsgID != "" {
+		clientMsgID = strings.TrimSpace(clientMsgID)
+		if len(clientMsgID) > 64 {
+			return nil, errors.New("clientMsgId 过长")
+		}
+	}
+
+	normalizedContent, err := normalizeAndValidateMessage(msgType, content)
+	if err != nil {
+		return nil, err
+	}
 
 	// client_msg_id 去重
 	if clientMsgID != "" {
 		var exist model.CsMessage
-		if err := global.GVA_DB.Where("client_msg_id = ?", clientMsgID).First(&exist).Error; err == nil {
+		if err := global.GVA_DB.Where(
+			"conversation_id = ? AND sender_type = ? AND sender_id = ? AND client_msg_id = ?",
+			convID, senderType, senderID, clientMsgID,
+		).First(&exist).Error; err == nil {
 			return &exist, nil // 幂等返回
 		}
 	}
@@ -36,7 +137,7 @@ func (s *MessageService) Send(senderType string, senderID, convID uint, msgType,
 		SenderType:     senderType,
 		SenderID:       senderID,
 		MsgType:        msgType,
-		Content:        content,
+		Content:        normalizedContent,
 		ClientMsgID:    clientMsgID,
 	}
 	if err := global.GVA_DB.Create(&msg).Error; err != nil {

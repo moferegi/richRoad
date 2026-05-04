@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 	"sync"
 	"time"
 
@@ -48,16 +49,20 @@ func MakeFrame(event string, data interface{}) []byte {
 type Connection struct {
 	ID   uint   // userID (client) 或 sysUserID (agent)
 	Kind string // "user" | "agent"
+	IP   string // 连接来源 IP
 	Conn *websocket.Conn
 	Send chan []byte
 	hub  *Hub
 }
+
+var ErrWSIPConnLimited = errors.New("当前IP连接过多，请稍后再试")
 
 // Hub 管理所有 WebSocket 连接
 type Hub struct {
 	mu         sync.RWMutex
 	userConns  map[uint]*Connection // clientUserID → conn
 	agentConns map[uint]*Connection // sysUserID    → conn
+	ipConns    map[string]int       // clientIP      → count
 }
 
 // CSHub 全局 Hub 单例
@@ -67,47 +72,97 @@ func newHub() *Hub {
 	return &Hub{
 		userConns:  make(map[uint]*Connection),
 		agentConns: make(map[uint]*Connection),
+		ipConns:    make(map[string]int),
+	}
+}
+
+func (h *Hub) canRegisterIPLocked(ip string, maxPerIP int, old *Connection) bool {
+	if maxPerIP <= 0 {
+		return true
+	}
+	count := h.ipConns[ip]
+	if old != nil && old.IP == ip && count > 0 {
+		count--
+	}
+	return count < maxPerIP
+}
+
+func (h *Hub) incIPLocked(ip string) {
+	if ip == "" {
+		return
+	}
+	h.ipConns[ip]++
+}
+
+func (h *Hub) decIPLocked(ip string) {
+	if ip == "" {
+		return
+	}
+	if n, ok := h.ipConns[ip]; ok {
+		if n <= 1 {
+			delete(h.ipConns, ip)
+			return
+		}
+		h.ipConns[ip] = n - 1
 	}
 }
 
 // RegisterUser 注册用户连接（踢掉旧连接）
-func (h *Hub) RegisterUser(userID uint, conn *websocket.Conn) *Connection {
-	c := &Connection{ID: userID, Kind: "user", Conn: conn, Send: make(chan []byte, 256), hub: h}
+func (h *Hub) RegisterUser(userID uint, ip string, conn *websocket.Conn, maxPerIP int) (*Connection, error) {
 	h.mu.Lock()
-	if old, ok := h.userConns[userID]; ok {
+	old, hasOld := h.userConns[userID]
+	if !h.canRegisterIPLocked(ip, maxPerIP, old) {
+		h.mu.Unlock()
+		return nil, ErrWSIPConnLimited
+	}
+
+	c := &Connection{ID: userID, Kind: "user", IP: ip, Conn: conn, Send: make(chan []byte, 256), hub: h}
+	if hasOld {
+		h.decIPLocked(old.IP)
 		close(old.Send)
 	}
 	h.userConns[userID] = c
+	h.incIPLocked(ip)
 	h.mu.Unlock()
-	return c
+	return c, nil
 }
 
 // RegisterAgent 注册坐席连接（踢掉旧连接）
-func (h *Hub) RegisterAgent(agentUserID uint, conn *websocket.Conn) *Connection {
-	c := &Connection{ID: agentUserID, Kind: "agent", Conn: conn, Send: make(chan []byte, 512), hub: h}
+func (h *Hub) RegisterAgent(agentUserID uint, ip string, conn *websocket.Conn, maxPerIP int) (*Connection, error) {
 	h.mu.Lock()
-	if old, ok := h.agentConns[agentUserID]; ok {
+	old, hasOld := h.agentConns[agentUserID]
+	if !h.canRegisterIPLocked(ip, maxPerIP, old) {
+		h.mu.Unlock()
+		return nil, ErrWSIPConnLimited
+	}
+
+	c := &Connection{ID: agentUserID, Kind: "agent", IP: ip, Conn: conn, Send: make(chan []byte, 512), hub: h}
+	if hasOld {
+		h.decIPLocked(old.IP)
 		close(old.Send)
 	}
 	h.agentConns[agentUserID] = c
+	h.incIPLocked(ip)
 	h.mu.Unlock()
-	return c
+	return c, nil
 }
 
 // UnregisterUser 注销用户连接
-func (h *Hub) UnregisterUser(userID uint) {
+func (h *Hub) UnregisterUser(c *Connection) {
 	h.mu.Lock()
-	if c, ok := h.userConns[userID]; ok && c.hub != nil {
-		delete(h.userConns, userID)
+	if cur, ok := h.userConns[c.ID]; ok && cur == c {
+		delete(h.userConns, c.ID)
+		h.decIPLocked(c.IP)
 	}
 	h.mu.Unlock()
 }
 
 // UnregisterAgent 注销坐席连接
-func (h *Hub) UnregisterAgent(agentUserID uint) {
+func (h *Hub) UnregisterAgent(c *Connection) {
 	h.mu.Lock()
-	if c, ok := h.agentConns[agentUserID]; ok && c.hub != nil {
-		delete(h.agentConns, agentUserID)
+	if cur, ok := h.agentConns[c.ID]; ok && cur == c {
+		delete(h.agentConns, c.ID)
+		h.decIPLocked(c.IP)
 	}
 	h.mu.Unlock()
 }
@@ -193,9 +248,9 @@ func (h *Hub) OnlineAgentIDs() []uint {
 func (c *Connection) ReadPump(onMessage func([]byte)) {
 	defer func() {
 		if c.Kind == "user" {
-			c.hub.UnregisterUser(c.ID)
+			c.hub.UnregisterUser(c)
 		} else {
-			c.hub.UnregisterAgent(c.ID)
+			c.hub.UnregisterAgent(c)
 		}
 		c.Conn.Close()
 	}()

@@ -14,27 +14,9 @@
       </view>
     </view>
 
-    <!-- 平台内置客服入口（platEnabled=true 时展示） -->
-    <scroll-view v-if="platEnabled" scroll-y :show-scrollbar="false" class="nf-kefu-scroll">
-      <view class="nf-plat-cs-wrap">
-        <view class="nf-plat-cs-card" @tap="enterPlatChat">
-          <view class="nf-plat-cs-avatar">
-            <uni-icons type="chat-filled" size="40" color="#e50914" />
-          </view>
-          <view class="nf-plat-cs-info">
-            <text class="nf-plat-cs-name">平台专属客服</text>
-            <text class="nf-plat-cs-desc">7×24 小时在线，立即与客服对话</text>
-          </view>
-          <view class="nf-kefu-action">
-            <text class="nf-kefu-action-text">立即咨询</text>
-          </view>
-        </view>
-      </view>
-    </scroll-view>
-
-    <!-- 外部客服列表（platEnabled=false 时展示） -->
-    <scroll-view v-else scroll-y :show-scrollbar="false" class="nf-kefu-scroll">
-      <view v-if="kefuList.length" class="nf-kefu-list">
+    <scroll-view scroll-y :show-scrollbar="false" class="nf-kefu-scroll">
+      <!-- 外部客服列表（shop/kefu 开关控制） -->
+      <view v-if="showExternalList && kefuList.length" class="nf-kefu-list">
         <view
           class="nf-kefu-card"
           v-for="(item, index) in kefuList"
@@ -43,11 +25,10 @@
         >
           <!-- 头像区 -->
           <view class="nf-kefu-avatar-wrap">
-            <image
-              class="nf-kefu-avatar"
-              :src="item.avatar ? getUrl(item.avatar) : defaultAvatar"
-              mode="aspectFill"
-            />
+            <image v-if="resolveAvatar(item)" class="nf-kefu-avatar" :src="resolveAvatar(item)" mode="aspectFill" />
+            <view v-else class="nf-kefu-avatar nf-kefu-avatar-fallback" :style="{ background: avatarColor(item.name || String(index)) }">
+              <text class="nf-kefu-avatar-fallback-text">{{ avatarInitial(item.name) }}</text>
+            </view>
             <view class="nf-kefu-status-dot" :class="'nf-dot-' + normalizeStatus(item.status)"></view>
           </view>
           <!-- 信息区 -->
@@ -66,8 +47,25 @@
         </view>
       </view>
 
+      <!-- 平台内置客服入口（customerService/config 开关控制；若都开，排在最后） -->
+      <view v-if="showPlatEntry" :class="['nf-plat-cs-wrap', showExternalList ? 'nf-plat-cs-wrap--tail' : '']">
+        <view v-if="showExternalList" class="nf-section-title">{{ $t('kefuPlatformSection') }}</view>
+        <view class="nf-plat-cs-card" @tap="enterPlatChat">
+          <view class="nf-plat-cs-avatar">
+            <uni-icons type="chat-filled" size="40" color="#e50914" />
+          </view>
+          <view class="nf-plat-cs-info">
+            <text class="nf-plat-cs-name">{{ $t('kefuPlatformName') }}</text>
+            <text class="nf-plat-cs-desc">{{ $t('kefuPlatformDesc') }}</text>
+          </view>
+          <view class="nf-kefu-action">
+            <text class="nf-kefu-action-text">{{ $t('kefuConsultNow') }}</text>
+          </view>
+        </view>
+      </view>
+
       <!-- 空状态 -->
-      <view class="nf-kefu-empty" v-if="!kefuList.length && !isLoading">
+      <view class="nf-kefu-empty" v-if="showNothing || showExternalEmpty">
         <view class="nf-kefu-empty-icon">
           <uni-icons type="chat" size="48" color="rgba(229,9,20,0.4)" />
         </view>
@@ -80,22 +78,51 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getKefuList, getCsConfig } from '@/api/kefu.js'
+import { getKefuList, getCsConfig, getSysConfigByKey } from '@/api/kefu.js'
 import { getUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 
-const defaultAvatar = 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0'
-
 const kefuList = ref([])
 const isLoading = ref(true)
 const platEnabled = ref(false)
+const externalEnabled = ref(true)
+const csDefaultAvatarUrl = ref('')
+
+const avatarBgPalette = ['#E50914', '#0EA5E9', '#10B981', '#F59E0B', '#6366F1', '#EC4899', '#14B8A6', '#F97316']
+
+const showExternalList = computed(() => externalEnabled.value)
+const showPlatEntry = computed(() => platEnabled.value)
+const showNothing = computed(() => !showExternalList.value && !showPlatEntry.value)
+const showExternalEmpty = computed(() => showExternalList.value && !kefuList.value.length && !isLoading.value && !showPlatEntry.value)
 
 const normalizeStatus = (status) => {
   const map = { '在线': 'online', 'online': 'online', '离线': 'offline', 'offline': 'offline', '忙碌': 'busy', 'busy': 'busy' }
   return map[status] || 'offline'
+}
+
+const avatarInitial = (name) => {
+  const text = String(name || '').trim()
+  if (!text) return 'K'
+  return text.charAt(0).toUpperCase()
+}
+
+const avatarColor = (seed) => {
+  const text = String(seed || 'kefu')
+  let hash = 0
+  for (let i = 0; i < text.length; i++) {
+    hash = (hash * 31 + text.charCodeAt(i)) >>> 0
+  }
+  return avatarBgPalette[hash % avatarBgPalette.length]
+}
+
+const resolveAvatar = (item) => {
+  const raw = item?.avatar || item?.externalAvatar || csDefaultAvatarUrl.value
+  if (!raw) return ''
+  if (/^(https?:)?\/\//i.test(raw) || /^data:/i.test(raw)) return raw
+  return getUrl(raw)
 }
 
 const getStatusText = (status) => {
@@ -111,15 +138,20 @@ const getStatusText = (status) => {
 const init = async () => {
   isLoading.value = true
   try {
-    const [listRes, cfgRes] = await Promise.allSettled([
+    const [listRes, cfgRes, switchRes] = await Promise.allSettled([
       getKefuList(),
-      getCsConfig()
+      getCsConfig(),
+      getSysConfigByKey('shop_kefu_enabled')
     ])
     if (listRes.status === 'fulfilled' && listRes.value.code === 0) {
       kefuList.value = Array.isArray(listRes.value.data) ? listRes.value.data : (listRes.value.data?.list || [])
     }
     if (cfgRes.status === 'fulfilled' && cfgRes.value.code === 0) {
       platEnabled.value = !!cfgRes.value.data?.platEnabled
+      csDefaultAvatarUrl.value = String(cfgRes.value.data?.defaultAvatarUrl || '')
+    }
+    if (switchRes.status === 'fulfilled' && switchRes.value.code === 0) {
+      externalEnabled.value = String(switchRes.value.data).toLowerCase() === 'true'
     }
   } catch (e) {
     console.error('初始化客服页失败', e)
@@ -256,9 +288,20 @@ page {
   padding: 24rpx 28rpx;
 }
 
+.nf-section-title {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 24rpx;
+  letter-spacing: 2rpx;
+  margin-bottom: 16rpx;
+}
+
 /* ===== 平台专属客服卡片 ===== */
 .nf-plat-cs-wrap {
   padding: 40rpx 28rpx;
+}
+
+.nf-plat-cs-wrap--tail {
+  padding-top: 8rpx;
 }
 
 .nf-plat-cs-card {
@@ -339,6 +382,18 @@ page {
   border-radius: 50%;
   border: 3rpx solid rgba(229, 9, 20, 0.4);
   box-shadow: 0 0 20rpx rgba(229, 9, 20, 0.15);
+}
+
+.nf-kefu-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nf-kefu-avatar-fallback-text {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #fff;
 }
 
 .nf-kefu-status-dot {

@@ -20,23 +20,33 @@
 
         <!-- 消息区 -->
         <div ref="msgBox" class="msg-box">
+          <div class="history-tip">
+            <el-button
+              v-if="historyHasMore"
+              size="small"
+              text
+              :loading="historyLoading"
+              @click="loadMoreHistory"
+            >加载更多</el-button>
+            <span v-else-if="messages.length > 0">已加载完</span>
+          </div>
           <div
             v-for="msg in messages"
-            :key="msg.ID || msg.clientMsgId"
+            :key="msg.ID || msg.id || msg.clientMsgId"
             class="msg-row"
-            :class="msg.SenderType === 'user' ? 'mine' : ''"
+            :class="msg.senderType === 'user' ? 'mine' : ''"
           >
-            <div v-if="msg.SenderType === 'system'" class="sys-msg">{{ msg.Content }}</div>
+            <div v-if="msg.senderType === 'system'" class="sys-msg">{{ msg.content }}</div>
             <template v-else>
-              <el-avatar v-if="msg.SenderType !== 'user'" :size="28" class="avatar">客</el-avatar>
+              <el-avatar v-if="msg.senderType !== 'user'" :size="28" class="avatar">客</el-avatar>
               <div
                 class="bubble"
-                :class="msg.SenderType === 'user' ? 'bubble-mine' : 'bubble-other'"
+                :class="msg.senderType === 'user' ? 'bubble-mine' : 'bubble-other'"
               >
-                <span v-if="msg.Revoked" class="italic opacity-60">[已撤回]</span>
-                <span v-else>{{ msg.Content }}</span>
+                <span v-if="msg.revoked" class="italic opacity-60">[已撤回]</span>
+                <span v-else>{{ msg.content }}</span>
               </div>
-              <el-avatar v-if="msg.SenderType === 'user'" :size="28" class="avatar">我</el-avatar>
+              <el-avatar v-if="msg.senderType === 'user'" :size="28" class="avatar">我</el-avatar>
             </template>
           </div>
           <div ref="msgBottom" />
@@ -66,7 +76,7 @@
 
     <!-- 浮动按钮 -->
     <div class="float-btn" @click="handleOpen">
-      <el-badge :is-dot="unread > 0">
+      <el-badge :value="unread" :max="99" :hidden="unread <= 0">
         <el-icon :size="28" color="#fff"><Service /></el-icon>
       </el-badge>
     </div>
@@ -74,7 +84,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onUnmounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Close, Service } from '@element-plus/icons-vue'
 import { getOrCreateConversation, getMessageHistory, rateConversation } from '@/api/customerService'
@@ -91,8 +101,13 @@ const queuePosition = ref(0)
 const unread = ref(0)
 const rating = ref(0)
 const rated = ref(false)
+const historyPage = ref(1)
+const historyTotal = ref(0)
+const historyLoading = ref(false)
 const msgBox = ref(null)
 const msgBottom = ref(null)
+
+const historyHasMore = computed(() => messages.value.length < historyTotal.value)
 
 let ws = null
 let clientMsgCounter = 0
@@ -100,8 +115,12 @@ let clientMsgCounter = 0
 async function handleOpen() {
   open.value = true
   unread.value = 0
-  if (convId.value) return
-  await initConversation()
+  if (!convId.value) {
+    await initConversation()
+    return
+  }
+  markRead()
+  scrollBottom()
 }
 
 async function initConversation() {
@@ -110,12 +129,11 @@ async function initConversation() {
     if (res.code !== 0) return
     const conv = res.data
     convId.value = conv.ID
-    convStatus.value = conv.Status
-    // 加载历史消息
-    const histRes = await getMessageHistory({ conversationId: conv.ID, page: 1, pageSize: 30 })
-    if (histRes.code === 0) {
-      messages.value = (histRes.data?.list || []).reverse()
-    }
+    convStatus.value = conv.status || conv.Status
+    unread.value = Number(conv.unreadCount || 0)
+    historyPage.value = 1
+    historyTotal.value = 0
+    await loadHistory(1, false)
     scrollBottom()
     connectWs()
   } catch {
@@ -123,14 +141,53 @@ async function initConversation() {
   }
 }
 
+async function loadHistory(page, prepend) {
+  if (!convId.value) return
+  historyLoading.value = true
+  try {
+    const histRes = await getMessageHistory({ conversationId: convId.value, page, pageSize: 10 })
+    if (histRes.code !== 0) return
+    const list = (histRes.data?.list || []).reverse()
+    historyTotal.value = Number(histRes.data?.total || 0)
+    if (prepend) {
+      const oldHeight = msgBox.value?.scrollHeight || 0
+      messages.value = [...list, ...messages.value]
+      await nextTick()
+      if (msgBox.value) {
+        const newHeight = msgBox.value.scrollHeight || 0
+        msgBox.value.scrollTop = newHeight - oldHeight
+      }
+    } else {
+      messages.value = list
+      await nextTick()
+      scrollBottom()
+    }
+    historyPage.value = page
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+async function loadMoreHistory() {
+  if (historyLoading.value || !historyHasMore.value) return
+  await loadHistory(historyPage.value + 1, true)
+}
+
 function connectWs() {
   if (ws) return
   const token = userStore.token
   const wsBase = import.meta.env.VITE_WS_URL || window.location.origin.replace(/^http/, 'ws')
   const apiBase = import.meta.env.VITE_BASE_API || ''
-  ws = new WebSocket(`${wsBase}${apiBase}/cs/ws?token=${token}`)
+  const wsURL = `${wsBase}${apiBase}/cs/ws`
+  try {
+    ws = token ? new WebSocket(wsURL, ['bearer', token]) : new WebSocket(wsURL)
+  } catch {
+    ws = new WebSocket(`${wsBase}${apiBase}/cs/ws?token=${encodeURIComponent(token || '')}`)
+  }
 
-  ws.onopen = () => {}
+  ws.onopen = () => {
+    markRead()
+  }
 
   ws.onclose = () => {
     ws = null
@@ -152,27 +209,33 @@ function handleFrame(frame) {
     case 'message': {
       const msg = frame.data
       messages.value.push(msg)
-      if (!open.value) unread.value++
+      if (msg?.senderType !== 'user') {
+        if (!open.value) {
+          unread.value++
+        } else {
+          markRead()
+        }
+      }
       scrollBottom()
       break
     }
     case 'revoke': {
       const idx = messages.value.findIndex(m => m.ID === (frame.data?.messageId || frame.messageId))
       if (idx !== -1) {
-        messages.value[idx].Revoked = true
-        messages.value[idx].Content = '[已撤回]'
+        messages.value[idx].revoked = true
+        messages.value[idx].content = '[已撤回]'
       }
       break
     }
     case 'assigned': {
       convStatus.value = 'active'
-      messages.value.push({ SenderType: 'system', Content: '客服已接入，请开始咨询', ID: `sys_${Date.now()}` })
+      messages.value.push({ senderType: 'system', content: '客服已接入，请开始咨询', ID: `sys_${Date.now()}` })
       scrollBottom()
       break
     }
     case 'closed': {
       convStatus.value = 'closed'
-      messages.value.push({ SenderType: 'system', Content: '会话已结束，感谢您的咨询', ID: `sys_${Date.now()}` })
+      messages.value.push({ senderType: 'system', content: '会话已结束，感谢您的咨询', ID: `sys_${Date.now()}` })
       scrollBottom()
       break
     }
@@ -196,13 +259,19 @@ function sendMsg() {
   ws.send(JSON.stringify(payload))
   // 乐观渲染
   messages.value.push({
-    SenderType: 'user',
-    Content: content,
+    senderType: 'user',
+    content,
     clientMsgId,
     CreatedAt: new Date().toISOString(),
   })
   inputText.value = ''
   scrollBottom()
+}
+
+function markRead() {
+  if (!ws || ws.readyState !== WebSocket.OPEN || !convId.value) return
+  ws.send(JSON.stringify({ event: 'read' }))
+  unread.value = 0
 }
 
 async function submitRating(val) {
@@ -214,12 +283,18 @@ async function submitRating(val) {
 
 function scrollBottom() {
   nextTick(() => {
-    msgBottom.value?.scrollIntoView({ behavior: 'smooth' })
+    if (msgBox.value) {
+      msgBox.value.scrollTop = msgBox.value.scrollHeight
+    }
+    msgBottom.value?.scrollIntoView({ block: 'end' })
   })
 }
 
 onUnmounted(() => {
   if (ws) {
+    if (ws.readyState === WebSocket.OPEN && convId.value && convStatus.value !== 'closed') {
+      ws.send(JSON.stringify({ event: 'close' }))
+    }
     ws.onclose = null
     ws.close()
   }
@@ -298,6 +373,13 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 10px;
   background: #f5f7fa;
+}
+
+.history-tip {
+  text-align: center;
+  color: #9ca3af;
+  font-size: 12px;
+  margin-bottom: 4px;
 }
 
 .msg-row {

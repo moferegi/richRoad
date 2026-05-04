@@ -80,6 +80,17 @@ func Menu(ctx context.Context) {
 				Icon:  "CircleClose",
 			},
 		},
+		{
+			Path:      "config",
+			Name:      "csConfig",
+			Hidden:    false,
+			Component: "plugin/customer_service/view/config.vue",
+			Sort:      6,
+			Meta: model.Meta{
+				Title: "客服配置",
+				Icon:  "Setting",
+			},
+		},
 	}
 	utils.RegisterMenus(entities...)
 

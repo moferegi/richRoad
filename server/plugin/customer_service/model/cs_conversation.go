@@ -19,6 +19,7 @@ type CsConversation struct {
 	RatedAt       *time.Time `json:"ratedAt" gorm:"column:rated_at;comment:评分时间"`
 	// 非持久化字段
 	UnreadCount    int    `json:"unreadCount" gorm:"-"`
+	LastMsg        string `json:"lastMsg" gorm:"-"`
 	ClientNickname string `json:"clientNickname" gorm:"-"`
 	AgentNickname  string `json:"agentNickname" gorm:"-"`
 }

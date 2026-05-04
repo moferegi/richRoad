@@ -45,10 +45,28 @@ func (a *AgentApi) CreateAgent(c *gin.Context) {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	if _, err := service.Service.AgentService.GetOrCreate(agent.UserID); err != nil {
+	if agent.UserID == 0 {
+		response.FailWithMessage("用户ID不能为空", c)
+		return
+	}
+	// 先尝试获取已有记录
+	existing, err := service.Service.AgentService.GetOrCreate(agent.UserID)
+	if err != nil {
 		response.FailWithMessage("创建失败: "+err.Error(), c)
 		return
 	}
+	// 应用表单中的配置字段
+	updates := map[string]interface{}{
+		"max_sessions": agent.MaxSessions,
+		"is_enabled":   agent.IsEnabled,
+	}
+	if agent.Nickname != "" {
+		updates["nickname"] = agent.Nickname
+	}
+	if agent.MaxSessions < 1 {
+		updates["max_sessions"] = 5 // 默认值
+	}
+	global.GVA_DB.Model(&model.CsAgent{}).Where("id = ?", existing.ID).Updates(updates)
 	response.OkWithMessage("创建成功", c)
 }
 
@@ -67,15 +85,16 @@ func (a *AgentApi) UpdateAgent(c *gin.Context) {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	agent := model.CsAgent{
-		MaxSessions: req.MaxSessions,
-		Nickname:    req.Nickname,
+	// 使用 Updates(map) 只更新指定列，避免 Save() 将零值字段（UserID、CreatedAt 等）覆盖写入
+	updates := map[string]interface{}{
+		"max_sessions": req.MaxSessions,
+		"nickname":     req.Nickname,
 	}
-	agent.ID = req.ID
 	if req.IsEnabled != nil {
-		agent.IsEnabled = *req.IsEnabled
+		updates["is_enabled"] = *req.IsEnabled
 	}
-	if err := service.Service.AgentService.Update(agent); err != nil {
+	if err := global.GVA_DB.Model(&model.CsAgent{}).Where("id = ?", req.ID).Updates(updates).Error; err != nil {
+		global.GVA_LOG.Error("更新坐席失败", zap.Error(err))
 		response.FailWithMessage("更新失败", c)
 		return
 	}

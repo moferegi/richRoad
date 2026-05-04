@@ -19,6 +19,20 @@ func InitShopData() {
 
 	initShopApis(db)
 	initShopCasbin(db)
+	fixKefuMenuComponent(db)
+}
+
+// fixKefuMenuComponent 修正 kefu 菜单指向正确的客服配置页组件
+// 历史数据可能指向自动生成的 kefuService 页，需要修正为带开关的 kefu 配置页
+func fixKefuMenuComponent(db *gorm.DB) {
+	result := db.Model(&sysModel.SysBaseMenu{}).
+		Where("name = ? AND component != ?", "kefu", "view/shop/kefu/kefu.vue").
+		Update("component", "view/shop/kefu/kefu.vue")
+	if result.Error != nil {
+		global.GVA_LOG.Error("修正 kefu 菜单组件路径失败", zap.Error(result.Error))
+	} else if result.RowsAffected > 0 {
+		global.GVA_LOG.Info("kefu 菜单组件路径已修正为 view/shop/kefu/kefu.vue")
+	}
 }
 
 func initShopApis(db *gorm.DB) {

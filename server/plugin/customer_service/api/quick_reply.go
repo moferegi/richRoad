@@ -21,8 +21,21 @@ type QuickReplyApi struct{}
 // @Produce application/json
 // @Param data query csReq.QuickReplySearch true "搜索参数"
 // @Success 200 {object} response.Response{data=response.PageResult} "获取成功"
-// @Router /cs/quickReply/list [get]
+// @Router /cs/agent/quickReply/list [get]
 func (a *QuickReplyApi) GetQuickReplyList(c *gin.Context) {
+	userID := utils.GetUserID(c)
+	authID := utils.GetUserAuthorityId(c)
+	if authID == 8080 {
+		response.FailWithMessage("客户端用户不能访问坐席快捷回复列表", c)
+		return
+	}
+	if authID != 888 {
+		if _, err := service.Service.AgentService.GetEnabledByUserID(userID); err != nil {
+			response.FailWithMessage(err.Error(), c)
+			return
+		}
+	}
+
 	var search csReq.QuickReplySearch
 	if err := c.ShouldBindQuery(&search); err != nil {
 		response.FailWithMessage(err.Error(), c)

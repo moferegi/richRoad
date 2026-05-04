@@ -92,6 +92,7 @@ func initDefaultSysConfigs() {
 		// display 分组
 		{ConfigKey: "presale_home_count", ConfigValue: "4", ConfigName: "首页预售展示数", ConfigGroup: "display", Remark: "uni首页展示的预售商品数量"},
 		{ConfigKey: "sign_in_enabled", ConfigValue: "true", ConfigName: "签到功能开关", ConfigGroup: "display", Remark: "uni端是否显示签到悬浮按钮(true/false)"},
+		{ConfigKey: "shop_kefu_enabled", ConfigValue: "true", ConfigName: "外部客服展示开关", ConfigGroup: "display", Remark: "uni客服页是否展示外部客服列表(true/false)"},
 		// announcement 分组
 		{ConfigKey: "announcement_enabled", ConfigValue: "false", ConfigName: "公告开关", ConfigGroup: "announcement", Remark: "是否开启首页公告走马灯(true/false)"},
 		{ConfigKey: "announcement_content", ConfigValue: "", ConfigName: "公告内容", ConfigGroup: "announcement", Remark: "公告走马灯文字内容，支持表情符号"},

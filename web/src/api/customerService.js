@@ -11,7 +11,7 @@ export const getCsConfig = () => {
 
 /**
  * 更新客服系统配置（管理员）
- * @param {Object} data - { platEnabled: boolean }
+ * @param {Object} data - { platEnabled, autoCloseMinutes, uploadMaxSizeMB, uploadAllowExt, defaultAvatarUrl }
  */
 export const updateCsConfig = (data) => {
   return service({ url: '/cs/admin/config/update', method: 'put', data })
@@ -48,6 +48,14 @@ export const getConversationList = (params) => {
  */
 export const getAgentConversationList = (params) => {
   return service({ url: '/cs/agent/conversation/list', method: 'get', params })
+}
+
+/**
+ * 坐席接入排队会话
+ * @param {Object} data - { conversationId }
+ */
+export const acceptConversation = (data) => {
+  return service({ url: '/cs/agent/conversation/accept', method: 'post', data })
 }
 
 /**

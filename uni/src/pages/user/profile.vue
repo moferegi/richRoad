@@ -33,11 +33,10 @@
         </view>
 
         <!-- 手机号 -->
-        <view class="nf-info-item" @tap="editPhone">
+        <view class="nf-info-item">
           <text class="nf-info-label">{{ $t('phone') }}</text>
           <view class="nf-info-value-row">
             <text class="nf-info-value">{{ maskedPhone }}</text>
-            <uni-icons type="right" size="14" color="rgba(255,255,255,0.3)" />
           </view>
         </view>
 
@@ -93,28 +92,6 @@
         </view>
       </view>
     </view>
-
-    <!-- 修改手机号弹窗 -->
-    <view v-if="showPhoneModal" class="nf-modal-mask" @tap.stop="showPhoneModal = false" @touchmove.stop.prevent>
-      <view class="nf-modal-box" @tap.stop>
-        <text class="nf-modal-title">{{ $t('editPhone') }}</text>
-        <input
-          class="nf-modal-input"
-          v-model="newPhone"
-          :placeholder="$t('enterPhone')"
-          type="number"
-          maxlength="20"
-        />
-        <view class="nf-modal-btns">
-          <view class="nf-modal-btn nf-modal-cancel" @tap="showPhoneModal = false">
-            <text>{{ $t('cancel') }}</text>
-          </view>
-          <view class="nf-modal-btn nf-modal-confirm" @tap="savePhone">
-            <text>{{ $t('confirm') }}</text>
-          </view>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 
@@ -122,7 +99,6 @@
 import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getUserInfo, setClientUserInfo } from '@/api/base'
-import { getUrl } from '@/utils/url.js'
 import { useUserStore } from '@/pinia/modules/user'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
@@ -155,7 +131,7 @@ const loadUserInfo = async () => {
     if (res.code === 0 && res.data) {
       userInfo.value = res.data
       if (res.data.headerImg) {
-        avatarUrl.value = getUrl(res.data.headerImg)
+        avatarUrl.value = res.data.headerImg
       }
     }
   } catch (e) {
@@ -208,36 +184,10 @@ const saveNickName = async () => {
     return
   }
   try {
-    const res = await setClientUserInfo({ key: 'nickname', value: newNickName.value.trim() })
+    const res = await setClientUserInfo({ nickName: newNickName.value.trim() })
     if (res.code === 0) {
       userInfo.value.nickName = newNickName.value.trim()
       showNickNameModal.value = false
-      uni.showToast({ title: $t.value('updateSuccess'), icon: 'none' })
-    }
-  } catch (e) {
-    uni.showToast({ title: $t.value('operationFailed'), icon: 'none' })
-  }
-}
-
-// 手机号编辑
-const showPhoneModal = ref(false)
-const newPhone = ref('')
-
-const editPhone = () => {
-  newPhone.value = userInfo.value.phone || ''
-  showPhoneModal.value = true
-}
-
-const savePhone = async () => {
-  if (!newPhone.value.trim()) {
-    uni.showToast({ title: $t.value('enterPhone'), icon: 'none' })
-    return
-  }
-  try {
-    const res = await setClientUserInfo({ key: 'phone', value: newPhone.value.trim() })
-    if (res.code === 0) {
-      userInfo.value.phone = newPhone.value.trim()
-      showPhoneModal.value = false
       uni.showToast({ title: $t.value('updateSuccess'), icon: 'none' })
     }
   } catch (e) {

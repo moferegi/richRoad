@@ -27,11 +27,43 @@ func (s *AgentService) GetOrCreate(userID uint) (*model.CsAgent, error) {
 	return &agent, nil
 }
 
+// GetEnabledByUserID 获取已启用的坐席（用于接口鉴权）
+func (s *AgentService) GetEnabledByUserID(userID uint) (*model.CsAgent, error) {
+	var agent model.CsAgent
+	if err := global.GVA_DB.Where("user_id = ?", userID).First(&agent).Error; err != nil {
+		return nil, errors.New("当前账号不是客服坐席")
+	}
+	if !agent.IsEnabled {
+		return nil, errors.New("当前坐席已被禁用")
+	}
+	return &agent, nil
+}
+
 // GetList 获取坐席列表
 func (s *AgentService) GetList() ([]model.CsAgent, error) {
 	var agents []model.CsAgent
 	if err := global.GVA_DB.Order("id ASC").Find(&agents).Error; err != nil {
 		return nil, err
+	}
+	// 批量查询 sys_users 昵称
+	if len(agents) > 0 {
+		userIDs := make([]uint, 0, len(agents))
+		for _, a := range agents {
+			userIDs = append(userIDs, a.UserID)
+		}
+		type nickRow struct {
+			ID       uint
+			NickName string
+		}
+		var rows []nickRow
+		global.GVA_DB.Table("sys_users").Select("id, nick_name").Where("id IN ?", userIDs).Scan(&rows)
+		nickMap := make(map[uint]string, len(rows))
+		for _, r := range rows {
+			nickMap[r.ID] = r.NickName
+		}
+		for i := range agents {
+			agents[i].SysNickname = nickMap[agents[i].UserID]
+		}
 	}
 	// 填充在线状态和当前会话数
 	for i := range agents {

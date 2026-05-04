@@ -17,13 +17,16 @@ func Api(ctx context.Context) {
 		{Path: "/cs/conversation/getOrCreate", Description: "发起/获取会话", ApiGroup: "客服系统", Method: "POST"},
 		{Path: "/cs/conversation/rate", Description: "评价会话", ApiGroup: "客服系统", Method: "POST"},
 		{Path: "/cs/message/history", Description: "获取消息历史", ApiGroup: "客服系统", Method: "GET"},
+		{Path: "/cs/message/upload", Description: "上传聊天图片", ApiGroup: "客服系统", Method: "POST"},
 		{Path: "/cs/message/revoke", Description: "撤回消息", ApiGroup: "客服系统", Method: "POST"},
 		{Path: "/cs/quickReply/all", Description: "获取全部快捷回复", ApiGroup: "客服系统", Method: "GET"},
 		// 坐席接口
 		{Path: "/cs/agent/conversation/list", Description: "坐席会话列表", ApiGroup: "客服系统", Method: "GET"},
+		{Path: "/cs/agent/conversation/accept", Description: "坐席接入会话", ApiGroup: "客服系统", Method: "POST"},
 		{Path: "/cs/agent/conversation/close", Description: "关闭会话", ApiGroup: "客服系统", Method: "POST"},
 		{Path: "/cs/agent/conversation/transfer", Description: "转接会话", ApiGroup: "客服系统", Method: "POST"},
 		{Path: "/cs/agent/message/send", Description: "坐席发送消息", ApiGroup: "客服系统", Method: "POST"},
+		{Path: "/cs/agent/message/upload", Description: "坐席上传聊天图片", ApiGroup: "客服系统", Method: "POST"},
 		{Path: "/cs/agent/quickReply/list", Description: "快捷回复列表(坐席)", ApiGroup: "客服系统", Method: "GET"},
 		// 管理员接口
 		{Path: "/cs/admin/conversation/list", Description: "所有会话列表", ApiGroup: "客服系统", Method: "GET"},
