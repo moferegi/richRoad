@@ -1087,7 +1087,7 @@ const switchEpisode = async (idx) => {
 
 const toggleCollect = async () => {
   if (!token) {
-    uni.showToast({ title: $t.value('loginFirst') || '请登录', icon: 'none' })
+    uni.showToast({ title: $t.value('loginFirst'), icon: 'none' })
     uni.redirectTo({ url: '/pages/user/login' })
     return
   }

@@ -9,7 +9,7 @@
         <view class="nf-navbar-back" @tap="goBack">
           <uni-icons type="left" size="20" color="#fff"></uni-icons>
         </view>
-        <text class="nf-navbar-title">{{ $t('myPoints') || '我的积分' }}</text>
+        <text class="nf-navbar-title">{{ $t('myPoints') }}</text>
         <view style="width: 64rpx;"></view>
       </view>
     </view>
@@ -50,8 +50,8 @@
 
       <view class="nf-load-more" v-if="recordList.length > 0">
         <text class="nf-load-more-text" v-if="loading">...</text>
-        <text class="nf-load-more-text" v-else-if="noMore">{{ $t('reachedBottom') || '— END —' }}</text>
-        <text class="nf-load-more-text" v-else @tap="loadMore">{{ $t('loadMore') || 'Load more' }}</text>
+        <text class="nf-load-more-text" v-else-if="noMore">{{ $t('reachedBottom') }}</text>
+        <text class="nf-load-more-text" v-else @tap="loadMore">{{ $t('loadMore') }}</text>
       </view>
     </view>
   </view>

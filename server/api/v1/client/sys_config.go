@@ -4,11 +4,39 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
 type SysConfigApi struct{}
+
+var publicConfigKeyAllowlist = map[string]struct{}{
+	"app_logo":              {},
+	"app_name":              {},
+	"currency_suffix":       {},
+	"currency_symbol":       {},
+	"order_logistics_enabled": {},
+	"order_refund_enabled":  {},
+	"payment_qr_code":       {},
+	"payment_tip_text":      {},
+	"payment_tip_text_color": {},
+	"payment_tip_text_size": {},
+	"points_exchange_rate":  {},
+	"presale_home_count":    {},
+	"review_pic_enabled":    {},
+	"shop_kefu_enabled":     {},
+	"sign_in_enabled":       {},
+}
+
+func isPublicConfigKeyAllowed(key string) bool {
+	_, ok := publicConfigKeyAllowlist[key]
+	return ok
+}
+
+func isSysConfigAdmin(authorityId uint) bool {
+	return authorityId == 888 || authorityId == 8881
+}
 
 // GetSysConfigList 分页获取系统参数列表
 // @Tags SysConfig
@@ -20,6 +48,11 @@ type SysConfigApi struct{}
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /sysConfig/getSysConfigList [get]
 func (s *SysConfigApi) GetSysConfigList(c *gin.Context) {
+	if !isSysConfigAdmin(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限查看系统参数列表", c)
+		return
+	}
+
 	var pageInfo request.SysConfigSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
@@ -50,6 +83,12 @@ func (s *SysConfigApi) GetSysConfigList(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "更新成功"
 // @Router /sysConfig/updateSysConfig [put]
 func (s *SysConfigApi) UpdateSysConfig(c *gin.Context) {
+	authorityId := utils.GetUserAuthorityId(c)
+	if !isSysConfigAdmin(authorityId) {
+		response.FailWithMessage("无权限更新系统参数", c)
+		return
+	}
+
 	var req struct {
 		ID          uint   `json:"id" binding:"required"`
 		ConfigValue string `json:"configValue"`
@@ -104,6 +143,10 @@ func (s *SysConfigApi) GetSysConfigByKey(c *gin.Context) {
 	key := c.Query("configKey")
 	if key == "" {
 		response.FailWithMessage("configKey不能为空", c)
+		return
+	}
+	if !isPublicConfigKeyAllowed(key) {
+		response.FailWithMessage("该配置不对外开放", c)
 		return
 	}
 	val, err := sysConfigService.GetConfigByKey(key)

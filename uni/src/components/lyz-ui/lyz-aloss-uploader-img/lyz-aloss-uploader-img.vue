@@ -26,9 +26,13 @@
 		getOssImgName
 	} from '@/common/util.js'
 	import {
-		ref
+		ref,
+		computed
 	} from 'vue'
+	import { useLangStore } from '@/pinia/modules/lang.js'
 	let images = ref([])
+	const langStore = useLangStore()
+	const $t = computed(() => langStore.$t)
 	const emit = defineEmits(['change'])
 	let props = defineProps({
 		// 上传样式宽高
@@ -123,7 +127,7 @@
 		})
 
 		uni.showLoading({
-			title: `正在上传...`
+			title: $t.value('uploadingImages')
 		});
 		// console.log("promises===>",promises)
 		Promise.all(promises)

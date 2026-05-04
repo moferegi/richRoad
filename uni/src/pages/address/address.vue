@@ -49,7 +49,7 @@
       <!-- 空状态 -->
       <view class="nf-addr-empty" v-if="addressList.length === 0">
         <uni-icons type="location" size="48" color="rgba(229,9,20,0.4)" />
-        <text class="nf-addr-empty-text">{{ $t('noAddress') || '暂无收货地址' }}</text>
+        <text class="nf-addr-empty-text">{{ $t('noAddress') }}</text>
       </view>
     </scroll-view>
 
@@ -180,12 +180,12 @@ const debouncedLower = debounce(lower, 300)
 
 const delAddress = (item) => {
   uni.showModal({
-    title: $t.value('confirmDeleteAddr') || '确定删除收货地址吗？',
+    title: $t.value('confirmDeleteAddr'),
     success: async (res) => {
       if (res.confirm) {
         const del = await deleteAddress(item.ID)
         if (del.code === 0) {
-          uni.showToast({ title: $t.value('deleteSuccess') || '删除成功', icon: 'none' })
+          uni.showToast({ title: $t.value('deleteSuccess'), icon: 'none' })
           addressList.value = []
           params.page = 1
           getAddress(params)

@@ -90,8 +90,8 @@
 
       <view class="nf-load-more" v-if="records.length > 0">
         <text class="nf-load-more-text" v-if="loading">...</text>
-        <text class="nf-load-more-text" v-else-if="noMore">{{ $t('reachedBottom') || '— END —' }}</text>
-        <text class="nf-load-more-text" v-else @tap="loadMoreRecords">{{ $t('loadMore') || 'Load more' }}</text>
+        <text class="nf-load-more-text" v-else-if="noMore">{{ $t('reachedBottom') }}</text>
+        <text class="nf-load-more-text" v-else @tap="loadMoreRecords">{{ $t('loadMore') }}</text>
       </view>
     </view>
   </view>

@@ -45,7 +45,7 @@
             <view v-if="!isDeleteAll" class="nf-cart-qty">
               <wu-number-box :asyncChange="true" :min="0" @change="(e)=>onChange(item,e)" integer v-model="item.quantity"></wu-number-box>
             </view>
-            <view v-else class="nf-btn-del" @tap="deleteItem(item)">{{ $t('delete') || '删除' }}</view>
+            <view v-else class="nf-btn-del" @tap="deleteItem(item)">{{ $t('deleteText') }}</view>
           </view>
         </view>
       </view>

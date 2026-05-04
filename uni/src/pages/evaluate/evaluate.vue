@@ -27,7 +27,7 @@
     <view class="nf-body">
       <view class="nf-empty" v-if="commentInfo.length === 0">
         <text class="nf-empty-icon">💬</text>
-        <text class="nf-empty-text">{{ $t('noData') || '暂无评价' }}</text>
+        <text class="nf-empty-text">{{ $t('noReviewYet') }}</text>
       </view>
 
       <view class="nf-comment-card" v-for="(item, key) in commentInfo" :key="key">

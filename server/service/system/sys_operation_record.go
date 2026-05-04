@@ -69,7 +69,7 @@ func (operationRecordService *OperationRecordService) GetSysOperationRecordInfoL
 		db = db.Where("method = ?", info.Method)
 	}
 	if info.Path != "" {
-		db = db.Where("path LIKE ?", "%"+info.Path+"%")
+		db = db.Where("LOWER(path) LIKE LOWER(?)", "%"+info.Path+"%")
 	}
 	if info.Status != 0 {
 		db = db.Where("status = ?", info.Status)

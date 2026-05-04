@@ -123,6 +123,7 @@
   "/src/plugin/announcement/view/info.vue": "Info",
   "/src/plugin/customer_service/view/agents.vue": "Agents",
   "/src/plugin/customer_service/view/blacklist.vue": "Blacklist",
+  "/src/plugin/customer_service/view/changeLog.vue": "CsChangeLog",
   "/src/plugin/customer_service/view/chatWidget.vue": "ChatWidget",
   "/src/plugin/customer_service/view/config.vue": "Config",
   "/src/plugin/customer_service/view/history.vue": "History",

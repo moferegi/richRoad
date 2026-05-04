@@ -124,7 +124,7 @@
     <view class="nf-load-more" v-if="orderList.length > 0">
       <text class="nf-load-text" v-if="isLoading">{{ $t('loading') }}</text>
       <text class="nf-load-text" v-else-if="isBottom">— {{ $t('noMoreData') }} —</text>
-      <text class="nf-load-btn" v-else @tap="loadMore">{{ $t('loadMore') || 'Load More' }}</text>
+      <text class="nf-load-btn" v-else @tap="loadMore">{{ $t('loadMore') }}</text>
     </view>
 
     <view style="height: 40rpx;"></view>

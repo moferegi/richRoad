@@ -84,20 +84,26 @@ func initInviteCasbin(db *gorm.DB) {
 	var authorities []sysModel.SysAuthority
 	db.Find(&authorities)
 
-	paths := []struct {
+	allRolePaths := []struct {
 		Path   string
 		Method string
 	}{
-		{"/sysConfig/getSysConfigList", "GET"},
-		{"/sysConfig/updateSysConfig", "PUT"},
 		{"/clientUser/getSubordinates", "GET"},
 		{"/clientUser/getMyInviteInfo", "GET"},
 		{"/clientUser/getMySubordinates", "GET"},
 	}
 
+	adminOnlyPaths := []struct {
+		Path   string
+		Method string
+	}{
+		{"/sysConfig/getSysConfigList", "GET"},
+		{"/sysConfig/updateSysConfig", "PUT"},
+	}
+
 	for _, auth := range authorities {
 		authId := fmt.Sprintf("%d", auth.AuthorityId)
-		for _, p := range paths {
+		for _, p := range allRolePaths {
 			var count int64
 			db.Table("casbin_rule").Where("ptype = ? AND v0 = ? AND v1 = ? AND v2 = ?",
 				"p", authId, p.Path, p.Method).Count(&count)
@@ -107,4 +113,27 @@ func initInviteCasbin(db *gorm.DB) {
 			}
 		}
 	}
+
+	for _, authId := range []string{"888", "8881"} {
+		for _, p := range adminOnlyPaths {
+			var count int64
+			db.Table("casbin_rule").Where("ptype = ? AND v0 = ? AND v1 = ? AND v2 = ?",
+				"p", authId, p.Path, p.Method).Count(&count)
+			if count == 0 {
+				db.Exec("INSERT INTO casbin_rule (ptype, v0, v1, v2) VALUES (?, ?, ?, ?)",
+					"p", authId, p.Path, p.Method)
+			}
+		}
+	}
+
+	// 收敛历史脏数据：移除非管理员对系统参数更新接口的访问权限
+	db.Exec(
+		"DELETE FROM casbin_rule WHERE ptype = ? AND v1 = ? AND v2 = ? AND v0 NOT IN (?, ?)",
+		"p", "/sysConfig/updateSysConfig", "PUT", "888", "8881",
+	)
+	// 收敛历史脏数据：移除非管理员对系统参数列表接口的访问权限
+	db.Exec(
+		"DELETE FROM casbin_rule WHERE ptype = ? AND v1 = ? AND v2 = ? AND v0 NOT IN (?, ?)",
+		"p", "/sysConfig/getSysConfigList", "GET", "888", "8881",
+	)
 }

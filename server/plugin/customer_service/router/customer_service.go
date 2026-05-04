@@ -1,6 +1,7 @@
 package router
 
 import (
+	"github.com/flipped-aurora/gin-vue-admin/server/middleware"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/customer_service/api"
 	"github.com/gin-gonic/gin"
 )
@@ -57,6 +58,6 @@ func (r *CustomerServiceRouter) InitCustomerServiceRouter(public, private *gin.R
 		adminGroup.POST("/blacklist/add", a.AddToBlacklist)
 		adminGroup.DELETE("/blacklist/remove", a.RemoveFromBlacklist)
 		adminGroup.GET("/config/get", a.GetCsConfig)
-		adminGroup.PUT("/config/update", a.UpdateCsConfig)
+		adminGroup.PUT("/config/update", middleware.OperationRecord(), a.UpdateCsConfig)
 	}
 }

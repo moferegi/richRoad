@@ -150,7 +150,7 @@ const formatCountdown = (item) => {
   const m = Math.floor((diff % 3600000) / 60000)
   const s = Math.floor((diff % 60000) / 1000)
 
-  const dayUnit = $t.value('countdownDay') || '天'
+  const dayUnit = $t.value('countdownDay')
   if (d > 0) return `${d}${dayUnit} ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }

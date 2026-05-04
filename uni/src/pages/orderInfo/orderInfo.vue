@@ -126,7 +126,7 @@
           </view>
           <view class="nf-coupon-right">
             <text class="nf-coupon-name">{{ $lt(c.name) || c.name }}</text>
-            <text class="nf-coupon-exp">{{ $t('couponExpiry') || '' }} {{ formatCouponDate(c.endTime) }}</text>
+            <text class="nf-coupon-exp">{{ $t('couponExpiry') }} {{ formatCouponDate(c.endTime) }}</text>
             <view v-if="!c.couponNum" class="nf-coupon-claim">
               <text>{{ $t('claimCoupon') }}</text>
             </view>
@@ -285,13 +285,13 @@ const onCouponTap = async (item) => {
   }
   // 需要先领取
   if (!item.couponNum) {
-    uni.showLoading({ title: $t.value('claiming') || '...', mask: true })
+    uni.showLoading({ title: $t.value('claiming'), mask: true })
     try {
       const res = await claimCouponByUser({ couponID: item.couponID })
       item.couponNum = res.data
     } catch (e) { uni.hideLoading(); return }
     uni.hideLoading()
-    uni.showToast({ title: $t.value('claimSuccess') || '✓', icon: 'success' })
+    uni.showToast({ title: $t.value('claimSuccess'), icon: 'success' })
     return
   }
   // 选择优惠券（本地设置）
@@ -378,7 +378,7 @@ const loadGoodInfo = async () => {
       }
     }
   } catch (e) {
-    uni.showToast({ title: $t.value('loadFail') || 'Load failed', icon: 'none' })
+    uni.showToast({ title: $t.value('loadFail'), icon: 'none' })
   }
 }
 
@@ -460,7 +460,7 @@ const doCreateOrder = async (payMethodIndex) => {
       uni.setClipboardData({
         data: String(newOrderID),
         success: () => {
-          uni.showToast({ title: $t.value('orderNoCopied') + '：' + newOrderID, icon: 'none', duration: 2000 })
+          uni.showToast({ title: `${$t.value('orderNoCopied')}: ${newOrderID}`, icon: 'none', duration: 2000 })
           setTimeout(() => { uni.redirectTo({ url: '/pages/kefu/index' }) }, 1500)
         }
       })

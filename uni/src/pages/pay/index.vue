@@ -215,11 +215,11 @@ const loadQrCodes = async () => {
     if (qrList.value.length === 0) {
       const res2 = await request({ url: '/sysConfig/getSysConfigByKey', method: 'get', params: { configKey: 'payment_qr_code' } })
       if (res2.code === 0 && res2.data) {
-        qrList.value = [{ name: 'QR', image: res2.data, externalPath: '' }]
+        qrList.value = [{ name: $t.value('payByQrcode'), image: res2.data, externalPath: '' }]
       }
     }
   } catch (e) {
-    console.error('加载支付二维码失败', e)
+    console.error('Failed to load payment QR codes', e)
   }
 }
 

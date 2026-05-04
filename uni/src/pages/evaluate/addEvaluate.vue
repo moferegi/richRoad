@@ -235,7 +235,7 @@ const uploadSingleImage = (tempFilePath) => {
           const d = JSON.parse(res.data)
           if (d.code !== 0) return reject(new Error(d.msg))
           resolve(d.data.file.url)
-        } catch { reject(new Error('parse error')) }
+        } catch { reject(new Error($t.value('uploadFail'))) }
       },
       fail: (err) => reject(new Error(err.errMsg))
     })

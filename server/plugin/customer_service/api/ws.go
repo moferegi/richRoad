@@ -128,7 +128,8 @@ func loadWSMaxConnsPerIP() int {
 func loadWSAllowQueryAuth() bool {
 	v := strings.TrimSpace(strings.ToLower(os.Getenv("CS_WS_ALLOW_QUERY_TOKEN")))
 	if v == "" {
-		return true
+		// 默认关闭 query token，避免 token 经 URL 透传导致泄漏风险。
+		return false
 	}
 	switch v {
 	case "1", "true", "yes", "on":
@@ -136,7 +137,7 @@ func loadWSAllowQueryAuth() bool {
 	case "0", "false", "no", "off":
 		return false
 	default:
-		return true
+		return false
 	}
 }
 

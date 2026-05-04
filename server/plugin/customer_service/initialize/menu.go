@@ -91,6 +91,17 @@ func Menu(ctx context.Context) {
 				Icon:  "Setting",
 			},
 		},
+		{
+			Path:      "changeLog",
+			Name:      "csChangeLog",
+			Hidden:    false,
+			Component: "plugin/customer_service/view/changeLog.vue",
+			Sort:      7,
+			Meta: model.Meta{
+				Title: "配置变更记录",
+				Icon:  "Document",
+			},
+		},
 	}
 	utils.RegisterMenus(entities...)
 

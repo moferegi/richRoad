@@ -406,7 +406,7 @@ const payNow = async () => {
         uni.setClipboardData({
           data: String(data.value.ID),
           success: () => {
-            uni.showToast({ title: $t.value('orderNoCopied') + '：' + data.value.ID, icon: 'none', duration: 2000 })
+            uni.showToast({ title: `${$t.value('orderNoCopied')}: ${data.value.ID}`, icon: 'none', duration: 2000 })
             setTimeout(() => { uni.navigateTo({ url: '/pages/kefu/index' }) }, 1500)
           }
         })

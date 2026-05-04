@@ -321,7 +321,7 @@ const presaleCountdownText = computed(() => {
   const hh = Math.floor((diff % 86400000) / 3600000)
   const mm = Math.floor((diff % 3600000) / 60000)
   const ss = Math.floor((diff % 60000) / 1000)
-  const dayUnit = $t.value('countdownDay') || '天'
+  const dayUnit = $t.value('countdownDay')
   if (dd > 0) return `${dd}${dayUnit} ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`
   return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`
 })
@@ -388,10 +388,10 @@ const goodsTapPay = async () => {
         )
         if (pending) {
           uni.showModal({
-            title: $t.value('pendingOrderTitle') || '提示',
-            content: $t.value('pendingOrderExist') || '您有该商品的待付款订单，是否前往支付？',
-            confirmText: $t.value('goToPay') || '去支付',
-            cancelText: $t.value('continueBuy') || '继续购买',
+            title: $t.value('pendingOrderTitle'),
+            content: $t.value('pendingOrderExist'),
+            confirmText: $t.value('goToPay'),
+            cancelText: $t.value('continueBuy'),
             success: (modalRes) => {
               if (modalRes.confirm) {
                 uni.navigateTo({ url: `/pages/orderDetail/orderDetail?orderID=${pending.ID}` })

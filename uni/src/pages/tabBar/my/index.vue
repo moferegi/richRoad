@@ -100,7 +100,7 @@
         <view class="nf-section-line"></view>
       </view>
       <view v-if="historyList.length === 0" class="nf-history-empty">
-        <text class="nf-history-empty-text">{{ $t('noData') }}</text>
+        <text class="nf-history-empty-text">{{ $t('noHistoryData') }}</text>
       </view>
       <scroll-view v-else class="nf-history-scroll" scroll-x>
         <view class="nf-history-list">
@@ -220,7 +220,7 @@ const isShow = ref(false)
 
 const columns = computed(() => [
   {
-    title: $t.value('signIn') || '每日签到',
+    title: $t.value('signIn'),
     pages: '/pages/signIn/signIn',
     icon: '/static/MYcollect.png',
     hidden: !isShow.value
@@ -229,17 +229,17 @@ const columns = computed(() => [
     pages: '/pages/collect/collect',
     icon: '/static/MYcollect.png'
   },{
-    title: $t.value('inviteFriends') || '邀请好友',
+    title: $t.value('inviteFriends'),
     pages: '/pages/invite/index',
     icon: '/static/MYcollect.png',
     hidden: !isShow.value
   },{
-    title: $t.value('changePassword') || '修改密码',
+    title: $t.value('changePassword'),
     pages: '/pages/user/changePassword',
     icon: '/static/images/exit.png',
     hidden: !isShow.value
   },{
-    title: $t.value('myAddresses') || '收货地址',
+    title: $t.value('myAddresses'),
     pages: '/pages/address/address',
     icon: '/static/MYcollect.png',
     hidden: !isShow.value
