@@ -1,882 +1,527 @@
 <template>
-  <view class="nf-home">
-    <!-- 背景光晕 -->
-    <view class="nf-home-bg"></view>
+  <view class="room-page">
+    <view class="room-header">
+      <text class="room-title">{{ $t('tryonRoom') }}</text>
+      <view class="room-tabs">
+        <view class="room-tab" :class="{ active: areaTab === 'tryon' }" @tap="switchArea('tryon')">{{ $t('tryonArea') }}</view>
+        <view class="room-tab" :class="{ active: areaTab === 'takeoff' }" @tap="switchArea('takeoff')">{{ $t('takeoffArea') }}</view>
+      </view>
+    </view>
 
-    <!-- 顶部搜索栏 -->
-    <view class="nf-topbar" id="nf-topbar">
-      <view class="nf-topbar-status"></view>
-      <view class="nf-topbar-row">
-        <!-- 左侧语言切换 -->
-        <view class="nf-topbar-btn" @click="showLangPicker = true">
-          <text class="nf-topbar-btn-text">{{ langLabel }}</text>
+    <view class="room-body" v-if="areaTab === 'tryon'">
+      <view class="room-left" @tap="pickImage('person')">
+        <image v-if="personPreview" class="room-preview" :src="personPreview" mode="aspectFill" />
+        <view v-else class="room-upload-empty">
+          <uni-icons type="camera" size="26" color="rgba(15,23,42,0.45)" />
+          <text class="room-upload-text">{{ $t('uploadModelImage') }}</text>
         </view>
-
-        <!-- 搜索框 -->
-        <view class="nf-search">
-          <uni-icons type="search" size="16" color="rgba(255,255,255,0.4)"></uni-icons>
-          <input
-            class="nf-search-input"
-            :placeholder="$t('searchPlaceholder')"
-            v-model="searchKeyword"
-            @confirm="goToSearchWithKeyword"
-            @click.stop
-          />
+      </view>
+      <view class="room-right">
+        <view class="cloth-slot" @tap="pickImage('upper')">
+          <image v-if="upperPreview" class="cloth-preview" :src="upperPreview" mode="aspectFill" />
+          <text v-else class="cloth-text">{{ $t('uploadUpperImage') }}</text>
         </view>
-
-        <!-- 搜索按钮 -->
-        <view class="nf-topbar-btn nf-topbar-btn-red" @click="goToSearchWithKeyword">
-          <uni-icons type="search" size="18" color="#fff"></uni-icons>
+        <view class="cloth-slot" @tap="pickImage('lower')">
+          <image v-if="lowerPreview" class="cloth-preview" :src="lowerPreview" mode="aspectFill" />
+          <text v-else class="cloth-text">{{ $t('uploadLowerImage') }}</text>
+        </view>
+        <view class="cloth-slot suit-slot" @tap="goClothesPage">
+          <text class="cloth-text">{{ $t('suitSet') }}</text>
+          <text class="cloth-tip">{{ $t('goClothesPageTip') }}</text>
         </view>
       </view>
     </view>
 
-    <scroll-view
-      scroll-y="true"
-      :show-scrollbar="false"
-      class="nf-scroll"
-      :scroll-top="scrollTopVal"
-      @scroll="onScroll"
-      @scrolltolower="debouncedLower"
-    >
-      <!-- 轮播图区域 -->
-      <swpiers :lists="list"></swpiers>
-
-      <!-- App品牌展示：Logo/名称轮播切换 -->
-      <view class="nf-brand" v-if="appConfigStore.appName || appConfigStore.appLogo">
-        <view class="nf-brand-stage">
-          <!-- Logo -->
-          <image
-            v-if="appConfigStore.appLogo"
-            class="nf-brand-logo"
-            :class="(!appConfigStore.appName || brandShowLogo) ? 'nf-brand-in' : 'nf-brand-out'"
-            :src="getExternalUrl(appConfigStore.appLogo)"
-            mode="aspectFit"
-          />
-          <!-- 名称 -->
-          <text
-            v-if="appConfigStore.appName"
-            class="nf-brand-name"
-            :class="(!appConfigStore.appLogo || !brandShowLogo) ? 'nf-brand-in' : 'nf-brand-out'"
-          >{{ appConfigStore.appName }}</text>
-        </view>
+    <view class="takeoff-body" v-else @tap="pickImage('person')">
+      <image v-if="personPreview" class="takeoff-preview" :src="personPreview" mode="aspectFill" />
+      <view v-else class="room-upload-empty">
+        <uni-icons type="camera" size="28" color="rgba(15,23,42,0.45)" />
+        <text class="room-upload-text">{{ $t('uploadTakeoffPerson') }}</text>
       </view>
+    </view>
 
-      <!-- 1. 公告走马灯 -->
-      <announcement-marquee
-        :enabled="announcementConfig.enabled"
-        :text="announcementConfig.text"
-        :textColor="announcementConfig.textColor"
-        :speed="announcementConfig.speed"
-      />
+    <view class="model-card">
+      <view class="model-left" @tap="showModelPopup = true">
+        <text class="model-label">{{ $t('currentModelLabel') }}</text>
+        <text class="model-value">{{ currentModel.name }}</text>
+      </view>
+      <view class="model-help" @tap="showModelDesc">
+        <text>?</text>
+      </view>
+    </view>
 
-      <!-- 2. 预售商品区域 -->
-      <view class="nf-presale-home" v-if="presaleList.length > 0">
-        <view class="nf-presale-header">
-          <text class="nf-presale-title">🔥 {{ $t('presaleSection') }}</text>
-          <view class="nf-presale-more" @tap="goPresaleList">
-            <text class="nf-presale-more-text">{{ $t('viewMore') }}</text>
-            <uni-icons type="right" size="12" color="rgba(255,255,255,0.5)" />
-          </view>
-        </view>
-        <scroll-view scroll-x class="nf-presale-scroll">
-          <view class="nf-presale-items">
-            <view
-              class="nf-presale-item"
-              v-for="(item, idx) in presaleList"
-              :key="idx"
-              @tap="goGoodsDetail(item)"
-            >
-              <image class="nf-presale-img" :src="item.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(item.imageUrl)" mode="aspectFill" />
-              <view class="nf-presale-info">
-                <text class="nf-presale-name">{{ $lt(item.title) }}</text>
-                <text class="nf-presale-price">{{ cs }}{{ formatPrice(item.price) }}</text>
-              </view>
-              <view class="nf-presale-badge-tag">{{ $t('presale') }}</view>
+    <view class="generate-btn" @tap="goGenerate">
+      <text class="generate-text">{{ $t('generateWithCost').replace('{cost}', String(currentCost)) }}</text>
+    </view>
+
+    <view class="footer-tips">
+      <text>{{ $t('tryonFootTip') }}</text>
+    </view>
+
+    <view class="popup-mask" v-if="showModelPopup" @tap="showModelPopup = false">
+      <view class="popup-panel" @tap.stop>
+        <view class="popup-title">{{ $t('selectModel') }}</view>
+        <scroll-view class="popup-list" scroll-y>
+          <view
+            v-for="item in modelList"
+            :key="item.key"
+            class="popup-item"
+            :class="{ active: item.key === selectedModelKey }"
+            @tap="selectModel(item.key)"
+          >
+            <view>
+              <text class="popup-item-name">{{ item.name }}</text>
+              <text class="popup-item-cost">{{ $t('pointsCostEach').replace('{cost}', String(item.cost)) }}</text>
             </view>
+            <uni-icons type="checkmarkempty" size="20" color="#2563eb" v-if="item.key === selectedModelKey" />
           </view>
         </scroll-view>
       </view>
-
-      <!-- 分类导航 (带id用于吸顶检测) -->
-      <view id="nf-category-anchor"></view>
-      <categories
-        ref="categoriesRef"
-        :categoriesData="gridList"
-        v-model="activeCategoryID"
-        @change="onCategoryChange"
-      ></categories>
-
-      <!-- 商品展示区 -->
-      <view class="nf-goods-section" :class="{ 'nf-goods-fade': switching }">
-        <noPaginRowGoodList
-            :goodsList="flowData"
-            :current-page="params.page"
-            :page-size="params.pageSize"
-            :total="totalCount"
-            @load-more="handleAutoLoadMore"
-        />
-      </view>
-      <!-- 底部加载状态 -->
-      <view class="nf-footer" v-if="flowData.length > 0">
-        <text class="nf-footer-text">{{ isBottom ? $t('reachedBottom') : $t('loading') }}</text>
-      </view>
-      <!-- 空状态 -->
-      <view class="nf-empty" v-if="flowData.length === 0 && !isLoading">
-        <view class="nf-empty-icon">
-          <uni-icons type="shop" size="48" color="rgba(229,9,20,0.4)" />
-        </view>
-        <text class="nf-empty-text">{{ $t('noGoods') }}</text>
-      </view>
-    </scroll-view>
-
-    <!-- 5. 吸顶分类栏 (当原始分类滚出视口时显示) -->
-    <view class="nf-sticky-category" v-if="showStickyCategory">
-      <categories
-        :categoriesData="gridList"
-        v-model="activeCategoryID"
-        @change="onCategoryChange"
-      ></categories>
     </view>
-
-    <!-- 5. 回到顶部按钮 -->
-    <view class="nf-back-top" v-if="showBackTop" @tap="scrollToTop">
-      <uni-icons type="up" size="20" color="#fff" />
-      <text class="nf-back-top-text">{{ $t('backToTop') }}</text>
-    </view>
-
-    <!-- 6. 签到悬浮按钮 -->
-    <view class="nf-sign-float" v-if="signInEnabled" @tap="goSignIn">
-      <text class="nf-sign-float-text">{{ $t('signIn') }}</text>
-    </view>
-
-    <!-- 语言切换弹窗 -->
-    <lang-switch v-model="showLangPicker" />
-
-    <!-- 首页弹窗 -->
-    <popup-modal client-type="uni" />
   </view>
 </template>
+
 <script setup>
-import  { ref, computed, onUnmounted } from 'vue';
-import { getCategoryMobile, getGoodList } from '@/api/homePage.js'
-import { getBannerList } from '@/api/homePage.js'
-import { getPresaleGoodList } from '@/api/presale.js'
-import { getAnnouncementConfig, getSignInEnabled, getPresaleHomeCount } from '@/api/sysConfig.js'
-import { doSignIn, getSignInStatus } from '@/api/signIn.js'
-import noPaginRowGoodList from '@/components/good-list/no-pagin-row-good-list.vue'
-import swpiers from './components/swiper.vue'
-import categories from './components/categories.vue'
-import announcementMarquee from '@/components/announcement-marquee/announcement-marquee.vue'
-import langSwitch from '@/components/lang-switch/lang-switch.vue'
-import popupModal from '@/components/popup-modal/popup-modal.vue'
-import { useLangStore } from '@/pinia/modules/lang.js'
-import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
-import { useUserStore } from '@/pinia/modules/user.js'
-import { getUrl, getExternalUrl } from '@/utils/url.js'
+import { computed, ref, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import { useLangStore } from '@/pinia/modules/lang.js'
+import { getTryonConfig } from '@/api/sysConfig.js'
+import { getUrl } from '@/utils/url.js'
+import { localText } from '@/utils/i18n.js'
+import {
+  createTryonRequestId,
+  saveTryonDraft,
+  getSelectedClothes,
+  clearSelectedClothes,
+  getSelectedTryonModel,
+  clearSelectedTryonModel,
+  parseTryonModels,
+} from '@/utils/tryon.js'
 
 const langStore = useLangStore()
-const appConfigStore = useAppConfigStore()
-const cs = computed(() => appConfigStore.currencySymbol)
-const userStore = useUserStore()
 const $t = computed(() => langStore.$t)
-const $lt = computed(() => langStore.$lt)
-const langLabel = computed(() => {
-  const map = { zh: '中', en: 'EN', mn: 'MN', 'zh-TW': '繁', th: 'ไทย', hi: 'हि', id: 'ID' }
-  return map[langStore.locale] || '中'
+
+const areaTab = ref('tryon')
+const showModelPopup = ref(false)
+const selectedModelKey = ref('')
+const modelList = ref([])
+const tryonConfig = ref({
+  tryon_cost_points: '1',
+  tryon_models: '',
 })
-const showLangPicker = ref(false)
 
-// ========== 品牌Logo/名称轮播 ==========
-const brandShowLogo = ref(true)
-let brandTimer = null
+const personLocal = ref('')
+const personRemote = ref('')
+const upperLocal = ref('')
+const upperRemote = ref('')
+const lowerLocal = ref('')
+const lowerRemote = ref('')
 
-const startBrandTimer = () => {
-  // 只有同时有Logo和名称时才轮播
-  if (appConfigStore.appLogo && appConfigStore.appName) {
-    brandTimer = setInterval(() => {
-      brandShowLogo.value = !brandShowLogo.value
-    }, 5000)
+const personPreview = computed(() => personRemote.value ? getUrl(personRemote.value) : personLocal.value)
+const upperPreview = computed(() => upperRemote.value ? getUrl(upperRemote.value) : upperLocal.value)
+const lowerPreview = computed(() => lowerRemote.value ? getUrl(lowerRemote.value) : lowerLocal.value)
+
+const activeSceneType = computed(() => (areaTab.value === 'takeoff' ? 'takeoff' : 'clothes'))
+
+const currentModel = computed(() => {
+  const selected = modelList.value.find(v => v.key === selectedModelKey.value)
+  return selected || modelList.value[0] || { key: 'aitryon', name: 'aitryon', cost: Number(tryonConfig.value.tryon_cost_points || 1), desc: {} }
+})
+
+const currentCost = computed(() => Number(currentModel.value.cost || 1))
+
+const rebuildModelList = () => {
+  modelList.value = parseTryonModels(
+    tryonConfig.value.tryon_models,
+    activeSceneType.value,
+    Number(tryonConfig.value.tryon_cost_points || 1),
+    langStore.locale
+  )
+  if (!modelList.value.find(item => item.key === selectedModelKey.value)) {
+    selectedModelKey.value = modelList.value[0]?.key || ''
   }
 }
 
-onUnmounted(() => {
-  if (brandTimer) { clearInterval(brandTimer); brandTimer = null }
-})
-
-// 启动时恢复 tabBar 语言
-langStore.updateTabBar(langStore.locale)
-
-// ========== 轮播图 ==========
-const list = ref([])
-const searchKeyword = ref('')
-
-const initBanner = async () => {
-  const res = await getBannerList()
-  list.value = res.data.list
+const switchArea = (tab) => {
+  areaTab.value = tab
 }
-initBanner()
 
-// ========== 1. 公告走马灯 ==========
-const announcementConfig = ref({
-  enabled: false,
-  text: '',
-  textColor: '#fff',
-  speed: 60
-})
-
-const initAnnouncement = async () => {
-  try {
-    const res = await getAnnouncementConfig()
-    if (res.code === 0 && res.data) {
-      const d = res.data
-      const enabled = d.announcement_enabled || d.enabled
-      const content = d.announcement_content || d.content
-      const textColor = d.announcement_text_color || d.textColor || '#fff'
-      const speed = d.announcement_speed || d.speed || '60'
-      announcementConfig.value = {
-        enabled: enabled === true || enabled === 'true',
-        text: typeof content === 'string' ? (langStore.$lt(content) || content) : (content || ''),
-        textColor: textColor,
-        speed: parseInt(speed) || 60
+const pickImage = (target) => {
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: (res) => {
+      const path = res.tempFilePaths && res.tempFilePaths[0]
+      if (!path) return
+      if (target === 'person') {
+        personLocal.value = path
+        personRemote.value = ''
       }
-    }
-  } catch (e) {
-    console.error('获取公告失败', e)
-  }
-}
-initAnnouncement()
-
-// ========== 2. 预售商品 ==========
-const presaleList = ref([])
-const presaleHomeCount = ref(4)
-
-const initPresale = async () => {
-  try {
-    // 获取后台配置的首页展示数量
-    const countRes = await getPresaleHomeCount()
-    if (countRes.code === 0 && countRes.data != null) {
-      const val = typeof countRes.data === 'object' ? countRes.data.configValue : countRes.data
-      const parsed = parseInt(val)
-      presaleHomeCount.value = isNaN(parsed) ? 4 : parsed
-    }
-  } catch (e) {}
-
-  // presale_home_count=0 时不展示预售区域
-  if (presaleHomeCount.value <= 0) {
-    presaleList.value = []
-    return
-  }
-
-  try {
-    const res = await getPresaleGoodList({ page: 1, pageSize: presaleHomeCount.value })
-    if (res.code === 0 && res.data && res.data.list && res.data.list.length > 0) {
-      presaleList.value = res.data.list
-    }
-  } catch (e) {
-    console.error('获取预售商品失败', e)
-  }
-}
-initPresale()
-
-const formatPrice = (priceInCents) => {
-  if (!priceInCents && priceInCents !== 0) return '0.00'
-  return (parseInt(priceInCents) / 100).toFixed(2)
-}
-
-const goPresaleList = () => {
-  uni.navigateTo({ url: '/pages/presale/list' })
-}
-
-const goGoodsDetail = (item) => {
-  if (item.ID) {
-    uni.navigateTo({ url: '/pages/goodsDetails/goodsDetails?id=' + item.ID })
-  }
-}
-
-// ========== 5. 滚动状态：吸顶分类 + 回到顶部 ==========
-const showStickyCategory = ref(false)
-const showBackTop = ref(false)
-const scrollTopVal = ref(0)
-let categoryAnchorTop = 0
-let oldScrollTop = 0
-
-// 获取分类栏位置 (延迟到渲染完成)
-const getCategoryAnchorTop = () => {
-  const query = uni.createSelectorQuery()
-  query.select('#nf-category-anchor').boundingClientRect((rect) => {
-    if (rect) categoryAnchorTop = rect.top + oldScrollTop
-  }).exec()
-}
-
-const onScroll = (e) => {
-  const scrollTop = e.detail.scrollTop
-  oldScrollTop = scrollTop
-  // 分类区是否滚出视口
-  if (categoryAnchorTop > 0) {
-    showStickyCategory.value = scrollTop > categoryAnchorTop
-  }
-  // 回到顶部按钮
-  showBackTop.value = scrollTop > 600
-}
-
-const scrollToTop = () => {
-  scrollTopVal.value = oldScrollTop // 先设一个非0值
-  setTimeout(() => {
-    scrollTopVal.value = 0
-  }, 50)
-}
-
-// ========== 6. 签到悬浮按钮 ==========
-const signInEnabled = ref(false)
-
-const initSignIn = async () => {
-  try {
-    const res = await getSignInEnabled()
-    if (res.code === 0 && res.data) {
-      const val = typeof res.data === 'object' ? res.data.configValue : res.data
-      signInEnabled.value = val === 'true' || val === true
-    }
-  } catch (e) {}
-}
-initSignIn()
-
-const goSignIn = async () => {
-  const token = userStore.token || ''
-  if (!token) {
-    uni.showToast({ title: $t.value('loginFirst'), icon: 'none' })
-    uni.navigateTo({ url: '/pages/user/login' })
-    return
-  }
-  try {
-    // 检查是否已签到
-    const statusRes = await getSignInStatus()
-    if (statusRes.code === 0 && statusRes.data && statusRes.data.signed) {
-      uni.showToast({ title: $t.value('alreadySigned'), icon: 'none' })
-      return
-    }
-    const res = await doSignIn()
-    if (res.code === 0) {
-      const points = res.data && res.data.points ? res.data.points : 0
-      uni.showToast({
-        title: $t.value('signInSuccess') + (points > 0 ? ` +${points}` : ''),
-        icon: 'success'
-      })
-    } else {
-      uni.showToast({ title: res.msg || $t.value('alreadySigned'), icon: 'none' })
-    }
-  } catch (e) {
-    uni.showToast({ title: $t.value('alreadySigned'), icon: 'none' })
-  }
-}
-
-// ========== 商品列表 ==========
-const products = ref([])
-const activeCategoryID = ref(0)
-const params = ref({
-  page: 1,
-  pageSize: 10,
-  categoryID: 0
-})
-
-const flowData = ref([])
-const isBottom = ref(false)
-const isLoading = ref(true)
-const switching = ref(false)
-
-searchKeyword.value = ''
-
-const goToSearchWithKeyword = () => {
-  const keyword = searchKeyword.value.trim()
-  if (!keyword) {
-    uni.showToast({ title: $t.value('searchEmpty'), icon: 'none' })
-    return
-  }
-  uni.setStorageSync('searchKeyword', keyword)
-  uni.navigateTo({ url: '/pages/search/index' })
-}
-
-const getRecommend = async () => {
-  const res = await getGoodList({ recommend: true })
-  if (res.code === 0 && res.data.list.length) {
-    products.value = res.data.list
-  }
-}
-getRecommend()
-
-const lower = async (isRefresh = false) => {
-  if (isBottom.value && !isRefresh) return
-  isLoading.value = true
-  if (isRefresh) {
-    params.value.page = 1
-  } else {
-    params.value.page += 1
-  }
-
-  try {
-    const res = await getGoodList(params.value)
-    if (res.code === 0) {
-      const listData = res.data.list || []
-      if (isRefresh) {
-        flowData.value = listData
-      } else {
-        flowData.value.push(...listData)
+      if (target === 'upper') {
+        upperLocal.value = path
+        upperRemote.value = ''
       }
-      totalCount.value = res.data.total ?? flowData.value.length
-      isBottom.value = listData.length < params.value.pageSize
-    } else {
-      isBottom.value = true
-    }
-  } catch (error) {
-    console.error('获取商品列表失败', error)
-  } finally {
-    isLoading.value = false
+      if (target === 'lower') {
+        lowerLocal.value = path
+        lowerRemote.value = ''
+      }
+    },
+  })
+}
+
+const selectModel = (key) => {
+  selectedModelKey.value = key
+  showModelPopup.value = false
+}
+
+const showModelDesc = () => {
+  const model = currentModel.value
+  const desc = model.descText || localText(model.desc, langStore.locale) || $t.value('noDescription')
+
+  uni.showModal({
+    title: model.name,
+    content: desc,
+    showCancel: false,
+  })
+}
+
+const loadConfig = async () => {
+  const res = await getTryonConfig()
+  if (res.code === 0 && res.data) {
+    tryonConfig.value = { ...tryonConfig.value, ...res.data }
+  }
+  rebuildModelList()
+}
+
+const applySelectedClothes = () => {
+  const selected = getSelectedClothes()
+  if (!selected || typeof selected !== 'object') return
+  if (selected.upperImage) {
+    upperRemote.value = selected.upperImage
+    upperLocal.value = ''
+  }
+  if (selected.lowerImage) {
+    lowerRemote.value = selected.lowerImage
+    lowerLocal.value = ''
+  }
+  clearSelectedClothes()
+}
+
+const applySelectedModel = () => {
+  const selectedModel = getSelectedTryonModel()
+  if (!selectedModel || typeof selectedModel !== 'object') return
+  if (selectedModel.roomType && selectedModel.roomType !== 'tryon') return
+
+  if (selectedModel.remoteUrl) {
+    personRemote.value = selectedModel.remoteUrl
+    personLocal.value = ''
+    clearSelectedTryonModel()
+    return
+  }
+
+  if (selectedModel.localPath) {
+    personLocal.value = selectedModel.localPath
+    personRemote.value = ''
+    clearSelectedTryonModel()
   }
 }
 
-const totalCount = ref(0)
-
-const handleAutoLoadMore = () => {
-  lower(false)
+const goClothesPage = () => {
+  uni.switchTab({ url: '/pages/tabBar/clothes/index' })
 }
 
-// 分类切换（带淡入淡出）
-const onCategoryChange = async (categoryID) => {
-  params.value.categoryID = categoryID || 0
-  switching.value = true
-  await new Promise(r => setTimeout(r, 220))
-  params.value.page = 1
-  isBottom.value = false
-  try {
-    const res = await getGoodList(params.value)
-    if (res.code === 0) {
-      const listData = res.data.list || []
-      flowData.value = listData
-      totalCount.value = res.data.total ?? listData.length
-      isBottom.value = listData.length < params.value.pageSize
-    } else {
-      flowData.value = []
-      isBottom.value = true
-    }
-  } catch (e) {
-    flowData.value = []
+const goGenerate = () => {
+  if (!personLocal.value && !personRemote.value) {
+    uni.showToast({ title: $t.value('uploadModelFirst'), icon: 'none' })
+    return
   }
-  switching.value = false
-}
 
-const gridList = ref([])
-const initCategory = async () => {
-  const res = await getCategoryMobile()
-  if (res.code === 0 && res.data.length) {
-    gridList.value = res.data
+  let templateRemoteUrl = upperRemote.value || lowerRemote.value
+  let templateLocalPath = upperLocal.value || lowerLocal.value
+
+  if (areaTab.value === 'tryon' && !templateRemoteUrl && !templateLocalPath) {
+    uni.showToast({ title: $t.value('uploadClothesFirst'), icon: 'none' })
+    return
   }
-}
-initCategory()
-lower(true)
 
-// 延迟获取分类锚点位置
+  if (areaTab.value === 'takeoff' && !templateRemoteUrl && !templateLocalPath) {
+    templateRemoteUrl = personRemote.value
+    templateLocalPath = personLocal.value
+  }
+
+  saveTryonDraft({
+    roomType: 'tryon',
+    sceneType: activeSceneType.value,
+    operationType: areaTab.value,
+    sourceLocalPath: personLocal.value,
+    sourceRemoteUrl: personRemote.value,
+    templateLocalPath,
+    templateRemoteUrl,
+    modelKey: currentModel.value.key,
+    modelName: currentModel.value.name,
+    modelCost: currentCost.value,
+    requestID: createTryonRequestId(),
+  })
+
+  uni.navigateTo({ url: '/pages/tryon/generate' })
+}
+
+watch(
+  [areaTab, () => tryonConfig.value.tryon_models, () => tryonConfig.value.tryon_cost_points, () => langStore.locale],
+  () => {
+    rebuildModelList()
+  }
+)
+
 onShow(() => {
-  setTimeout(getCategoryAnchorTop, 500)
-  // 启动品牌轮播
-  if (!brandTimer) startBrandTimer()
+  loadConfig()
+  applySelectedModel()
+  applySelectedClothes()
 })
-
-const debounce = (func, delay) => {
-  let debounceTimer;
-  return function(...args) {
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      func.apply(this, args);
-    }, delay);
-  };
-};
-
-const debouncedLower = debounce(()=>lower(false), 300);
 </script>
 
 <style lang="scss">
 page {
-  background-color: #000;
+  background: #f4f7fb;
 }
 
-.nf-home {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background: #000;
-  position: relative;
+.room-page {
+  min-height: 100vh;
+  padding: calc(var(--status-bar-height, 0px) + 24rpx) 24rpx 24rpx;
+  color: #0f172a;
+  background: radial-gradient(120% 80% at 100% -10%, #dbeafe 0%, transparent 60%), #f4f7fb;
 }
 
-/* 背景装饰光晕 */
-.nf-home-bg {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  height: 500rpx;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse at 20% 0%, rgba(229, 9, 20, 0.12) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 10%, rgba(229, 9, 20, 0.08) 0%, transparent 50%);
+.room-header {
+  margin-bottom: 20rpx;
 }
 
-/* ===== App品牌展示 - 轮播切换 ===== */
-.nf-brand {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 24rpx 48rpx 16rpx;
-}
-.nf-brand-stage {
-  position: relative;
-  width: 260rpx;
-  height: 72rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.nf-brand-logo {
-  position: absolute;
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 12rpx;
-  transition: opacity 0.7s ease, transform 0.7s ease;
-}
-.nf-brand-name {
-  position: absolute;
-  font-size: 32rpx;
+.room-title {
+  font-size: 38rpx;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.78);
-  letter-spacing: 3rpx;
-  white-space: nowrap;
-  transition: opacity 0.7s ease, transform 0.7s ease;
-}
-/* 显示状态 */
-.nf-brand-in.nf-brand-logo {
-  opacity: 1;
-  transform: scale(1) rotate(0deg);
-}
-.nf-brand-in.nf-brand-name {
-  opacity: 1;
-  transform: translateY(0) scaleX(1);
-}
-/* 隐藏状态 */
-.nf-brand-out.nf-brand-logo {
-  opacity: 0;
-  transform: scale(0.5) rotate(-90deg);
-}
-.nf-brand-out.nf-brand-name {
-  opacity: 0;
-  transform: translateY(10rpx) scaleX(0.85);
 }
 
-/* ===== 顶部栏 ===== */
-.nf-topbar {
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
-  padding: 0 28rpx 16rpx;
-  position: sticky;
-  top: 0;
-  z-index: 99;
-}
-
-.nf-topbar-status {
-  width: 100%;
-  height: var(--status-bar-height, 0px);
-}
-
-/* #ifdef MP-WEIXIN */
-.nf-topbar-status {
-  height: var(--status-bar-height, 44px);
-}
-/* #endif */
-
-.nf-topbar-row {
+.room-tabs {
+  margin-top: 16rpx;
   display: flex;
-  align-items: center;
-  gap: 16rpx;
-  margin-top: 12rpx;
-}
-
-.nf-topbar-btn {
-  width: 68rpx;
-  height: 68rpx;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1rpx solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.3s;
-
-  &:active {
-    background: rgba(255, 255, 255, 0.12);
-    transform: scale(0.93);
-  }
-}
-
-.nf-topbar-btn-red {
-  background: linear-gradient(135deg, #e50914, #b20710);
-  border: none;
-  box-shadow: 0 4rpx 16rpx rgba(229, 9, 20, 0.35);
-
-  &:active {
-    box-shadow: 0 2rpx 8rpx rgba(229, 9, 20, 0.5);
-  }
-}
-
-.nf-topbar-btn-text {
-  font-size: 22rpx;
-  font-weight: 800;
-  color: #fff;
-  letter-spacing: 0;
-}
-
-/* ===== 搜索框 ===== */
-.nf-search {
-  flex: 1;
-  height: 72rpx;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1rpx solid rgba(255, 255, 255, 0.1);
-  border-radius: 36rpx;
-  display: flex;
-  align-items: center;
-  padding: 0 24rpx;
   gap: 12rpx;
-  transition: border-color 0.3s;
 }
 
-.nf-search-input {
+.room-tab {
   flex: 1;
-  color: #fff;
-  font-size: 28rpx;
-  border: none;
-  outline: none;
-  background: transparent;
-
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.35);
-  }
-}
-
-/* ===== 滚动区域 ===== */
-.nf-scroll {
-  flex: 1;
-  width: 100%;
-  background: #000;
-}
-
-/* ===== 商品区块 ===== */
-.nf-goods-section {
-  background: #000;
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.nf-goods-fade {
-  opacity: 0;
-  transform: translateY(8rpx);
-}
-
-/* ===== 加载状态 ===== */
-.nf-footer {
-  padding: 40rpx;
-  padding-bottom: calc(40rpx + 120rpx + env(safe-area-inset-bottom));
   text-align: center;
+  padding: 16rpx 0;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(15, 23, 42, 0.12);
+  color: rgba(15, 23, 42, 0.55);
+  background: rgba(255, 255, 255, 0.75);
 }
 
-.nf-footer-text {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.25);
-  letter-spacing: 2rpx;
+.room-tab.active {
+  color: #0f172a;
+  border-color: rgba(37, 99, 235, 0.45);
+  background: linear-gradient(90deg, rgba(191, 219, 254, 0.95), rgba(219, 234, 254, 0.95));
 }
 
-/* ===== 空状态 ===== */
-.nf-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 120rpx 0 calc(80rpx + 120rpx + env(safe-area-inset-bottom));
-}
-
-.nf-empty-icon {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 50%;
-  background: rgba(229, 9, 20, 0.08);
-  border: 1rpx solid rgba(229, 9, 20, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 24rpx;
-}
-
-.nf-empty-text {
-  font-size: 28rpx;
-  color: rgba(255, 255, 255, 0.3);
-  letter-spacing: 2rpx;
-}
-
-/* ===== 预售区域 ===== */
-.nf-presale-home {
-  margin: 16rpx 20rpx 0;
-}
-
-.nf-presale-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16rpx;
-}
-
-.nf-presale-title {
-  font-size: 28rpx;
-  color: #fff;
-  font-weight: 700;
-}
-
-.nf-presale-more {
-  display: flex;
-  align-items: center;
-  gap: 4rpx;
-}
-
-.nf-presale-more-text {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.nf-presale-scroll {
-  white-space: nowrap;
-}
-
-.nf-presale-items {
+.room-body {
   display: flex;
   gap: 16rpx;
-  padding-bottom: 8rpx;
 }
 
-.nf-presale-item {
-  flex-shrink: 0;
-  width: 240rpx;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1rpx solid rgba(255, 255, 255, 0.06);
+.room-left {
+  width: 70%;
+  height: 660rpx;
+  border-radius: 20rpx;
+  border: 1rpx dashed rgba(15, 23, 42, 0.2);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 12rpx 36rpx rgba(15, 23, 42, 0.06);
+}
+
+.room-right {
+  width: 30%;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.cloth-slot {
+  flex: 1;
   border-radius: 16rpx;
+  border: 1rpx dashed rgba(15, 23, 42, 0.2);
+  background: rgba(255, 255, 255, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
   overflow: hidden;
-  position: relative;
-
-  &:active {
-    transform: scale(0.97);
-  }
+  box-shadow: 0 10rpx 26rpx rgba(15, 23, 42, 0.05);
 }
 
-.nf-presale-img {
-  width: 240rpx;
-  height: 240rpx;
+.suit-slot {
+  border-style: solid;
+  border-color: rgba(37, 99, 235, 0.45);
 }
 
-.nf-presale-info {
-  padding: 10rpx 12rpx;
+.cloth-tip {
+  margin-top: 8rpx;
+  font-size: 20rpx;
+  color: rgba(15, 23, 42, 0.55);
 }
 
-.nf-presale-name {
-  font-size: 22rpx;
-  color: #fff;
-  display: block;
+.cloth-text {
+  color: rgba(15, 23, 42, 0.82);
+  font-size: 24rpx;
+}
+
+.room-preview,
+.takeoff-preview,
+.cloth-preview {
+  width: 100%;
+  height: 100%;
+}
+
+.takeoff-body {
+  height: 660rpx;
+  border-radius: 20rpx;
+  border: 1rpx dashed rgba(15, 23, 42, 0.2);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 12rpx 36rpx rgba(15, 23, 42, 0.06);
 }
 
-.nf-presale-price {
+.room-upload-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.room-upload-text {
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.6);
+}
+
+.model-card {
+  margin-top: 18rpx;
+  border: 1rpx solid rgba(15, 23, 42, 0.08);
+  border-radius: 16rpx;
+  padding: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 10rpx 28rpx rgba(15, 23, 42, 0.05);
+}
+
+.model-left {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.model-label {
+  color: rgba(15, 23, 42, 0.55);
+  font-size: 24rpx;
+}
+
+.model-value {
+  color: #0f172a;
   font-size: 26rpx;
-  color: #e50914;
-  font-weight: 700;
-  display: block;
-  margin-top: 4rpx;
-}
-
-.nf-presale-badge-tag {
-  position: absolute;
-  top: 8rpx;
-  left: 8rpx;
-  background: linear-gradient(135deg, #e50914, #b20710);
-  color: #fff;
-  font-size: 18rpx;
-  padding: 2rpx 12rpx;
-  border-radius: 8rpx;
   font-weight: 600;
 }
 
-/* ===== 吸顶分类栏 ===== */
-.nf-sticky-category {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 98;
-  background: rgba(0, 0, 0, 0.95);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
-  padding-top: calc(var(--status-bar-height, 0px) + 96rpx);
-}
-
-/* ===== 回到顶部按钮 ===== */
-.nf-back-top {
-  position: fixed;
-  right: 28rpx;
-  bottom: 200rpx;
-  width: 88rpx;
-  height: 88rpx;
+.model-help {
+  width: 40rpx;
+  height: 40rpx;
   border-radius: 50%;
-  background: rgba(229, 9, 20, 0.85);
+  border: 1rpx solid rgba(15, 23, 42, 0.25);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4rpx 20rpx rgba(229, 9, 20, 0.4);
-  z-index: 97;
-  transition: all 0.3s;
-
-  &:active {
-    transform: scale(0.9);
-  }
+  color: #0f172a;
 }
 
-.nf-back-top-text {
-  font-size: 18rpx;
-  color: #fff;
-  margin-top: 2rpx;
+.generate-btn {
+  margin-top: 20rpx;
+  height: 88rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 14rpx 30rpx rgba(37, 99, 235, 0.32);
 }
 
-/* ===== 签到悬浮按钮 ===== */
-.nf-sign-float {
-  position: fixed;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  background: linear-gradient(135deg, #e50914, #b20710);
-  padding: 16rpx 12rpx;
-  border-radius: 16rpx 0 0 16rpx;
-  z-index: 96;
-  box-shadow: -4rpx 0 16rpx rgba(229, 9, 20, 0.4);
-  writing-mode: vertical-rl;
-
-  &:active {
-    transform: translateY(-50%) scale(0.95);
-  }
-}
-
-.nf-sign-float-text {
-  font-size: 22rpx;
-  color: #fff;
+.generate-text {
+  font-size: 28rpx;
   font-weight: 700;
-  letter-spacing: 4rpx;
+  color: #fff;
+}
+
+.footer-tips {
+  margin-top: 14rpx;
+  color: rgba(15, 23, 42, 0.55);
+  font-size: 22rpx;
+}
+
+.popup-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.34);
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  z-index: 999;
+}
+
+.popup-panel {
+  width: 100%;
+  border-top-left-radius: 24rpx;
+  border-top-right-radius: 24rpx;
+  background: #ffffff;
+  padding: 24rpx;
+}
+
+.popup-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  margin-bottom: 16rpx;
+}
+
+.popup-list {
+  max-height: 520rpx;
+}
+
+.popup-item {
+  border: 1rpx solid rgba(15, 23, 42, 0.08);
+  border-radius: 14rpx;
+  padding: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+  background: #fff;
+}
+
+.popup-item.active {
+  border-color: rgba(37, 99, 235, 0.45);
+  background: rgba(219, 234, 254, 0.75);
+}
+
+.popup-item-name {
+  display: block;
+  font-size: 26rpx;
+  margin-bottom: 6rpx;
+  color: #0f172a;
+}
+
+.popup-item-cost {
+  color: rgba(15, 23, 42, 0.55);
+  font-size: 22rpx;
 }
 </style>
-

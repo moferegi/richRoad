@@ -109,7 +109,7 @@ const previewImage = (index) => {
 const uploadSingleImage = (tempFilePath, index) => {
   return new Promise((resolve, reject) => {
     uni.uploadFile({
-      url: baseUrl + '/fileUploadAndDownload/upload?noSave=1',
+      url: baseUrl + '/fileUploadAndDownload/upload',
       header: {
         'x-token': uni.getStorageSync('x-token')
       },

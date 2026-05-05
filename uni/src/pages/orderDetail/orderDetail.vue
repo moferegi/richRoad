@@ -86,7 +86,7 @@
         </view>
         <view class="nf-info-row" v-if="data.payMethod">
           <text class="nf-info-label">{{ $t('paymentMethod') }}</text>
-          <text class="nf-info-value">{{ data.payMethod === 'qrcode' ? ($t('payByQrcode')) : ($t('payByContact')) }}</text>
+          <text class="nf-info-value">{{ getPayMethodLabel(data.payMethod) }}</text>
         </view>
         <view class="nf-info-row" v-if="data.paidAt">
           <text class="nf-info-label">{{ $t('paymentTime') }}</text>
@@ -173,7 +173,9 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import { selfOrder, updateOrderStatus, updateOrder } from '@/api/order.js'
 import { checkNeedPay } from '@/api/base.js'
 import { getSysConfigByKey } from '@/api/sysConfig.js'
+import { getPaymentConfig } from '@/api/sysConfig.js'
 import { getUrl, getExternalUrl } from "@/utils/url.js"
+import { trackVisitorEvent } from '@/utils/visitorEvent.js'
 import RefundApplyPopup from '@/components/refund-apply-popup/refund-apply-popup.vue'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
@@ -191,6 +193,7 @@ const pendingAddress = ref(null)
 const refundVisible = ref(false)
 const showRefundBtn = ref(true)
 const showLogisticsBtn = ref(true)
+const paymentMethods = ref([])
 
 const goBack = () => { uni.navigateBack() }
 
@@ -206,6 +209,126 @@ const getStatusLabel = (status) => {
     '7': $t.value('ordersReviewed'),
   }
   return map[status] || ''
+}
+
+const getPayMethodLabel = (method) => {
+  const map = {
+    qrcode: $t.value('payByQrcode'),
+    contact: $t.value('payByContact'),
+    wechat: $t.value('payMethodWechat'),
+    alipay: $t.value('payMethodAlipay'),
+    bank_card_cn: $t.value('payMethodBankCn'),
+    bank_card_us: $t.value('payMethodBankUs'),
+    bank_card_mn: $t.value('payMethodBankMn'),
+    paypal: $t.value('payMethodPaypal'),
+  }
+  return map[method] || method || '-'
+}
+
+const buildDefaultPaymentMethods = () => ([
+  { key: 'qrcode', label: $t.value('payByQrcode') },
+  { key: 'contact', label: $t.value('payByContact') },
+])
+
+const getManualFallbackTip = (payMethod, payMethodLabel) => {
+  const tipKeyMap = {
+    wechat: 'paymentManualTipWechat',
+    alipay: 'paymentManualTipAlipay',
+    bank_card_cn: 'paymentManualTipBankCn',
+    bank_card_us: 'paymentManualTipBankUs',
+    bank_card_mn: 'paymentManualTipBankMn',
+    paypal: 'paymentManualTipPaypal',
+  }
+  const tipKey = tipKeyMap[payMethod] || 'paymentManualTipDefault'
+  const fallbackLabel = payMethodLabel || getPayMethodLabel(payMethod)
+  return $t.value(tipKey).replace('{}', fallbackLabel)
+}
+
+const buildKefuUrl = (orderNo, payMethod, payMethodLabel) => {
+  const orderID = encodeURIComponent(String(orderNo || ''))
+  const method = encodeURIComponent(String(payMethod || ''))
+  const methodLabel = encodeURIComponent(String(payMethodLabel || ''))
+  return `/pages/kefu/index?orderID=${orderID}&payMethod=${method}&payMethodLabel=${methodLabel}`
+}
+
+const trackKefuGuideEvent = (action, extra = {}) => {
+  const payload = { source: 'order_detail', ...extra }
+  return trackVisitorEvent({
+    action,
+    label: String(payload.payMethod || ''),
+    extra: payload
+  })
+}
+
+const routeToKefuByMethod = (orderNo, payMethod, payMethodLabel) => {
+  const url = buildKefuUrl(orderNo, payMethod, payMethodLabel)
+  uni.setClipboardData({
+    data: String(orderNo),
+    success: () => {
+      trackKefuGuideEvent('copy_order_no', { orderNo, payMethod, payMethodLabel })
+      uni.showToast({ title: `${$t.value('orderNoCopied')}: ${orderNo}`, icon: 'none', duration: 2000 })
+      setTimeout(() => {
+        trackKefuGuideEvent('navigate_kefu', {
+          orderNo,
+          payMethod,
+          payMethodLabel,
+          navigateMode: 'navigateTo'
+        })
+        uni.navigateTo({ url })
+      }, 1500)
+    },
+    fail: () => {
+      trackKefuGuideEvent('copy_order_no_fail', { orderNo, payMethod, payMethodLabel })
+      trackKefuGuideEvent('navigate_kefu', {
+        orderNo,
+        payMethod,
+        payMethodLabel,
+        navigateMode: 'navigateTo'
+      })
+      uni.navigateTo({ url })
+    },
+  })
+}
+
+const confirmManualFallback = (payMethod, payMethodLabel) => {
+  trackKefuGuideEvent('manual_fallback_modal_show', { payMethod, payMethodLabel, orderNo: data.value.ID })
+  return new Promise((resolve) => {
+    uni.showModal({
+      title: payMethodLabel || $t.value('paymentManualFallbackTitle'),
+      content: `${getManualFallbackTip(payMethod, payMethodLabel)}\n\n${$t.value('paymentManualProofHint')}`,
+      confirmText: $t.value('paymentManualFallbackContact'),
+      cancelText: $t.value('paymentManualFallbackLater'),
+      success: (res) => {
+        trackKefuGuideEvent(res.confirm ? 'manual_fallback_confirm' : 'manual_fallback_cancel', {
+          payMethod,
+          payMethodLabel,
+          orderNo: data.value.ID
+        })
+        resolve(!!res.confirm)
+      },
+      fail: () => {
+        trackKefuGuideEvent('manual_fallback_cancel', { payMethod, payMethodLabel, orderNo: data.value.ID, fail: true })
+        resolve(false)
+      },
+    })
+  })
+}
+
+const loadPaymentMethods = async () => {
+  try {
+    const res = await getPaymentConfig()
+    const methods = Array.isArray(res?.data?.methods)
+      ? res.data.methods
+        .filter(m => m && m.key && m.enabled !== false)
+        .map(m => ({
+          key: m.key,
+          label: m.label || getPayMethodLabel(m.key)
+        }))
+      : []
+    paymentMethods.value = methods.length > 0 ? methods : buildDefaultPaymentMethods()
+  } catch (e) {
+    paymentMethods.value = buildDefaultPaymentMethods()
+  }
 }
 
 const formatSpecs = (specs, attrs) => {
@@ -238,6 +361,7 @@ onLoad(async (options) => {
     orderID.value = options.orderID
     await loadOrder()
     loadConfig()
+    loadPaymentMethods()
   }
 })
 
@@ -394,22 +518,34 @@ const payNow = async () => {
     setTimeout(() => { loadOrder() }, 2000)
     return
   }
+  if (!paymentMethods.value.length) {
+    paymentMethods.value = buildDefaultPaymentMethods()
+  }
   uni.showActionSheet({
-    itemList: [$t.value('payByQrcode'), $t.value('payByContact')],
+    itemList: paymentMethods.value.map(item => item.label),
     success: async (res) => {
-      const payMethod = res.tapIndex === 0 ? 'qrcode' : 'contact'
+      const payMethod = paymentMethods.value[res.tapIndex]?.key || 'contact'
+      const payMethodLabel = paymentMethods.value[res.tapIndex]?.label || getPayMethodLabel(payMethod)
       // 同步支付方式到后端
       await updateOrder({ ID: Number(orderID.value), payMethod })
-      if (res.tapIndex === 0) {
+      if (payMethod === 'qrcode') {
         uni.navigateTo({ url: `/pages/pay/index?amount=${((data.value.totalPrice || 0) / 100).toFixed(2)}&orderNo=${data.value.ID}&orderId=${orderID.value}` })
-      } else if (res.tapIndex === 1) {
-        uni.setClipboardData({
-          data: String(data.value.ID),
-          success: () => {
-            uni.showToast({ title: `${$t.value('orderNoCopied')}: ${data.value.ID}`, icon: 'none', duration: 2000 })
-            setTimeout(() => { uni.navigateTo({ url: '/pages/kefu/index' }) }, 1500)
-          }
+      } else {
+        trackKefuGuideEvent('guide_entry', {
+          orderNo: data.value.ID,
+          payMethod,
+          payMethodLabel
         })
+
+        if (payMethod !== 'contact') {
+          const shouldContactNow = await confirmManualFallback(payMethod, payMethodLabel)
+          if (!shouldContactNow) {
+            uni.showToast({ title: $t.value('paymentManualSavedMethod'), icon: 'none' })
+            return
+          }
+        }
+
+        routeToKefuByMethod(data.value.ID, payMethod, payMethodLabel)
       }
     }
   })

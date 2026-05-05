@@ -1,6 +1,7 @@
 package client
 
 import (
+	"math"
 	"sync"
 	"time"
 
@@ -143,6 +144,76 @@ func (visitorService *VisitorService) GetTodayStats() (map[string]interface{}, e
 	statsCache = result
 	statsCacheTime = time.Now()
 	statsCacheMu.Unlock()
+
+	return result, nil
+}
+
+// GetKefuGuideStats 获取客服引导漏斗统计（确认率、复制率、跳转率）
+func (visitorService *VisitorService) GetKefuGuideStats(info clientReq.KefuGuideStatsSearch) (map[string]interface{}, error) {
+	db := global.GVA_DB.Model(&client.VisitorLog{}).Where("event_category = ?", "payment_kefu_guide")
+
+	if info.StartDate != "" {
+		db = db.Where("created_at >= ?", info.StartDate)
+	}
+	if info.EndDate != "" {
+		db = db.Where("created_at <= ?", info.EndDate+" 23:59:59")
+	}
+	if info.Platform != "" {
+		db = db.Where("platform = ?", info.Platform)
+	}
+
+	countByActions := func(actions ...string) (int64, error) {
+		var count int64
+		query := db
+		if len(actions) == 1 {
+			query = query.Where("event_action = ?", actions[0])
+		} else {
+			query = query.Where("event_action IN ?", actions)
+		}
+		if err := query.Count(&count).Error; err != nil {
+			return 0, err
+		}
+		return count, nil
+	}
+
+	guideEntryCount, err := countByActions("guide_entry")
+	if err != nil {
+		return nil, err
+	}
+	modalShowCount, err := countByActions("manual_fallback_modal_show")
+	if err != nil {
+		return nil, err
+	}
+	confirmCount, err := countByActions("manual_fallback_confirm")
+	if err != nil {
+		return nil, err
+	}
+	copyCount, err := countByActions("copy_order_no", "copy_draft", "copy_external_draft")
+	if err != nil {
+		return nil, err
+	}
+	jumpCount, err := countByActions("navigate_kefu", "navigate_platform_chat", "open_external_link")
+	if err != nil {
+		return nil, err
+	}
+
+	rate := func(numerator, denominator int64) float64 {
+		if denominator <= 0 {
+			return 0
+		}
+		return math.Round((float64(numerator)/float64(denominator))*10000) / 100
+	}
+
+	result := map[string]interface{}{
+		"guideEntryCount": guideEntryCount,
+		"modalShowCount":  modalShowCount,
+		"confirmCount":    confirmCount,
+		"copyCount":       copyCount,
+		"jumpCount":       jumpCount,
+		"confirmRate":     rate(confirmCount, modalShowCount),
+		"copyRate":        rate(copyCount, guideEntryCount),
+		"jumpRate":        rate(jumpCount, guideEntryCount),
+	}
 
 	return result, nil
 }

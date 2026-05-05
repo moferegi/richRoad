@@ -32,6 +32,17 @@
                 inactive-text="关"
               />
             </template>
+            <!-- 密钥类脱敏展示 -->
+            <template v-else-if="isSecretConfig(scope.row)">
+              <span>{{ maskSecretValue(scope.row.configValue) }}</span>
+            </template>
+            <!-- 试衣模型可视化摘要 -->
+            <template v-else-if="isTryonModelsConfig(scope.row)">
+              <div class="tryon-model-summary">
+                <el-tag size="small" type="warning">{{ tryonModelsCount(scope.row.configValue) }} 个模型</el-tag>
+                <span class="tryon-model-summary-text">启用 {{ enabledTryonModelsCount(scope.row.configValue) }} 个</span>
+              </div>
+            </template>
             <!-- 颜色类型 -->
             <template v-else-if="isColorConfig(scope.row)">
               <div class="color-preview">
@@ -93,6 +104,141 @@
             <el-color-picker v-model="editForm.configValue" show-alpha />
             <el-input v-model="editForm.configValue" class="ml-2" style="width: 200px" />
           </template>
+          <!-- 试衣模型可视化编辑 -->
+          <template v-else-if="isTryonModelsConfig(editForm)">
+            <div class="tryon-model-editor">
+              <div class="tryon-model-toolbar">
+                <el-button type="primary" plain size="small" @click="addTryonModel">新增模型</el-button>
+              </div>
+
+              <div v-if="tryonModels.length === 0" class="tryon-model-empty">
+                暂无模型，点击“新增模型”开始配置
+              </div>
+
+              <el-collapse v-else>
+                <el-collapse-item
+                  v-for="(model, index) in tryonModels"
+                  :key="model.__uid"
+                  :name="model.__uid"
+                >
+                  <template #title>
+                    <div class="tryon-model-title">
+                      <span>{{ model.name.zh || model.name.en || model.key || ('模型' + (index + 1)) }}</span>
+                      <el-tag size="small" :type="model.enabled ? 'success' : 'info'">
+                        {{ model.enabled ? '启用' : '关闭' }}
+                      </el-tag>
+                    </div>
+                  </template>
+
+                  <div class="tryon-model-panel">
+                    <div class="tryon-model-grid">
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">模型键 key</span>
+                        <el-input v-model="model.key" placeholder="如 aliyun_aitryon" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">模型类型 model</span>
+                        <el-input v-model="model.model" placeholder="如 aitryon / aitryon-plus" />
+                      </div>
+
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">提供商 provider</span>
+                        <el-input v-model="model.provider" placeholder="如 aliyun" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">运行模式 mode</span>
+                        <el-select v-model="model.mode" style="width: 100%">
+                          <el-option label="prod" value="prod" />
+                          <el-option label="mock_success" value="mock_success" />
+                        </el-select>
+                      </div>
+
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">单次消耗 cost</span>
+                        <el-input-number v-model="model.cost" :min="0" :step="1" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">是否启用</span>
+                        <el-switch v-model="model.enabled" active-text="开" inactive-text="关" />
+                      </div>
+
+                      <div class="tryon-model-field full">
+                        <span class="tryon-model-label">场景 scenes</span>
+                        <el-checkbox-group v-model="model.scenes">
+                          <el-checkbox value="clothes">试衣 clothes</el-checkbox>
+                          <el-checkbox value="shoes">试鞋 shoes</el-checkbox>
+                          <el-checkbox value="takeoff">取衣 takeoff</el-checkbox>
+                        </el-checkbox-group>
+                      </div>
+
+                      <div class="tryon-model-field full">
+                        <span class="tryon-model-label">模型地址 url</span>
+                        <el-input v-model="model.url" placeholder="如 https://dashscope.aliyuncs.com/api/v1/services/..." />
+                      </div>
+                      <div class="tryon-model-field full">
+                        <span class="tryon-model-label">查询地址 taskQueryUrl</span>
+                        <el-input v-model="model.taskQueryUrl" placeholder="如 https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}" />
+                      </div>
+                      <div class="tryon-model-field full">
+                        <span class="tryon-model-label">模型 token</span>
+                        <el-input v-model="model.token" type="password" show-password placeholder="留空则回退使用 tryon_provider_token" />
+                      </div>
+
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">分辨率 resolution</span>
+                        <el-input-number v-model="model.resolution" :min="-1" :step="1" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">人脸修复 restoreFace</span>
+                        <el-switch v-model="model.restoreFace" active-text="开" inactive-text="关" />
+                      </div>
+
+                      <div class="tryon-model-field full">
+                        <span class="tryon-model-label">取衣分割 clothesType</span>
+                        <el-checkbox-group v-model="model.clothesType">
+                          <el-checkbox value="upper">upper</el-checkbox>
+                          <el-checkbox value="lower">lower</el-checkbox>
+                        </el-checkbox-group>
+                      </div>
+
+                      <div class="tryon-model-subtitle">名称多语言 name</div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">中文 zh</span>
+                        <el-input v-model="model.name.zh" placeholder="中文名称" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">英文 en</span>
+                        <el-input v-model="model.name.en" placeholder="English name" />
+                      </div>
+                      <div class="tryon-model-field full">
+                        <span class="tryon-model-label">蒙文 mn</span>
+                        <el-input v-model="model.name.mn" placeholder="Монгол нэр" />
+                      </div>
+
+                      <div class="tryon-model-subtitle">说明多语言 desc</div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">中文 zh</span>
+                        <el-input v-model="model.desc.zh" type="textarea" :rows="2" placeholder="中文说明" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">英文 en</span>
+                        <el-input v-model="model.desc.en" type="textarea" :rows="2" placeholder="English description" />
+                      </div>
+                      <div class="tryon-model-field full">
+                        <span class="tryon-model-label">蒙文 mn</span>
+                        <el-input v-model="model.desc.mn" type="textarea" :rows="2" placeholder="Монгол тайлбар" />
+                      </div>
+                    </div>
+
+                    <div class="tryon-model-actions">
+                      <el-button size="small" @click="cloneTryonModel(index)">复制</el-button>
+                      <el-button size="small" type="danger" plain @click="removeTryonModel(index)">删除</el-button>
+                    </div>
+                  </div>
+                </el-collapse-item>
+              </el-collapse>
+            </div>
+          </template>
           <!-- JSON多语言类型 -->
           <template v-else-if="isJsonConfig(editForm)">
             <div class="json-editor">
@@ -110,6 +256,10 @@
           <!-- 数字类型 -->
           <template v-else-if="isNumberConfig(editForm)">
             <el-input-number v-model="editNumberValue" :min="0" />
+          </template>
+          <!-- 密钥类型 -->
+          <template v-else-if="isSecretConfig(editForm)">
+            <el-input v-model="editForm.configValue" type="password" show-password />
           </template>
           <!-- 普通文本 -->
           <template v-else>
@@ -141,6 +291,7 @@ const groupList = [
   { value: 'auth', label: '认证设置', type: 'warning' },
   { value: 'payment', label: '支付设置', type: 'success' },
   { value: 'points', label: '积分设置', type: 'info' },
+  { value: 'tryon', label: '试衣设置', type: 'warning' },
   { value: 'order', label: '订单设置', type: '' },
   { value: 'display', label: '显示设置', type: 'warning' },
   { value: 'announcement', label: '公告设置', type: 'info' },
@@ -169,6 +320,22 @@ const isBooleanConfig = (row) => booleanKeys.includes(row.configKey)
 const colorKeys = ['announcement_text_color', 'payment_tip_text_color']
 const isColorConfig = (row) => colorKeys.includes(row.configKey)
 
+const isTryonModelsConfig = (row) => row?.configKey === 'tryon_models'
+
+// 密钥键列表
+const secretKeys = ['tryon_provider_token']
+const isSecretConfig = (row) => secretKeys.includes(row.configKey)
+
+const maskSecretValue = (value) => {
+  if (!value) {
+    return '-'
+  }
+  if (value.length <= 8) {
+    return '*'.repeat(value.length)
+  }
+  return `${value.slice(0, 4)}${'*'.repeat(Math.max(value.length - 8, 4))}${value.slice(-4)}`
+}
+
 // JSON键列表（多语言配置）
 const jsonKeys = [
   'payment_tip_text', 'maintenance_popup_title', 'maintenance_popup_content',
@@ -182,7 +349,8 @@ const numberKeys = [
   'captcha_expiry_seconds', 'captcha_rate_limit', 'register_ip_limit',
   'login_fail_max', 'login_fail_wait_seconds', 'points_exchange_rate',
   'order_close_minutes', 'presale_home_count', 'announcement_speed',
-  'invite_reward_points', 'payment_tip_text_size'
+  'invite_reward_points', 'payment_tip_text_size',
+  'tryon_guest_init_points', 'tryon_register_reward_points', 'tryon_cost_points'
 ]
 const isNumberConfig = (row) => numberKeys.includes(row.configKey)
 
@@ -203,6 +371,168 @@ const editNumberValue = ref(0)
 const editJsonValue = reactive({})
 const newJsonLang = ref('')
 const newJsonVal = ref('')
+const tryonModels = ref([])
+
+const createTryonModelUid = () => `tryon_model_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`
+
+const toBool = (value, fallback = true) => {
+  if (typeof value === 'boolean') {
+    return value
+  }
+  if (value === undefined || value === null || value === '') {
+    return fallback
+  }
+  const text = String(value).trim().toLowerCase()
+  if (['true', '1', 'yes', 'on'].includes(text)) {
+    return true
+  }
+  if (['false', '0', 'no', 'off'].includes(text)) {
+    return false
+  }
+  return fallback
+}
+
+const toInt = (value, fallback = 0) => {
+  const numberValue = Number.parseInt(value, 10)
+  return Number.isFinite(numberValue) ? numberValue : fallback
+}
+
+const toStringArray = (value, fallback = []) => {
+  if (Array.isArray(value)) {
+    return Array.from(new Set(value.map(item => String(item).trim()).filter(Boolean)))
+  }
+  return [...fallback]
+}
+
+const normalizeI18nObject = (value) => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return {
+      zh: String(value.zh || ''),
+      en: String(value.en || ''),
+      mn: String(value.mn || ''),
+    }
+  }
+  return {
+    zh: '',
+    en: '',
+    mn: '',
+  }
+}
+
+const createDefaultTryonModel = () => ({
+  __uid: createTryonModelUid(),
+  key: '',
+  enabled: true,
+  scenes: ['clothes'],
+  model: 'aitryon',
+  name: { zh: '', en: '', mn: '' },
+  desc: { zh: '', en: '', mn: '' },
+  cost: 1,
+  provider: 'aliyun',
+  mode: 'prod',
+  url: '',
+  taskQueryUrl: '',
+  token: '',
+  resolution: -1,
+  restoreFace: true,
+  clothesType: ['upper'],
+})
+
+const normalizeTryonModel = (item = {}, index = 0) => {
+  const defaultModel = createDefaultTryonModel()
+  return {
+    __uid: createTryonModelUid(),
+    key: String(item.key || item.modelKey || ''),
+    enabled: toBool(item.enabled, true),
+    scenes: toStringArray(item.scenes, [String(item.sceneType || '').trim() || 'clothes']),
+    model: String(item.model || defaultModel.model),
+    name: normalizeI18nObject(item.name),
+    desc: normalizeI18nObject(item.desc),
+    cost: Math.max(0, toInt(item.cost, 1)),
+    provider: String(item.provider || defaultModel.provider),
+    mode: String(item.mode || defaultModel.mode),
+    url: String(item.url || item.providerUrl || ''),
+    taskQueryUrl: String(item.taskQueryUrl || ''),
+    token: String(item.token || item.providerToken || ''),
+    resolution: toInt(item.resolution, -1),
+    restoreFace: toBool(item.restoreFace, true),
+    clothesType: toStringArray(item.clothesType, ['upper']),
+  }
+}
+
+const parseTryonModelsValue = (rawValue) => {
+  try {
+    const parsed = JSON.parse(rawValue || '[]')
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+    return parsed.map((item, index) => normalizeTryonModel(item, index))
+  } catch {
+    return []
+  }
+}
+
+const buildTryonModelsPayload = () => {
+  return tryonModels.value.map((item) => ({
+    key: String(item.key || '').trim(),
+    enabled: !!item.enabled,
+    scenes: toStringArray(item.scenes, ['clothes']),
+    model: String(item.model || '').trim(),
+    name: normalizeI18nObject(item.name),
+    desc: normalizeI18nObject(item.desc),
+    cost: Math.max(0, toInt(item.cost, 0)),
+    provider: String(item.provider || '').trim(),
+    mode: String(item.mode || '').trim(),
+    url: String(item.url || '').trim(),
+    taskQueryUrl: String(item.taskQueryUrl || '').trim(),
+    token: String(item.token || '').trim(),
+    resolution: toInt(item.resolution, -1),
+    restoreFace: !!item.restoreFace,
+    clothesType: toStringArray(item.clothesType, []),
+  }))
+}
+
+const validateTryonModels = () => {
+  for (let i = 0; i < tryonModels.value.length; i++) {
+    const item = tryonModels.value[i]
+    const modelIndex = i + 1
+    if (!String(item.key || '').trim()) {
+      ElMessage.warning(`第 ${modelIndex} 个模型缺少 key`)
+      return false
+    }
+    if (!Array.isArray(item.scenes) || item.scenes.length === 0) {
+      ElMessage.warning(`第 ${modelIndex} 个模型至少要选择一个场景`)
+      return false
+    }
+  }
+  return true
+}
+
+const tryonModelsCount = (rawValue) => parseTryonModelsValue(rawValue).length
+
+const enabledTryonModelsCount = (rawValue) => {
+  return parseTryonModelsValue(rawValue).filter(item => item.enabled).length
+}
+
+const addTryonModel = () => {
+  tryonModels.value.push(createDefaultTryonModel())
+}
+
+const cloneTryonModel = (index) => {
+  const item = tryonModels.value[index]
+  if (!item) {
+    return
+  }
+  const cloned = normalizeTryonModel(item)
+  if (cloned.key) {
+    cloned.key = `${cloned.key}_copy`
+  }
+  tryonModels.value.splice(index + 1, 0, cloned)
+}
+
+const removeTryonModel = (index) => {
+  tryonModels.value.splice(index, 1)
+}
 
 const handleGroupChange = (val) => {
   searchInfo.value.configGroup = val
@@ -215,7 +545,11 @@ const getList = async () => {
   if (res.code === 0) {
     tableData.value = res.data.list || []
     total.value = res.data.total
+    return
   }
+  tableData.value = []
+  total.value = 0
+  ElMessage.error(res.msg || '获取系统参数失败')
 }
 
 const handleCurrentChange = (val) => {
@@ -231,13 +565,20 @@ const handleSizeChange = (val) => {
 
 const openEdit = (row) => {
   editForm.value = { ...row }
+  tryonModels.value = []
   if (isBooleanConfig(row)) {
     editBoolValue.value = row.configValue === 'true'
   }
   if (isNumberConfig(row)) {
     editNumberValue.value = parseInt(row.configValue) || 0
   }
-  if (isJsonConfig(row)) {
+  if (isTryonModelsConfig(row)) {
+    tryonModels.value = parseTryonModelsValue(row.configValue)
+    const rawValue = String(row.configValue || '').trim()
+    if (rawValue && rawValue !== '[]' && tryonModels.value.length === 0) {
+      ElMessage.warning('当前试衣模型配置格式异常，已按空列表打开，请确认后保存')
+    }
+  } else if (isJsonConfig(row)) {
     try {
       const parsed = JSON.parse(row.configValue || '{}')
       Object.keys(editJsonValue).forEach(k => delete editJsonValue[k])
@@ -277,6 +618,11 @@ const handleSave = async () => {
     configValue = editBoolValue.value ? 'true' : 'false'
   } else if (isNumberConfig(editForm.value)) {
     configValue = String(editNumberValue.value)
+  } else if (isTryonModelsConfig(editForm.value)) {
+    if (!validateTryonModels()) {
+      return
+    }
+    configValue = JSON.stringify(buildTryonModelsPayload())
   } else if (isJsonConfig(editForm.value)) {
     configValue = JSON.stringify(editJsonValue)
   }
@@ -322,5 +668,84 @@ onMounted(() => {
   display: flex;
   align-items: center;
   margin-bottom: 8px;
+}
+
+.tryon-model-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tryon-model-summary-text {
+  color: #606266;
+}
+
+.tryon-model-editor {
+  width: 100%;
+}
+
+.tryon-model-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.tryon-model-empty {
+  color: #909399;
+  font-size: 13px;
+  padding: 4px 0 8px;
+}
+
+.tryon-model-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.tryon-model-panel {
+  padding: 6px 4px;
+}
+
+.tryon-model-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.tryon-model-field {
+  min-width: 0;
+}
+
+.tryon-model-field.full {
+  grid-column: 1 / -1;
+}
+
+.tryon-model-label {
+  display: block;
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 6px;
+}
+
+.tryon-model-subtitle {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: #606266;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.tryon-model-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .tryon-model-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

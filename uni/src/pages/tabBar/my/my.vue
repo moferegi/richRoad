@@ -1,6 +1,6 @@
 <template>
-	<view style="padding-bottom: 60rpx;">
-		<view class="my_head_box bgc_ff7000 boxs_bb pos_r">
+	<view class="my-page" style="padding-bottom: 60rpx;">
+		<view class="my_head_box boxs_bb pos_r">
 			<view class="flex flex-aic info-box" v-if="isShow">
         <button class="avatar-wrapper" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
           <image class="avatar"
@@ -17,7 +17,7 @@
         <p @tap="logins">{{ $t('loginPrompt') }}</p>
       </view>
 		</view>
-		<view class="my_order_card boxs_bb bgc_fff">
+		<view class="my_order_card boxs_bb">
 			<view class="flex-aic flexr-jsb my_order_card_title">
 				<text class="color_333 font_28">{{ $t('myOrders') }}</text>
 				<view class="flex flex-aic" @tap="toOrder('all')">
@@ -54,7 +54,7 @@
 
       </view>
 		</view>
-		<view class="bgc_fff my_tools_box boxs_bb" v-if="columns.length >=1">
+		<view class="my_tools_box boxs_bb" v-if="columns.length >=1">
 			<template v-for="(item,index) in columns.filter(c=>!c.hidden)">
 				<view @tap="toPages(item.pages)" class="my_tools_item flex-aic flexr-jsb"
 					:class="columns.length-1 == index ? '' : 'b_b_2'">
@@ -205,13 +205,20 @@ const onInputNickName = async (e) => {
 
 <style lang="scss">
 	page {
-		background-color: #f8f8f8;
+		background-color: #f4f7fb;
+	}
+
+	.my-page {
+		background: radial-gradient(120% 80% at 100% -10%, #dbeafe 0%, transparent 60%), #f4f7fb;
 	}
 
 	.my_head_box {
 		height: 284rpx;
 		padding: 24rpx 32rpx 0;
 		margin-bottom: 20rpx;
+		background: linear-gradient(135deg, #2563eb, #0ea5e9);
+		border-bottom-left-radius: 28rpx;
+		border-bottom-right-radius: 28rpx;
 	}
 
 	.my_head_img {
@@ -248,8 +255,9 @@ const onInputNickName = async (e) => {
 		margin: 0 auto 24rpx;
 		width: 686rpx;
 		height: 226rpx;
-		box-shadow: 0rpx 4rpx 8rpx 0rpx rgba(238, 238, 238, 1);
+		box-shadow: 0rpx 14rpx 30rpx 0rpx rgba(15, 23, 42, 0.08);
 		border-radius: 16rpx;
+		background: #fff;
 	}
 
 	.my_order_card_title {
@@ -276,6 +284,8 @@ const onInputNickName = async (e) => {
 		padding: 0 32rpx;
 		border-radius: 16rpx;
 		overflow: hidden;
+		background: #fff;
+		box-shadow: 0rpx 14rpx 30rpx 0rpx rgba(15, 23, 42, 0.08);
 	}
 
 	.my_tools_item {
@@ -289,7 +299,8 @@ const onInputNickName = async (e) => {
 
   .info-box{
     padding: 20rpx;
-    background: rgba(255,225,255,0.4);
+		background: rgba(255,255,255,0.22);
+		backdrop-filter: blur(6px);
     border-radius: 20rpx;
     .nick-name{
       color: #fff;
@@ -311,5 +322,7 @@ const onInputNickName = async (e) => {
   color: #fff;
   display: flex;
   justify-content: center;
+	align-items: center;
+	font-weight: 600;
 }
 </style>

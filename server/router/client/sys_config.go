@@ -24,6 +24,8 @@ func (s *SysConfigRouter) InitSysConfigRouter(Router *gin.RouterGroup, PublicRou
 	{
 		sysConfigPublicRouter.GET("getAnnouncementConfig", sysConfigApi.GetAnnouncementConfig) // 公告配置(公开)
 		sysConfigPublicRouter.GET("getLoginConfig", sysConfigApi.GetLoginConfig)               // 登录配置(公开)
+		sysConfigPublicRouter.GET("getPaymentConfig", sysConfigApi.GetPaymentConfig)           // 支付方式配置(公开)
+		sysConfigPublicRouter.GET("getTryonConfig", sysConfigApi.GetTryonConfig)               // 试衣配置(公开)
 		sysConfigPublicRouter.GET("getSysConfigByKey", sysConfigApi.GetSysConfigByKey)         // 按key获取参数(公开)
 	}
 }

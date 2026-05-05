@@ -7,7 +7,7 @@
       <view class="nf-navbar-status"></view>
       <view class="nf-navbar-content">
         <view class="nf-navbar-back" @tap="goBack">
-          <uni-icons type="left" size="20" color="#fff"></uni-icons>
+          <uni-icons type="left" size="20" color="#0f172a"></uni-icons>
         </view>
         <text class="nf-navbar-title">{{ $t('navRegister') }}</text>
         <view class="nf-lang-btn" @tap="showLangPicker = true">
@@ -19,6 +19,14 @@
     <view class="nf-container">
       <!-- 标题 -->
       <view class="nf-header">
+        <view class="nf-brand-row">
+          <image v-if="appLogoUrl" class="nf-logo" :src="appLogoUrl" mode="aspectFill"></image>
+          <view v-else class="nf-logo nf-logo-fallback">{{ (appName || 'R').slice(0, 1).toUpperCase() }}</view>
+          <view class="nf-brand-meta">
+            <text class="nf-brand-name">{{ appName || 'RichRoad' }}</text>
+            <text class="nf-brand-subtitle">Premium AI Styling</text>
+          </view>
+        </view>
         <text class="nf-title">{{ $t('registerBtn') }}</text>
         <view class="nf-title-line"></view>
       </view>
@@ -124,11 +132,16 @@
 
 	import {useUserStore} from "@/pinia/modules/user.js"
 	import { useLangStore } from '@/pinia/modules/lang.js'
+  import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 	import langSwitch from '@/components/lang-switch/lang-switch.vue'
+  import { getExternalUrl } from '@/utils/url.js'
 
 	const langStore = useLangStore()
+  const appConfigStore = useAppConfigStore()
 	const $t = computed(() => langStore.$t)
 	const $lt = computed(() => langStore.$lt)
+  const appName = computed(() => appConfigStore.appName || 'RichRoad')
+  const appLogoUrl = computed(() => getExternalUrl(appConfigStore.appLogo || ''))
 	const langLabel = computed(() => {
 	  const map = { zh: '中', en: 'EN', mn: 'MN', 'zh-TW': '繁', th: 'TH', hi: 'HI', id: 'ID' }
 	  return map[langStore.locale] || langStore.locale.slice(0, 2).toUpperCase()
@@ -260,6 +273,7 @@
 		getCaptchaFunc()
 		loadConfig()
 		loadAreaCodes()
+    appConfigStore.loadConfig()
 	})
 
 	const toLogin = () => {
@@ -386,11 +400,11 @@
 	}
 </script>
 <style lang="scss" scoped>
-page { background-color: #000; }
+page { background-color: #f4f7fb; }
 
 .nf-page {
   min-height: 100vh;
-  background: #000;
+  background: #f4f7fb;
   position: relative;
 }
 
@@ -399,10 +413,10 @@ page { background-color: #000; }
   top: 0; left: 0; right: 0; bottom: 0;
   z-index: 0;
   background:
-    radial-gradient(ellipse at 85% 25%, rgba(229, 9, 20, 0.25) 0%, transparent 50%),
-    radial-gradient(ellipse at 15% 65%, rgba(229, 9, 20, 0.15) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 90%, rgba(229, 9, 20, 0.1) 0%, transparent 40%),
-    #000;
+    radial-gradient(ellipse at 12% 18%, rgba(14, 165, 233, 0.24) 0%, transparent 52%),
+    radial-gradient(ellipse at 90% 32%, rgba(37, 99, 235, 0.2) 0%, transparent 54%),
+    radial-gradient(ellipse at 50% 95%, rgba(99, 102, 241, 0.14) 0%, transparent 44%),
+    #f4f7fb;
 }
 
 /* 自定义导航栏 */
@@ -412,9 +426,9 @@ page { background-color: #000; }
   left: 0;
   right: 0;
   z-index: 100;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(20px);
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1rpx solid rgba(15, 23, 42, 0.08);
 }
 
 .nf-navbar-status {
@@ -436,12 +450,12 @@ page { background-color: #000; }
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1rpx solid rgba(15, 23, 42, 0.12);
   transition: background 0.3s;
 
   &:active {
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(219, 234, 254, 0.85);
     transform: scale(0.93);
   }
 }
@@ -449,7 +463,7 @@ page { background-color: #000; }
 .nf-navbar-title {
   font-size: 34rpx;
   font-weight: 700;
-  color: #fff;
+  color: #0f172a;
   letter-spacing: 2rpx;
 }
 
@@ -457,8 +471,8 @@ page { background-color: #000; }
   width: 64rpx;
   height: 64rpx;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  border: 2rpx solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.95);
+  border: 2rpx solid rgba(15, 23, 42, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -466,7 +480,7 @@ page { background-color: #000; }
   transition: all 0.3s;
 
   &:active {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(219, 234, 254, 0.85);
     transform: scale(0.92);
   }
 }
@@ -474,7 +488,7 @@ page { background-color: #000; }
 .nf-lang-label {
   font-size: 22rpx;
   font-weight: 700;
-  color: #fff;
+  color: #0f172a;
   line-height: 1;
   text-align: center;
 }
@@ -490,10 +504,53 @@ page { background-color: #000; }
   margin-bottom: 64rpx;
 }
 
+.nf-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin-bottom: 30rpx;
+}
+
+.nf-logo {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 24rpx;
+  border: 1rpx solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10rpx 24rpx rgba(15, 23, 42, 0.08);
+  background: #fff;
+}
+
+.nf-logo-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 34rpx;
+  font-weight: 700;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+}
+
+.nf-brand-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.nf-brand-name {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.nf-brand-subtitle {
+  font-size: 22rpx;
+  color: rgba(15, 23, 42, 0.56);
+}
+
 .nf-title {
   font-size: 52rpx;
   font-weight: 800;
-  color: #fff;
+  color: #0f172a;
   letter-spacing: 4rpx;
 }
 
@@ -501,17 +558,17 @@ page { background-color: #000; }
   width: 80rpx;
   height: 6rpx;
   border-radius: 3rpx;
-  background: linear-gradient(90deg, #e50914, #ff6b6b);
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
   margin-top: 20rpx;
 }
 
 .nf-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 2rpx solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.96);
+  border: 2rpx solid rgba(15, 23, 42, 0.06);
   border-radius: 28rpx;
   padding: 40rpx 36rpx;
   backdrop-filter: blur(20px);
-  box-shadow: 0 8rpx 40rpx rgba(0, 0, 0, 0.4);
+  box-shadow: 0 16rpx 40rpx rgba(15, 23, 42, 0.08);
 }
 
 .nf-field {
@@ -522,7 +579,7 @@ page { background-color: #000; }
 
 .nf-label {
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(15, 23, 42, 0.56);
   font-weight: 600;
   letter-spacing: 2rpx;
   text-transform: uppercase;
@@ -533,17 +590,17 @@ page { background-color: #000; }
 .nf-input {
   width: 100%;
   height: 88rpx;
-  background: rgba(255, 255, 255, 0.06);
-  border: 2rpx solid rgba(255, 255, 255, 0.1);
+  background: rgba(248, 250, 252, 0.95);
+  border: 2rpx solid rgba(15, 23, 42, 0.12);
   border-radius: 16rpx;
   padding: 0 24rpx;
-  color: #fff;
+  color: #0f172a;
   font-size: 30rpx;
   box-sizing: border-box;
   transition: border-color 0.3s;
 
   &:focus {
-    border-color: rgba(229, 9, 20, 0.6);
+    border-color: rgba(37, 99, 235, 0.6);
   }
 }
 
@@ -576,23 +633,23 @@ page { background-color: #000; }
 }
 
 .nf-btn-primary {
-  background: linear-gradient(135deg, #e50914 0%, #ff4d4d 100%);
+  background: linear-gradient(120deg, #2563eb 0%, #0ea5e9 100%);
   color: #fff;
-  box-shadow: 0 8rpx 32rpx rgba(229, 9, 20, 0.4);
+  box-shadow: 0 12rpx 32rpx rgba(37, 99, 235, 0.34);
 
   &:active {
-    box-shadow: 0 4rpx 16rpx rgba(229, 9, 20, 0.5);
+    box-shadow: 0 4rpx 16rpx rgba(37, 99, 235, 0.45);
   }
 }
 
 .nf-btn-ghost {
-  background: transparent;
-  color: rgba(255, 255, 255, 0.6);
-  border: 2rpx solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.95);
+  color: rgba(15, 23, 42, 0.72);
+  border: 2rpx solid rgba(15, 23, 42, 0.12);
 
   &:active {
-    background: rgba(255, 255, 255, 0.05);
-    color: #fff;
+    background: rgba(219, 234, 254, 0.75);
+    color: #0f172a;
   }
 }
 
@@ -600,7 +657,8 @@ page { background-color: #000; }
 .nf-mode-switch {
   display: flex;
   margin-bottom: 32rpx;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1rpx solid rgba(15, 23, 42, 0.08);
   border-radius: 16rpx;
   padding: 6rpx;
 }
@@ -611,15 +669,15 @@ page { background-color: #000; }
   padding: 16rpx 0;
   border-radius: 12rpx;
   font-size: 26rpx;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(15, 23, 42, 0.52);
   line-height: 1.2;
   overflow: hidden;
   white-space: nowrap;
   transition: all 0.3s;
 
   &.active {
-    background: rgba(229, 9, 20, 0.3);
-    color: #fff;
+    background: rgba(219, 234, 254, 0.85);
+    color: #0f172a;
     font-weight: 600;
   }
 }
@@ -634,8 +692,8 @@ page { background-color: #000; }
 .nf-area-code-btn {
   height: 88rpx;
   padding: 0 20rpx;
-  background: rgba(255, 255, 255, 0.06);
-  border: 2rpx solid rgba(255, 255, 255, 0.1);
+  background: rgba(248, 250, 252, 0.95);
+  border: 2rpx solid rgba(15, 23, 42, 0.12);
   border-radius: 16rpx;
   display: flex;
   align-items: center;
@@ -644,13 +702,13 @@ page { background-color: #000; }
 }
 
 .nf-area-code-text {
-  color: #fff;
+  color: #0f172a;
   font-size: 28rpx;
   font-weight: 600;
 }
 
 .nf-area-code-arrow {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(15, 23, 42, 0.38);
   font-size: 20rpx;
 }
 
@@ -672,7 +730,8 @@ page { background-color: #000; }
   width: 200rpx;
   height: 88rpx;
   border-radius: 16rpx;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(248, 250, 252, 0.95);
+  border: 2rpx solid rgba(15, 23, 42, 0.12);
   flex-shrink: 0;
 }
 
@@ -681,7 +740,7 @@ page { background-color: #000; }
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   z-index: 200;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(15, 23, 42, 0.36);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -690,7 +749,7 @@ page { background-color: #000; }
 .nf-popup-content {
   width: 100%;
   max-height: 60vh;
-  background: #1a1a1a;
+  background: #ffffff;
   border-radius: 28rpx 28rpx 0 0;
   padding: 32rpx 0;
 }
@@ -699,9 +758,9 @@ page { background-color: #000; }
   text-align: center;
   font-size: 32rpx;
   font-weight: 700;
-  color: #fff;
+  color: #0f172a;
   padding-bottom: 24rpx;
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1rpx solid rgba(15, 23, 42, 0.08);
 }
 
 .nf-popup-scroll {
@@ -713,20 +772,20 @@ page { background-color: #000; }
   align-items: center;
   justify-content: space-between;
   padding: 28rpx 40rpx;
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1rpx solid rgba(15, 23, 42, 0.06);
 
   &:active {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(219, 234, 254, 0.55);
   }
 }
 
 .nf-area-name {
-  color: #fff;
+  color: #0f172a;
   font-size: 28rpx;
 }
 
 .nf-area-code-val {
-  color: rgba(229, 9, 20, 0.8);
+  color: rgba(37, 99, 235, 0.9);
   font-size: 28rpx;
   font-weight: 600;
 }

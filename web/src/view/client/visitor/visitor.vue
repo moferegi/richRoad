@@ -37,6 +37,36 @@
       </el-row>
     </div>
 
+    <div class="gva-search-box" style="padding: 20px; margin-top: 12px;">
+      <div style="font-weight: 600; font-size: 15px; margin-bottom: 14px;">客服引导漏斗（确认率/复制率/跳转率）</div>
+      <el-row :gutter="20">
+        <el-col :span="4">
+          <el-statistic title="引导入口" :value="guideStats.guideEntryCount || 0" />
+        </el-col>
+        <el-col :span="4">
+          <el-statistic title="弹窗展示" :value="guideStats.modalShowCount || 0" />
+        </el-col>
+        <el-col :span="4">
+          <el-statistic title="确认率" :value="guideStats.confirmRate || 0" :precision="2">
+            <template #suffix>%</template>
+          </el-statistic>
+        </el-col>
+        <el-col :span="4">
+          <el-statistic title="复制率" :value="guideStats.copyRate || 0" :precision="2">
+            <template #suffix>%</template>
+          </el-statistic>
+        </el-col>
+        <el-col :span="4">
+          <el-statistic title="跳转率" :value="guideStats.jumpRate || 0" :precision="2">
+            <template #suffix>%</template>
+          </el-statistic>
+        </el-col>
+        <el-col :span="4">
+          <el-statistic title="复制/跳转次数" :value="(guideStats.copyCount || 0) + (guideStats.jumpCount || 0)" />
+        </el-col>
+      </el-row>
+    </div>
+
     <!-- Tab 切换 -->
     <el-tabs v-model="activeTab" class="gva-table-box" style="padding: 0 20px;">
       <!-- 访客日志 Tab -->
@@ -81,6 +111,8 @@
           <el-table-column align="left" label="归属地" prop="location" width="160" show-overflow-tooltip />
           <el-table-column align="left" label="平台" prop="platform" width="100" />
           <el-table-column align="left" label="页面路径" prop="pagePath" width="200" show-overflow-tooltip />
+          <el-table-column align="left" label="事件分类" prop="eventCategory" width="140" show-overflow-tooltip />
+          <el-table-column align="left" label="事件动作" prop="eventAction" width="180" show-overflow-tooltip />
           <el-table-column align="left" label="语言" prop="language" width="80" />
           <el-table-column align="left" label="屏幕" width="120">
             <template #default="scope">
@@ -161,7 +193,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getVisitorLogList, getVisitorSummaryList, getTodayStats, aggregateDailySummary } from '@/api/client/visitor'
+import { getVisitorLogList, getVisitorSummaryList, getTodayStats, getKefuGuideStats, aggregateDailySummary } from '@/api/client/visitor'
 import { formatDate } from '@/utils/format'
 import * as echarts from 'echarts'
 import { useAppStore } from '@/pinia'
@@ -179,6 +211,28 @@ const fetchTodayStats = async () => {
   const res = await getTodayStats()
   if (res.code === 0) {
     todayStats.value = res.data
+  }
+}
+
+// ===== 客服引导漏斗 =====
+const guideStats = ref({
+  guideEntryCount: 0,
+  modalShowCount: 0,
+  confirmCount: 0,
+  copyCount: 0,
+  jumpCount: 0,
+  confirmRate: 0,
+  copyRate: 0,
+  jumpRate: 0
+})
+
+const fetchGuideStats = async (params = {}) => {
+  const res = await getKefuGuideStats(params)
+  if (res.code === 0 && res.data) {
+    guideStats.value = {
+      ...guideStats.value,
+      ...res.data
+    }
   }
 }
 
@@ -236,6 +290,10 @@ const getSummaryList = async () => {
     summaryList.value = res.data.list || []
     summaryTotal.value = res.data.total
   }
+  fetchGuideStats({
+    startDate: summarySearch.value.startDate,
+    endDate: summarySearch.value.endDate
+  })
 }
 
 const resetSummarySearch = () => {
@@ -417,12 +475,14 @@ const handleAggregate = async () => {
     ElMessage.success('聚合成功')
     getSummaryList()
     fetchTodayStats()
+    fetchGuideStats()
     fetchChartData()
   }
 }
 
 onMounted(() => {
   fetchTodayStats()
+  fetchGuideStats()
   getLogList()
   getSummaryList()
   fetchChartData()

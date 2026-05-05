@@ -104,3 +104,46 @@ export const getPointsExchangeRate = () => {
     params: { configKey: 'points_exchange_rate' }
   })
 }
+
+// 获取游客初始试衣币
+export const getTryonGuestInitPoints = () => {
+  return request({
+    url: '/sysConfig/getSysConfigByKey',
+    method: 'get',
+    params: { configKey: 'tryon_guest_init_points' }
+  })
+}
+
+// 获取注册奖励试衣币
+export const getTryonRegisterRewardPoints = () => {
+  return request({
+    url: '/sysConfig/getSysConfigByKey',
+    method: 'get',
+    params: { configKey: 'tryon_register_reward_points' }
+  })
+}
+
+// 获取单次试衣消耗
+export const getTryonCostPoints = () => {
+  return request({
+    url: '/sysConfig/getSysConfigByKey',
+    method: 'get',
+    params: { configKey: 'tryon_cost_points' }
+  })
+}
+
+// 获取试衣配置（游客初始币、注册奖励、单次消耗、失败退币比例）
+export const getTryonConfig = () => {
+  return request({
+    url: '/sysConfig/getTryonConfig',
+    method: 'get'
+  })
+}
+
+// 获取支付方式配置（人工优先 + 渠道开关）
+export const getPaymentConfig = () => {
+  return request({
+    url: '/sysConfig/getPaymentConfig',
+    method: 'get'
+  })
+}

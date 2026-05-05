@@ -150,7 +150,9 @@ import { checkNeedPay } from '@/api/base.js'
 import { getUserInfo } from '@/api/base.js'
 import { findGood } from '@/api/product.js'
 import { getDefaultAddress } from '@/api/address.js'
+import { getPaymentConfig } from '@/api/sysConfig.js'
 import { getUrl, getExternalUrl } from "@/utils/url.js"
+import { trackVisitorEvent } from '@/utils/visitorEvent.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
@@ -184,6 +186,135 @@ const paramGoodID = ref(0)
 const paramSkuID = ref(0)
 const paramQuantity = ref(1)
 const paramCouponNum = ref('')
+const paymentMethods = ref([])
+
+const paymentMethodLabelMap = () => ({
+  qrcode: $t.value('payByQrcode'),
+  contact: $t.value('payByContact'),
+  wechat: $t.value('payMethodWechat'),
+  alipay: $t.value('payMethodAlipay'),
+  bank_card_cn: $t.value('payMethodBankCn'),
+  bank_card_us: $t.value('payMethodBankUs'),
+  bank_card_mn: $t.value('payMethodBankMn'),
+  paypal: $t.value('payMethodPaypal'),
+})
+
+const getPaymentMethodLabel = (key, label) => {
+  return paymentMethodLabelMap()[key] || label || key || '-'
+}
+
+const getManualFallbackTip = (payMethod, payMethodLabel) => {
+  const tipKeyMap = {
+    wechat: 'paymentManualTipWechat',
+    alipay: 'paymentManualTipAlipay',
+    bank_card_cn: 'paymentManualTipBankCn',
+    bank_card_us: 'paymentManualTipBankUs',
+    bank_card_mn: 'paymentManualTipBankMn',
+    paypal: 'paymentManualTipPaypal',
+  }
+  const tipKey = tipKeyMap[payMethod] || 'paymentManualTipDefault'
+  const fallbackLabel = payMethodLabel || getPaymentMethodLabel(payMethod)
+  return $t.value(tipKey).replace('{}', fallbackLabel)
+}
+
+const buildKefuUrl = (orderNo, payMethod, payMethodLabel) => {
+  const orderID = encodeURIComponent(String(orderNo || ''))
+  const method = encodeURIComponent(String(payMethod || ''))
+  const methodLabel = encodeURIComponent(String(payMethodLabel || ''))
+  return `/pages/kefu/index?orderID=${orderID}&payMethod=${method}&payMethodLabel=${methodLabel}`
+}
+
+const trackKefuGuideEvent = (action, extra = {}) => {
+  const payload = { source: 'order_info', ...extra }
+  return trackVisitorEvent({
+    action,
+    label: String(payload.payMethod || ''),
+    extra: payload
+  })
+}
+
+const routeToKefuByMethod = (orderNo, payMethod, payMethodLabel, useRedirect = false) => {
+  const url = buildKefuUrl(orderNo, payMethod, payMethodLabel)
+  uni.setClipboardData({
+    data: String(orderNo),
+    success: () => {
+      trackKefuGuideEvent('copy_order_no', { orderNo, payMethod, payMethodLabel })
+      uni.showToast({ title: `${$t.value('orderNoCopied')}: ${orderNo}`, icon: 'none', duration: 2000 })
+      setTimeout(() => {
+        trackKefuGuideEvent('navigate_kefu', {
+          orderNo,
+          payMethod,
+          payMethodLabel,
+          navigateMode: useRedirect ? 'redirectTo' : 'navigateTo'
+        })
+        if (useRedirect) {
+          uni.redirectTo({ url })
+          return
+        }
+        uni.navigateTo({ url })
+      }, 1500)
+    },
+    fail: () => {
+      trackKefuGuideEvent('copy_order_no_fail', { orderNo, payMethod, payMethodLabel })
+      trackKefuGuideEvent('navigate_kefu', {
+        orderNo,
+        payMethod,
+        payMethodLabel,
+        navigateMode: useRedirect ? 'redirectTo' : 'navigateTo'
+      })
+      if (useRedirect) {
+        uni.redirectTo({ url })
+        return
+      }
+      uni.navigateTo({ url })
+    },
+  })
+}
+
+const confirmManualFallback = (payMethod, payMethodLabel) => {
+  trackKefuGuideEvent('manual_fallback_modal_show', { payMethod, payMethodLabel })
+  return new Promise((resolve) => {
+    uni.showModal({
+      title: payMethodLabel || $t.value('paymentManualFallbackTitle'),
+      content: `${getManualFallbackTip(payMethod, payMethodLabel)}\n\n${$t.value('paymentManualProofHint')}`,
+      confirmText: $t.value('paymentManualFallbackContact'),
+      cancelText: $t.value('paymentManualFallbackLater'),
+      success: (res) => {
+        trackKefuGuideEvent(res.confirm ? 'manual_fallback_confirm' : 'manual_fallback_cancel', {
+          payMethod,
+          payMethodLabel
+        })
+        resolve(!!res.confirm)
+      },
+      fail: () => {
+        trackKefuGuideEvent('manual_fallback_cancel', { payMethod, payMethodLabel, fail: true })
+        resolve(false)
+      },
+    })
+  })
+}
+
+const buildDefaultPaymentMethods = () => ([
+  { key: 'qrcode', label: $t.value('payByQrcode') },
+  { key: 'contact', label: $t.value('payByContact') },
+])
+
+const loadPaymentMethods = async () => {
+  try {
+    const res = await getPaymentConfig()
+    const methods = Array.isArray(res?.data?.methods)
+      ? res.data.methods
+        .filter(m => m && m.key && m.enabled !== false)
+        .map(m => ({
+          key: m.key,
+          label: getPaymentMethodLabel(m.key, m.label)
+        }))
+      : []
+    paymentMethods.value = methods.length > 0 ? methods : buildDefaultPaymentMethods()
+  } catch (e) {
+    paymentMethods.value = buildDefaultPaymentMethods()
+  }
+}
 
 /* =================== 价格计算（本地预览） =================== */
 // 检查所有商品是否允许积分抵扣
@@ -331,6 +462,7 @@ const togglePoints = () => {
 
 /* =================== 初始化 =================== */
 onLoad(async (options) => {
+  loadPaymentMethods()
   if (options.goodID && options.skuID) {
     paramGoodID.value = Number(options.goodID)
     paramSkuID.value = Number(options.skuID)
@@ -396,10 +528,14 @@ const submitOrder = async () => {
 }
 
 const showPayMethodSelect = () => {
+  if (!paymentMethods.value.length) {
+    paymentMethods.value = buildDefaultPaymentMethods()
+  }
   uni.showActionSheet({
-    itemList: [$t.value('payByQrcode'), $t.value('payByContact')],
+    itemList: paymentMethods.value.map(item => item.label),
     success: async (sheetRes) => {
-      await doCreateOrder(sheetRes.tapIndex)
+      const selected = paymentMethods.value[sheetRes.tapIndex]
+      await doCreateOrder(selected?.key || 'contact')
     },
     fail: () => {
       // 用户取消选择，不做任何操作
@@ -407,14 +543,15 @@ const showPayMethodSelect = () => {
   })
 }
 
-const doCreateOrder = async (payMethodIndex) => {
+const doCreateOrder = async (payMethod) => {
   submitting.value = true
-  const payMethodMap = { 0: 'qrcode', 1: 'contact' }
+  const selectedPayMethod = typeof payMethod === 'string' && payMethod ? payMethod : 'contact'
+  const selectedMethodLabel = paymentMethods.value.find(item => item.key === selectedPayMethod)?.label || getPaymentMethodLabel(selectedPayMethod)
   try {
     // 1. 创建订单（携带地址和支付方式）
     const orderData = {
       couponNum: selectedCouponNum.value,
-      payMethod: payMethodMap[payMethodIndex] || '',
+      payMethod: selectedPayMethod,
       name: address.value.name || '',
       phone: address.value.phone || '',
       province: address.value.provinceStr || '',
@@ -452,18 +589,29 @@ const doCreateOrder = async (payMethodIndex) => {
     }
 
     // 4. 按选择的支付方式跳转（统一用 redirectTo 离开本页，防止返回重复提交）
-    if (payMethodIndex === 0) {
+    if (selectedPayMethod === 'qrcode') {
       // 二维码支付
       uni.redirectTo({ url: `/pages/pay/index?amount=${(totalPrice.value / 100).toFixed(2)}&orderNo=${newOrderID}&orderId=${newOrderID}` })
-    } else if (payMethodIndex === 1) {
-      // 联系客服支付：redirectTo 替换本页，防止返回重复提交
-      uni.setClipboardData({
-        data: String(newOrderID),
-        success: () => {
-          uni.showToast({ title: `${$t.value('orderNoCopied')}: ${newOrderID}`, icon: 'none', duration: 2000 })
-          setTimeout(() => { uni.redirectTo({ url: '/pages/kefu/index' }) }, 1500)
-        }
+    } else {
+      trackKefuGuideEvent('guide_entry', {
+        orderNo: newOrderID,
+        payMethod: selectedPayMethod,
+        payMethodLabel: selectedMethodLabel
       })
+
+      if (selectedPayMethod !== 'contact') {
+        const shouldContactNow = await confirmManualFallback(selectedPayMethod, selectedMethodLabel)
+        if (!shouldContactNow) {
+          uni.showToast({ title: $t.value('paymentManualSavedOrder'), icon: 'none' })
+          setTimeout(() => {
+            uni.redirectTo({ url: `/pages/orderDetail/orderDetail?orderID=${newOrderID}` })
+          }, 1200)
+          return
+        }
+      }
+
+      // 联系客服支付：redirectTo 替换本页，防止返回重复提交
+      routeToKefuByMethod(newOrderID, selectedPayMethod, selectedMethodLabel, true)
     }
   } catch (e) {
     uni.showToast({ title: $t.value('orderCreateFail'), icon: 'none' })

@@ -11,6 +11,7 @@
   "/src/view/client/pointRecord/pointRecord.vue": "PointRecord",
   "/src/view/client/signIn/signIn.vue": "SignInManage",
   "/src/view/client/sysConfig/sysConfig.vue": "SysConfig",
+  "/src/view/client/tryonTask/tryonTask.vue": "TryonTaskManage",
   "/src/view/client/user/user.vue": "ClientUser",
   "/src/view/client/user/userForm.vue": "ClientUserForm",
   "/src/view/client/visitor/visitor.vue": "Visitor",

@@ -32,6 +32,7 @@
 					<text class="rating-text">{{ getRatingText(item.rating) }}</text>
 				</view>
 
+				<view class="comment-section">
 					<text class="section-title">{{ $t('reviewContent') }}</text>
 					<textarea
 						v-model="item.comment"
@@ -377,7 +378,7 @@ const validateForm = () => {
 const uploadSingleImage = (tempFilePath, index, itemIndex) => {
 	return new Promise((resolve, reject) => {
 		uni.uploadFile({
-			url: baseUrl + '/fileUploadAndDownload/upload?noSave=1',
+			url: baseUrl + '/fileUploadAndDownload/upload',
 			header: {
 				"x-token": uni.getStorageSync('x-token')
 			},

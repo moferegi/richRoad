@@ -183,6 +183,10 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 		global.GVA_LOG.Error("注册奖励发放失败", zap.Error(err))
 	}
 
+	if err := service.ServiceGroupApp.ClientServiceGroup.TryonTaskService.GrantRegisterRewardPoints(c.Request.Context(), clientUser.ID); err != nil {
+		global.GVA_LOG.Error("注册奖励试衣币发放失败", zap.Error(err), zap.Uint("userID", clientUser.ID))
+	}
+
 	response.OkWithMessage(i18n.T(c, "createSuccess"), c)
 }
 
@@ -633,6 +637,10 @@ func (clientUserApi *ClientUserApi) PhoneRegister(c *gin.Context) {
 	// 注册奖励：给新用户发放 register 营销奖励（积分+优惠券）
 	if err := marketingRewardService.TriggerReward(clientUser.ID, "register", "register_reward", "新用户注册奖励", 0); err != nil {
 		global.GVA_LOG.Error("注册奖励发放失败", zap.Error(err))
+	}
+
+	if err := service.ServiceGroupApp.ClientServiceGroup.TryonTaskService.GrantRegisterRewardPoints(c.Request.Context(), clientUser.ID); err != nil {
+		global.GVA_LOG.Error("注册奖励试衣币发放失败", zap.Error(err), zap.Uint("userID", clientUser.ID))
 	}
 
 	response.OkWithMessage(i18n.T(c, "createSuccess"), c)

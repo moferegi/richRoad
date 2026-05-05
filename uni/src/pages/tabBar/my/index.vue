@@ -1,1042 +1,514 @@
 <template>
-  <view class="nf-my">
-    <!-- 背景光效 -->
-    <view class="nf-my-bg"></view>
+  <view class="my-page">
+    <view class="bg-glow"></view>
 
-    <!-- 头部个人信息区域 -->
-    <view class="nf-profile">
-      <view class="nf-profile-glow"></view>
-
-      <!-- 已登录 -->
-      <view class="nf-user" v-if="isShow">
-        <view class="nf-avatar-wrap">
-          <button class="nf-avatar-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
-            <image class="nf-avatar" :src="info.avatar || avatarUrl"></image>
-          </button>
-          <view class="nf-avatar-ring"></view>
+    <view class="profile-card">
+      <view class="profile-main" v-if="isLogin" @tap="goProfile">
+        <image class="avatar" :src="avatarUrl" mode="aspectFill" />
+        <view class="profile-info">
+          <text class="name">{{ userName }}</text>
+          <text class="phone">{{ phoneText }}</text>
         </view>
-        <view class="nf-user-info">
-          <text class="nf-username">{{ info.nickname || $t('defaultUser') }}</text>
-          <!-- <input name="nickName" type="nickname" :placeholder="$t('nicknamePlaceholder')" class="nf-nickname-input" @change="onInputNickName" v-model="info.nickname" /> -->
-          <!-- 手机号显示/设置 -->
-          <view class="nf-phone-row" @tap="goSetPhone">
-            <text class="nf-phone-text" v-if="info.phone">{{ maskPhone(info.phone) }}</text>
-            <text class="nf-phone-set" v-else>{{ $t('setPhone') }}</text>
-            <uni-icons type="right" size="14" color="rgba(255,255,255,0.3)" />
+        <uni-icons type="right" size="16" color="rgba(15,23,42,0.35)" />
+      </view>
+
+      <view class="guest-main" v-else @tap="goLogin">
+        <view class="guest-left">
+          <view class="guest-icon">?</view>
+          <view>
+            <text class="guest-title">{{ $t('guestModeTitle') }}</text>
+            <text class="guest-sub">{{ $t('guestModeDesc') }}</text>
           </view>
         </view>
+        <uni-icons type="right" size="16" color="rgba(15,23,42,0.35)" />
       </view>
 
-      <!-- 未登录 -->
-      <view class="nf-unlogin" v-if="!isShow" @tap="logins">
-        <view class="nf-unlogin-icon">
-          <text class="nf-unlogin-icon-text">→</text>
+      <view class="point-card">
+        <view>
+          <text class="point-label">{{ $t('tryonCoins') }}</text>
+          <text class="point-value">{{ userPoints }}</text>
         </view>
-        <text class="nf-unlogin-text">{{ $t('loginPrompt') }}</text>
+        <view class="recharge-btn" @tap="openRecharge">{{ $t('recharge') }}</view>
       </view>
+    </view>
 
-      <!-- 数据统计 (可点击跳转) -->
-      <view class="nf-stats">
-        <view class="nf-stat-item" @tap="goToCoupon">
-          <text class="nf-stat-value">{{ userCouponCount }}</text>
-          <text class="nf-stat-label">{{ $t('coupon') }}</text>
+    <view class="section">
+      <view class="section-title">{{ $t('commonFeatures') }}</view>
+      <view class="quick-grid">
+        <view class="quick-item" @tap="goTryonRoom">
+          <uni-icons type="image" size="24" color="#2563eb" />
+          <text>{{ $t('tryonRoom') }}</text>
         </view>
-        <view class="nf-stat-divider"></view>
-        <view class="nf-stat-item" @tap="goToPoints">
-          <text class="nf-stat-value">{{ userPoints }}</text>
-          <text class="nf-stat-label">{{ $t('points') }}</text>
+        <view class="quick-item" @tap="goShoeRoom">
+          <uni-icons type="star" size="24" color="#2563eb" />
+          <text>{{ $t('shoeRoom') }}</text>
+        </view>
+        <view class="quick-item" @tap="goHistory">
+          <uni-icons type="reload" size="24" color="#2563eb" />
+          <text>{{ $t('tryonHistory') }}</text>
+        </view>
+        <view class="quick-item" @tap="goClothesPage">
+          <uni-icons type="shop" size="24" color="#2563eb" />
+          <text>{{ $t('clothesPage') }}</text>
         </view>
       </view>
     </view>
 
-    <!-- 我的订单区域 -->
-    <view class="nf-section" v-if="isShow">
-      <view class="nf-section-header">
-        <view class="nf-section-icon">
-          <uni-icons type="list" size="18" color="#e50914" />
+    <view class="section">
+      <view class="section-title">{{ $t('otherFeatures') }}</view>
+      <view class="menu-list">
+        <view class="menu-item" @tap="goKefu">
+          <text class="menu-text">{{ $t('kefuContact') }}</text>
+          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
         </view>
-        <text class="nf-section-title">{{ $t('myOrders') }}</text>
-        <view class="nf-section-line"></view>
-        <view class="nf-order-all" @tap="goToOrder('')">
-          <text class="nf-order-all-text">{{ $t('viewAll') }}</text>
-          <uni-icons type="right" size="12" color="rgba(255,255,255,0.4)" />
+        <view class="menu-item" @tap="goOrder">
+          <text class="menu-text">{{ $t('myOrders') }}</text>
+          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
         </view>
-      </view>
-      <view class="nf-order-tabs">
-        <view class="nf-order-tab" @tap="goToOrder('pending')">
-          <view class="nf-order-tab-icon">
-            <uni-icons type="wallet" size="24" color="#e50914" />
-          </view>
-          <text class="nf-order-tab-text">{{ $t('ordersPending') }}</text>
+        <view class="menu-item" @tap="goCollect">
+          <text class="menu-text">{{ $t('myCollection') }}</text>
+          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
         </view>
-        <view class="nf-order-tab" @tap="goToOrder('shipping')">
-          <view class="nf-order-tab-icon">
-            <uni-icons type="paperplane" size="24" color="#e50914" />
-          </view>
-          <text class="nf-order-tab-text">{{ $t('ordersShipping') }}</text>
+        <view class="menu-item" @tap="goMyModel">
+          <text class="menu-text">{{ $t('myModels') }}</text>
+          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
         </view>
-        <view class="nf-order-tab" @tap="goToOrder('receiving')">
-          <view class="nf-order-tab-icon">
-            <uni-icons type="box" size="24" color="#e50914" />
-          </view>
-          <text class="nf-order-tab-text">{{ $t('ordersReceiving') }}</text>
-        </view>
-        <view class="nf-order-tab" @tap="goToOrder('completed')">
-          <view class="nf-order-tab-icon">
-            <uni-icons type="checkbox" size="24" color="#e50914" />
-          </view>
-          <text class="nf-order-tab-text">{{ $t('ordersCompleted') }}</text>
+        <view class="menu-item" @tap="logoutDevice" v-if="isLogin">
+          <text class="menu-text danger">{{ $t('logoutDevice') }}</text>
+          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
         </view>
       </view>
     </view>
 
-    <!-- 浏览历史 -->
-    <view class="nf-section">
-      <view class="nf-section-header">
-        <view class="nf-section-icon">
-          <image class="nf-section-icon-img" src="/static/history.png" mode="aspectFill" />
-        </view>
-        <text class="nf-section-title">{{ $t('browseHistory') }}</text>
-        <view class="nf-section-line"></view>
-      </view>
-      <view v-if="historyList.length === 0" class="nf-history-empty">
-        <text class="nf-history-empty-text">{{ $t('noHistoryData') }}</text>
-      </view>
-      <scroll-view v-else class="nf-history-scroll" scroll-x>
-        <view class="nf-history-list">
-          <view
-              class="nf-history-item"
-              v-for="(item, index) in historyList"
-              :key="index"
-              @tap="goto(item)"
-          >
-            <image class="nf-history-img" :src="item && item.imageUrl ? getUrl(item.imageUrl) : ''" mode="aspectFill"></image>
-            <view class="nf-history-overlay"></view>
-            <!-- 播放进度条 -->
-            <view class="nf-history-prog-wrap" v-if="getItemProgressPct(item) > 0">
-              <text class="nf-history-ep-text">{{ epProgressLabel(item) }}</text>
-              <view class="nf-history-prog-bar">
-                <view class="nf-history-prog-fill" :style="{ width: getItemProgressPct(item) + '%' }"></view>
-              </view>
+    <view class="popup-mask" v-if="showRecharge" @tap="showRecharge = false">
+      <view class="popup-panel" @tap.stop>
+        <view class="popup-title">{{ $t('rechargeTryonCoins') }}</view>
+        <view class="popup-list">
+          <view class="popup-item" v-for="item in rechargePlans" :key="item.points" @tap="selectRecharge(item)">
+            <view>
+              <text class="item-title">{{ item.points }} {{ $t('tryonCoins') }}</text>
+              <text class="item-sub">￥{{ item.price }}</text>
             </view>
+            <uni-icons type="right" size="16" color="rgba(15,23,42,0.35)" />
           </view>
         </view>
-      </scroll-view>
-    </view>
-
-    <!-- 功能菜单 -->
-    <view class="nf-menu" v-if="columns.length >= 1">
-      <template v-for="(item, index) in columns.filter(c => !c.hidden)" :key="index">
-        <view class="nf-menu-item" @tap="toPages(item.pages)">
-          <view class="nf-menu-left">
-            <view class="nf-menu-icon-wrap">
-              <image class="nf-menu-icon" :src="item.icon" mode="aspectFit"></image>
-            </view>
-            <text class="nf-menu-text">{{ item.title }}</text>
-          </view>
-          <view class="nf-menu-arrow">
-            <uni-icons color="rgba(255,255,255,0.3)" type="forward" size="14"></uni-icons>
-          </view>
-        </view>
-      </template>
-    </view>
-
-    <!-- 底部留白 -->
-    <view style="height: 60rpx;"></view>
-
-    <!-- 语言切换弹窗 -->
-    <lang-switch v-model="showLangPicker" @change="onLangChange" />
-
-    <!-- Netflix风格退出登录弹窗 -->
-    <view class="nf-logout-mask" v-if="showLogoutModal" @tap.self="showLogoutModal = false" @touchmove.stop.prevent>
-      <view class="nf-logout-dialog">
-        <view class="nf-logout-dialog-glow"></view>
-        <text class="nf-logout-dialog-title">{{ $t('logout') }}</text>
-        <text class="nf-logout-dialog-desc">{{ $t('confirmLogout') }}</text>
-        <view class="nf-logout-dialog-btns">
-          <view class="nf-logout-btn-cancel" @tap="showLogoutModal = false">
-            <text class="nf-logout-btn-text">{{ $t('cancel') }}</text>
-          </view>
-          <view class="nf-logout-btn-confirm" @tap="confirmLogout">
-            <text class="nf-logout-btn-text-white">{{ $t('confirm') }}</text>
-          </view>
-        </view>
+        <view class="popup-close" @tap="showRecharge = false">{{ $t('cancel') }}</view>
       </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import {getUrl} from "@/utils/url";
-import { myRouter } from "@/utils/permission";
-import { setClientUserInfo } from "@/api/base";
-import {useUserStore} from "@/pinia/modules/user.js"
-import { useLangStore } from '@/pinia/modules/lang.js'
-import { usePlayHistoryStore } from '@/pinia/modules/playHistory.js'
+import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getGoodHistory } from '@/api/order.js'
-import { getAllClaimCoupon } from '@/api/coupon.js'
-import langSwitch from '@/components/lang-switch/lang-switch.vue'
+import { useUserStore } from '@/pinia/modules/user.js'
+import { useLangStore } from '@/pinia/modules/lang.js'
 
+const userStore = useUserStore()
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
-const playHistoryStore = usePlayHistoryStore()
 
-// 播放历史进度 —— computed 自动追踪 historyList 和 store.histories 的变化
-const historyProgData = computed(() => {
-  const map = {}
-  for (const item of historyList.value) {
-    if (!item || !item.ID) continue
-    const prog = playHistoryStore.getProgress(item.ID)
-    if (prog && prog.duration > 0) {
-      const pct = Math.min(100, Math.round(prog.currentTime / prog.duration * 100))
-      const s = prog.currentTime || 0
-      const m = Math.floor(s / 60)
-      const sec = Math.floor(s % 60)
-      const timeStr = m + ':' + (sec < 10 ? '0' : '') + sec
-      const ep = (prog.episodeIndex || 0) + 1
-      map[item.ID] = { pct, label: 'EP' + ep + ' · ' + timeStr }
-    }
-  }
-  return map
+const showRecharge = ref(false)
+const userInfo = ref({})
+
+const rechargePlans = [
+  { points: 50, price: '9.9' },
+  { points: 180, price: '29.9' },
+  { points: 680, price: '99.9' },
+]
+
+const isLogin = computed(() => {
+  return !!(userStore.token || uni.getStorageSync('x-token'))
 })
 
-const getItemProgressPct = (item) => {
-  if (!item || !item.ID) return 0
-  return (historyProgData.value[item.ID] || {}).pct || 0
-}
-
-const epProgressLabel = (item) => {
-  if (!item || !item.ID) return ''
-  return (historyProgData.value[item.ID] || {}).label || ''
-}
-
-const showLangPicker = ref(false)
-const onLangChange = () => {}
-const openLangPicker = () => { showLangPicker.value = true }
-
-const isShow = ref(false)
-
-const columns = computed(() => [
-  {
-    title: $t.value('signIn'),
-    pages: '/pages/signIn/signIn',
-    icon: '/static/MYcollect.png',
-    hidden: !isShow.value
-  },{
-    title: $t.value('myCollection'),
-    pages: '/pages/collect/collect',
-    icon: '/static/MYcollect.png'
-  },{
-    title: $t.value('inviteFriends'),
-    pages: '/pages/invite/index',
-    icon: '/static/MYcollect.png',
-    hidden: !isShow.value
-  },{
-    title: $t.value('changePassword'),
-    pages: '/pages/user/changePassword',
-    icon: '/static/images/exit.png',
-    hidden: !isShow.value
-  },{
-    title: $t.value('myAddresses'),
-    pages: '/pages/address/address',
-    icon: '/static/MYcollect.png',
-    hidden: !isShow.value
-  },{
-    title: $t.value('onlineService'),
-    pages: '/pages/kefu/index',
-    icon: '/static/wx.png'
-  },{
-    title: $t.value('logout'),
-    pages: 'exit',
-    icon: '/static/images/exit.png',
-    hidden: !isShow.value
-  },{
-    title: $t.value('switchLang'),
-    pages: 'lang',
-    icon: '/static/images/exit.png'
-  }
-])
-// 浏览历史
-const historyList = ref([]);
-const defaultAvatarUrl = 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0'
-const avatarUrl = ref('')
-const nickName = ref('默认用户')
-avatarUrl.value = defaultAvatarUrl
-
-// 手机号掩码显示
-const maskPhone = (phone) => {
-  if (!phone) return ''
-  const p = String(phone)
-  if (p.length < 4) return p
-  const visibleStart = Math.ceil(p.length * 0.3)
-  const visibleEnd = Math.ceil(p.length * 0.3)
-  const maskedLen = p.length - visibleStart - visibleEnd
-  return p.slice(0, visibleStart) + '*'.repeat(Math.max(maskedLen, 2)) + p.slice(p.length - visibleEnd)
-}
-
-// 跳转设置手机号页面
-const goSetPhone = () => {
-  const phone = info.value.phone || ''
-  uni.navigateTo({ url: '/pages/user/setPhone' + (phone ? '?phone=' + encodeURIComponent(phone) : '') })
-}
-
-const info = ref({})
-const userStore = useUserStore()
-onShow(() => {
-  const token = userStore.token || ''
-  if (token) {
-    isShow.value = true
-    info.value = uni.getStorageSync("userInfo")
-    // 获取用户积分
-    if (info.value && info.value.point !== undefined) {
-      userPoints.value = info.value.point || 0
-    }
-    // 获取用户优惠券数量
-    loadCouponCount()
-  } else {
-    isShow.value = false
-  }
-  playHistoryStore.reload()
-  getHistory()
+const userName = computed(() => {
+  return userInfo.value.nickname || userInfo.value.username || $t.value('unnamedUser')
 })
 
-// 加载优惠券数量（仅统计可用的）
-const loadCouponCount = async () => {
+const avatarUrl = computed(() => {
+  return userInfo.value.avatar || 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0'
+})
+
+const userPoints = computed(() => Number(userInfo.value.point || 0))
+
+const phoneText = computed(() => {
+  const phone = userInfo.value.phone || ''
+  if (!phone) return $t.value('unboundPhone')
+  const str = String(phone)
+  if (str.length < 7) return str
+  return `${str.slice(0, 3)}****${str.slice(-4)}`
+})
+
+const loadUserInfo = async () => {
+  if (!isLogin.value) {
+    userInfo.value = {}
+    return
+  }
   try {
-    const res = await getAllClaimCoupon({ goodIds: [] })
-    if (res.code === 0 && res.data) {
-      userCouponCount.value = res.data.filter(c => c.status === 0).length
-    }
-  } catch (e) {}
-}
-
-// 获取浏览历史的方法
-const getHistory = async () => {
-  const token = userStore.token || ''
-  if (token) {
-    try {
-      const res = await getGoodHistory()
-      if (res.code === 0 && res.data && res.data.length) {
-        historyList.value = res.data
-        return
-      }
-    } catch (e) {}
+    await userStore.getInfo()
+  } catch (e) {
+    // ignore
   }
-  // 未登录或API无数据时，用本地浏览/播放历史
-  const localList = playHistoryStore.getRecentList(10)
-  historyList.value = localList
+  userInfo.value = uni.getStorageSync('userInfo') || {}
 }
 
-// 跳转到商品详情
-const goto = (item) => {
-  if (!item || !item.ID) {
-    uni.showToast({
-      title: $t.value('goodsInfoIncomplete'),
-      icon: 'none'
-    })
+const goLogin = () => {
+  uni.navigateTo({ url: '/pages/user/login' })
+}
+
+const goProfile = () => {
+  if (!isLogin.value) {
+    goLogin()
     return
   }
-  myRouter(`/pages/goodsDetails/goodsDetails?id=${item.ID}`, true)
+  uni.navigateTo({ url: '/pages/user/profile' })
 }
 
-// 跳转优惠券页面
-const goToCoupon = () => {
-  myRouter('/pages/coupon/index', true)
-}
-
-// 跳转积分记录页面
-const goToPoints = () => {
-  myRouter('/pages/integral/integral', true)
-}
-
-// 跳转订单页面
-const goToOrder = (status) => {
-  const statusMap = {
-    'pending': '0',
-    'shipping': '1',
-    'receiving': '2',
-    'completed': '3',
-    '': ''
-  }
-  const orderStatus = statusMap[status] !== undefined ? statusMap[status] : ''
-  myRouter(`/pages/order/order${orderStatus ? '?status=' + orderStatus : ''}`, true)
-}
-
-// 用户积分和优惠券数量
-const userPoints = ref(0)
-const userCouponCount = ref(0)
-
-const logins = () => {
-  uni.redirectTo({
-    url: '/pages/user/login'
-  })
-}
-
-// 修改头像的方法
-const onChooseAvatar = async (e) => {
-  avatarUrl.value = e.detail.avatarUrl
-  let tmpFilePath = avatarUrl.value
-  // 对微信返回的临时图片链接进行base64编码
-  var avatarUrl_base64 = 'data:image/jpeg;base64,' + wx.getFileSystemManager().readFileSync(tmpFilePath, 'base64');
-  const res = await setClientUserInfo({
-    key: "avatar",
-    value: avatarUrl_base64
-  })
-  if(res.code === 0) {
-    uni.showToast({
-      title: res.msg,
-      icon: 'success'
-    })
-  } else {
-    uni.showToast({
-      title: res.msg,
-      icon: 'none'
-    })
-  }
-}
-
-// 修改昵称的方法
-const onInputNickName = async (e) => {
-  nickName.value = e.detail.value
-  const res = await setClientUserInfo({
-    key: "nickname",
-    value: nickName.value
-  })
-  if (res.code === 0) {
-    uni.showToast({
-      title: res.msg,
-      icon: 'success'
-    })
-  } else {
-    uni.showToast({
-      title: res.msg,
-      icon: 'none'
-    })
-  }
-}
-
-
-const showLogoutModal = ref(false)
-
-const confirmLogout = () => {
-  showLogoutModal.value = false
-  userStore.loginOut()
-  uni.showToast({
-    icon: 'none',
-    title: $t.value('logoutSuccess')
-  })
-}
-
-const toPages = (pages) => {
-  if(pages === 'lang'){
-    openLangPicker()
+const openRecharge = () => {
+  if (!isLogin.value) {
+    uni.showToast({ title: $t.value('pleaseLogin'), icon: 'none' })
+    goLogin()
     return
   }
-  if(pages === 'exit'){
-    showLogoutModal.value = true
-    return
-  }
-  if (!pages) {
-    uni.showToast({
-      icon: 'none',
-      title: $t.value('developing')
-    })
-  } else {
-    // 如果是收藏页面，使用switchTab切换到tab
-    if (pages === '/pages/collect/collect') {
-      uni.switchTab({
-        url: pages
-      })
-    } else {
-      uni.navigateTo({
-        url: pages
-      })
-    }
-  }
+  showRecharge.value = true
 }
 
-const toOrder = (val) => {
-  myRouter("/pages/order/order",true)
-}
-const toNav = (pages) => {
-  uni.navigateTo({
-    url: pages
+const selectRecharge = (item) => {
+  showRecharge.value = false
+  uni.showModal({
+    title: $t.value('rechargeNotice'),
+    content: $t.value('rechargeNoticeContent')
+      .replace('{points}', String(item.points))
+      .replace('{price}', String(item.price)),
+    confirmText: $t.value('kefuContact'),
+    cancelText: $t.value('cancel'),
+    success: (res) => {
+      if (!res.confirm) return
+      uni.navigateTo({ url: '/pages/kefu/index' })
+    },
   })
 }
-const toRetreatOrder = () => {
-  uni.navigateTo({
-    url: '/pages/retreat/retreatOrder'
+
+const goTryonRoom = () => {
+  uni.switchTab({ url: '/pages/tabBar/index' })
+}
+
+const goShoeRoom = () => {
+  uni.switchTab({ url: '/pages/tabBar/shop/shop' })
+}
+
+const goHistory = () => {
+  if (!isLogin.value) {
+    goLogin()
+    return
+  }
+  uni.navigateTo({ url: '/pages/tryon/history' })
+}
+
+const goClothesPage = () => {
+  uni.switchTab({ url: '/pages/tabBar/clothes/index' })
+}
+
+const goKefu = () => {
+  uni.navigateTo({ url: '/pages/kefu/index' })
+}
+
+const goOrder = () => {
+  if (!isLogin.value) {
+    goLogin()
+    return
+  }
+  uni.navigateTo({ url: '/pages/order/order' })
+}
+
+const goCollect = () => {
+  uni.navigateTo({ url: '/pages/collect/collect' })
+}
+
+const goMyModel = () => {
+  uni.navigateTo({ url: '/pages/myModel/index' })
+}
+
+const logoutDevice = () => {
+  uni.showModal({
+    title: $t.value('pendingOrderTitle'),
+    content: $t.value('confirmLogoutDevice'),
+    success: (res) => {
+      if (!res.confirm) return
+      userStore.loginOut()
+      userInfo.value = {}
+      uni.showToast({ title: $t.value('logoutSuccess'), icon: 'none' })
+    },
   })
 }
+
+onShow(() => {
+  loadUserInfo()
+})
 </script>
 
 <style lang="scss">
 page {
-  background-color: #000;
+  background: #f4f7fb;
 }
 
-.nf-my {
-  width: 100%;
+.my-page {
   min-height: 100vh;
-  background: #000;
+  color: #0f172a;
+  padding: calc(var(--status-bar-height, 0px) + 14rpx) 20rpx 24rpx;
   position: relative;
+  background: radial-gradient(120% 80% at 100% -10%, #dbeafe 0%, transparent 60%), #f4f7fb;
 }
 
-/* ===== 背景光效 ===== */
-.nf-my-bg {
+.bg-glow {
   position: fixed;
-  top: 0; left: 0; right: 0;
-  height: 600rpx;
-  z-index: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 520rpx;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 50% -10%, rgba(229, 9, 20, 0.18) 0%, transparent 55%),
-    radial-gradient(ellipse at 80% 30%, rgba(229, 9, 20, 0.08) 0%, transparent 45%);
+    radial-gradient(ellipse at 35% -10%, rgba(37, 99, 235, 0.2) 0%, transparent 58%),
+    radial-gradient(ellipse at 75% 20%, rgba(14, 165, 233, 0.12) 0%, transparent 46%);
 }
 
-/* ===== 个人信息头部 ===== */
-.nf-profile {
+.profile-card,
+.section {
   position: relative;
   z-index: 1;
-  margin: 0 28rpx;
-  padding: 60rpx 36rpx 40rpx;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1rpx solid rgba(255, 255, 255, 0.06);
-  border-radius: 32rpx;
-  margin-top: calc(var(--status-bar-height, 44px) + 20rpx);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  overflow: hidden;
+  border-radius: 18rpx;
+  background: rgba(255,255,255,0.93);
+  border: 1rpx solid rgba(15,23,42,0.08);
+  box-shadow: 0 14rpx 30rpx rgba(15, 23, 42, 0.06);
 }
 
-.nf-profile-glow {
-  position: absolute;
-  top: -60rpx; left: 50%;
-  transform: translateX(-50%);
-  width: 300rpx;
-  height: 300rpx;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(229, 9, 20, 0.2) 0%, transparent 70%);
-  pointer-events: none;
+.profile-card {
+  padding: 18rpx;
 }
 
-/* 已登录用户 */
-.nf-user {
+.profile-main,
+.guest-main {
   display: flex;
   align-items: center;
-  gap: 28rpx;
-  margin-bottom: 36rpx;
+  justify-content: space-between;
 }
 
-.nf-avatar-wrap {
-  position: relative;
-  width: 130rpx;
-  height: 130rpx;
-  flex-shrink: 0;
-}
-
-.nf-avatar-btn {
-  padding: 0;
-  margin: 0;
-  background: none;
-  border: none;
-  width: 130rpx;
-  height: 130rpx;
-  line-height: normal;
-  &::after { border: none; }
-}
-
-.nf-avatar {
-  width: 130rpx;
-  height: 130rpx;
+.avatar {
+  width: 92rpx;
+  height: 92rpx;
   border-radius: 50%;
-  border: 3rpx solid rgba(229, 9, 20, 0.5);
+  margin-right: 16rpx;
 }
 
-.nf-avatar-ring {
-  position: absolute;
-  top: -6rpx; left: -6rpx;
-  width: 142rpx;
-  height: 142rpx;
-  border-radius: 50%;
-  border: 2rpx solid rgba(229, 9, 20, 0.3);
-  pointer-events: none;
+.profile-main {
+  gap: 14rpx;
 }
 
-.nf-user-info {
+.profile-info {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-  overflow: hidden;
 }
 
-.nf-username {
-  font-size: 38rpx;
-  font-weight: 800;
-  color: #fff;
-  letter-spacing: 2rpx;
-}
-
-.nf-nickname-input {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1rpx solid rgba(255, 255, 255, 0.1);
-  border-radius: 12rpx;
-  font-size: 26rpx;
-  color: rgba(255, 255, 255, 0.7);
-  padding: 12rpx 16rpx;
-  width: 100%;
-  height: auto;
-  min-height: 56rpx;
-  line-height: 1.4;
-  box-sizing: border-box;
-  overflow: visible;
-  text-overflow: ellipsis;
-  transition: border-color 0.3s;
-
-  &:focus {
-    border-color: rgba(229, 9, 20, 0.4);
-  }
-}
-
-/* 手机号显示 */
-.nf-phone-row {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  padding: 10rpx 16rpx;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1rpx solid rgba(255, 255, 255, 0.08);
-  border-radius: 12rpx;
-  transition: background 0.3s;
-
-  &:active {
-    background: rgba(255, 255, 255, 0.08);
-  }
-}
-
-.nf-phone-text {
-  flex: 1;
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.6);
-  letter-spacing: 2rpx;
-}
-
-.nf-phone-set {
-  flex: 1;
-  font-size: 24rpx;
-  color: #e50914;
-  font-weight: 500;
-}
-
-/* 未登录 */
-.nf-unlogin {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  padding: 20rpx 0;
-  margin-bottom: 36rpx;
-}
-
-.nf-unlogin-icon {
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #e50914, #b20710);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 6rpx 24rpx rgba(229, 9, 20, 0.4);
-}
-
-.nf-unlogin-icon-text {
-  font-size: 36rpx;
-  color: #fff;
-  font-weight: bold;
-}
-
-.nf-unlogin-text {
-  color: #fff;
-  font-size: 34rpx;
+.name {
+  display: block;
+  font-size: 28rpx;
   font-weight: 700;
-  letter-spacing: 2rpx;
 }
 
-/* 数据统计 */
-.nf-stats {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1rpx solid rgba(255, 255, 255, 0.06);
-  border-radius: 20rpx;
-  padding: 28rpx 0;
-}
-
-.nf-stat-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8rpx;
-  transition: all 0.2s;
-
-  &:active {
-    transform: scale(0.95);
-    opacity: 0.8;
-  }
-}
-
-.nf-stat-value {
-  font-size: 40rpx;
-  font-weight: 800;
-  color: #e50914;
-  line-height: 1;
-}
-
-.nf-stat-label {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.5);
-  letter-spacing: 2rpx;
-}
-
-.nf-stat-divider {
-  width: 1rpx;
-  height: 56rpx;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-/* ===== 通用板块 ===== */
-.nf-section {
-  position: relative;
-  z-index: 1;
-  margin: 24rpx 28rpx;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1rpx solid rgba(255, 255, 255, 0.06);
-  border-radius: 28rpx;
-  padding: 32rpx;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-.nf-section-header {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  margin-bottom: 28rpx;
-}
-
-.nf-section-icon {
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: 12rpx;
-  background: rgba(229, 9, 20, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.nf-section-icon-img {
-  width: 32rpx;
-  height: 32rpx;
-}
-
-.nf-section-title {
-  font-size: 32rpx;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: 2rpx;
-}
-
-.nf-section-line {
-  flex: 1;
-  height: 1rpx;
-  background: linear-gradient(90deg, rgba(229, 9, 20, 0.3), transparent);
-}
-
-/* 订单区域 */
-.nf-order-all {
-  display: flex;
-  align-items: center;
-  gap: 4rpx;
-  margin-left: auto;
-}
-
-.nf-order-all-text {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.nf-order-tabs {
-  display: flex;
-  justify-content: space-around;
-  padding: 20rpx 0 8rpx;
-}
-
-.nf-order-tab {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8rpx;
-  padding: 12rpx 16rpx;
-  border-radius: 16rpx;
-  transition: all 0.2s;
-
-  &:active {
-    background: rgba(255, 255, 255, 0.04);
-    transform: scale(0.95);
-  }
-}
-
-.nf-order-tab-icon {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 50%;
-  background: rgba(229, 9, 20, 0.08);
-  border: 1rpx solid rgba(229, 9, 20, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.nf-order-tab-text {
+.phone {
+  display: block;
+  margin-top: 8rpx;
   font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(15,23,42,0.55);
 }
 
-/* 浏览历史 */
-.nf-history-empty {
-  display: flex; align-items: center; justify-content: center;
-  padding: 40rpx 0;
-}
-.nf-history-empty-text {
-  font-size: 24rpx; color: rgba(255,255,255,0.3);
-}
-.nf-history-scroll {
-  width: 100%;
-}
-
-.nf-history-list {
-  display: flex;
-  gap: 16rpx;
-  padding: 4rpx 0;
-}
-
-.nf-history-item {
-  position: relative;
-  flex-shrink: 0;
-  width: 200rpx;
-  height: 260rpx;
-  border-radius: 16rpx;
-  overflow: hidden;
-  transition: transform 0.3s;
-
-  &:active {
-    transform: scale(0.96);
-  }
-}
-
-.nf-history-img {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.nf-history-overlay {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 50%;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
-  pointer-events: none;
-}
-
-/* 播放进度条 */
-.nf-history-prog-wrap {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  pointer-events: none;
-}
-
-.nf-history-ep-text {
-  display: block;
-  font-size: 20rpx;
-  color: rgba(255, 255, 255, 0.85);
-  padding: 0 10rpx 6rpx;
-  line-height: 1;
-}
-
-.nf-history-prog-bar {
-  height: 6rpx;
-  background: rgba(255, 255, 255, 0.2);
-  overflow: hidden;
-}
-
-.nf-history-prog-fill {
-  height: 100%;
-  background: #e50914;
-  min-width: 6rpx;
-}
-
-/* ===== 功能菜单 ===== */
-.nf-menu {
-  position: relative;
-  z-index: 1;
-  margin: 24rpx 28rpx;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1rpx solid rgba(255, 255, 255, 0.06);
-  border-radius: 28rpx;
-  padding: 8rpx 32rpx;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-.nf-menu-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 32rpx 0;
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
-  transition: background 0.3s;
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &:active {
-    background: rgba(255, 255, 255, 0.03);
-  }
-}
-
-.nf-menu-left {
+.guest-left {
   display: flex;
   align-items: center;
-  gap: 20rpx;
+  gap: 14rpx;
 }
 
-.nf-menu-icon-wrap {
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: 12rpx;
-  background: rgba(255, 255, 255, 0.06);
+.guest-icon {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 50%;
+  background: rgba(219,234,254,0.95);
+  color: #2563eb;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 38rpx;
 }
 
-.nf-menu-icon {
-  width: 28rpx;
-  height: 28rpx;
-  opacity: 0.8;
-}
-
-.nf-menu-text {
-  font-size: 30rpx;
-  color: #fff;
-  font-weight: 500;
-  letter-spacing: 1rpx;
-}
-
-.nf-menu-arrow {
-  opacity: 0.5;
-}
-
-.nf-contact-btn {
-  background: transparent;
-  margin: 0;
-  padding: 32rpx 0;
-  line-height: normal;
-  border-radius: 0;
-  text-align: left;
-  font-size: inherit;
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
-
-  &::after { border: none; }
-  &:last-child { border-bottom: none; }
-}
-
-/* ===== Netflix风格退出登录弹窗 ===== */
-.nf-logout-mask {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: nfFadeIn 0.2s ease;
-}
-@keyframes nfFadeIn {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
-}
-.nf-logout-dialog {
-  width: 560rpx;
-  background: #1a1a1a;
-  border-radius: 20rpx;
-  padding: 48rpx 40rpx 36rpx;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-  animation: nfDialogIn 0.3s ease;
-}
-@keyframes nfDialogIn {
-  0% { opacity: 0; transform: scale(0.9); }
-  100% { opacity: 1; transform: scale(1); }
-}
-.nf-logout-dialog-glow {
-  position: absolute;
-  top: -40rpx; left: 50%;
-  transform: translateX(-50%);
-  width: 200rpx; height: 80rpx;
-  background: radial-gradient(ellipse, rgba(229, 9, 20, 0.3), transparent);
-  pointer-events: none;
-}
-.nf-logout-dialog-title {
-  font-size: 34rpx;
+.guest-title {
+  display: block;
+  font-size: 28rpx;
   font-weight: 700;
-  color: #fff;
-  display: block;
-  margin-bottom: 16rpx;
 }
-.nf-logout-dialog-desc {
-  font-size: 26rpx;
-  color: rgba(255, 255, 255, 0.6);
+
+.guest-sub {
   display: block;
-  margin-bottom: 40rpx;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: rgba(15,23,42,0.55);
 }
-.nf-logout-dialog-btns {
+
+.point-card {
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid rgba(15,23,42,0.08);
   display: flex;
-  gap: 20rpx;
+  align-items: center;
+  justify-content: space-between;
 }
-.nf-logout-btn-cancel {
-  flex: 1;
-  height: 76rpx;
+
+.point-label {
+  display: block;
+  font-size: 22rpx;
+  color: rgba(15,23,42,0.55);
+}
+
+.point-value {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 36rpx;
+  font-weight: 700;
+}
+
+.recharge-btn {
+  width: 160rpx;
+  height: 64rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12rpx;
-  background: rgba(255, 255, 255, 0.1);
-}
-.nf-logout-btn-confirm {
-  flex: 1;
-  height: 76rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12rpx;
-  background: #e50914;
-}
-.nf-logout-btn-text {
-  font-size: 28rpx;
-  color: rgba(255, 255, 255, 0.8);
-}
-.nf-logout-btn-text-white {
-  font-size: 28rpx;
-  color: #fff;
+  font-size: 24rpx;
   font-weight: 600;
+  box-shadow: 0 10rpx 24rpx rgba(37, 99, 235, 0.26);
+}
+
+.section {
+  margin-top: 16rpx;
+  padding: 14rpx;
+}
+
+.section-title {
+  font-size: 26rpx;
+  font-weight: 700;
+  margin-bottom: 12rpx;
+}
+
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8rpx;
+}
+
+.quick-item {
+  height: 132rpx;
+  border-radius: 12rpx;
+  background: rgba(219,234,254,0.55);
+  color: #0f172a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  font-size: 20rpx;
+}
+
+.menu-list {
+  background: rgba(248,250,252,0.95);
+  border-radius: 12rpx;
+  overflow: hidden;
+}
+
+.menu-item {
+  height: 84rpx;
+  padding: 0 16rpx;
+  border-bottom: 1rpx solid rgba(15,23,42,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-text {
+  font-size: 24rpx;
+}
+
+.menu-text.danger {
+  color: #dc2626;
+}
+
+.popup-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  background: rgba(15,23,42,0.36);
+  display: flex;
+  align-items: flex-end;
+}
+
+.popup-panel {
+  width: 100%;
+  border-top-left-radius: 24rpx;
+  border-top-right-radius: 24rpx;
+  background: #ffffff;
+  padding: 24rpx;
+}
+
+.popup-title {
+  text-align: center;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 14rpx;
+}
+
+.popup-list {
+  max-height: 560rpx;
+}
+
+.popup-item {
+  margin-bottom: 12rpx;
+  height: 86rpx;
+  border-radius: 12rpx;
+  padding: 0 14rpx;
+  background: rgba(248,250,252,0.95);
+  border: 1rpx solid rgba(15,23,42,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.item-title {
+  display: block;
+  font-size: 25rpx;
+  color: #0f172a;
+}
+
+.item-sub {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 21rpx;
+  color: rgba(15,23,42,0.55);
+}
+
+.popup-close {
+  margin-top: 14rpx;
+  height: 78rpx;
+  border-radius: 12rpx;
+  background: rgba(219,234,254,0.65);
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
 }
 </style>

@@ -38,6 +38,19 @@ export const getTodayStats = () => {
 }
 
 /**
+ * 获取客服引导漏斗统计
+ * @param {Object} params 查询参数
+ * @returns {Promise}
+ */
+export const getKefuGuideStats = (params) => {
+  return service({
+    url: '/visitor/getKefuGuideStats',
+    method: 'get',
+    params
+  })
+}
+
+/**
  * 手动触发日汇总聚合
  * @param {string} date 日期 YYYY-MM-DD
  * @returns {Promise}

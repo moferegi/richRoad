@@ -12,6 +12,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"go.uber.org/zap"
 )
 
 func OtherInit() {
@@ -57,6 +58,15 @@ func initDefaultSysConfigs() {
 		{ConfigKey: "payment_tip_text", ConfigValue: "{\"zh\":\"请在规定时间内完成付款\",\"en\":\"Please complete payment within the specified time\",\"mn\":\"Заасан хугацаанд төлбөрөө хийнэ үү\"}", ConfigName: "付款提示文本", ConfigGroup: "payment", Remark: "二维码付款弹窗提示文本(JSON多语言)"},
 		{ConfigKey: "payment_tip_text_size", ConfigValue: "14", ConfigName: "付款提示文字大小", ConfigGroup: "payment", Remark: "付款提示文本字体大小(px)"},
 		{ConfigKey: "payment_tip_text_color", ConfigValue: "#ff0000", ConfigName: "付款提示文字颜色", ConfigGroup: "payment", Remark: "付款提示文本颜色(hex)"},
+		{ConfigKey: "payment_auto_enabled", ConfigValue: "false", ConfigName: "自动支付总开关", ConfigGroup: "payment", Remark: "是否启用自动支付渠道(true/false)，默认关闭保留人工流程"},
+		{ConfigKey: "payment_manual_qrcode_enabled", ConfigValue: "true", ConfigName: "人工二维码支付开关", ConfigGroup: "payment", Remark: "是否展示人工二维码付款(true/false)"},
+		{ConfigKey: "payment_manual_contact_enabled", ConfigValue: "true", ConfigName: "人工联系客服支付开关", ConfigGroup: "payment", Remark: "是否展示联系客服付款(true/false)"},
+		{ConfigKey: "payment_wechat_enabled", ConfigValue: "false", ConfigName: "微信支付开关", ConfigGroup: "payment", Remark: "是否启用微信自动支付渠道(true/false)"},
+		{ConfigKey: "payment_alipay_enabled", ConfigValue: "false", ConfigName: "支付宝支付开关", ConfigGroup: "payment", Remark: "是否启用支付宝自动支付渠道(true/false)"},
+		{ConfigKey: "payment_bank_cn_enabled", ConfigValue: "false", ConfigName: "国内银行卡支付开关", ConfigGroup: "payment", Remark: "是否启用国内银行卡自动支付渠道(true/false)"},
+		{ConfigKey: "payment_bank_us_enabled", ConfigValue: "false", ConfigName: "美国银行卡支付开关", ConfigGroup: "payment", Remark: "是否启用美国银行卡自动支付渠道(true/false)"},
+		{ConfigKey: "payment_bank_mn_enabled", ConfigValue: "false", ConfigName: "蒙古国银行卡支付开关", ConfigGroup: "payment", Remark: "是否启用蒙古国银行卡自动支付渠道(true/false)"},
+		{ConfigKey: "payment_paypal_enabled", ConfigValue: "false", ConfigName: "PayPal支付开关", ConfigGroup: "payment", Remark: "是否启用PayPal自动支付渠道(true/false)"},
 		// system 分组
 		{ConfigKey: "maintenance_enabled", ConfigValue: "false", ConfigName: "维护模式开关", ConfigGroup: "maintenance", Remark: "是否开启全站维护模式(true/false)"},
 		{ConfigKey: "maintenance_message", ConfigValue: "系统维护中，请稍后再试", ConfigName: "维护提示语", ConfigGroup: "maintenance", Remark: "维护模式下的提示信息"},
@@ -87,6 +97,16 @@ func initDefaultSysConfigs() {
 		{ConfigKey: "password_regex_tip", ConfigValue: "", ConfigName: "密码提示文本", ConfigGroup: "auth", Remark: "密码输入框内提示文本(JSON多语言)"},
 		// points 分组
 		{ConfigKey: "points_exchange_rate", ConfigValue: "100", ConfigName: "积分兑换比率", ConfigGroup: "points", Remark: "多少积分兑换1货币单位，如100积分=1元"},
+		// tryon 分组
+		{ConfigKey: "tryon_guest_init_points", ConfigValue: "3", ConfigName: "游客初始试衣币", ConfigGroup: "tryon", Remark: "游客首次进入赠送的试衣币数量"},
+		{ConfigKey: "tryon_register_reward_points", ConfigValue: "8", ConfigName: "注册奖励试衣币", ConfigGroup: "tryon", Remark: "用户注册成功后奖励的试衣币数量"},
+		{ConfigKey: "tryon_cost_points", ConfigValue: "1", ConfigName: "单次试衣消耗", ConfigGroup: "tryon", Remark: "每次发起试衣或试鞋消耗的试衣币数量"},
+		{ConfigKey: "tryon_fail_refund_percent", ConfigValue: "100", ConfigName: "试衣失败退币比例", ConfigGroup: "tryon", Remark: "试衣失败时退回试衣币百分比，默认100"},
+		{ConfigKey: "tryon_models", ConfigValue: "[{\"key\":\"aliyun_aitryon\",\"enabled\":true,\"scenes\":[\"clothes\",\"shoes\"],\"model\":\"aitryon\",\"name\":{\"zh\":\"阿里AI试衣（基础）\",\"en\":\"Aliyun AI Try-On (Basic)\",\"mn\":\"Aliyun AI өмсгөл (Суурь)\"},\"desc\":{\"zh\":\"基础版试衣模型，速度更快，适合日常试衣。\",\"en\":\"Basic try-on model with faster generation for everyday use.\",\"mn\":\"Өдөр тутмын туршилтад тохирох, хурдан суурь загвар.\"},\"cost\":1,\"provider\":\"aliyun\",\"mode\":\"prod\",\"url\":\"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis\",\"taskQueryUrl\":\"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}\",\"token\":\"\",\"resolution\":-1,\"restoreFace\":true},{\"key\":\"aliyun_aitryon_plus\",\"enabled\":true,\"scenes\":[\"clothes\",\"shoes\"],\"model\":\"aitryon-plus\",\"name\":{\"zh\":\"阿里AI试衣（Plus）\",\"en\":\"Aliyun AI Try-On (Plus)\",\"mn\":\"Aliyun AI өмсгөл (Plus)\"},\"desc\":{\"zh\":\"Plus版细节更好，适合高质量试衣图。\",\"en\":\"Higher quality rendering with better texture and logo details.\",\"mn\":\"Нэхмэл, логог илүү сайн сэргээдэг өндөр чанарын загвар.\"},\"cost\":1,\"provider\":\"aliyun\",\"mode\":\"prod\",\"url\":\"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis\",\"taskQueryUrl\":\"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}\",\"token\":\"\",\"resolution\":-1,\"restoreFace\":true},{\"key\":\"aliyun_aitryon_parsing\",\"enabled\":true,\"scenes\":[\"takeoff\"],\"model\":\"aitryon-parsing-v1\",\"name\":{\"zh\":\"阿里取衣分割\",\"en\":\"Aliyun Takeoff Parsing\",\"mn\":\"Aliyun хувцас салгах\"},\"desc\":{\"zh\":\"用于取衣区分割模特服饰并输出可用服饰图。\",\"en\":\"Segments garment regions for takeoff area and outputs reusable garment images.\",\"mn\":\"Загварын хувцсыг ялган авч, дахин ашиглах зургийг гаргана.\"},\"cost\":1,\"provider\":\"aliyun\",\"mode\":\"prod\",\"url\":\"https://dashscope.aliyuncs.com/api/v1/services/vision/image-process/process\",\"token\":\"\",\"clothesType\":[\"upper\"]}]", ConfigName: "试衣模型列表", ConfigGroup: "tryon", Remark: "JSON数组：可配置多模型及开关、多语言名称与说明、接口地址等"},
+		{ConfigKey: "tryon_provider_mode", ConfigValue: "mock_success", ConfigName: "试衣模型模式", ConfigGroup: "tryon", Remark: "mock_success表示本地联调直接返回原图，prod表示调用真实模型"},
+		{ConfigKey: "tryon_provider_url", ConfigValue: "", ConfigName: "试衣模型地址", ConfigGroup: "tryon", Remark: "真实模型推理服务地址(URL)"},
+		{ConfigKey: "tryon_provider_token", ConfigValue: "", ConfigName: "试衣模型令牌", ConfigGroup: "tryon", Remark: "调用真实模型服务的Bearer Token"},
+		{ConfigKey: "tryon_media_public_base_url", ConfigValue: "", ConfigName: "试衣图片公网前缀", ConfigGroup: "tryon", Remark: "当上传返回相对路径或localhost/内网URL时，自动拼接为公网地址，如https://back.example.com"},
 		// order 分组
 		{ConfigKey: "order_close_minutes", ConfigValue: "20", ConfigName: "订单自动关闭时间", ConfigGroup: "order", Remark: "未支付订单自动关闭的分钟数"},
 		// display 分组
@@ -103,7 +123,9 @@ func initDefaultSysConfigs() {
 		var count int64
 		global.GVA_DB.Model(&client.SysConfig{}).Where("config_key = ?", cfg.ConfigKey).Count(&count)
 		if count == 0 {
-			global.GVA_DB.Create(&cfg)
+			if err := global.GVA_DB.Create(&cfg).Error; err != nil {
+				global.GVA_LOG.Error("初始化默认系统参数失败", zap.Error(err), zap.String("configKey", cfg.ConfigKey))
+			}
 		}
 	}
 

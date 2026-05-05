@@ -43,17 +43,22 @@ func (visitorApi *VisitorApi) Heartbeat(c *gin.Context) {
 	userID := utils.GetUserID(c)
 
 	log := &client.VisitorLog{
-		VisitorID:    req.VisitorID,
-		UserID:       userID,
-		IP:           ip,
-		UserAgent:    userAgent,
-		Platform:     req.Platform,
-		PagePath:     req.PagePath,
-		Referer:      req.Referer,
-		ScreenWidth:  req.ScreenWidth,
-		ScreenHeight: req.ScreenHeight,
-		Language:     req.Language,
-		SessionID:    req.SessionID,
+		VisitorID:     req.VisitorID,
+		UserID:        userID,
+		IP:            ip,
+		UserAgent:     userAgent,
+		Platform:      req.Platform,
+		PagePath:      req.PagePath,
+		Referer:       req.Referer,
+		EventCategory: req.EventCategory,
+		EventAction:   req.EventAction,
+		EventLabel:    req.EventLabel,
+		EventValue:    req.EventValue,
+		EventExtra:    req.EventExtra,
+		ScreenWidth:   req.ScreenWidth,
+		ScreenHeight:  req.ScreenHeight,
+		Language:      req.Language,
+		SessionID:     req.SessionID,
 	}
 
 	if err := visitorService.Heartbeat(log); err != nil {
@@ -134,6 +139,31 @@ func (visitorApi *VisitorApi) GetTodayStats(c *gin.Context) {
 	stats, err := visitorService.GetTodayStats()
 	if err != nil {
 		global.GVA_LOG.Error("获取今日统计失败!", zap.Error(err))
+		response.FailWithMessage("获取失败", c)
+		return
+	}
+	response.OkWithDetailed(stats, "获取成功", c)
+}
+
+// GetKefuGuideStats 获取客服引导漏斗统计
+// @Tags Visitor
+// @Summary 获取客服引导漏斗统计（确认率、复制率、跳转率）
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data query clientReq.KefuGuideStatsSearch false "客服引导统计查询条件"
+// @Success 200 {object} response.Response{data=map[string]interface{},msg=string} "获取成功"
+// @Router /visitor/getKefuGuideStats [get]
+func (visitorApi *VisitorApi) GetKefuGuideStats(c *gin.Context) {
+	var query clientReq.KefuGuideStatsSearch
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+
+	stats, err := visitorService.GetKefuGuideStats(query)
+	if err != nil {
+		global.GVA_LOG.Error("获取客服引导统计失败!", zap.Error(err))
 		response.FailWithMessage("获取失败", c)
 		return
 	}

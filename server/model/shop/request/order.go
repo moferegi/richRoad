@@ -41,7 +41,7 @@ type PlaceOrderByCartRequest struct {
 	CartIDs   []uint `json:"cartIDs" form:"cartIDs"`     // 购物车项ID(为空则全部)
 	AddressID uint   `json:"addressID" form:"addressID"` // 收货地址ID
 	UsePoints bool   `json:"usePoints" form:"usePoints"` // 是否使用积分抵扣
-	PayMethod string `json:"payMethod" form:"payMethod"` // 支付方式(contact/qrcode)
+	PayMethod string `json:"payMethod" form:"payMethod"` // 支付方式(contact/qrcode/wechat/alipay/bank_card_cn/bank_card_us/bank_card_mn/paypal)
 	CouponNum string `json:"couponNum" form:"couponNum"` // 优惠券号
 }
 

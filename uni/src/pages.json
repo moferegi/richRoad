@@ -183,6 +183,17 @@
 
 		},
 		{
+			"path": "pages/tabBar/clothes/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
+				"enablePullDownRefresh": false
+			}
+
+		},
+		{
 			"path": "pages/collect/collect",
 			"style": {
 				"navigationStyle": "custom",
@@ -292,6 +303,46 @@
 			}
 		},
 		{
+			"path": "pages/tryon/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/tryon/generate",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/tryon/history",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/myModel/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
 			"path": "pages/user/profile",
 			"style": {
 				"navigationStyle": "custom",
@@ -317,27 +368,27 @@
 		}
 	},
 	"tabBar": {
-		"color": "rgba(255,255,255,0.6)",
-		"selectedColor": "#e50914",
-		"backgroundColor": "#1a1a1a",
-		"borderStyle": "white",
+		"color": "rgba(15,23,42,0.62)",
+		"selectedColor": "#2563eb",
+		"backgroundColor": "#ffffff",
+		"borderStyle": "black",
 		"list": [{
 				"pagePath": "pages/tabBar/index",
 			"onPageScroll": true,
 
-			"text": "首页",
+			"text": "试衣间",
 				"iconPath": "static/images/tabBar/home.png",
 				"selectedIconPath": "static/images/tabBar/homes.png"
 			},
 			{
 				"pagePath": "pages/tabBar/shop/shop",
-				"text": "购物车",
+				"text": "试鞋间",
 				"iconPath": "static/images/tabBar/cart.png",
 				"selectedIconPath": "static/images/tabBar/carts.png"
 			},
 			{
-				"pagePath": "pages/collect/collect",
-				"text": "我的收藏",
+				"pagePath": "pages/tabBar/clothes/index",
+				"text": "衣服商品页",
 				"iconPath": "static/images/tabBar/find.png",
 				"selectedIconPath": "static/images/tabBar/finds.png"
 			},

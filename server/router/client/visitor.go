@@ -23,6 +23,7 @@ func (s *VisitorRouter) InitVisitorRouter(Router *gin.RouterGroup, PublicRouter 
 		visitorRouterWithoutRecord.GET("getVisitorLogList", visitorApi.GetVisitorLogList)         // 获取访客日志列表
 		visitorRouterWithoutRecord.GET("getVisitorSummaryList", visitorApi.GetVisitorSummaryList) // 获取访客汇总列表
 		visitorRouterWithoutRecord.GET("getTodayStats", visitorApi.GetTodayStats)                 // 获取今日统计
+		visitorRouterWithoutRecord.GET("getKefuGuideStats", visitorApi.GetKefuGuideStats)         // 获取客服引导漏斗统计
 	}
 	{
 		visitorRouterWithoutAuth.POST("heartbeat", visitorApi.Heartbeat) // 访客心跳上报（无需认证）

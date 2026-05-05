@@ -66,6 +66,13 @@ func initNewModulesApis(db *gorm.DB) {
 		{ApiGroup: "签到管理", Method: "GET", Path: "/signIn/getSignInRecords", Description: "获取签到记录"},
 		{ApiGroup: "签到管理", Method: "GET", Path: "/signIn/getSignInList", Description: "管理端获取签到列表"},
 		{ApiGroup: "签到管理", Method: "DELETE", Path: "/signIn/deleteSignIn", Description: "管理端删除签到记录"},
+		// 试衣任务
+		{ApiGroup: "试衣任务", Method: "POST", Path: "/tryonTask/createTryonTask", Description: "创建试衣任务"},
+		{ApiGroup: "试衣任务", Method: "GET", Path: "/tryonTask/findTryonTask", Description: "根据ID查询试衣任务"},
+		{ApiGroup: "试衣任务", Method: "GET", Path: "/tryonTask/getMyTryonTaskList", Description: "获取我的试衣任务列表"},
+		{ApiGroup: "试衣任务", Method: "GET", Path: "/tryonTask/getTryonTaskList", Description: "获取试衣任务列表(管理端)"},
+		{ApiGroup: "试衣任务", Method: "GET", Path: "/tryonTask/getTryonTaskStats", Description: "获取试衣任务统计(管理端)"},
+		{ApiGroup: "试衣任务", Method: "GET", Path: "/tryonTask/getTryonTaskTrend", Description: "获取试衣任务趋势(管理端)"},
 		// 外部链接域名
 		{ApiGroup: "外部链接域名", Method: "POST", Path: "/extDomain/createExternalLinkDomain", Description: "创建外部链接域名"},
 		{ApiGroup: "外部链接域名", Method: "DELETE", Path: "/extDomain/deleteExternalLinkDomain", Description: "删除外部链接域名"},
@@ -75,6 +82,7 @@ func initNewModulesApis(db *gorm.DB) {
 		// 系统配置扩展
 		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getSysConfigByGroup", Description: "按分组获取配置"},
 		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getSysConfigByKey", Description: "按Key获取配置"},
+		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getTryonConfig", Description: "获取试衣配置"},
 	}
 	for _, api := range apis {
 		var count int64
@@ -127,6 +135,7 @@ func initNewModulesMenus(db *gorm.DB) {
 			menuDef{"phoneAreaCode", "phoneAreaCode", "view/client/phoneAreaCode/phoneAreaCode.vue", "国际区号", "phone", clientParent.ID, 14},
 			menuDef{"externalLinkDomain", "externalLinkDomain", "view/client/externalLinkDomain/externalLinkDomain.vue", "外部链接域名", "link", clientParent.ID, 15},
 			menuDef{"signInManage", "signInManage", "view/client/signIn/signIn.vue", "签到管理", "calendar", clientParent.ID, 16},
+			menuDef{"tryonTaskManage", "tryonTaskManage", "view/client/tryonTask/tryonTask.vue", "试衣任务", "camera", clientParent.ID, 17},
 		)
 	}
 
@@ -213,6 +222,13 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/signIn/getSignInRecords", "GET"},
 		{"/signIn/getSignInList", "GET"},
 		{"/signIn/deleteSignIn", "DELETE"},
+		// 试衣任务
+		{"/tryonTask/createTryonTask", "POST"},
+		{"/tryonTask/findTryonTask", "GET"},
+		{"/tryonTask/getMyTryonTaskList", "GET"},
+		{"/tryonTask/getTryonTaskList", "GET"},
+		{"/tryonTask/getTryonTaskStats", "GET"},
+		{"/tryonTask/getTryonTaskTrend", "GET"},
 		// 外部链接域名
 		{"/extDomain/createExternalLinkDomain", "POST"},
 		{"/extDomain/deleteExternalLinkDomain", "DELETE"},

@@ -209,6 +209,7 @@ const closingBySelf = ref(false)
 const agentAvatarUrl = ref('')
 const uploadMaxSizeMB = ref(5)
 const uploadAllowExt = ref(['jpg', 'jpeg', 'png', 'webp', 'gif'])
+const KEFU_CHAT_PREFILL_KEY = 'kefu:chat:prefill'
 
 const canSend = computed(() =>
   inputText.value.trim().length > 0 &&
@@ -254,6 +255,46 @@ function parseUploadAllowExt(raw) {
     .map(ext => ext.trim().toLowerCase().replace(/^\./, ''))
     .filter(Boolean)
   return list.length ? Array.from(new Set(list)) : ['jpg', 'jpeg', 'png', 'webp', 'gif']
+}
+
+function safeDecode(val) {
+  const raw = String(val || '').trim()
+  if (!raw) return ''
+  try {
+    return decodeURIComponent(raw)
+  } catch (e) {
+    return raw
+  }
+}
+
+function buildPaymentDraft(orderID, payMethodLabel) {
+  return $t.value('kefuPaymentDraftTemplate')
+    .replace('{orderID}', orderID || '-')
+    .replace('{payMethod}', payMethodLabel || '-')
+}
+
+function resolvePaymentDraft(options = {}) {
+  const orderID = safeDecode(options.orderID)
+  const payMethodLabel = safeDecode(options.payMethodLabel)
+  const queryPrefill = safeDecode(options.prefill)
+
+  if (queryPrefill) {
+    return queryPrefill
+  }
+  if (orderID) {
+    return buildPaymentDraft(orderID, payMethodLabel)
+  }
+
+  const cachePrefill = String(uni.getStorageSync(KEFU_CHAT_PREFILL_KEY) || '').trim()
+  return cachePrefill
+}
+
+function applyPaymentDraft(options = {}) {
+  const draft = resolvePaymentDraft(options)
+  if (draft) {
+    inputText.value = draft
+  }
+  uni.removeStorageSync(KEFU_CHAT_PREFILL_KEY)
 }
 
 async function loadChatConfig() {
@@ -619,7 +660,8 @@ function handleBack() {
 }
 
 // -------- 生命周期 --------
-onLoad(() => {
+onLoad((options = {}) => {
+  applyPaymentDraft(options)
   loadChatConfig().finally(() => {
     connectWs()
   })

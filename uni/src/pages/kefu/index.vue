@@ -15,6 +15,32 @@
     </view>
 
     <scroll-view scroll-y :show-scrollbar="false" class="nf-kefu-scroll">
+      <!-- 支付上下文提示（从订单页跳入时展示） -->
+      <view v-if="hasPaymentContext" class="nf-payment-hint-wrap">
+        <view class="nf-payment-hint-card">
+          <view class="nf-payment-hint-head">
+            <text class="nf-payment-hint-title">{{ $t('kefuPaymentHintTitle') }}</text>
+            <view class="nf-payment-copy-btn" @tap.stop="copyPaymentDraft">
+              <text class="nf-payment-copy-btn-text">{{ $t('kefuPaymentCopyDraft') }}</text>
+            </view>
+          </view>
+
+          <view class="nf-payment-meta-row">
+            <text class="nf-payment-meta-label">{{ $t('kefuPaymentOrderNo') }}</text>
+            <text class="nf-payment-meta-value">{{ prefillOrderID }}</text>
+          </view>
+          <view class="nf-payment-meta-row">
+            <text class="nf-payment-meta-label">{{ $t('kefuPaymentMethod') }}</text>
+            <text class="nf-payment-meta-value">{{ prefillPayMethodLabel }}</text>
+          </view>
+
+          <view class="nf-payment-draft-wrap">
+            <text class="nf-payment-meta-label">{{ $t('kefuPaymentDraftLabel') }}</text>
+            <text class="nf-payment-draft-text">{{ paymentDraftText }}</text>
+          </view>
+        </view>
+      </view>
+
       <!-- 外部客服列表（shop/kefu 开关控制） -->
       <view v-if="showExternalList && kefuList.length" class="nf-kefu-list">
         <view
@@ -77,9 +103,10 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getKefuList, getCsConfig, getSysConfigByKey } from '@/api/kefu.js'
 import { getUrl } from '@/utils/url.js'
+import { trackVisitorEvent } from '@/utils/visitorEvent.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
@@ -97,6 +124,122 @@ const showExternalList = computed(() => externalEnabled.value)
 const showPlatEntry = computed(() => platEnabled.value)
 const showNothing = computed(() => !showExternalList.value && !showPlatEntry.value)
 const showExternalEmpty = computed(() => showExternalList.value && !kefuList.value.length && !isLoading.value && !showPlatEntry.value)
+
+const KEFU_CHAT_PREFILL_KEY = 'kefu:chat:prefill'
+const prefillOrderID = ref('')
+const prefillPayMethod = ref('')
+const prefillPayMethodLabel = ref('')
+
+const hasPaymentContext = computed(() => !!prefillOrderID.value)
+
+const extractLinkHost = (link) => {
+  const target = String(link || '').trim()
+  if (!target) return ''
+  try {
+    return new URL(target).host
+  } catch (e) {
+    return ''
+  }
+}
+
+const trackKefuGuideEvent = (action, extra = {}) => {
+  const payload = {
+    source: 'kefu_index',
+    orderNo: prefillOrderID.value || '',
+    payMethod: prefillPayMethod.value || '',
+    payMethodLabel: prefillPayMethodLabel.value || '',
+    ...extra
+  }
+  return trackVisitorEvent({
+    action,
+    label: String(payload.payMethod || ''),
+    extra: payload
+  })
+}
+
+const getPayMethodLabel = (method) => {
+  const map = {
+    qrcode: $t.value('payByQrcode'),
+    contact: $t.value('payByContact'),
+    wechat: $t.value('payMethodWechat'),
+    alipay: $t.value('payMethodAlipay'),
+    bank_card_cn: $t.value('payMethodBankCn'),
+    bank_card_us: $t.value('payMethodBankUs'),
+    bank_card_mn: $t.value('payMethodBankMn'),
+    paypal: $t.value('payMethodPaypal'),
+  }
+  return map[method] || method || '-'
+}
+
+const paymentDraftText = computed(() => {
+  if (!prefillOrderID.value) return ''
+  return $t.value('kefuPaymentDraftTemplate')
+    .replace('{orderID}', prefillOrderID.value || '-')
+    .replace('{payMethod}', prefillPayMethodLabel.value || getPayMethodLabel(prefillPayMethod.value))
+})
+
+const safeDecode = (val) => {
+  const raw = String(val || '').trim()
+  if (!raw) return ''
+  try {
+    return decodeURIComponent(raw)
+  } catch (e) {
+    return raw
+  }
+}
+
+const syncChatPrefill = () => {
+  if (!paymentDraftText.value) return
+  uni.setStorageSync(KEFU_CHAT_PREFILL_KEY, paymentDraftText.value)
+}
+
+const copyPaymentDraft = () => {
+  if (!paymentDraftText.value) return
+  uni.setClipboardData({
+    data: paymentDraftText.value,
+    success: () => {
+      trackKefuGuideEvent('copy_draft')
+      uni.showToast({ title: $t.value('kefuPaymentDraftCopied'), icon: 'none' })
+    },
+    fail: () => {
+      trackKefuGuideEvent('copy_draft_fail')
+    },
+  })
+}
+
+const openExternalLink = (link, extra = {}) => {
+  trackKefuGuideEvent('open_external_link', {
+    linkHost: extractLinkHost(link),
+    ...extra
+  })
+  // #ifdef H5
+  window.open(link)
+  // #endif
+  // #ifndef H5
+  uni.navigateTo({
+    url: `/pages/webview/index?url=${encodeURIComponent(link)}`
+  })
+  // #endif
+}
+
+const copyDraftThenOpenExternal = (link) => {
+  if (!paymentDraftText.value) {
+    openExternalLink(link, { openMode: 'open_only' })
+    return
+  }
+  uni.setClipboardData({
+    data: paymentDraftText.value,
+    success: () => {
+      trackKefuGuideEvent('copy_external_draft')
+      uni.showToast({ title: $t.value('kefuPaymentDraftCopied'), icon: 'none' })
+      setTimeout(() => openExternalLink(link, { openMode: 'copy_then_open' }), 300)
+    },
+    fail: () => {
+      trackKefuGuideEvent('copy_external_draft_fail')
+      openExternalLink(link, { openMode: 'open_after_copy_fail' })
+    },
+  })
+}
 
 const normalizeStatus = (status) => {
   const map = { '在线': 'online', 'online': 'online', '离线': 'offline', 'offline': 'offline', '忙碌': 'busy', 'busy': 'busy' }
@@ -162,8 +305,27 @@ const init = async () => {
 
 onShow(() => { init() })
 
+onLoad((options = {}) => {
+  prefillOrderID.value = safeDecode(options.orderID)
+  prefillPayMethod.value = safeDecode(options.payMethod)
+  prefillPayMethodLabel.value = safeDecode(options.payMethodLabel) || getPayMethodLabel(prefillPayMethod.value)
+  syncChatPrefill()
+  if (hasPaymentContext.value) {
+    trackKefuGuideEvent('kefu_page_view')
+  }
+})
+
 // 进入平台客服聊天室
 const enterPlatChat = () => {
+  if (hasPaymentContext.value) {
+    trackKefuGuideEvent('navigate_platform_chat')
+    syncChatPrefill()
+    const orderID = encodeURIComponent(prefillOrderID.value)
+    const payMethod = encodeURIComponent(prefillPayMethod.value)
+    const payMethodLabel = encodeURIComponent(prefillPayMethodLabel.value)
+    uni.navigateTo({ url: `/pages/kefu/chat?orderID=${orderID}&payMethod=${payMethod}&payMethodLabel=${payMethodLabel}` })
+    return
+  }
   uni.navigateTo({ url: '/pages/kefu/chat' })
 }
 
@@ -173,14 +335,30 @@ const contactKefu = (item) => {
     return
   }
   if (item.link) {
-    // #ifdef H5
-    window.open(item.link)
-    // #endif
-    // #ifndef H5
-    uni.navigateTo({
-      url: `/pages/webview/index?url=${encodeURIComponent(item.link)}`
-    })
-    // #endif
+    if (hasPaymentContext.value && paymentDraftText.value) {
+      trackKefuGuideEvent('external_prompt_show', { linkHost: extractLinkHost(item.link) })
+      uni.showModal({
+        title: $t.value('kefuPaymentExternalTitle'),
+        content: $t.value('kefuPaymentExternalHint'),
+        confirmText: $t.value('kefuPaymentExternalCopyOpen'),
+        cancelText: $t.value('kefuPaymentExternalOpenOnly'),
+        success: (res) => {
+          if (res.confirm) {
+            trackKefuGuideEvent('external_prompt_confirm', { linkHost: extractLinkHost(item.link) })
+            copyDraftThenOpenExternal(item.link)
+            return
+          }
+          trackKefuGuideEvent('external_prompt_cancel', { linkHost: extractLinkHost(item.link) })
+          openExternalLink(item.link, { openMode: 'open_only' })
+        },
+        fail: () => {
+          trackKefuGuideEvent('external_prompt_cancel', { linkHost: extractLinkHost(item.link), fail: true })
+          openExternalLink(item.link, { openMode: 'open_only' })
+        },
+      })
+      return
+    }
+    openExternalLink(item.link, { openMode: 'open_only' })
   } else {
     uni.showToast({ title: $t.value('kefuContact'), icon: 'none' })
   }
@@ -286,6 +464,71 @@ page {
 /* ===== 客服列表 ===== */
 .nf-kefu-list {
   padding: 24rpx 28rpx;
+}
+
+.nf-payment-hint-wrap {
+  padding: 24rpx 28rpx 0;
+}
+
+.nf-payment-hint-card {
+  background: rgba(229, 9, 20, 0.08);
+  border: 1rpx solid rgba(229, 9, 20, 0.25);
+  border-radius: 20rpx;
+  padding: 20rpx;
+}
+
+.nf-payment-hint-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+
+.nf-payment-hint-title {
+  font-size: 26rpx;
+  color: #fff;
+  font-weight: 600;
+}
+
+.nf-payment-copy-btn {
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nf-payment-copy-btn-text {
+  color: #fff;
+  font-size: 22rpx;
+}
+
+.nf-payment-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  margin-bottom: 8rpx;
+}
+
+.nf-payment-meta-label {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.nf-payment-meta-value {
+  font-size: 22rpx;
+  color: #fff;
+}
+
+.nf-payment-draft-wrap {
+  margin-top: 10rpx;
+  padding-top: 10rpx;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.nf-payment-draft-text {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.45;
 }
 
 .nf-section-title {
