@@ -490,6 +490,7 @@ func (clientUserApi *ClientUserApi) GetMyInviteInfo(c *gin.Context) {
 		"inviteCode":       user.InviteCode,
 		"subordinateCount": subordinateCount,
 		"point":            user.Point,
+		"tryonPoint":       user.TryonPoint,
 	}, "获取成功", c)
 }
 

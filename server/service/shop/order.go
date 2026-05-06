@@ -131,6 +131,7 @@ func (orderService *OrderService) ChangeOrderPoints(userID uint, orderID string,
 		if order.UsePoints && order.PointsUsed > 0 {
 			pointRecordService := clientService.PointRecordService{}
 			userID := int(order.UserID)
+			assetType := client.AssetTypePoint
 			pointChange := int(order.PointsUsed) // 恢复积分，正数
 			changeType := "increase"
 			operationType := "point_exchange"
@@ -138,6 +139,7 @@ func (orderService *OrderService) ChangeOrderPoints(userID uint, orderID string,
 			relatedOrderId := int(order.ID)
 
 			pointRecord := client.PointRecord{
+				AssetType:      &assetType,
 				UserId:         &userID,
 				PointChange:    &pointChange,
 				ChangeType:     &changeType,
@@ -209,6 +211,7 @@ func (orderService *OrderService) ChangeOrderPoints(userID uint, orderID string,
 			if pointsToUse > 0 {
 				pointRecordService := clientService.PointRecordService{}
 				userID := int(order.UserID)
+				assetType := client.AssetTypePoint
 				pointChange := -int(pointsToUse)
 				changeType := "decrease"
 				operationType := "point_exchange"
@@ -216,6 +219,7 @@ func (orderService *OrderService) ChangeOrderPoints(userID uint, orderID string,
 				relatedOrderId := int(order.ID)
 
 				pointRecord := client.PointRecord{
+					AssetType:      &assetType,
 					UserId:         &userID,
 					PointChange:    &pointChange,
 					ChangeType:     &changeType,
@@ -569,6 +573,7 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 			if !order.Pointed && order.UsePoints && order.PointsUsed > 0 {
 				pointRecordService := &clientService.PointRecordService{}
 				userIdInt := int(user.ID)
+				assetType := client.AssetTypePoint
 				changeType := "increase"
 				pointChange := int(order.PointsUsed)
 				operationType := "point_refund"
@@ -578,6 +583,7 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 				remark := "订单ID: " + orderIdStr
 
 				pointRecord := &client.PointRecord{
+					AssetType:      &assetType,
 					UserId:         &userIdInt,
 					ChangeType:     &changeType,
 					PointChange:    &pointChange,
@@ -608,6 +614,7 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 				if order.UsePoints && order.PointsUsed > 0 {
 					pointRecordService := &clientService.PointRecordService{}
 					userIdInt := int(user.ID)
+					assetType := client.AssetTypePoint
 					changeType := "increase"
 					pointChange := int(order.PointsUsed) // 返还积分，正数
 					operationType := "point_refund"
@@ -617,6 +624,7 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 					remark := "订单ID: " + orderIdStr
 
 					pointRecord := &client.PointRecord{
+						AssetType:      &assetType,
 						UserId:         &userIdInt,
 						ChangeType:     &changeType,
 						PointChange:    &pointChange,
@@ -636,6 +644,7 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 				// 2. 扣除已获得的积分奖励
 				pointRecordService := &clientService.PointRecordService{}
 				userIdInt := int(user.ID)
+				assetType := client.AssetTypePoint
 				changeType := "decrease"
 				pointChange := int(totalPrice / 100)
 				operationType := "refund_return"
@@ -645,6 +654,7 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 				remark := "订单ID: " + orderIdStr
 
 				pointRecord := &client.PointRecord{
+					AssetType:      &assetType,
 					UserId:         &userIdInt,
 					ChangeType:     &changeType,
 					PointChange:    &pointChange,
@@ -682,7 +692,9 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 
 			// 幂等检查：查看该订单是否已经发放过奖励（防止取消后重新支付重复发放）
 			var rewardCount int64
-			tx.Model(&client.PointRecord{}).Where("related_order_id = ? AND operation_type = ?", order.ID, "order_complete").Count(&rewardCount)
+			tx.Model(&client.PointRecord{}).
+				Where("related_order_id = ? AND operation_type = ? AND (asset_type = ? OR asset_type IS NULL)", order.ID, "order_complete", client.AssetTypePoint).
+				Count(&rewardCount)
 			if rewardCount == 0 {
 				// 使用营销奖励配置发放订单奖励（积分+优惠券）
 				mrService := &MarketingRewardService{}

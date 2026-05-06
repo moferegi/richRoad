@@ -43,6 +43,13 @@
     />
   </el-select>
 </el-form-item>
+
+            <el-form-item label="资产类型" prop="assetType">
+  <el-select v-model="searchInfo.assetType" clearable filterable placeholder="请选择" @clear="()=>{searchInfo.assetType=undefined}">
+    <el-option label="积分" value="point" />
+    <el-option label="试衣币" value="tryon_point" />
+  </el-select>
+</el-form-item>
             
             <el-form-item label="增/减" prop="changeType">
   <el-select v-model="searchInfo.changeType" clearable filterable placeholder="请选择" @clear="()=>{searchInfo.changeType=undefined}">
@@ -119,6 +126,14 @@
                     <span v-if="getUserDisplayName(scope.row.userId)">{{ getUserDisplayName(scope.row.userId) }}</span>
                     <span v-else>ID: {{ scope.row.userId }}</span>
                 </template>
+            </el-table-column>
+
+            <el-table-column align="left" label="资产类型" prop="assetType" width="100">
+              <template #default="scope">
+                <el-tag :type="assetTypeTagType(scope.row.assetType)">
+                  {{ assetTypeLabel(scope.row.assetType) }}
+                </el-tag>
+              </template>
             </el-table-column>
 
             <el-table-column align="left" label="增/减" prop="changeType" width="80">
@@ -199,6 +214,12 @@
       />
     </el-select>
 </el-form-item>
+      <el-form-item label="资产类型:" prop="assetType">
+  <el-select v-model="formData.assetType" placeholder="请选择资产类型" style="width:100%" filterable :clearable="false">
+    <el-option label="积分" value="point" />
+    <el-option label="试衣币" value="tryon_point" />
+  </el-select>
+</el-form-item>
             <el-form-item label="增/减:" prop="changeType">
     <el-select v-model="formData.changeType" placeholder="请选择增减类型" style="width:100%" filterable :clearable="true">
         <el-option label="增加" value="increase" />
@@ -231,6 +252,9 @@
     <span v-if="getUserDisplayName(detailForm.userId)">{{ getUserDisplayName(detailForm.userId) }}</span>
     <span v-else>ID: {{ detailForm.userId }}</span>
 </el-descriptions-item>
+                <el-descriptions-item label="资产类型">
+        {{ assetTypeLabel(detailForm.assetType) }}
+      </el-descriptions-item>
                     <el-descriptions-item label="增/减">
     <el-tag :type="detailForm.pointChange > 0 ? 'success' : 'danger'">
         {{ detailForm.pointChange > 0 ? '增加' : '减少' }}
@@ -303,6 +327,7 @@ const point_operation_typeOptions = ref([])
 const userOptions = ref([])
 const formData = ref({
             userId: undefined,
+            assetType: 'point',
             changeType: '',
             pointChange: undefined,
             operationType: '',
@@ -321,6 +346,12 @@ const rule = reactive({
                    trigger: ['input','blur'],
                },
               ],
+			   assetType : [{
+			       required: true,
+			       message: '请选择资产类型',
+			       trigger: ['change','blur'],
+			   },
+			  ],
                changeType : [{
                    required: true,
                    message: '请选择增减类型',
@@ -468,6 +499,15 @@ const initUserOptions = async () => {
 // 用户信息缓存
 const userCache = ref(new Map())
 
+const assetTypeLabel = (assetType) => {
+  if (assetType === 'tryon_point') return '试衣币'
+  return '积分'
+}
+
+const assetTypeTagType = (assetType) => {
+  return assetType === 'tryon_point' ? 'warning' : 'success'
+}
+
 // 获取用户显示名称
 const getUserDisplayName = (userId) => {
   if (!userId) return ''
@@ -601,6 +641,8 @@ const closeDialog = () => {
     dialogFormVisible.value = false
     formData.value = {
         userId: undefined,
+    assetType: 'point',
+    changeType: '',
         pointChange: undefined,
         operationType: '',
         reason: '',

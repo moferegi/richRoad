@@ -38,7 +38,6 @@ export const useLangStore = defineStore('lang', () => {
           } else {
             locale.value = 'mn'
           }
-          updateTabBar(locale.value)
         }
       }
     } catch (e) {
@@ -48,6 +47,8 @@ export const useLangStore = defineStore('lang', () => {
     if (!locale.value) {
       locale.value = 'mn'
     }
+    // 无论语言来源于本地还是后端，初始化后都同步一次 tabBar 文案
+    updateTabBar(locale.value)
     loaded.value = true
   }
 
@@ -59,9 +60,9 @@ export const useLangStore = defineStore('lang', () => {
 
   const updateTabBar = (lang) => {
     const tabs = [
-      { index: 0, key: 'tabHome' },
-      { index: 1, key: 'tabCart' },
-      { index: 2, key: 'tabCollect' },
+      { index: 0, key: 'tryonRoom' },
+      { index: 1, key: 'shoeRoom' },
+      { index: 2, key: 'clothesPage' },
       { index: 3, key: 'tabMy' },
     ]
     tabs.forEach(item => {

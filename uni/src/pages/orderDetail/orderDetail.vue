@@ -507,7 +507,7 @@ const payNow = async () => {
       province: addr.provinceStr || addr.province,
       city: addr.cityStr || addr.city,
       area: addr.areaStr || addr.area,
-      Street: addr.street,
+      street: addr.street,
       active: addr.active,
     })
     pendingAddress.value = null
@@ -529,7 +529,10 @@ const payNow = async () => {
       // 同步支付方式到后端
       await updateOrder({ ID: Number(orderID.value), payMethod })
       if (payMethod === 'qrcode') {
-        uni.navigateTo({ url: `/pages/pay/index?amount=${((data.value.totalPrice || 0) / 100).toFixed(2)}&orderNo=${data.value.ID}&orderId=${orderID.value}` })
+        const encodedPayMethod = encodeURIComponent(payMethod)
+        const encodedPayMethodLabel = encodeURIComponent(payMethodLabel)
+        const encodedCloseTime = data.value.closeTime ? `&closeTime=${encodeURIComponent(data.value.closeTime)}` : ''
+        uni.navigateTo({ url: `/pages/pay/index?amount=${((data.value.totalPrice || 0) / 100).toFixed(2)}&orderNo=${data.value.ID}&orderId=${orderID.value}&payMethod=${encodedPayMethod}&payMethodLabel=${encodedPayMethodLabel}${encodedCloseTime}` })
       } else {
         trackKefuGuideEvent('guide_entry', {
           orderNo: data.value.ID,

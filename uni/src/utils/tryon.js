@@ -62,12 +62,51 @@ export const appendTryonLocalHistory = (item) => {
 // Keep uni upload behavior aligned with backend default OSS strategy.
 export const getTryonUploadUrl = () => `${baseUrl}/fileUploadAndDownload/upload`
 
-export const uploadTryonImage = (tempFilePath) => {
+const normalizeUploadFolder = (folder) => {
+  const raw = String(folder || '').trim().replace(/\\/g, '/')
+  if (!raw) return ''
+
+  const parts = raw
+    .split('/')
+    .map(v => String(v || '').trim())
+    .filter(v => v && v !== '.' && v !== '..')
+
+  return parts.join('/')
+}
+
+export const getTryonUploadFolder = ({ sceneType = 'clothes', operationType = 'tryon', role = 'source' } = {}) => {
+  const operation = String(operationType || 'tryon').trim().toLowerCase()
+  let scene = String(sceneType || 'clothes').trim().toLowerCase()
+  let pathRole = String(role || 'source').trim().toLowerCase()
+
+  if (operation === 'takeoff') {
+    scene = 'takeoff'
+  }
+
+  if (!['clothes', 'shoes', 'takeoff'].includes(scene)) {
+    scene = 'clothes'
+  }
+
+  if (!pathRole) {
+    pathRole = 'source'
+  }
+
+  return normalizeUploadFolder(`tryon/${scene}/${pathRole}`)
+}
+
+export const uploadTryonImage = (tempFilePath, folder = '') => {
   return new Promise((resolve, reject) => {
+    const formData = {}
+    const uploadFolder = normalizeUploadFolder(folder)
+    if (uploadFolder) {
+      formData.folder = uploadFolder
+    }
+
     uni.uploadFile({
       url: getTryonUploadUrl(),
       filePath: tempFilePath,
       name: 'file',
+      formData,
       header: {
         'x-token': uni.getStorageSync('x-token') || '',
       },

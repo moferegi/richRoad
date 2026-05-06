@@ -38,6 +38,38 @@ const (
 
 type TryonTaskService struct{}
 
+// DeleteTryonTask 删除单个试衣任务（管理端）
+func (s *TryonTaskService) DeleteTryonTask(id uint) error {
+	if id == 0 {
+		return errors.New("ID参数错误")
+	}
+
+	result := global.GVA_DB.Delete(&client.TryonTask{}, id)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("试衣任务不存在")
+	}
+	return nil
+}
+
+// DeleteTryonTaskByIds 批量删除试衣任务（管理端）
+func (s *TryonTaskService) DeleteTryonTaskByIds(ids []uint) error {
+	if len(ids) == 0 {
+		return errors.New("IDs参数错误")
+	}
+
+	result := global.GVA_DB.Where("id IN ?", ids).Delete(&client.TryonTask{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("试衣任务不存在")
+	}
+	return nil
+}
+
 type TryonTaskTrendItem struct {
 	Date       string `json:"date"`
 	Total      int64  `json:"total"`
@@ -214,7 +246,7 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 	if findErr == nil {
 		return existingTask, true, nil
 	}
-	if findErr != nil && !errors.Is(findErr, gorm.ErrRecordNotFound) {
+	if !errors.Is(findErr, gorm.ErrRecordNotFound) {
 		return task, false, findErr
 	}
 
@@ -264,7 +296,7 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 		}
 
 		pointRecordService := PointRecordService{}
-		record := buildPointRecord(userID, "decrease", costPoints, tryonOpConsume, "试衣任务扣费", "tryon_task:"+task.TaskNo)
+		record := buildPointRecord(userID, client.AssetTypeTryonPoint, "decrease", costPoints, tryonOpConsume, "试衣任务扣费", "tryon_task:"+task.TaskNo)
 		if pointErr := pointRecordService.CreatePointRecord(txCtx, record); pointErr != nil {
 			return pointErr
 		}
@@ -575,7 +607,7 @@ func (s *TryonTaskService) markFailedAndRefund(ctx context.Context, task *client
 
 		pointRecordService := PointRecordService{}
 		txCtx := context.WithValue(ctx, "tx", tx)
-		record := buildPointRecord(task.UserID, "increase", task.CostPoints, tryonOpRefund, "试衣任务失败退币", "tryon_task:"+task.TaskNo)
+		record := buildPointRecord(task.UserID, client.AssetTypeTryonPoint, "increase", task.CostPoints, tryonOpRefund, "试衣任务失败退币", "tryon_task:"+task.TaskNo)
 		if err := pointRecordService.CreatePointRecord(txCtx, record); err != nil {
 			return err
 		}
@@ -1380,15 +1412,20 @@ func generateTryonRequestID() string {
 	return "REQ_" + hex.EncodeToString(b)
 }
 
-func buildPointRecord(userID uint, changeType string, points int, operationType string, reason string, remark string) *client.PointRecord {
+func buildPointRecord(userID uint, assetType string, changeType string, points int, operationType string, reason string, remark string) *client.PointRecord {
 	uid := int(userID)
+	at := assetType
 	ct := changeType
 	p := points
 	op := operationType
 	rs := reason
 	rm := remark
+	if strings.TrimSpace(at) == "" {
+		at = client.AssetTypePoint
+	}
 
 	return &client.PointRecord{
+		AssetType:     &at,
 		UserId:        &uid,
 		ChangeType:    &ct,
 		PointChange:   &p,
@@ -1415,7 +1452,9 @@ func (s *TryonTaskService) ensureGuestInitPoints(ctx context.Context, userID uin
 func (s *TryonTaskService) grantPointsIfNotExists(ctx context.Context, tx *gorm.DB, userID uint, operationType string, points int, reason string, remark string) error {
 	uid := int(userID)
 	var count int64
-	if err := tx.Model(&client.PointRecord{}).Where("user_id = ? AND operation_type = ?", uid, operationType).Count(&count).Error; err != nil {
+	if err := tx.Model(&client.PointRecord{}).
+		Where("user_id = ? AND operation_type = ? AND (asset_type = ? OR asset_type IS NULL)", uid, operationType, client.AssetTypeTryonPoint).
+		Count(&count).Error; err != nil {
 		return err
 	}
 	if count > 0 {
@@ -1423,7 +1462,7 @@ func (s *TryonTaskService) grantPointsIfNotExists(ctx context.Context, tx *gorm.
 	}
 
 	pointRecordService := PointRecordService{}
-	record := buildPointRecord(userID, "increase", points, operationType, reason, remark)
+	record := buildPointRecord(userID, client.AssetTypeTryonPoint, "increase", points, operationType, reason, remark)
 	return pointRecordService.CreatePointRecord(ctx, record)
 }
 

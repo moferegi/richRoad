@@ -27,6 +27,7 @@ func initVisitorApis(db *gorm.DB) {
 		{ApiGroup: "访客统计", Method: "GET", Path: "/visitor/getVisitorLogList", Description: "获取访客日志列表"},
 		{ApiGroup: "访客统计", Method: "GET", Path: "/visitor/getVisitorSummaryList", Description: "获取访客汇总列表"},
 		{ApiGroup: "访客统计", Method: "GET", Path: "/visitor/getTodayStats", Description: "获取今日实时统计"},
+		{ApiGroup: "访客统计", Method: "GET", Path: "/visitor/getKefuGuideStats", Description: "获取客服引导漏斗统计"},
 		{ApiGroup: "访客统计", Method: "POST", Path: "/visitor/aggregateDailySummary", Description: "手动触发日汇总聚合"},
 	}
 	for _, api := range apis {
@@ -95,6 +96,7 @@ func initVisitorCasbin(db *gorm.DB) {
 		{"/visitor/getVisitorLogList", "GET"},
 		{"/visitor/getVisitorSummaryList", "GET"},
 		{"/visitor/getTodayStats", "GET"},
+		{"/visitor/getKefuGuideStats", "GET"},
 		{"/visitor/aggregateDailySummary", "POST"},
 	}
 

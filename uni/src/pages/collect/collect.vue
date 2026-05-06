@@ -1,82 +1,76 @@
 <template>
-  <view class="nf-collect">
-    <view class="nf-collect-bg"></view>
+  <view class="collect-page">
+    <view class="collect-bg"></view>
 
-    <!-- 自定义导航栏 -->
-    <view class="nf-navbar">
-      <view class="nf-navbar-status"></view>
-      <view class="nf-navbar-content">
-        <view style="width: 64rpx;"></view>
-        <text class="nf-navbar-title">{{ $t('myCollection') }}</text>
-        <view style="width: 64rpx;"></view>
+    <view class="collect-navbar">
+      <view class="collect-navbar-status"></view>
+      <view class="collect-navbar-content">
+        <view class="nav-back" @tap="goBack">
+          <uni-icons type="left" size="20" color="#1e293b" />
+        </view>
+        <text class="collect-navbar-title">{{ $t('myCollection') }}</text>
+        <view class="nav-space"></view>
       </view>
     </view>
 
-    <!-- 商品列表 -->
     <scroll-view
       scroll-y
       :show-scrollbar="false"
-      class="nf-collect-scroll"
+      class="collect-scroll"
       @scrolltolower="debouncedLower"
     >
-      <view v-if="collectList.length" class="nf-goods-list">
+      <view class="collect-summary" v-if="collectList.length">
+        <text class="collect-summary-title">{{ $t('myCollectionMenu') }}</text>
+        <text class="collect-summary-count">{{ collectList.length }}</text>
+      </view>
+
+      <view class="collect-grid" v-if="collectList.length">
         <view
-          class="nf-goods-card"
+          class="collect-card"
           v-for="(item, index) in collectList"
           :key="index"
           @tap="goTo(item)"
         >
-          <view class="nf-goods-img-wrap">
-            <image class="nf-goods-img" :src="getUrl(item.imageUrl)" mode="aspectFill" />
-            <view class="nf-goods-img-overlay"></view>
-            <view class="nf-goods-badge" v-if="item.discount && item.discount < 10">
-              <text class="nf-goods-badge-text">{{ getDiscountText(item.discount) }}</text>
+          <view class="card-image-wrap">
+            <image class="card-image" :src="getUrl(item.imageUrl)" mode="aspectFill" />
+            <view class="card-discount" v-if="item.discount && item.discount < 10">
+              <text>{{ getDiscountText(item.discount) }}</text>
+            </view>
+            <view class="card-heart" @tap.stop="cancelCollect(item.ID)">
+              <uni-icons type="heart-filled" size="16" color="#ffffff" />
             </view>
           </view>
-          <view class="nf-goods-info">
-            <text class="nf-goods-title">{{ $lt(item.title) }}</text>
-            <view class="nf-goods-tags">
-              <text class="nf-tag nf-tag-red">{{ $t('selfOperated') }}</text>
-              <text class="nf-tag nf-tag-blue">{{ $t('qualityAssured') }}</text>
-              <text class="nf-tag nf-tag-green">{{ $t('freeShipping') }}</text>
-            </view>
-            <view class="nf-goods-bottom">
-              <view class="nf-price-row">
-                <text class="nf-price">{{ cs }}{{ formatPrice(item.price) }}</text>
-              </view>
-              <view class="nf-goods-meta">
-                <text class="nf-rating-stars">★</text>
-                <text class="nf-rating-score">{{ item.rating || '5.0' }}</text>
-                <text class="nf-sold">{{ $t('sold') }} {{ item.saleNum || 0 }}</text>
-              </view>
+          <view class="card-info">
+            <text class="card-title">{{ $lt(item.title) }}</text>
+            <text class="card-price">{{ cs }}{{ formatPrice(item.price) }}</text>
+            <view class="card-meta">
+              <text class="card-sold">{{ $t('sold') }} {{ item.saleNum || 0 }}</text>
+              <uni-icons type="right" size="14" color="rgba(30,41,59,0.36)" />
             </view>
           </view>
         </view>
       </view>
 
-      <!-- 底部加载状态 -->
-      <view class="nf-collect-footer" v-if="collectList.length > 0">
-        <text class="nf-collect-footer-text">{{ isBottom ? $t('reachedBottom') : $t('loading') }}</text>
+      <view class="collect-footer" v-if="collectList.length > 0">
+        <text class="collect-footer-text">{{ isBottom ? $t('reachedBottom') : $t('loading') }}</text>
       </view>
 
-      <!-- 空状态 -->
-      <view class="nf-collect-empty" v-if="!collectList.length">
-        <view class="nf-collect-empty-icon">
-          <uni-icons type="heart" size="48" color="rgba(229,9,20,0.4)" />
+      <view class="collect-empty" v-if="!collectList.length">
+        <view class="collect-empty-icon">
+          <uni-icons type="heart" size="50" color="rgba(37,99,235,0.45)" />
         </view>
-        <text class="nf-collect-empty-text">{{ $t('noCollectData') }}</text>
+        <text class="collect-empty-text">{{ $t('noCollectData') }}</text>
       </view>
     </scroll-view>
 
-    <!-- Netflix风格登录弹窗 -->
-    <view v-if="showLoginModal" class="nf-modal-mask" @tap.stop>
-      <view class="nf-modal-box">
-        <text class="nf-modal-title">{{ $t('loginFirst') }}</text>
-        <view class="nf-modal-btns">
-          <view class="nf-modal-btn nf-modal-cancel" @tap="onModalCancel">
+    <view v-if="showLoginModal" class="login-mask" @tap.stop>
+      <view class="login-modal">
+        <text class="login-title">{{ $t('loginFirst') }}</text>
+        <view class="login-actions">
+          <view class="login-btn login-btn-cancel" @tap="onModalCancel">
             <text>{{ $t('cancel') }}</text>
           </view>
-          <view class="nf-modal-btn nf-modal-confirm" @tap="onModalConfirm">
+          <view class="login-btn login-btn-confirm" @tap="onModalConfirm">
             <text>{{ $t('goLogin') }}</text>
           </view>
         </view>
@@ -96,21 +90,25 @@ import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
 const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
-const cs = computed(() => appConfigStore.currencySymbol)
+const cs = computed(() => appConfigStore.currencySymbol || '¥')
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
 
 const userStore = useUserStore()
-const token = userStore.token || ''
 const collectList = ref([])
-const collectionFlag = ref('')
+const collectionFlag = ref(false)
 const showLoginModal = ref(false)
+
+const getToken = () => {
+  return userStore.token || uni.getStorageSync('x-token') || ''
+}
 
 const formatPrice = (priceInCents) => {
   if (!priceInCents && priceInCents !== 0) return '0.00'
-  const cents = parseInt(priceInCents)
-  if (isNaN(cents)) return '0.00'
-  return (cents / 100).toFixed(2)
+  const amount = Number(priceInCents)
+  if (Number.isNaN(amount)) return '0.00'
+  if (amount >= 1000) return (amount / 100).toFixed(2)
+  return amount.toFixed(2)
 }
 
 const init = async () => {
@@ -118,14 +116,14 @@ const init = async () => {
   isBottom.value = false
   const res = await getCollectList(params)
   if (res.code === 0) {
-    const list = res.data.list || []
+    const list = Array.isArray(res?.data?.list) ? res.data.list : []
     collectList.value = list
     isBottom.value = list.length < params.pageSize
   }
 }
 
 onShow(() => {
-  const tk = uni.getStorageSync('x-token')
+  const tk = getToken()
   if (!tk) {
     showLoginModal.value = true
     return
@@ -134,14 +132,18 @@ onShow(() => {
   init()
 })
 
-const onModalCancel = () => {
-  showLoginModal.value = false
+const goBack = () => {
   const pages = getCurrentPages()
   if (pages.length > 1) {
-    uni.navigateBack()
-  } else {
-    uni.reLaunch({ url: '/pages/tabBar/index' })
+    uni.navigateBack({ delta: 1 })
+    return
   }
+  uni.switchTab({ url: '/pages/tabBar/my/index' })
+}
+
+const onModalCancel = () => {
+  showLoginModal.value = false
+  goBack()
 }
 
 const onModalConfirm = () => {
@@ -159,40 +161,59 @@ const debounce = (func, delay) => {
 
 let params = { page: 1, pageSize: 10 }
 const isBottom = ref(false)
+
 const lower = async () => {
   if (isBottom.value) return
   params.page += 1
   const res = await getCollectList(params)
-  if (res.code === 0 && res.data.list && res.data.list.length) {
-    collectList.value.push(...res.data.list)
-  } else {
+  if (res.code !== 0) {
+    isBottom.value = true
+    return
+  }
+
+  const list = Array.isArray(res?.data?.list) ? res.data.list : []
+  if (!list.length) {
+    isBottom.value = true
+    return
+  }
+
+  collectList.value.push(...list)
+  if (list.length < params.pageSize) {
     isBottom.value = true
   }
 }
+
 const debouncedLower = debounce(lower, 300)
 
 const cancelCollect = async (ID) => {
-  if (token) {
-    const status = await findCollect({ goodID: ID })
-    if (status.code === 0) collectionFlag.value = status.data
-    const res = await createCollect({ goodID: Number(ID) })
-    if (res.code === 0) {
-      collectionFlag.value = !collectionFlag.value
-      init()
-      uni.showToast({
-        title: collectionFlag.value ? $t.value('collected') : $t.value('uncollected'),
-        mask: true,
-        icon: 'none'
-      })
-    }
-  } else {
+  const token = getToken()
+  if (!token) {
     uni.showToast({ title: $t.value('loginFirst'), mask: true, icon: 'none' })
     uni.redirectTo({ url: '/pages/user/login' })
+    return
+  }
+
+  const status = await findCollect({ goodID: ID })
+  if (status.code === 0) {
+    collectionFlag.value = !!status.data
+  }
+
+  const res = await createCollect({ goodID: Number(ID) })
+  if (res.code === 0) {
+    collectionFlag.value = !collectionFlag.value
+    await init()
+    uni.showToast({
+      title: collectionFlag.value ? $t.value('collectSuccess') : $t.value('uncollectSuccess'),
+      mask: true,
+      icon: 'none'
+    })
   }
 }
 
 const goTo = (item) => {
-  uni.navigateTo({ url: `/pages/player/index?id=${item.ID}` })
+  const goodID = Number(item?.ID || 0)
+  if (!goodID) return
+  uni.navigateTo({ url: `/pages/goodsDetails/goodsDetails?id=${goodID}` })
 }
 
 const getDiscountText = (discount) => {
@@ -208,302 +229,279 @@ const getDiscountText = (discount) => {
 </script>
 
 <style lang="scss" scoped>
-page { background: #000; }
+page {
+  background: #f4f7fb;
+}
 
-/* Netflix风格登录弹窗 */
-.nf-modal-mask {
-  position: fixed;
-  left: 0; top: 0; right: 0; bottom: 0;
-  z-index: 9999;
-  background: rgba(0,0,0,0.75);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.nf-modal-box {
-  width: 560rpx;
-  background: #1a1a1a;
-  border-radius: 24rpx;
-  padding: 60rpx 48rpx 48rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  box-shadow: 0 8rpx 40rpx rgba(229,9,20,0.18);
-}
-.nf-modal-title {
-  color: #fff;
-  font-size: 34rpx;
-  font-weight: 600;
-  text-align: center;
-  margin-bottom: 56rpx;
-  letter-spacing: 1rpx;
-}
-.nf-modal-btns {
-  display: flex;
-  width: 100%;
-  gap: 24rpx;
-}
-.nf-modal-btn {
-  flex: 1;
-  height: 80rpx;
-  border-radius: 12rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 30rpx;
-  font-weight: 500;
-  letter-spacing: 1rpx;
-}
-.nf-modal-cancel {
-  background: #333;
-  color: #ccc;
-}
-.nf-modal-cancel:active { background: #444; }
-.nf-modal-confirm {
-  background: #e50914;
-  color: #fff;
-}
-.nf-modal-confirm:active { background: #b20710; }
-
-.nf-collect {
+.collect-page {
   min-height: 100vh;
-  background: #000;
-  display: flex;
-  flex-direction: column;
+  background: #f4f7fb;
 }
 
-.nf-collect-bg {
+.collect-bg {
   position: fixed;
-  top: 0; left: 0; right: 0;
-  height: 400rpx;
-  z-index: 0;
+  inset: 0 0 auto 0;
+  height: 360rpx;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 50% 0%, rgba(229, 9, 20, 0.12) 0%, transparent 60%);
+    radial-gradient(120% 90% at 100% -10%, rgba(14, 165, 233, 0.18) 0%, transparent 60%),
+    radial-gradient(120% 90% at 0% 0%, rgba(37, 99, 235, 0.18) 0%, transparent 55%);
 }
 
-/* ===== 导航栏 ===== */
-.nf-navbar {
+.collect-navbar {
   position: fixed;
-  top: 0; left: 0; right: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 100;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+  background: rgba(244, 247, 251, 0.9);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1rpx solid rgba(148, 163, 184, 0.2);
 }
 
-.nf-navbar-status {
+.collect-navbar-status {
   height: var(--status-bar-height, 44px);
 }
 
-.nf-navbar-content {
+.collect-navbar-content {
   height: 88rpx;
+  padding: 0 24rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24rpx;
 }
 
-.nf-navbar-title {
+.nav-back,
+.nav-space {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-back {
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 8rpx 20rpx rgba(15, 23, 42, 0.08);
+}
+
+.collect-navbar-title {
   font-size: 34rpx;
   font-weight: 700;
-  color: #fff;
-  letter-spacing: 2rpx;
+  color: #0f172a;
+  letter-spacing: 1rpx;
 }
 
-/* ===== 滚动区域 ===== */
-.nf-collect-scroll {
-  flex: 1;
-  margin-top: calc(var(--status-bar-height, 44px) + 88rpx);
+.collect-scroll {
   min-height: calc(100vh - var(--status-bar-height, 44px) - 88rpx);
+  margin-top: calc(var(--status-bar-height, 44px) + 88rpx);
 }
 
-/* ===== 商品列表 ===== */
-.nf-goods-list {
-  padding: 20rpx 24rpx;
-}
-
-.nf-goods-card {
-  display: flex;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1rpx solid rgba(255, 255, 255, 0.06);
+.collect-summary {
+  margin: 24rpx 24rpx 10rpx;
+  padding: 24rpx 28rpx;
   border-radius: 20rpx;
-  margin-bottom: 20rpx;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  color: #ffffff;
+  box-shadow: 0 16rpx 28rpx rgba(37, 99, 235, 0.24);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.collect-summary-title {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.collect-summary-count {
+  min-width: 54rpx;
+  height: 54rpx;
+  border-radius: 27rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.collect-grid {
+  padding: 16rpx 24rpx 10rpx;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.collect-card {
+  width: 338rpx;
+  margin-bottom: 18rpx;
   overflow: hidden;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transition: transform 0.3s;
-
-  &:active { transform: scale(0.98); }
+  border-radius: 18rpx;
+  background: #ffffff;
+  box-shadow: 0 12rpx 24rpx rgba(15, 23, 42, 0.08);
 }
 
-.nf-goods-img-wrap {
+.card-image-wrap {
   position: relative;
-  width: 220rpx;
-  height: 220rpx;
-  flex-shrink: 0;
+  width: 100%;
+  height: 338rpx;
 }
 
-.nf-goods-img {
+.card-image {
   width: 100%;
   height: 100%;
 }
 
-.nf-goods-img-overlay {
+.card-discount {
   position: absolute;
-  top: 0; right: 0; bottom: 0;
-  width: 40%;
-  background: linear-gradient(to left, rgba(0,0,0,0.3), transparent);
-  pointer-events: none;
-}
-
-.nf-goods-badge {
-  position: absolute;
-  top: 12rpx;
   left: 12rpx;
-  background: linear-gradient(135deg, #e50914, #b20710);
-  padding: 4rpx 14rpx;
-  border-radius: 10rpx;
-  box-shadow: 0 4rpx 12rpx rgba(229, 9, 20, 0.4);
-}
-
-.nf-goods-badge-text {
+  top: 12rpx;
+  border-radius: 8rpx;
+  padding: 4rpx 10rpx;
+  background: rgba(239, 68, 68, 0.92);
+  color: #ffffff;
   font-size: 20rpx;
-  color: #fff;
-  font-weight: 700;
-}
-
-.nf-goods-info {
-  flex: 1;
-  padding: 16rpx 20rpx;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-width: 0;
-}
-
-.nf-goods-title {
-  font-size: 28rpx;
-  color: #fff;
   font-weight: 600;
-  line-height: 1.4;
+}
+
+.card-heart {
+  position: absolute;
+  right: 12rpx;
+  top: 12rpx;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.card-info {
+  padding: 16rpx 14rpx 14rpx;
+}
+
+.card-title {
+  font-size: 25rpx;
+  line-height: 1.45;
+  color: #0f172a;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  min-height: 72rpx;
 }
 
-.nf-goods-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6rpx;
-  margin: 8rpx 0;
+.card-price {
+  margin-top: 10rpx;
+  display: block;
+  font-size: 32rpx;
+  color: #ef4444;
+  font-weight: 700;
 }
 
-.nf-tag {
-  font-size: 18rpx;
-  padding: 2rpx 10rpx;
-  border-radius: 6rpx;
-  border: 1rpx solid;
-  font-weight: 500;
-}
-
-.nf-tag-red {
-  color: #e50914;
-  border-color: rgba(229, 9, 20, 0.3);
-  background: rgba(229, 9, 20, 0.1);
-}
-
-.nf-tag-blue {
-  color: #4a9eff;
-  border-color: rgba(74, 158, 255, 0.3);
-  background: rgba(74, 158, 255, 0.1);
-}
-
-.nf-tag-green {
-  color: #4caf50;
-  border-color: rgba(76, 175, 80, 0.3);
-  background: rgba(76, 175, 80, 0.1);
-}
-
-.nf-goods-bottom {
+.card-meta {
+  margin-top: 8rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.nf-price-row {
-  display: flex;
-  align-items: baseline;
+.card-sold {
+  font-size: 22rpx;
+  color: rgba(15, 23, 42, 0.55);
 }
 
-.nf-price {
-  font-size: 34rpx;
-  color: #e50914;
-  font-weight: 800;
-}
-
-.nf-goods-meta {
-  display: flex;
-  align-items: center;
-  gap: 4rpx;
-}
-
-.nf-rating-stars {
-  font-size: 20rpx;
-  color: #ffd700;
-}
-
-.nf-rating-score {
-  font-size: 20rpx;
-  color: rgba(255, 255, 255, 0.6);
-  font-weight: 600;
-  margin-right: 8rpx;
-}
-
-.nf-sold {
-  font-size: 20rpx;
-  color: rgba(255, 255, 255, 0.35);
-}
-
-/* ===== 底部状态 ===== */
-.nf-collect-footer {
-  padding: 40rpx;
+.collect-footer {
+  padding: 20rpx 0 32rpx;
   text-align: center;
 }
 
-.nf-collect-footer-text {
+.collect-footer-text {
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.25);
-  letter-spacing: 2rpx;
+  color: rgba(15, 23, 42, 0.42);
 }
 
-/* ===== 空状态 ===== */
-.nf-collect-empty {
+.collect-empty {
+  min-height: 68vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 200rpx 0;
 }
 
-.nf-collect-empty-icon {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 50%;
-  background: rgba(229, 9, 20, 0.08);
-  border: 1rpx solid rgba(229, 9, 20, 0.15);
+.collect-empty-icon {
+  width: 130rpx;
+  height: 130rpx;
+  border-radius: 65rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 24rpx;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1rpx solid rgba(37, 99, 235, 0.2);
 }
 
-.nf-collect-empty-text {
+.collect-empty-text {
+  margin-top: 18rpx;
   font-size: 28rpx;
-  color: rgba(255, 255, 255, 0.3);
-  letter-spacing: 2rpx;
+  color: rgba(15, 23, 42, 0.52);
+}
+
+.login-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-modal {
+  width: 560rpx;
+  padding: 48rpx 38rpx 34rpx;
+  border-radius: 20rpx;
+  background: #ffffff;
+  box-shadow: 0 20rpx 40rpx rgba(15, 23, 42, 0.2);
+}
+
+.login-title {
+  display: block;
+  text-align: center;
+  color: #0f172a;
+  font-size: 32rpx;
+  font-weight: 700;
+  margin-bottom: 42rpx;
+}
+
+.login-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.login-btn {
+  flex: 1;
+  height: 78rpx;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.login-btn-cancel {
+  color: #475569;
+  background: #f1f5f9;
+}
+
+.login-btn-confirm {
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
 }
 </style>

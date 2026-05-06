@@ -4,7 +4,7 @@
       <view class="nav-btn" @tap="goBack">
         <uni-icons type="left" size="20" color="#0f172a" />
       </view>
-      <text class="nav-title">{{ $t('browseHistory') }}</text>
+      <text class="nav-title">{{ $t('tryonHistory') }}</text>
       <view class="nav-btn" @tap="loadHistory">
         <uni-icons type="reload" size="18" color="#0f172a" />
       </view>
@@ -13,7 +13,6 @@
     <scroll-view class="filter-row" scroll-x :show-scrollbar="false">
       <view class="filter-chip" :class="{ active: currentFilter === 'all' }" @tap="currentFilter = 'all'">{{ $t('all') }}</view>
       <view class="filter-chip" :class="{ active: currentFilter === 'tryon' }" @tap="currentFilter = 'tryon'">{{ $t('tryonClothes') }}</view>
-      <view class="filter-chip" :class="{ active: currentFilter === 'takeoff' }" @tap="currentFilter = 'takeoff'">{{ $t('takeoffAction') }}</view>
       <view class="filter-chip" :class="{ active: currentFilter === 'shoe' }" @tap="currentFilter = 'shoe'">{{ $t('tryonShoes') }}</view>
     </scroll-view>
 
@@ -62,7 +61,6 @@ const normalizeServerType = (item) => {
 
 const recordType = (item) => {
   if (item.roomType === 'shoe' || item.sceneType === 'shoes') return 'shoe'
-  if (item.operationType === 'takeoff') return 'takeoff'
   return normalizeServerType(item)
 }
 
@@ -74,7 +72,6 @@ const filteredList = computed(() => {
 const typeLabel = (item) => {
   const type = recordType(item)
   if (type === 'shoe') return $t.value('tryonShoes')
-  if (type === 'takeoff') return $t.value('takeoffAction')
   return $t.value('tryonClothes')
 }
 

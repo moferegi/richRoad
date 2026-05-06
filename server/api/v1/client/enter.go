@@ -8,6 +8,7 @@ type ApiGroup struct {
 	CollectApi
 	PointRecordApi
 	TryonTaskApi
+	TryonModelApi
 	VisitorApi
 	SysConfigApi
 	LanguageApi

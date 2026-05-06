@@ -250,10 +250,10 @@ const selectAddr = async (item) => {
       userID: item.userID,
       name: item.name,
       phone: item.phone,
-      province: item.provinceStr,
-      city: item.cityStr,
-      area: item.areaStr,
-      Street: item.street,
+      province: item.provinceTrans || item.provinceStr || item.province,
+      city: item.cityTrans || item.cityStr || item.city,
+      area: item.areaTrans || item.areaStr || item.area,
+      street: item.street,
       active: item.active
     }
     const res = await updateOrder(req)

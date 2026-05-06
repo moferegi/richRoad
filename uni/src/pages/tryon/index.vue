@@ -218,7 +218,7 @@ const refreshUserPoints = async () => {
     // ignore
   }
   const info = uni.getStorageSync('userInfo') || {}
-  userPoints.value = Number(info.point || 0)
+  userPoints.value = Number((info.tryonPoint ?? info.point) || 0)
 }
 
 const goBack = () => {

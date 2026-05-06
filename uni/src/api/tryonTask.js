@@ -36,3 +36,38 @@ export const getMyTryonTaskList = (params) => {
     params,
   })
 }
+
+// 创建我的模特
+export const createTryonModel = (data) => {
+  return request({
+    url: '/tryonModel/createTryonModel',
+    method: 'post',
+    data,
+  })
+}
+
+// 重命名我的模特
+export const updateTryonModel = (data) => {
+  return request({
+    url: '/tryonModel/updateTryonModel',
+    method: 'put',
+    data,
+  })
+}
+
+// 删除我的模特
+export const deleteTryonModel = (params) => {
+  return request({
+    url: '/tryonModel/deleteTryonModel',
+    method: 'delete',
+    params,
+  })
+}
+
+// 获取我的模特列表
+export const getMyTryonModelList = () => {
+  return request({
+    url: '/tryonModel/getMyTryonModelList',
+    method: 'get',
+  })
+}

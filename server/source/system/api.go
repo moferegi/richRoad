@@ -363,6 +363,7 @@ func (i *initApi) InitializeData(ctx context.Context) (context.Context, error) {
 		{ApiGroup: "优惠券", Method: "POST", Path: "/cou/adminIssueCouponToAll", Description: "管理员向所有用户发放优惠券"},
 		{ApiGroup: "订单", Method: "POST", Path: "/order/changeOrderCoupon", Description: "更换优惠券"},
 		{ApiGroup: "订单", Method: "POST", Path: "/order/changeOrderPoints", Description: "调整是否使用积分"},
+		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getPaymentConfig", Description: "获取支付方式配置"},
 
 		{ApiGroup: "版本控制", Method: "GET", Path: "/sysVersion/findSysVersion", Description: "获取单一版本"},
 		{ApiGroup: "版本控制", Method: "GET", Path: "/sysVersion/getSysVersionList", Description: "获取版本列表"},
@@ -383,6 +384,7 @@ func (i *initApi) InitializeData(ctx context.Context) (context.Context, error) {
 		{ApiGroup: "访客统计", Method: "GET", Path: "/visitor/getVisitorLogList", Description: "获取访客日志列表"},
 		{ApiGroup: "访客统计", Method: "GET", Path: "/visitor/getVisitorSummaryList", Description: "获取访客汇总列表"},
 		{ApiGroup: "访客统计", Method: "GET", Path: "/visitor/getTodayStats", Description: "获取今日实时统计"},
+		{ApiGroup: "访客统计", Method: "GET", Path: "/visitor/getKefuGuideStats", Description: "获取客服引导漏斗统计"},
 		{ApiGroup: "访客统计", Method: "POST", Path: "/visitor/aggregateDailySummary", Description: "手动触发日汇总聚合"},
 	}
 	if err := db.Create(&entities).Error; err != nil {

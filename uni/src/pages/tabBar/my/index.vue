@@ -73,6 +73,14 @@
           <text class="menu-text">{{ $t('myModels') }}</text>
           <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
         </view>
+        <view class="menu-item" @tap="goUseRecord">
+          <text class="menu-text">{{ $t('browseHistory') }}</text>
+          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
+        </view>
+        <view class="menu-item" @tap="openLangSwitch">
+          <text class="menu-text">{{ $t('switchLang') }}</text>
+          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
+        </view>
         <view class="menu-item" @tap="logoutDevice" v-if="isLogin">
           <text class="menu-text danger">{{ $t('logoutDevice') }}</text>
           <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
@@ -87,7 +95,7 @@
           <view class="popup-item" v-for="item in rechargePlans" :key="item.points" @tap="selectRecharge(item)">
             <view>
               <text class="item-title">{{ item.points }} {{ $t('tryonCoins') }}</text>
-              <text class="item-sub">￥{{ item.price }}</text>
+              <text class="item-sub">{{ cs }}{{ item.price }}</text>
             </view>
             <uni-icons type="right" size="16" color="rgba(15,23,42,0.35)" />
           </view>
@@ -95,6 +103,8 @@
         <view class="popup-close" @tap="showRecharge = false">{{ $t('cancel') }}</view>
       </view>
     </view>
+
+    <lang-switch v-model="showLangPicker" />
   </view>
 </template>
 
@@ -103,19 +113,58 @@ import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '@/pinia/modules/user.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
+import { getTryonRechargePlans } from '@/api/sysConfig.js'
 
 const userStore = useUserStore()
 const langStore = useLangStore()
+const appConfigStore = useAppConfigStore()
 const $t = computed(() => langStore.$t)
+const cs = computed(() => appConfigStore.currencySymbol || '¥')
 
 const showRecharge = ref(false)
+const showLangPicker = ref(false)
 const userInfo = ref({})
 
-const rechargePlans = [
+const defaultRechargePlans = [
   { points: 50, price: '9.9' },
   { points: 180, price: '29.9' },
   { points: 680, price: '99.9' },
 ]
+const rechargePlans = ref([...defaultRechargePlans])
+
+const normalizeRechargePlans = (raw) => {
+  if (!Array.isArray(raw)) return [...defaultRechargePlans]
+  const list = raw.map((item) => {
+    const points = Number(item?.points || 0)
+    const price = String(item?.price ?? '').trim()
+    if (!points || !price) return null
+    return {
+      points,
+      price,
+    }
+  }).filter(Boolean)
+  return list.length > 0 ? list : [...defaultRechargePlans]
+}
+
+const loadRechargePlans = async () => {
+  try {
+    const res = await getTryonRechargePlans()
+    if (res.code !== 0) {
+      rechargePlans.value = [...defaultRechargePlans]
+      return
+    }
+    const payload = typeof res.data === 'object' ? res.data?.configValue : res.data
+    if (!payload) {
+      rechargePlans.value = [...defaultRechargePlans]
+      return
+    }
+    const parsed = JSON.parse(payload)
+    rechargePlans.value = normalizeRechargePlans(parsed)
+  } catch (e) {
+    rechargePlans.value = [...defaultRechargePlans]
+  }
+}
 
 const isLogin = computed(() => {
   return !!(userStore.token || uni.getStorageSync('x-token'))
@@ -129,7 +178,7 @@ const avatarUrl = computed(() => {
   return userInfo.value.avatar || 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0'
 })
 
-const userPoints = computed(() => Number(userInfo.value.point || 0))
+const userPoints = computed(() => Number((userInfo.value.tryonPoint ?? userInfo.value.point) || 0))
 
 const phoneText = computed(() => {
   const phone = userInfo.value.phone || ''
@@ -229,6 +278,15 @@ const goMyModel = () => {
   uni.navigateTo({ url: '/pages/myModel/index' })
 }
 
+const goUseRecord = () => {
+  uni.navigateTo({ url: '/pages/browseHistory/index' })
+}
+
+const openLangSwitch = async () => {
+  await langStore.initLangs()
+  showLangPicker.value = true
+}
+
 const logoutDevice = () => {
   uni.showModal({
     title: $t.value('pendingOrderTitle'),
@@ -243,6 +301,9 @@ const logoutDevice = () => {
 }
 
 onShow(() => {
+  langStore.initLangs()
+  appConfigStore.loadConfig()
+  loadRechargePlans()
   loadUserInfo()
 })
 </script>

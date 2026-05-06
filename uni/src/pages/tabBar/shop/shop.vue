@@ -5,7 +5,7 @@
     </view>
 
     <view class="shoe-body">
-      <view class="shoe-left" @tap="pickImage('person')">
+      <view class="shoe-left" @tap="openUploadDrawer('person')">
         <image v-if="personPreview" class="shoe-preview" :src="personPreview" mode="aspectFill" />
         <view v-else class="upload-empty">
           <uni-icons type="camera" size="26" color="rgba(15,23,42,0.45)" />
@@ -13,7 +13,7 @@
         </view>
       </view>
       <view class="shoe-right">
-        <view class="slot" @tap="pickImage('shoe')">
+        <view class="slot" @tap="openUploadDrawer('shoe')">
           <image v-if="shoePreview" class="slot-preview" :src="shoePreview" mode="aspectFill" />
           <text v-else class="slot-text">{{ $t('uploadShoeImage') }}</text>
         </view>
@@ -59,6 +59,38 @@
         </scroll-view>
       </view>
     </view>
+
+    <view class="upload-mask" v-if="showUploadDrawer" @tap="closeUploadDrawer">
+      <view class="upload-drawer" @tap.stop>
+        <view class="upload-drawer-head">
+          <text class="upload-drawer-title">{{ uploadDrawerTitle }}</text>
+          <text class="upload-drawer-tip">{{ uploadDrawerTip }}</text>
+        </view>
+
+        <view class="upload-drawer-actions">
+          <view class="upload-drawer-btn" @tap="chooseFromAlbum">相册上传</view>
+          <view class="upload-drawer-btn" @tap="chooseFromCamera">拍照上传</view>
+          <view class="upload-drawer-btn ghost" @tap="clearUploadTarget">清空当前</view>
+        </view>
+
+        <view class="upload-example-head">
+          <text class="upload-example-title">示例图（可一键套用）</text>
+          <text class="upload-example-note">试鞋建议使用鞋子平铺图，脚部与鞋图方向保持一致。</text>
+        </view>
+
+        <scroll-view class="upload-example-list" scroll-x>
+          <view
+            v-for="item in uploadExamples"
+            :key="item.url"
+            class="upload-example-item"
+            @tap="applyUploadExample(item)"
+          >
+            <image class="upload-example-image" :src="getExamplePreview(item.url)" mode="aspectFill" />
+            <text class="upload-example-label">{{ item.label }}</text>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -81,6 +113,8 @@ const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 
 const showModelPopup = ref(false)
+const showUploadDrawer = ref(false)
+const uploadTarget = ref('')
 const selectedModelKey = ref('')
 const modelList = ref([])
 const tryonConfig = ref({
@@ -102,24 +136,96 @@ const currentModel = computed(() => {
 })
 const currentCost = computed(() => Number(currentModel.value.cost || 1))
 
-const pickImage = (target) => {
+const uploadExamplesMap = {
+  person: [
+    { label: '模特示例A', url: '/uploads/file/f46124e7c57a2d3fbbe5ec45cc66201b_20260403092613.PNG' },
+    { label: '模特示例B', url: '/uploads/file/01fd5aeddc82f4f584fc9b4927e4ce2b_20260403092813.JPEG' },
+  ],
+  shoe: [
+    { label: '鞋图示例A', url: '/uploads/file/233e54e186d06ded7c4cf2b3c68b97b7_20260403094625.JPEG' },
+    { label: '鞋图示例B', url: '/uploads/file/6290204ab51e001c89b4063a0821afee_20260403094625.JPEG' },
+  ],
+}
+
+const uploadDrawerTitle = computed(() => {
+  return uploadTarget.value === 'shoe' ? '上传鞋图' : '上传模特图'
+})
+
+const uploadDrawerTip = computed(() => {
+  return uploadTarget.value === 'shoe'
+    ? '上传目录：tryon/shoes/template/shoe'
+    : '上传目录：tryon/shoes/source'
+})
+
+const uploadExamples = computed(() => uploadExamplesMap[uploadTarget.value] || uploadExamplesMap.person)
+
+const assignImageToTarget = (target, value, isRemote = false) => {
+  const localPath = isRemote ? '' : value
+  const remotePath = isRemote ? value : ''
+
+  if (target === 'person') {
+    personLocal.value = localPath
+    personRemote.value = remotePath
+  }
+  if (target === 'shoe') {
+    shoeLocal.value = localPath
+    shoeRemote.value = remotePath
+  }
+}
+
+const chooseLocalImage = (target, sourceType) => {
   uni.chooseImage({
     count: 1,
     sizeType: ['compressed'],
-    sourceType: ['album', 'camera'],
+    sourceType,
     success: (res) => {
       const path = res.tempFilePaths && res.tempFilePaths[0]
       if (!path) return
-      if (target === 'person') {
-        personLocal.value = path
-        personRemote.value = ''
-      }
-      if (target === 'shoe') {
-        shoeLocal.value = path
-        shoeRemote.value = ''
-      }
+      assignImageToTarget(target, path, false)
+      showUploadDrawer.value = false
     },
   })
+}
+
+const openUploadDrawer = (target) => {
+  uploadTarget.value = target
+  showUploadDrawer.value = true
+}
+
+const closeUploadDrawer = () => {
+  showUploadDrawer.value = false
+}
+
+const chooseFromAlbum = () => {
+  if (!uploadTarget.value) return
+  chooseLocalImage(uploadTarget.value, ['album'])
+}
+
+const chooseFromCamera = () => {
+  if (!uploadTarget.value) return
+  chooseLocalImage(uploadTarget.value, ['camera'])
+}
+
+const clearUploadTarget = () => {
+  if (!uploadTarget.value) return
+  assignImageToTarget(uploadTarget.value, '', false)
+  showUploadDrawer.value = false
+}
+
+const applyUploadExample = (item) => {
+  if (!uploadTarget.value || !item?.url) return
+  assignImageToTarget(uploadTarget.value, item.url, true)
+  showUploadDrawer.value = false
+  uni.showToast({ title: '已套用示例图', icon: 'none' })
+}
+
+const getExamplePreview = (url) => {
+  const value = String(url || '').trim()
+  if (!value) return ''
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value
+  }
+  return getUrl(value)
 }
 
 const selectModel = (key) => {
@@ -193,8 +299,10 @@ const goGenerate = () => {
     operationType: 'tryon',
     sourceLocalPath: personLocal.value,
     sourceRemoteUrl: personRemote.value,
+    sourceUploadFolder: 'tryon/shoes/source',
     templateLocalPath: shoeLocal.value,
     templateRemoteUrl: shoeRemote.value,
+    templateUploadFolder: 'tryon/shoes/template/shoe',
     modelKey: currentModel.value.key,
     modelName: currentModel.value.name,
     modelCost: currentCost.value,
@@ -417,5 +525,104 @@ page {
 .popup-item-cost {
   color: rgba(15, 23, 42, 0.55);
   font-size: 22rpx;
+}
+
+.upload-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.34);
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  z-index: 1000;
+}
+
+.upload-drawer {
+  width: 100%;
+  background: #ffffff;
+  border-top-left-radius: 28rpx;
+  border-top-right-radius: 28rpx;
+  padding: 24rpx;
+}
+
+.upload-drawer-head {
+  margin-bottom: 16rpx;
+}
+
+.upload-drawer-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.upload-drawer-tip {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: rgba(15, 23, 42, 0.56);
+}
+
+.upload-drawer-actions {
+  display: flex;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+}
+
+.upload-drawer-btn {
+  flex: 1;
+  text-align: center;
+  border-radius: 999rpx;
+  padding: 14rpx 10rpx;
+  font-size: 24rpx;
+  color: #fff;
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
+}
+
+.upload-drawer-btn.ghost {
+  color: rgba(15, 23, 42, 0.76);
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.upload-example-head {
+  margin-bottom: 12rpx;
+}
+
+.upload-example-title {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.upload-example-note {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: rgba(15, 23, 42, 0.52);
+}
+
+.upload-example-list {
+  white-space: nowrap;
+}
+
+.upload-example-item {
+  width: 200rpx;
+  display: inline-flex;
+  flex-direction: column;
+  margin-right: 12rpx;
+}
+
+.upload-example-image {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 14rpx;
+  border: 1rpx solid rgba(15, 23, 42, 0.1);
+}
+
+.upload-example-label {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: rgba(15, 23, 42, 0.74);
 }
 </style>

@@ -68,11 +68,20 @@ func initNewModulesApis(db *gorm.DB) {
 		{ApiGroup: "签到管理", Method: "DELETE", Path: "/signIn/deleteSignIn", Description: "管理端删除签到记录"},
 		// 试衣任务
 		{ApiGroup: "试衣任务", Method: "POST", Path: "/tryonTask/createTryonTask", Description: "创建试衣任务"},
+		{ApiGroup: "试衣任务", Method: "DELETE", Path: "/tryonTask/deleteTryonTask", Description: "删除试衣任务(管理端)"},
+		{ApiGroup: "试衣任务", Method: "DELETE", Path: "/tryonTask/deleteTryonTaskByIds", Description: "批量删除试衣任务(管理端)"},
 		{ApiGroup: "试衣任务", Method: "GET", Path: "/tryonTask/findTryonTask", Description: "根据ID查询试衣任务"},
 		{ApiGroup: "试衣任务", Method: "GET", Path: "/tryonTask/getMyTryonTaskList", Description: "获取我的试衣任务列表"},
 		{ApiGroup: "试衣任务", Method: "GET", Path: "/tryonTask/getTryonTaskList", Description: "获取试衣任务列表(管理端)"},
 		{ApiGroup: "试衣任务", Method: "GET", Path: "/tryonTask/getTryonTaskStats", Description: "获取试衣任务统计(管理端)"},
 		{ApiGroup: "试衣任务", Method: "GET", Path: "/tryonTask/getTryonTaskTrend", Description: "获取试衣任务趋势(管理端)"},
+		// 我的模特
+		{ApiGroup: "我的模特", Method: "POST", Path: "/tryonModel/createTryonModel", Description: "创建我的模特"},
+		{ApiGroup: "我的模特", Method: "PUT", Path: "/tryonModel/updateTryonModel", Description: "重命名我的模特"},
+		{ApiGroup: "我的模特", Method: "DELETE", Path: "/tryonModel/deleteTryonModel", Description: "删除我的模特"},
+		{ApiGroup: "我的模特", Method: "DELETE", Path: "/tryonModel/deleteTryonModelByIds", Description: "批量删除我的模特"},
+		{ApiGroup: "我的模特", Method: "GET", Path: "/tryonModel/getMyTryonModelList", Description: "获取我的模特列表"},
+		{ApiGroup: "我的模特", Method: "GET", Path: "/tryonModel/getTryonModelList", Description: "获取模特列表(管理端)"},
 		// 外部链接域名
 		{ApiGroup: "外部链接域名", Method: "POST", Path: "/extDomain/createExternalLinkDomain", Description: "创建外部链接域名"},
 		{ApiGroup: "外部链接域名", Method: "DELETE", Path: "/extDomain/deleteExternalLinkDomain", Description: "删除外部链接域名"},
@@ -82,7 +91,10 @@ func initNewModulesApis(db *gorm.DB) {
 		// 系统配置扩展
 		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getSysConfigByGroup", Description: "按分组获取配置"},
 		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getSysConfigByKey", Description: "按Key获取配置"},
+		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getPaymentConfig", Description: "获取支付方式配置"},
 		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getTryonConfig", Description: "获取试衣配置"},
+		// 访客统计扩展
+		{ApiGroup: "访客统计", Method: "GET", Path: "/visitor/getKefuGuideStats", Description: "获取客服引导漏斗统计"},
 	}
 	for _, api := range apis {
 		var count int64
@@ -224,11 +236,20 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/signIn/deleteSignIn", "DELETE"},
 		// 试衣任务
 		{"/tryonTask/createTryonTask", "POST"},
+		{"/tryonTask/deleteTryonTask", "DELETE"},
+		{"/tryonTask/deleteTryonTaskByIds", "DELETE"},
 		{"/tryonTask/findTryonTask", "GET"},
 		{"/tryonTask/getMyTryonTaskList", "GET"},
 		{"/tryonTask/getTryonTaskList", "GET"},
 		{"/tryonTask/getTryonTaskStats", "GET"},
 		{"/tryonTask/getTryonTaskTrend", "GET"},
+		// 我的模特
+		{"/tryonModel/createTryonModel", "POST"},
+		{"/tryonModel/updateTryonModel", "PUT"},
+		{"/tryonModel/deleteTryonModel", "DELETE"},
+		{"/tryonModel/deleteTryonModelByIds", "DELETE"},
+		{"/tryonModel/getMyTryonModelList", "GET"},
+		{"/tryonModel/getTryonModelList", "GET"},
 		// 外部链接域名
 		{"/extDomain/createExternalLinkDomain", "POST"},
 		{"/extDomain/deleteExternalLinkDomain", "DELETE"},
@@ -238,6 +259,9 @@ func initNewModulesCasbin(db *gorm.DB) {
 		// 系统配置扩展
 		{"/sysConfig/getSysConfigByGroup", "GET"},
 		{"/sysConfig/getSysConfigByKey", "GET"},
+		{"/sysConfig/getPaymentConfig", "GET"},
+		// 访客统计扩展
+		{"/visitor/getKefuGuideStats", "GET"},
 	}
 
 	for _, auth := range authorities {

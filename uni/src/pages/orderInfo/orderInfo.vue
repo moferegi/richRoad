@@ -7,7 +7,7 @@
       <view class="nf-navbar-status"></view>
       <view class="nf-navbar-content">
         <view class="nf-navbar-back" @tap="goBack">
-          <uni-icons type="left" size="20" color="#fff"></uni-icons>
+          <uni-icons type="left" size="20" color="#0f172a"></uni-icons>
         </view>
         <text class="nf-navbar-title">{{ $t('orderConfirm') }}</text>
         <view style="width: 64rpx;"></view>
@@ -32,7 +32,7 @@
           <text class="nf-address-name">{{ $t('selectAddress') }}</text>
           <text class="nf-address-detail">{{ $t('addAddressHint') }}</text>
         </view>
-        <uni-icons type="right" size="16" color="rgba(255,255,255,0.3)"></uni-icons>
+        <uni-icons type="right" size="16" color="rgba(15,23,42,0.3)"></uni-icons>
       </view>
 
       <!-- 商品列表 -->
@@ -55,13 +55,13 @@
       <view class="nf-card nf-option-card" @tap="openCouponPopup">
         <view class="nf-option-row">
           <view class="nf-option-label">
-            <text class="nf-option-dot" style="background: #e50914;"></text>
+            <text class="nf-option-dot" style="background: #2563eb;"></text>
             <text>{{ $t('selectCoupon') }}</text>
           </view>
           <view class="nf-option-value">
             <text class="nf-discount-text" v-if="selectedCouponDiscount > 0">-{{ cs }}{{ selectedCouponDiscount / 100 }}</text>
             <text class="nf-discount-hint" v-else>{{ $t('selectCoupon') }}</text>
-            <uni-icons type="right" size="14" color="rgba(255,255,255,0.3)"></uni-icons>
+            <uni-icons type="right" size="14" color="rgba(15,23,42,0.3)"></uni-icons>
           </view>
         </view>
       </view>
@@ -79,7 +79,7 @@
         <view class="nf-price-row nf-price-points">
           <view class="nf-points-left" @tap="togglePoints">
             <view class="nf-points-check">
-              <checkbox value="points" :checked="usePoints" color="#e50914" style="transform: scale(0.7); margin-right: 6rpx; pointer-events: none;" />
+              <checkbox value="points" :checked="usePoints" color="#2563eb" style="transform: scale(0.7); margin-right: 6rpx; pointer-events: none;" />
               <text :style="(!pointsAllowed || userPoints <= 0) ? 'opacity:0.4' : ''">{{ $t('pointsDeduction') }}</text>
             </view>
           </view>
@@ -591,7 +591,9 @@ const doCreateOrder = async (payMethod) => {
     // 4. 按选择的支付方式跳转（统一用 redirectTo 离开本页，防止返回重复提交）
     if (selectedPayMethod === 'qrcode') {
       // 二维码支付
-      uni.redirectTo({ url: `/pages/pay/index?amount=${(totalPrice.value / 100).toFixed(2)}&orderNo=${newOrderID}&orderId=${newOrderID}` })
+      const encodedPayMethod = encodeURIComponent(selectedPayMethod)
+      const encodedPayMethodLabel = encodeURIComponent(selectedMethodLabel)
+      uni.redirectTo({ url: `/pages/pay/index?amount=${(totalPrice.value / 100).toFixed(2)}&orderNo=${newOrderID}&orderId=${newOrderID}&payMethod=${encodedPayMethod}&payMethodLabel=${encodedPayMethodLabel}` })
     } else {
       trackKefuGuideEvent('guide_entry', {
         orderNo: newOrderID,
@@ -622,28 +624,41 @@ const doCreateOrder = async (payMethod) => {
 </script>
 
 <style lang="scss">
-page { background-color: #000; }
+page { background-color: #f4f7fb; }
 
-.nf-orderinfo { min-height: 100vh; background: #000; position: relative; }
+.nf-orderinfo {
+  --nf-text-secondary: rgba(15, 23, 42, 0.62);
+  --nf-text-tertiary: rgba(15, 23, 42, 0.52);
+  --nf-text-weak: rgba(15, 23, 42, 0.45);
+  min-height: 100vh;
+  background: #f4f7fb;
+  position: relative;
+}
 
 .nf-orderinfo-bg {
   position: fixed; top: 0; left: 0; right: 0; height: 500rpx; z-index: 0; pointer-events: none;
-  background: radial-gradient(ellipse at 50% 0%, rgba(229, 9, 20, 0.10) 0%, transparent 60%);
+  background: radial-gradient(ellipse at 50% 0%, rgba(14, 165, 233, 0.18) 0%, transparent 60%);
 }
 
 .nf-navbar {
-  background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(24px);
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+  background: rgba(244, 247, 251, 0.9); backdrop-filter: blur(24px);
+  border-bottom: 1rpx solid rgba(148, 163, 184, 0.24);
   padding: 0 28rpx 16rpx; position: sticky; top: 0; z-index: 99;
 }
 .nf-navbar-status { height: var(--status-bar-height, 0px); }
 .nf-navbar-content { display: flex; align-items: center; justify-content: space-between; height: 88rpx; }
 .nf-navbar-back {
   width: 64rpx; height: 64rpx; border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06); border: 1rpx solid rgba(255, 255, 255, 0.1);
+  background: #ffffff; border: 1rpx solid rgba(148, 163, 184, 0.3);
+  box-shadow: 0 10rpx 24rpx rgba(15, 23, 42, 0.08);
   display: flex; align-items: center; justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  &:active {
+    transform: scale(0.96);
+    box-shadow: 0 6rpx 16rpx rgba(15, 23, 42, 0.1);
+  }
 }
-.nf-navbar-title { font-size: 34rpx; font-weight: 700; color: #fff; letter-spacing: 2rpx; }
+.nf-navbar-title { font-size: 34rpx; font-weight: 700; color: #0f172a; letter-spacing: 1rpx; }
 
 /* 创建中loading */
 .nf-creating {
@@ -651,146 +666,172 @@ page { background-color: #000; }
   padding-top: 200rpx; gap: 24rpx;
 }
 .nf-creating-spinner {
-  width: 64rpx; height: 64rpx; border: 4rpx solid rgba(255,255,255,0.1);
-  border-top-color: #e50914; border-radius: 50%; animation: nf-spin 0.8s linear infinite;
+  width: 64rpx; height: 64rpx; border: 4rpx solid rgba(148, 163, 184, 0.2);
+  border-top-color: #2563eb; border-radius: 50%; animation: nf-spin 0.8s linear infinite;
 }
 @keyframes nf-spin { to { transform: rotate(360deg); } }
-.nf-creating-text { font-size: 28rpx; color: rgba(255,255,255,0.5); }
+.nf-creating-text { font-size: 28rpx; color: var(--nf-text-tertiary); }
 
 .nf-body { padding: 20rpx 24rpx; position: relative; z-index: 1; }
 
 .nf-card {
-  background: rgba(255, 255, 255, 0.04); border: 1rpx solid rgba(255, 255, 255, 0.06);
-  border-radius: 20rpx; margin-bottom: 20rpx; backdrop-filter: blur(8px); overflow: hidden;
+  background: #ffffff; border: 1rpx solid rgba(148, 163, 184, 0.2);
+  border-radius: 20rpx; margin-bottom: 20rpx; box-shadow: 0 12rpx 28rpx rgba(15, 23, 42, 0.08); overflow: hidden;
 }
 
 /* 地址卡片 */
 .nf-address-card {
   display: flex; align-items: center; padding: 28rpx; gap: 16rpx;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  &:active {
+    transform: translateY(1rpx);
+    box-shadow: inset 0 0 0 1rpx rgba(37, 99, 235, 0.2);
+  }
 }
 .nf-address-icon { font-size: 40rpx; }
 .nf-address-info { flex: 1; }
-.nf-address-name { font-size: 28rpx; font-weight: 600; color: #fff; display: block; margin-bottom: 6rpx; }
-.nf-address-detail { font-size: 24rpx; color: rgba(255, 255, 255, 0.4); display: block; }
+.nf-address-name { font-size: 28rpx; font-weight: 600; color: #0f172a; display: block; margin-bottom: 6rpx; }
+.nf-address-detail { font-size: 24rpx; color: var(--nf-text-weak); display: block; }
 
 /* 商品卡片 */
 .nf-goods-card { padding: 24rpx; }
 .nf-goods-item {
   display: flex; gap: 20rpx; padding: 12rpx 0;
-  & + .nf-goods-item { border-top: 1rpx solid rgba(255, 255, 255, 0.04); }
+  & + .nf-goods-item { border-top: 1rpx solid rgba(148, 163, 184, 0.2); }
 }
 .nf-goods-img {
   width: 168rpx; height: 168rpx; border-radius: 12rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.06); flex-shrink: 0;
+  border: 1rpx solid rgba(148, 163, 184, 0.24); flex-shrink: 0;
 }
 .nf-goods-info { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
-.nf-goods-name { font-size: 24rpx; color: rgba(255, 255, 255, 0.5); margin-bottom: 4rpx; }
-.nf-goods-desc { font-size: 28rpx; color: #fff; font-weight: 500; margin-bottom: 6rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nf-goods-specs { font-size: 22rpx; color: rgba(255, 255, 255, 0.3); margin-bottom: 8rpx; }
+.nf-goods-name { font-size: 24rpx; color: var(--nf-text-tertiary); margin-bottom: 4rpx; }
+.nf-goods-desc { font-size: 28rpx; color: #0f172a; font-weight: 600; margin-bottom: 6rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nf-goods-specs { font-size: 22rpx; color: var(--nf-text-weak); margin-bottom: 8rpx; }
 .nf-goods-bottom { display: flex; justify-content: space-between; align-items: center; }
-.nf-goods-price { font-size: 28rpx; font-weight: 700; color: #e50914; }
-.nf-goods-qty { font-size: 24rpx; color: rgba(255, 255, 255, 0.4); }
+.nf-goods-price { font-size: 28rpx; font-weight: 700; color: #2563eb; }
+.nf-goods-qty { font-size: 24rpx; color: var(--nf-text-weak); }
 
 /* 选项卡片 */
 .nf-option-card { padding: 24rpx 28rpx; }
+.nf-option-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  &:active {
+    transform: translateY(1rpx);
+    box-shadow: inset 0 0 0 1rpx rgba(37, 99, 235, 0.2);
+  }
+}
 .nf-option-row { display: flex; justify-content: space-between; align-items: center; }
-.nf-option-label { display: flex; align-items: center; gap: 12rpx; font-size: 28rpx; color: #fff; }
+.nf-option-label { display: flex; align-items: center; gap: 12rpx; font-size: 28rpx; color: #0f172a; }
 .nf-option-dot { width: 16rpx; height: 16rpx; border-radius: 4rpx; }
 .nf-option-value { display: flex; align-items: center; gap: 8rpx; }
-.nf-discount-text { font-size: 28rpx; color: #e50914; font-weight: 600; }
-.nf-discount-hint { font-size: 26rpx; color: rgba(255, 255, 255, 0.4); }
+.nf-discount-text { font-size: 28rpx; color: #2563eb; font-weight: 700; }
+.nf-discount-hint { font-size: 26rpx; color: var(--nf-text-weak); }
 
 /* 价格卡片 */
 .nf-price-card { padding: 20rpx 28rpx; }
 .nf-price-row {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 14rpx 0; border-bottom: 1rpx solid rgba(255, 255, 255, 0.04);
+  padding: 14rpx 0; border-bottom: 1rpx solid rgba(148, 163, 184, 0.2);
   &:last-child { border-bottom: none; }
 }
-.nf-price-label { font-size: 26rpx; color: rgba(255, 255, 255, 0.5); }
-.nf-price-val { font-size: 26rpx; color: #fff; }
-.nf-price-discount .nf-price-val { color: #e50914; }
+.nf-price-label { font-size: 26rpx; color: var(--nf-text-tertiary); }
+.nf-price-val { font-size: 26rpx; color: #0f172a; }
+.nf-price-discount .nf-price-val { color: #2563eb; }
 .nf-points-left { display: flex; align-items: center; }
-.nf-points-check { display: flex; align-items: center; font-size: 26rpx; color: rgba(255, 255, 255, 0.6); }
-.nf-points-amount { font-size: 24rpx; color: rgba(255, 255, 255, 0.4); }
+.nf-points-check { display: flex; align-items: center; font-size: 26rpx; color: var(--nf-text-secondary); }
+.nf-points-amount { font-size: 24rpx; color: var(--nf-text-weak); }
 .nf-points-detail {
-  padding: 8rpx 0 4rpx; font-size: 22rpx; color: rgba(255,255,255,0.3);
+  padding: 8rpx 0 4rpx; font-size: 22rpx; color: var(--nf-text-weak);
   display: flex; align-items: center;
 }
-.nf-points-used { color: #e50914; }
+.nf-points-used { color: #2563eb; }
 
 /* 底部支付栏 */
 .nf-footer {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 99;
   display: flex; align-items: center; height: 110rpx;
-  background: rgba(0, 0, 0, 0.95); backdrop-filter: blur(24px);
-  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(24px);
+  border-top: 1rpx solid rgba(148, 163, 184, 0.24);
   padding-bottom: constant(safe-area-inset-bottom);
   padding-bottom: env(safe-area-inset-bottom);
 }
 .nf-footer-info { flex: 1; padding-left: 32rpx; display: flex; align-items: baseline; gap: 8rpx; }
-.nf-footer-label { font-size: 26rpx; color: rgba(255, 255, 255, 0.5); }
-.nf-footer-price { font-size: 38rpx; font-weight: 700; color: #e50914; }
+.nf-footer-label { font-size: 26rpx; color: var(--nf-text-tertiary); }
+.nf-footer-price { font-size: 38rpx; font-weight: 700; color: #2563eb; }
 .nf-footer-btn {
-  width: 240rpx; height: 100%; background: #e50914;
+  width: 240rpx; height: 100%; background: linear-gradient(135deg, #2563eb, #0ea5e9);
   display: flex; justify-content: center; align-items: center;
   font-size: 30rpx; font-weight: 700; color: #fff;
-  &:active { background: #b30710; }
+  transition: filter 0.2s ease, transform 0.2s ease;
+  &:active { background: linear-gradient(135deg, #1d4ed8, #0284c7); }
+  &:active {
+    filter: brightness(0.96);
+    transform: translateY(1rpx);
+  }
 }
 
 /* Netflix 优惠券弹出层 */
 .nf-mask {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.7); z-index: 900;
+  background: rgba(15, 23, 42, 0.42); z-index: 900;
 }
 .nf-coupon-popup {
   position: fixed; left: 0; right: 0; bottom: -100vh; z-index: 999;
-  background: #141414; border-radius: 24rpx 24rpx 0 0;
+  background: #f8fafc; border-radius: 24rpx 24rpx 0 0;
   transition: all 0.3s ease;
   &.show { bottom: 0; }
 }
 .nf-coupon-header {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 28rpx 32rpx 16rpx; border-bottom: 1rpx solid rgba(255,255,255,0.06);
+  padding: 28rpx 32rpx 16rpx; border-bottom: 1rpx solid rgba(148,163,184,0.22);
 }
-.nf-coupon-title { font-size: 32rpx; font-weight: 700; color: #fff; }
+.nf-coupon-title { font-size: 32rpx; font-weight: 700; color: #0f172a; }
 .nf-coupon-close {
   width: 56rpx; height: 56rpx; border-radius: 50%;
-  background: rgba(255,255,255,0.08); display: flex;
+  background: rgba(148,163,184,0.2); display: flex;
   align-items: center; justify-content: center;
-  font-size: 28rpx; color: rgba(255,255,255,0.6);
+  font-size: 28rpx; color: rgba(15,23,42,0.68);
+  transition: transform 0.2s ease, background-color 0.2s ease;
+  &:active {
+    transform: scale(0.94);
+    background: rgba(148,163,184,0.28);
+  }
 }
 .nf-coupon-scroll { width: 100%; height: 55vh; padding: 16rpx 24rpx; box-sizing: border-box; }
 .nf-coupon-empty {
   display: flex; align-items: center; justify-content: center;
-  height: 200rpx; color: rgba(255,255,255,0.3); font-size: 28rpx;
+  height: 200rpx; color: rgba(15,23,42,0.45); font-size: 28rpx;
 }
 .nf-coupon-item {
   display: flex; margin-bottom: 20rpx; border-radius: 16rpx; overflow: hidden;
-  border: 1rpx solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.04);
-  transition: all 0.2s;
-  &.nf-coupon-selected { border-color: rgba(229,9,20,0.5); background: rgba(229,9,20,0.08); }
+  border: 1rpx solid rgba(148,163,184,0.24); background: #ffffff;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+  &:active {
+    transform: scale(0.996);
+    box-shadow: 0 8rpx 18rpx rgba(15, 23, 42, 0.08);
+  }
+  &.nf-coupon-selected { border-color: rgba(37,99,235,0.5); background: rgba(37,99,235,0.08); }
 }
 .nf-coupon-left {
   width: 200rpx; display: flex; flex-direction: column;
   align-items: center; justify-content: center; padding: 24rpx 16rpx;
-  background: rgba(229,9,20,0.12); flex-shrink: 0;
+  background: rgba(37,99,235,0.1); flex-shrink: 0;
 }
-.nf-coupon-amount { font-size: 40rpx; font-weight: 800; color: #e50914; }
-.nf-coupon-cond { font-size: 20rpx; color: rgba(255,255,255,0.4); margin-top: 4rpx; }
+.nf-coupon-amount { font-size: 40rpx; font-weight: 800; color: #2563eb; }
+.nf-coupon-cond { font-size: 20rpx; color: var(--nf-text-weak); margin-top: 4rpx; }
 .nf-coupon-right {
   flex: 1; padding: 20rpx 24rpx; display: flex; flex-direction: column; justify-content: center;
 }
-.nf-coupon-name { font-size: 28rpx; color: #fff; font-weight: 500; margin-bottom: 8rpx; }
-.nf-coupon-exp { font-size: 22rpx; color: rgba(255,255,255,0.3); }
+.nf-coupon-name { font-size: 28rpx; color: #0f172a; font-weight: 600; margin-bottom: 8rpx; }
+.nf-coupon-exp { font-size: 22rpx; color: var(--nf-text-weak); }
 .nf-coupon-deselect {
   margin-top: 8rpx; display: inline-flex; align-self: flex-start;
   padding: 4rpx 16rpx; border-radius: 8rpx; font-size: 22rpx;
-  color: #e50914; border: 1rpx solid rgba(229,9,20,0.4); background: rgba(229,9,20,0.06);
+  color: #2563eb; border: 1rpx solid rgba(37,99,235,0.4); background: rgba(37,99,235,0.08);
 }
 .nf-coupon-claim {
   margin-top: 8rpx; display: inline-flex; align-self: flex-start;
   padding: 4rpx 16rpx; border-radius: 8rpx; font-size: 22rpx;
-  color: #e5a609; border: 1rpx solid rgba(229,166,9,0.4); background: rgba(229,166,9,0.06);
+  color: #0ea5e9; border: 1rpx solid rgba(14,165,233,0.36); background: rgba(14,165,233,0.08);
 }
 </style>

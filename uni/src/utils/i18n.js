@@ -1431,6 +1431,13 @@ const messages = {
     logoutSuccess: 'Амжилттай гарлаа',
     developing: 'Тун удахгүй...',
     switchLang: 'Хэл солих',
+    tryonClothes: 'Хувцас турших',
+    tryonShoes: 'Гутал турших',
+    tryonTaskNo: 'Даалгаврын дугаар',
+    tryonNoTask: 'Туршилтын даалгавар алга',
+    tryonStatusProcessing: 'Боловсруулж байна',
+    tryonStatusSuccess: 'Амжилттай',
+    tryonStatusFailed: 'Амжилтгүй',
 
     kefuTitle: 'Онлайн зөвлөгөө',
     kefuOnline: 'Онлайн',

@@ -63,6 +63,7 @@ import {
   appendTryonLocalHistory,
   clearTryonDraft,
   getTryonDraft,
+  getTryonUploadFolder,
   uploadTryonImage,
 } from '@/utils/tryon.js'
 
@@ -189,11 +190,28 @@ const startPolling = (taskID) => {
   pollTimer = setTimeout(loop, POLL_INTERVAL)
 }
 
-const ensureRemoteImage = async (remoteUrl, localPath) => {
+const ensureRemoteImage = async (remoteUrl, localPath, folder = '') => {
   const remote = String(remoteUrl || '').trim()
   if (remote && !isTempLocalPath(remote)) return remote
   if (!localPath) return ''
-  return uploadTryonImage(localPath)
+  return uploadTryonImage(localPath, folder)
+}
+
+const getDraftUploadFolder = (role) => {
+  const sourceFolder = String(draft.value.sourceUploadFolder || '').trim()
+  const templateFolder = String(draft.value.templateUploadFolder || '').trim()
+  if (role === 'source' && sourceFolder) {
+    return sourceFolder
+  }
+  if (role === 'template' && templateFolder) {
+    return templateFolder
+  }
+
+  return getTryonUploadFolder({
+    sceneType: draft.value.sceneType || 'clothes',
+    operationType: draft.value.operationType || 'tryon',
+    role,
+  })
 }
 
 const createTask = async () => {
@@ -215,8 +233,16 @@ const createTask = async () => {
 
   uni.showLoading({ title: $t.value('submitting'), mask: true })
   try {
-    const sourceImage = await ensureRemoteImage(draft.value.sourceRemoteUrl, draft.value.sourceLocalPath)
-    const templateImage = await ensureRemoteImage(draft.value.templateRemoteUrl, draft.value.templateLocalPath)
+    const sourceImage = await ensureRemoteImage(
+      draft.value.sourceRemoteUrl,
+      draft.value.sourceLocalPath,
+      getDraftUploadFolder('source')
+    )
+    const templateImage = await ensureRemoteImage(
+      draft.value.templateRemoteUrl,
+      draft.value.templateLocalPath,
+      getDraftUploadFolder('template')
+    )
 
     if (!sourceImage) {
       throw new Error($t.value('tryonPickSourceFirst'))

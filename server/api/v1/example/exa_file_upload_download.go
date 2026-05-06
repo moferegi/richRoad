@@ -2,6 +2,7 @@ package example
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
@@ -22,12 +23,13 @@ type FileUploadAndDownloadApi struct{}
 // @accept    multipart/form-data
 // @Produce   application/json
 // @Param     file  formData  file                                                           true  "上传文件示例"
+// @Param     folder  formData  string                                                        false "上传目录，如 tryon/clothes/source"
 // @Success   200   {object}  response.Response{data=exampleRes.ExaFileResponse,msg=string}  "上传文件示例,返回包括文件详情"
 // @Router    /fileUploadAndDownload/upload [post]
 func (b *FileUploadAndDownloadApi) UploadFile(c *gin.Context) {
 	var file example.ExaFileUploadAndDownload
 	noSave := c.DefaultQuery("noSave", "0")
-	folder := c.DefaultPostForm("folder", "")
+	folder := normalizeUploadFolder(c.DefaultPostForm("folder", c.DefaultQuery("folder", "")))
 	_, header, err := c.Request.FormFile("file")
 	classId, _ := strconv.Atoi(c.DefaultPostForm("classId", "0"))
 	if err != nil {
@@ -42,6 +44,25 @@ func (b *FileUploadAndDownloadApi) UploadFile(c *gin.Context) {
 		return
 	}
 	response.OkWithDetailed(exampleRes.ExaFileResponse{File: file}, "上传成功", c)
+}
+
+func normalizeUploadFolder(raw string) string {
+	raw = strings.TrimSpace(strings.ReplaceAll(raw, "\\\\", "/"))
+	if raw == "" {
+		return ""
+	}
+
+	parts := strings.Split(raw, "/")
+	cleaned := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" || part == "." || part == ".." {
+			continue
+		}
+		cleaned = append(cleaned, part)
+	}
+
+	return strings.Join(cleaned, "/")
 }
 
 // EditFileName 编辑文件名或者备注

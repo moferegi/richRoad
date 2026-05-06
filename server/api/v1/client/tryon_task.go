@@ -16,6 +16,67 @@ type TryonTaskApi struct{}
 
 var tryonTaskService = service.ServiceGroupApp.ClientServiceGroup.TryonTaskService
 
+// DeleteTryonTask 删除试衣任务（管理端）
+// @Tags TryonTask
+// @Summary 删除试衣任务（管理端）
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param ID query int true "任务ID"
+// @Success 200 {object} response.Response{msg=string} "删除成功"
+// @Router /tryonTask/deleteTryonTask [delete]
+func (api *TryonTaskApi) DeleteTryonTask(c *gin.Context) {
+	idStr := c.Query("ID")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id == 0 {
+		response.FailWithMessage("ID参数错误", c)
+		return
+	}
+
+	if err := tryonTaskService.DeleteTryonTask(uint(id)); err != nil {
+		global.GVA_LOG.Error("删除试衣任务失败!", zap.Error(err), zap.Uint64("taskID", id))
+		response.FailWithMessage("删除失败", c)
+		return
+	}
+
+	response.OkWithMessage("删除成功", c)
+}
+
+// DeleteTryonTaskByIds 批量删除试衣任务（管理端）
+// @Tags TryonTask
+// @Summary 批量删除试衣任务（管理端）
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param IDs[] query []int true "任务ID列表"
+// @Success 200 {object} response.Response{msg=string} "批量删除成功"
+// @Router /tryonTask/deleteTryonTaskByIds [delete]
+func (api *TryonTaskApi) DeleteTryonTaskByIds(c *gin.Context) {
+	idStrs := c.QueryArray("IDs[]")
+	if len(idStrs) == 0 {
+		response.FailWithMessage("IDs参数错误", c)
+		return
+	}
+
+	ids := make([]uint, 0, len(idStrs))
+	for _, idStr := range idStrs {
+		id, err := strconv.ParseUint(idStr, 10, 64)
+		if err != nil || id == 0 {
+			response.FailWithMessage("IDs参数错误", c)
+			return
+		}
+		ids = append(ids, uint(id))
+	}
+
+	if err := tryonTaskService.DeleteTryonTaskByIds(ids); err != nil {
+		global.GVA_LOG.Error("批量删除试衣任务失败!", zap.Error(err))
+		response.FailWithMessage("批量删除失败", c)
+		return
+	}
+
+	response.OkWithMessage("批量删除成功", c)
+}
+
 // CreateTryonTask 创建试衣任务
 // @Tags TryonTask
 // @Summary 创建试衣任务（扣币后调用模型，失败全额退币）

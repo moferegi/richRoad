@@ -312,7 +312,10 @@ const groupLabel = (group) => {
 const booleanKeys = [
   'maintenance_enabled', 'maintenance_popup_enabled', 'maintenance_home_btn_enabled',
   'phone_login_enabled', 'username_login_enabled', 'password_change_enabled',
-  'sign_in_enabled', 'announcement_enabled'
+  'sign_in_enabled', 'announcement_enabled',
+  'payment_auto_enabled', 'payment_manual_qrcode_enabled', 'payment_manual_contact_enabled',
+  'payment_wechat_enabled', 'payment_alipay_enabled', 'payment_bank_cn_enabled',
+  'payment_bank_us_enabled', 'payment_bank_mn_enabled', 'payment_paypal_enabled'
 ]
 const isBooleanConfig = (row) => booleanKeys.includes(row.configKey)
 

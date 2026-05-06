@@ -13,6 +13,10 @@ import (
 
 type DashboardService struct{}
 
+func scopePointAsset(db *gorm.DB) *gorm.DB {
+	return db.Where("asset_type = ? OR asset_type IS NULL", client.AssetTypePoint)
+}
+
 // scanOrLog 执行查询并记录错误，不中断看板整体加载
 func scanOrLog(label string, query *gorm.DB) {
 	if query.Error != nil {
@@ -59,13 +63,13 @@ func (s *DashboardService) GetDashboardOverview() (overview shop.DashboardOvervi
 	// === 积分统计 ===
 	var pointsIssued int64
 	// 发放积分：所有增加记录，排除退还积分(point_refund)
-	scanOrLog("pointsIssued", db.Model(&client.PointRecord{}).Where("change_type = ? AND operation_type != ?", "increase", "point_refund").
+	scanOrLog("pointsIssued", scopePointAsset(db.Model(&client.PointRecord{})).Where("change_type = ? AND operation_type != ?", "increase", "point_refund").
 		Select("COALESCE(SUM(point_change),0)").Scan(&pointsIssued))
 	// 消耗积分（净值）：point_exchange 总额 - point_refund 退还总额
 	var pointExchangeTotal, pointRefundTotal int64
-	scanOrLog("pointExchange", db.Model(&client.PointRecord{}).Where("operation_type = ?", "point_exchange").
+	scanOrLog("pointExchange", scopePointAsset(db.Model(&client.PointRecord{})).Where("operation_type = ?", "point_exchange").
 		Select("COALESCE(SUM(ABS(point_change)),0)").Scan(&pointExchangeTotal))
-	scanOrLog("pointRefund", db.Model(&client.PointRecord{}).Where("operation_type = ?", "point_refund").
+	scanOrLog("pointRefund", scopePointAsset(db.Model(&client.PointRecord{})).Where("operation_type = ?", "point_refund").
 		Select("COALESCE(SUM(ABS(point_change)),0)").Scan(&pointRefundTotal))
 	pointsUsed := pointExchangeTotal - pointRefundTotal
 	if pointsUsed < 0 {

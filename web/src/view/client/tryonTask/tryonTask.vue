@@ -112,9 +112,25 @@
         <el-button type="primary" icon="download" :loading="exporting" @click="handleExportCsv">
           导出CSV
         </el-button>
+        <el-button
+          type="danger"
+          icon="delete"
+          :disabled="!multipleSelection.length"
+          @click="handleBatchDelete"
+        >
+          批量删除
+        </el-button>
       </div>
 
-      <el-table :data="tableData" style="width: 100%" tooltip-effect="dark" row-key="ID">
+      <el-table
+        :data="tableData"
+        style="width: 100%"
+        tooltip-effect="dark"
+        row-key="ID"
+        :row-class-name="tableRowClassName"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="50" />
         <el-table-column align="left" label="ID" prop="ID" width="80" />
         <el-table-column align="left" label="用户ID" prop="userID" width="90" />
         <el-table-column align="left" label="任务编号" min-width="220" show-overflow-tooltip>
@@ -202,16 +218,23 @@
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column align="left" label="失败原因" prop="errorMessage" min-width="200" show-overflow-tooltip />
+        <el-table-column align="left" label="失败原因" min-width="200" show-overflow-tooltip>
+          <template #default="scope">
+            <span :class="{ 'error-message': scope.row.status === 'failed' && scope.row.errorMessage }">
+              {{ scope.row.errorMessage || '-' }}
+            </span>
+          </template>
+        </el-table-column>
         <el-table-column align="left" label="创建时间" width="170">
           <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
         <el-table-column align="left" label="完成时间" width="170">
           <template #default="scope">{{ formatDate(scope.row.completedAt) || '-' }}</template>
         </el-table-column>
-        <el-table-column align="left" label="操作" width="90" fixed="right">
+        <el-table-column align="left" label="操作" width="150" fixed="right">
           <template #default="scope">
             <el-button type="primary" link @click="openDetail(scope.row)">详情</el-button>
+            <el-button type="danger" link @click="handleDelete(scope.row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -225,6 +248,85 @@
           :total="total"
           @current-change="handleCurrentChange"
           @size-change="handleSizeChange"
+        />
+      </div>
+    </div>
+
+    <div class="gva-search-box model-search-box">
+      <div class="model-title">我的模特管理</div>
+      <el-form :inline="true" :model="modelSearchInfo" @keyup.enter="onModelSubmit">
+        <el-form-item label="用户ID">
+          <el-input v-model.number="modelSearchInfo.userID" clearable placeholder="请输入用户ID" />
+        </el-form-item>
+        <el-form-item label="模特名称">
+          <el-input v-model="modelSearchInfo.name" clearable placeholder="请输入模特名称" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" icon="search" @click="onModelSubmit">查询</el-button>
+          <el-button icon="refresh" @click="onModelReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+
+    <div class="gva-table-box">
+      <div class="gva-btn-list">
+        <el-button
+          type="danger"
+          icon="delete"
+          :disabled="!modelMultipleSelection.length"
+          @click="handleModelBatchDelete"
+        >
+          批量删除模特
+        </el-button>
+      </div>
+
+      <el-table
+        :data="modelTableData"
+        style="width: 100%"
+        tooltip-effect="dark"
+        row-key="ID"
+        v-loading="modelLoading"
+        @selection-change="handleModelSelectionChange"
+      >
+        <el-table-column type="selection" width="50" />
+        <el-table-column align="left" label="ID" prop="ID" width="80" />
+        <el-table-column align="left" label="用户ID" prop="userID" width="90" />
+        <el-table-column align="left" label="模特名称" prop="name" min-width="200" show-overflow-tooltip />
+        <el-table-column align="left" label="模特图" width="90">
+          <template #default="scope">
+            <el-image
+              v-if="scope.row.image"
+              class="task-image"
+              :src="getUrl(scope.row.image)"
+              :preview-src-list="[getUrl(scope.row.image)]"
+              preview-teleported
+              fit="cover"
+            />
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column align="left" label="创建时间" width="170">
+          <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
+        </el-table-column>
+        <el-table-column align="left" label="更新时间" width="170">
+          <template #default="scope">{{ formatDate(scope.row.UpdatedAt) }}</template>
+        </el-table-column>
+        <el-table-column align="left" label="操作" width="120" fixed="right">
+          <template #default="scope">
+            <el-button type="danger" link @click="handleModelDelete(scope.row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div class="gva-pagination">
+        <el-pagination
+          layout="total, sizes, prev, pager, next, jumper"
+          :current-page="modelPage"
+          :page-size="modelPageSize"
+          :page-sizes="[10, 30, 50, 100]"
+          :total="modelTotal"
+          @current-change="handleModelCurrentChange"
+          @size-change="handleModelSizeChange"
         />
       </div>
     </div>
@@ -304,10 +406,19 @@
 
 <script setup>
 import { ref, onBeforeUnmount } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import * as echarts from 'echarts'
 import { useAppStore } from '@/pinia'
-import { getTryonTaskList, getTryonTaskStats, getTryonTaskTrend } from '@/api/client/tryonTask'
+import {
+  getTryonTaskList,
+  getTryonTaskStats,
+  getTryonTaskTrend,
+  deleteTryonTask,
+  deleteTryonTaskByIds,
+  getTryonModelList,
+  deleteTryonModel,
+  deleteTryonModelByIds,
+} from '@/api/client/tryonTask'
 import { formatDate } from '@/utils/format'
 import { getUrl } from '@/utils/image'
 
@@ -321,6 +432,7 @@ const page = ref(1)
 const total = ref(0)
 const pageSize = ref(10)
 const tableData = ref([])
+const multipleSelection = ref([])
 const exporting = ref(false)
 const statsLoading = ref(false)
 const detailVisible = ref(false)
@@ -335,6 +447,12 @@ const chartDays = ref(7)
 const chartLoading = ref(false)
 const chartRef = ref(null)
 const chartData = ref([])
+const modelPage = ref(1)
+const modelTotal = ref(0)
+const modelPageSize = ref(10)
+const modelLoading = ref(false)
+const modelTableData = ref([])
+const modelMultipleSelection = ref([])
 const searchInfo = ref({
   startCreatedAt: undefined,
   endCreatedAt: undefined,
@@ -343,6 +461,10 @@ const searchInfo = ref({
   requestID: '',
   sceneType: '',
   status: ''
+})
+const modelSearchInfo = ref({
+  userID: undefined,
+  name: '',
 })
 
 const MAX_EXPORT_ROWS = 5000
@@ -407,6 +529,59 @@ const copyText = async (text, label = '内容') => {
 const openDetail = (row) => {
   detailRow.value = { ...row }
   detailVisible.value = true
+}
+
+const tableRowClassName = ({ row }) => {
+  if (row.status === 'failed') {
+    return 'tryon-row-failed'
+  }
+  if (row.status === 'processing') {
+    return 'tryon-row-processing'
+  }
+  return ''
+}
+
+const handleSelectionChange = (rows) => {
+  multipleSelection.value = rows || []
+}
+
+const handleDelete = async (row) => {
+  try {
+    await ElMessageBox.confirm(`确定删除任务【${row.taskNo || row.ID}】吗？`, '提示', { type: 'warning' })
+    const res = await deleteTryonTask({ ID: row.ID })
+    if (res.code === 0) {
+      ElMessage.success('删除成功')
+      if (tableData.value.length === 1 && page.value > 1) {
+        page.value -= 1
+      }
+      await getTableData(true)
+    }
+  } catch (e) {
+    // 用户取消删除时不做提示
+  }
+}
+
+const handleBatchDelete = async () => {
+  if (!multipleSelection.value.length) {
+    ElMessage.warning('请先选择要删除的数据')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(`确定批量删除选中的${multipleSelection.value.length}条任务吗？`, '提示', { type: 'warning' })
+    const ids = multipleSelection.value.map(item => item.ID).filter(Boolean)
+    const res = await deleteTryonTaskByIds({ 'IDs[]': ids })
+    if (res.code === 0) {
+      ElMessage.success('批量删除成功')
+      if (ids.length >= tableData.value.length && page.value > 1) {
+        page.value -= 1
+      }
+      multipleSelection.value = []
+      await getTableData(true)
+    }
+  } catch (e) {
+    // 用户取消删除时不做提示
+  }
 }
 
 const escapeCsvValue = (value) => {
@@ -475,6 +650,12 @@ const getExportFileName = () => {
 const buildSearchParams = () => {
   return {
     ...searchInfo.value,
+  }
+}
+
+const buildModelSearchParams = () => {
+  return {
+    ...modelSearchInfo.value,
   }
 }
 
@@ -644,6 +825,26 @@ const getTableData = async (refreshStats = false) => {
   }
 }
 
+const getModelTableData = async () => {
+  modelLoading.value = true
+  try {
+    const params = {
+      page: modelPage.value,
+      pageSize: modelPageSize.value,
+      ...buildModelSearchParams(),
+    }
+    const res = await getTryonModelList(params)
+    if (res.code === 0) {
+      modelTableData.value = res.data?.list || []
+      modelTotal.value = res.data?.total || 0
+      modelPage.value = res.data?.page || modelPage.value
+      modelPageSize.value = res.data?.pageSize || modelPageSize.value
+    }
+  } finally {
+    modelLoading.value = false
+  }
+}
+
 const onSubmit = () => {
   page.value = 1
   getTableData(true)
@@ -675,6 +876,75 @@ const handleSizeChange = (val) => {
   getTableData()
 }
 
+const onModelSubmit = () => {
+  modelPage.value = 1
+  getModelTableData()
+}
+
+const onModelReset = () => {
+  modelSearchInfo.value = {
+    userID: undefined,
+    name: '',
+  }
+  modelPage.value = 1
+  modelPageSize.value = 10
+  getModelTableData()
+}
+
+const handleModelCurrentChange = (val) => {
+  modelPage.value = val
+  getModelTableData()
+}
+
+const handleModelSizeChange = (val) => {
+  modelPageSize.value = val
+  modelPage.value = 1
+  getModelTableData()
+}
+
+const handleModelSelectionChange = (rows) => {
+  modelMultipleSelection.value = rows || []
+}
+
+const handleModelDelete = async (row) => {
+  try {
+    await ElMessageBox.confirm(`确定删除模特【${row.name || row.ID}】吗？`, '提示', { type: 'warning' })
+    const res = await deleteTryonModel({ ID: row.ID })
+    if (res.code === 0) {
+      ElMessage.success('删除成功')
+      if (modelTableData.value.length === 1 && modelPage.value > 1) {
+        modelPage.value -= 1
+      }
+      await getModelTableData()
+    }
+  } catch (e) {
+    // 用户取消删除时不做提示
+  }
+}
+
+const handleModelBatchDelete = async () => {
+  if (!modelMultipleSelection.value.length) {
+    ElMessage.warning('请先选择要删除的数据')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(`确定批量删除选中的${modelMultipleSelection.value.length}个模特吗？`, '提示', { type: 'warning' })
+    const ids = modelMultipleSelection.value.map(item => item.ID).filter(Boolean)
+    const res = await deleteTryonModelByIds({ 'IDs[]': ids })
+    if (res.code === 0) {
+      ElMessage.success('批量删除成功')
+      if (ids.length >= modelTableData.value.length && modelPage.value > 1) {
+        modelPage.value -= 1
+      }
+      modelMultipleSelection.value = []
+      await getModelTableData()
+    }
+  } catch (e) {
+    // 用户取消删除时不做提示
+  }
+}
+
 window.addEventListener('resize', handleResize)
 
 onBeforeUnmount(() => {
@@ -686,6 +956,7 @@ onBeforeUnmount(() => {
 })
 
 getTableData(true)
+getModelTableData()
 </script>
 
 <style scoped>
@@ -708,6 +979,16 @@ getTableData(true)
 
 .trend-wrap {
   margin-bottom: 16px;
+}
+
+.model-search-box {
+  margin-top: 16px;
+}
+
+.model-title {
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .trend-header {
@@ -753,5 +1034,18 @@ getTableData(true)
   height: 180px;
   border-radius: 8px;
   border: 1px solid var(--el-border-color-light);
+}
+
+.error-message {
+  color: var(--el-color-danger);
+  font-weight: 500;
+}
+
+:deep(.el-table .tryon-row-failed > td.el-table__cell) {
+  background: rgba(245, 108, 108, 0.12);
+}
+
+:deep(.el-table .tryon-row-processing > td.el-table__cell) {
+  background: rgba(230, 162, 60, 0.12);
 }
 </style>

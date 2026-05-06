@@ -5,10 +5,19 @@
         <input class="search-input" v-model="searchName" :placeholder="$t('clothesSearchPlaceholder')" confirm-type="search" @confirm="onSearch" />
         <view class="search-btn" @tap="onSearch">{{ $t('searchAction') }}</view>
       </view>
-      <view class="gender-tabs">
-        <view class="gender-tab" :class="{ active: genderTab === 'female' }" @tap="switchGender('female')">{{ $t('clothesGenderFemale') }}</view>
-        <view class="gender-tab" :class="{ active: genderTab === 'male' }" @tap="switchGender('male')">{{ $t('clothesGenderMale') }}</view>
-      </view>
+      <scroll-view class="category-tabs" scroll-x :show-scrollbar="false" v-if="categoryList.length">
+        <view class="category-track">
+          <view
+            class="category-tab"
+            v-for="item in categoryList"
+            :key="item.ID || item.id"
+            :class="{ active: Number(item.ID || item.id) === Number(activeCategoryID) }"
+            @tap="switchCategory(item)"
+          >
+            {{ categoryName(item) || $t('categoryDetail') }}
+          </view>
+        </view>
+      </scroll-view>
     </view>
 
     <scroll-view class="list-wrap" scroll-y>
@@ -40,7 +49,7 @@
 <script setup>
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getGoodList } from '@/api/homePage.js'
+import { getGoodList, getCategoryMobile } from '@/api/homePage.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { localText } from '@/utils/i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
@@ -49,44 +58,62 @@ import { setSelectedClothes } from '@/utils/tryon.js'
 const langStore = useLangStore()
 const $t = langStore.$t
 const searchName = ref('')
-const genderTab = ref('female')
 const page = ref(1)
 const pageSize = 10
 const hasMore = ref(true)
 const loading = ref(false)
 const goodsList = ref([])
 const displayList = ref([])
+const categoryList = ref([])
+const activeCategoryID = ref(0)
+
+const parseJsonSafe = (raw) => {
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+const resolveLocaleText = (value) => {
+  if (!value) return ''
+  if (typeof value === 'string') {
+    const text = value.trim()
+    if (!text) return ''
+    if (text.startsWith('{') || text.startsWith('[')) {
+      const parsed = parseJsonSafe(text)
+      if (parsed) {
+        if (Array.isArray(parsed)) {
+          return resolveLocaleText(parsed[0])
+        }
+        return localText(parsed, langStore.locale)
+      }
+    }
+    return text
+  }
+  if (Array.isArray(value)) {
+    return resolveLocaleText(value[0])
+  }
+  if (typeof value === 'object') {
+    return localText(value, langStore.locale)
+  }
+  return String(value)
+}
+
+const categoryName = (item) => {
+  return resolveLocaleText(item?.title || item?.name || item?.label)
+}
 
 const goodName = (item) => {
-  return localText(item?.nameI18n || item?.name || item?.titleI18n || item?.title, langStore.locale)
+  return resolveLocaleText(item?.nameI18n || item?.name || item?.titleI18n || item?.title)
 }
 
 const categoryText = (item) => {
-  return localText(item?.categoryNameI18n || item?.categoryName, langStore.locale)
-}
-
-const genderHit = (item, gender) => {
-  const text = [
-    item.gender,
-    item.sex,
-    goodName(item),
-    categoryText(item),
-    Array.isArray(item.tags) ? item.tags.join(' ') : item.tags,
-  ].filter(Boolean).join(' ').toLowerCase()
-
-  const maleHit = /(男|man|male|men)/i.test(text)
-  const femaleHit = /(女|woman|female|women)/i.test(text)
-
-  if (gender === 'male') {
-    if (femaleHit && !maleHit) return false
-    return true
-  }
-  if (maleHit && !femaleHit) return false
-  return true
+  return resolveLocaleText(item?.categoryNameI18n || item?.categoryName || item?.categoryTitle)
 }
 
 const refreshDisplay = () => {
-  displayList.value = goodsList.value.filter(item => genderHit(item, genderTab.value))
+  displayList.value = [...goodsList.value]
 }
 
 const mainImage = (item) => {
@@ -96,12 +123,57 @@ const mainImage = (item) => {
 
 const extractTags = (item) => {
   const tags = []
-  if (Array.isArray(item.tags)) tags.push(...item.tags)
-  if (typeof item.tags === 'string' && item.tags) tags.push(item.tags)
-  if (item.tag) tags.push(item.tag)
+
+  const appendTag = (value) => {
+    const text = resolveLocaleText(value)
+    if (text) tags.push(text)
+  }
+
+  if (Array.isArray(item.tags)) {
+    item.tags.forEach(appendTag)
+  } else if (typeof item.tags === 'string' && item.tags) {
+    const parsed = parseJsonSafe(item.tags)
+    if (Array.isArray(parsed)) {
+      parsed.forEach(appendTag)
+    } else if (parsed) {
+      appendTag(parsed)
+    } else {
+      appendTag(item.tags)
+    }
+  } else if (item.tags && typeof item.tags === 'object') {
+    appendTag(item.tags)
+  }
+
+  if (item.tag) appendTag(item.tag)
+
   const category = categoryText(item)
   if (category) tags.push(category)
-  return tags.filter(Boolean).slice(0, 2)
+  return [...new Set(tags)].slice(0, 2)
+}
+
+const loadCategories = async () => {
+  const res = await getCategoryMobile()
+  if (res.code === 0 && Array.isArray(res.data)) {
+    categoryList.value = res.data
+    if (!activeCategoryID.value && categoryList.value.length > 0) {
+      activeCategoryID.value = Number(categoryList.value[0].ID || categoryList.value[0].id || 0)
+    }
+  }
+}
+
+const buildListParams = () => {
+  const params = {
+    page: page.value,
+    pageSize,
+    name: searchName.value,
+    keyword: searchName.value,
+    sort: 'id',
+    order: 'desc',
+  }
+  if (activeCategoryID.value) {
+    params.categoryID = activeCategoryID.value
+  }
+  return params
 }
 
 const loadList = async (reset = false) => {
@@ -114,14 +186,7 @@ const loadList = async (reset = false) => {
       goodsList.value = []
     }
 
-    const res = await getGoodList({
-      page: page.value,
-      pageSize,
-      name: searchName.value,
-      keyword: searchName.value,
-      sort: 'id',
-      order: 'desc',
-    })
+    const res = await getGoodList(buildListParams())
 
     if (res.code === 0 && res.data) {
       const list = Array.isArray(res.data.list) ? res.data.list : []
@@ -148,9 +213,11 @@ const onSearch = () => {
   loadList(true)
 }
 
-const switchGender = (gender) => {
-  genderTab.value = gender
-  refreshDisplay()
+const switchCategory = (category) => {
+  const nextID = Number(category?.ID || category?.id || 0)
+  if (!nextID || nextID === Number(activeCategoryID.value)) return
+  activeCategoryID.value = nextID
+  loadList(true)
 }
 
 const loadMore = async () => {
@@ -181,6 +248,10 @@ const goDetail = (item) => {
 }
 
 onShow(() => {
+  if (categoryList.value.length === 0) {
+    loadCategories().then(() => loadList(true))
+    return
+  }
   if (goodsList.value.length === 0) {
     loadList(true)
   }
@@ -232,15 +303,21 @@ page {
   box-shadow: 0 10rpx 26rpx rgba(37, 99, 235, 0.28);
 }
 
-.gender-tabs {
+.category-tabs {
   margin-top: 16rpx;
-  display: flex;
-  gap: 12rpx;
+  white-space: nowrap;
 }
 
-.gender-tab {
-  flex: 1;
+.category-track {
+  display: inline-flex;
+  gap: 12rpx;
+  padding-right: 12rpx;
+}
+
+.category-tab {
   height: 64rpx;
+  min-width: 160rpx;
+  padding: 0 26rpx;
   border-radius: 999rpx;
   border: 1rpx solid rgba(15, 23, 42, 0.12);
   display: flex;
@@ -250,7 +327,7 @@ page {
   background: rgba(255, 255, 255, 0.8);
 }
 
-.gender-tab.active {
+.category-tab.active {
   color: #0f172a;
   border-color: rgba(37, 99, 235, 0.45);
   background: rgba(219, 234, 254, 0.75);

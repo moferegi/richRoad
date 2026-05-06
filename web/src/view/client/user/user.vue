@@ -62,6 +62,7 @@
         <el-table-column align="left" label="手机号" prop="phone" width="120" />
         <el-table-column align="left" label="邮箱" prop="email" width="120" />
         <el-table-column align="left" label="积分" prop="point" width="80" />
+        <el-table-column align="left" label="试衣币" prop="tryonPoint" width="90" />
         <el-table-column align="left" label="邀请码" prop="inviteCode" width="120" />
         <el-table-column align="left" label="邀请人ID" prop="invitedBy" width="100">
             <template #default="scope">

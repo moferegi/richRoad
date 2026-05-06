@@ -132,6 +132,15 @@ export const getTryonCostPoints = () => {
   })
 }
 
+// 获取试衣币充值套餐
+export const getTryonRechargePlans = () => {
+  return request({
+    url: '/sysConfig/getSysConfigByKey',
+    method: 'get',
+    params: { configKey: 'tryon_recharge_plans' }
+  })
+}
+
 // 获取试衣配置（游客初始币、注册奖励、单次消耗、失败退币比例）
 export const getTryonConfig = () => {
   return request({

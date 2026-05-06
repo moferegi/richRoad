@@ -1,62 +1,51 @@
 <template>
-  <view class="nf-page">
-    <view class="nf-bg"></view>
+  <view class="phone-page">
+    <view class="phone-bg"></view>
 
-    <!-- 自定义导航栏 -->
-    <view class="nf-navbar">
-      <view class="nf-navbar-status"></view>
-      <view class="nf-navbar-content">
-        <view class="nf-navbar-back" @tap="goBack">
-          <uni-icons type="left" size="20" color="#fff" />
+    <view class="phone-navbar">
+      <view class="phone-navbar-status"></view>
+      <view class="phone-navbar-content">
+        <view class="phone-back" @tap="goBack">
+          <uni-icons type="left" size="20" color="#0f172a" />
         </view>
-        <text class="nf-navbar-title">{{ $t('setPhone') }}</text>
-        <view style="width: 64rpx;"></view>
+        <text class="phone-navbar-title">{{ $t('setPhone') }}</text>
+        <view class="phone-nav-space"></view>
       </view>
     </view>
 
-    <view class="nf-container">
-      <view class="nf-header">
-        <!-- <text class="nf-title">{{ $t('setPhone') }}</text>
-        <view class="nf-title-line"></view> -->
-        <text class="nf-subtitle">{{ $t('setPhoneDesc') }}</text>
-      </view>
+    <view class="phone-container">
+      <view class="phone-desc">{{ $t('setPhoneDesc') }}</view>
 
-      <view class="nf-card">
-        <!-- 当前手机号 -->
-        <view class="nf-field" v-if="currentPhone">
-          <text class="nf-label">{{ $t('currentPhone') }}</text>
-          <view class="nf-current-phone">
-            <text class="nf-current-phone-text">{{ maskedCurrentPhone }}</text>
+      <view class="phone-card">
+        <view class="phone-field" v-if="currentPhone">
+          <text class="phone-label">{{ $t('currentPhone') }}</text>
+          <view class="phone-current-box">
+            <text class="phone-current-text">{{ maskedCurrentPhone }}</text>
           </view>
         </view>
 
-        <!-- 新手机号 -->
-        <view class="nf-field">
-          <text class="nf-label">{{ $t('newPhone') }}</text>
-          <input class="nf-input" type="number" :placeholder="$t('enterNewPhone')" v-model="form.phone" maxlength="20" />
+        <view class="phone-field">
+          <text class="phone-label">{{ $t('newPhone') }}</text>
+          <input class="phone-input" type="number" :placeholder="$t('enterNewPhone')" v-model="form.phone" maxlength="20" />
         </view>
 
-        <!-- 密码 -->
-        <view class="nf-field">
-          <text class="nf-label">{{ $t('password') }}</text>
-          <input class="nf-input" type="password" :placeholder="$t('enterPassword')" v-model="form.password" />
+        <view class="phone-field">
+          <text class="phone-label">{{ $t('password') }}</text>
+          <input class="phone-input" type="password" :placeholder="$t('enterPassword')" v-model="form.password" />
         </view>
 
-        <!-- 验证码 -->
-        <view class="nf-field nf-captcha-field">
-          <text class="nf-label">{{ $t('captcha') }}</text>
-          <view class="nf-captcha-row">
-            <input class="nf-input nf-captcha-input" :placeholder="$t('captchaPlaceholder')" v-model="form.captcha" />
-            <image class="nf-captcha-img" @tap="getCaptchaFunc()" :src="captchaImg" mode="aspectFit"></image>
+        <view class="phone-field">
+          <text class="phone-label">{{ $t('captcha') }}</text>
+          <view class="phone-captcha-row">
+            <input class="phone-input phone-captcha-input" :placeholder="$t('captchaPlaceholder')" v-model="form.captcha" />
+            <image class="phone-captcha-img" @tap="getCaptchaFunc()" :src="captchaImg" mode="aspectFit"></image>
           </view>
         </view>
       </view>
 
-      <view class="nf-actions">
-        <button class="nf-btn nf-btn-primary" @tap="onSubmit" :disabled="submitting">
-          {{ submitting ? $t('submitting') : $t('confirmSet') }}
-        </button>
-      </view>
+      <button class="phone-submit" @tap="onSubmit" :disabled="submitting">
+        {{ submitting ? $t('submitting') : $t('confirmSet') }}
+      </button>
     </view>
   </view>
 </template>
@@ -151,29 +140,155 @@ const onSubmit = async () => {
 </script>
 
 <style scoped>
-.nf-page { min-height: 100vh; background: #141414; position: relative; }
-.nf-bg { position: absolute; top: 0; left: 0; right: 0; height: 500rpx; background: linear-gradient(180deg, rgba(229,9,20,0.15), transparent); }
-.nf-navbar { position: relative; z-index: 10; }
-.nf-navbar-status { height: var(--status-bar-height, 44px); }
-.nf-navbar-content { display: flex; align-items: center; height: 88rpx; padding: 0 24rpx; }
-.nf-navbar-back { width: 60rpx; height: 60rpx; display: flex; align-items: center; justify-content: center; }
-.nf-navbar-title { flex: 1; text-align: center; font-size: 32rpx; font-weight: 600; color: #fff; }
-.nf-container { position: relative; z-index: 5; padding: 40rpx; }
-.nf-header { margin-bottom: 48rpx; text-align: center; }
-.nf-title { font-size: 48rpx; font-weight: bold; color: #fff; }
-.nf-title-line { width: 80rpx; height: 6rpx; background: #e50914; margin: 16rpx auto 0; border-radius: 3rpx; }
-.nf-subtitle { display: block; font-size: 24rpx; color: rgba(255,255,255,0.5); margin-top: 16rpx; }
-.nf-card { background: rgba(255,255,255,0.05); border-radius: 20rpx; padding: 40rpx 32rpx; margin-bottom: 40rpx; }
-.nf-field { margin-bottom: 32rpx; }
-.nf-label { font-size: 24rpx; color: rgba(255,255,255,0.5); margin-bottom: 12rpx; display: block; }
-.nf-input { height: 80rpx; background: rgba(255,255,255,0.08); border-radius: 12rpx; padding: 0 24rpx; font-size: 28rpx; color: #fff; }
-.nf-current-phone { height: 80rpx; background: rgba(255,255,255,0.04); border-radius: 12rpx; padding: 0 24rpx; display: flex; align-items: center; }
-.nf-current-phone-text { font-size: 30rpx; color: rgba(255,255,255,0.7); letter-spacing: 4rpx; }
-.nf-captcha-row { display: flex; align-items: center; gap: 16rpx; }
-.nf-captcha-input { flex: 1; }
-.nf-captcha-img { width: 200rpx; height: 80rpx; border-radius: 12rpx; }
-.nf-actions { margin-top: 20rpx; }
-.nf-btn { width: 100%; height: 88rpx; line-height: 88rpx; border-radius: 44rpx; font-size: 30rpx; font-weight: 600; text-align: center; margin-bottom: 24rpx; border: none; }
-.nf-btn-primary { background: linear-gradient(135deg, #e50914, #b20710); color: #fff; }
-.nf-btn-primary[disabled] { opacity: 0.6; }
+.phone-page {
+  min-height: 100vh;
+  background: #f4f7fb;
+}
+
+.phone-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 360rpx;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 80% at 100% -10%, rgba(14, 165, 233, 0.2) 0%, transparent 60%),
+    radial-gradient(120% 80% at 0% 0%, rgba(37, 99, 235, 0.2) 0%, transparent 60%);
+}
+
+.phone-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(244, 247, 251, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1rpx solid rgba(148, 163, 184, 0.2);
+}
+
+.phone-navbar-status {
+  height: var(--status-bar-height, 44px);
+}
+
+.phone-navbar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 88rpx;
+  padding: 0 24rpx;
+}
+
+.phone-back,
+.phone-nav-space {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.phone-back {
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 8rpx 20rpx rgba(15, 23, 42, 0.08);
+}
+
+.phone-navbar-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.phone-container {
+  position: relative;
+  padding: calc(var(--status-bar-height, 44px) + 88rpx + 30rpx) 24rpx 30rpx;
+}
+
+.phone-desc {
+  margin-bottom: 16rpx;
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.56);
+}
+
+.phone-card {
+  border-radius: 18rpx;
+  background: #ffffff;
+  box-shadow: 0 12rpx 28rpx rgba(15, 23, 42, 0.08);
+  padding: 26rpx 24rpx 12rpx;
+}
+
+.phone-field {
+  margin-bottom: 22rpx;
+}
+
+.phone-label {
+  display: block;
+  margin-bottom: 10rpx;
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.58);
+}
+
+.phone-input {
+  height: 82rpx;
+  border-radius: 12rpx;
+  background: #f8fafc;
+  border: 1rpx solid #dbe3ee;
+  padding: 0 22rpx;
+  font-size: 28rpx;
+  color: #0f172a;
+}
+
+.phone-current-box {
+  height: 82rpx;
+  border-radius: 12rpx;
+  border: 1rpx solid #dbe3ee;
+  background: #f8fafc;
+  padding: 0 22rpx;
+  display: flex;
+  align-items: center;
+}
+
+.phone-current-text {
+  font-size: 28rpx;
+  color: #0f172a;
+  letter-spacing: 2rpx;
+}
+
+.phone-captcha-row {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+}
+
+.phone-captcha-input {
+  flex: 1;
+}
+
+.phone-captcha-img {
+  width: 220rpx;
+  height: 82rpx;
+  border-radius: 12rpx;
+  border: 1rpx solid #dbe3ee;
+  background: #ffffff;
+}
+
+.phone-submit {
+  margin-top: 24rpx;
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 44rpx;
+  border: none;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 600;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+}
+
+.phone-submit[disabled] {
+  opacity: 0.6;
+}
 </style>

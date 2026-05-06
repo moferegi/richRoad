@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
@@ -11,6 +12,20 @@ import (
 )
 
 type PointRecordService struct{}
+
+func normalizeAssetType(assetType *string) (string, error) {
+	if assetType == nil || strings.TrimSpace(*assetType) == "" {
+		return client.AssetTypePoint, nil
+	}
+
+	value := strings.TrimSpace(*assetType)
+	switch value {
+	case client.AssetTypePoint, client.AssetTypeTryonPoint:
+		return value, nil
+	default:
+		return "", errors.New("资产类型必须是 point 或 tryon_point")
+	}
+}
 
 // CreatePointRecord 创建积分记录管理记录
 // Author [yourname](https://github.com/yourname)
@@ -63,6 +78,12 @@ func (cprService *PointRecordService) CreatePointRecord(ctx context.Context, cpr
 
 // executePointRecordLogic 执行积分记录的核心逻辑
 func (cprService *PointRecordService) executePointRecordLogic(tx *gorm.DB, cpr *client.PointRecord, actualPointChange int) error {
+	assetType, err := normalizeAssetType(cpr.AssetType)
+	if err != nil {
+		return err
+	}
+	cpr.AssetType = &assetType
+
 	// 1. 获取当前用户信息并锁定记录
 	var user client.ClientUser
 	if err := tx.Where("id = ?", *cpr.UserId).First(&user).Error; err != nil {
@@ -72,18 +93,32 @@ func (cprService *PointRecordService) executePointRecordLogic(tx *gorm.DB, cpr *
 		return err
 	}
 
-	// 2. 计算新的积分总数
-	newPoints := user.Point + actualPointChange
-	if newPoints < 0 {
-		return errors.New("积分不足，无法扣除")
+	// 2. 计算新的资产总数
+	currentBalance := 0
+	fieldName := "point"
+	insufficientMessage := "积分不足，无法扣除"
+	switch assetType {
+	case client.AssetTypePoint:
+		currentBalance = user.Point
+		fieldName = "point"
+		insufficientMessage = "积分不足，无法扣除"
+	case client.AssetTypeTryonPoint:
+		currentBalance = user.TryonPoint
+		fieldName = "tryon_point"
+		insufficientMessage = "试衣币不足，无法扣除"
 	}
 
-	// 3. 更新用户积分
-	if err := tx.Model(&user).Update("point", newPoints).Error; err != nil {
+	newPoints := currentBalance + actualPointChange
+	if newPoints < 0 {
+		return errors.New(insufficientMessage)
+	}
+
+	// 3. 更新用户资产
+	if err := tx.Model(&user).Update(fieldName, newPoints).Error; err != nil {
 		return err
 	}
 
-	// 4. 设置积分记录的当前积分和实际变化值
+	// 4. 设置积分记录的当前资产和实际变化值
 	cpr.CurrentPoints = &newPoints
 	cpr.PointChange = &actualPointChange
 
@@ -134,6 +169,16 @@ func (cprService *PointRecordService) GetPointRecordInfoList(ctx context.Context
 	// 如果有条件搜索 下方会自动创建搜索语句
 	if len(info.CreatedAtRange) == 2 {
 		db = db.Where("created_at BETWEEN ? AND ?", info.CreatedAtRange[0], info.CreatedAtRange[1])
+	}
+	if info.AssetType != nil && strings.TrimSpace(*info.AssetType) != "" {
+		assetType, normalizeErr := normalizeAssetType(info.AssetType)
+		if normalizeErr != nil {
+			return nil, 0, normalizeErr
+		}
+		db = db.Where("asset_type = ?", assetType)
+	} else {
+		// 兼容历史数据：旧记录 asset_type 为空，默认归为积分记录。
+		db = db.Where("(asset_type = ? OR asset_type IS NULL)", client.AssetTypePoint)
 	}
 
 	if info.UserId != nil {

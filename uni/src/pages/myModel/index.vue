@@ -43,12 +43,17 @@ import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getUrl } from '@/utils/url.js'
 import { setSelectedTryonModel, uploadTryonImage } from '@/utils/tryon.js'
+import {
+  createTryonModel,
+  updateTryonModel,
+  deleteTryonModel,
+  getMyTryonModelList,
+} from '@/api/tryonTask.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 
-const STORAGE_KEY = 'my:model:list:v1'
 const modelList = ref([])
 
 const isTempLocalPath = (value) => {
@@ -57,13 +62,23 @@ const isTempLocalPath = (value) => {
   return text.startsWith('blob:') || text.startsWith('file:') || text.startsWith('wxfile:') || text.startsWith('content:')
 }
 
-const loadModels = () => {
-  const data = uni.getStorageSync(STORAGE_KEY)
-  modelList.value = Array.isArray(data) ? data : []
+const normalizeModelItem = (item) => {
+  const id = item?.ID || item?.id || ''
+  return {
+    id: String(id),
+    name: item?.name || '',
+    url: item?.image || item?.url || '',
+    createdAt: item?.CreatedAt || item?.createdAt || '',
+  }
 }
 
-const saveModels = () => {
-  uni.setStorageSync(STORAGE_KEY, modelList.value)
+const loadModels = async () => {
+  const res = await getMyTryonModelList()
+  if (res.code !== 0) {
+    return
+  }
+  const list = Array.isArray(res?.data?.list) ? res.data.list : []
+  modelList.value = list.map(normalizeModelItem).filter(item => item.id)
 }
 
 const addModel = () => {
@@ -78,7 +93,7 @@ const addModel = () => {
       uni.showLoading({ title: $t.value('uploading') || '上传中', mask: true })
       let uploadedUrl = ''
       try {
-        uploadedUrl = await uploadTryonImage(path)
+        uploadedUrl = await uploadTryonImage(path, 'tryon/model/source')
       } catch (e) {
         uni.showToast({ title: e.message || $t.value('uploadFail'), icon: 'none' })
         return
@@ -86,14 +101,16 @@ const addModel = () => {
         uni.hideLoading()
       }
 
-      const item = {
-        id: `model_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
+      const createRes = await createTryonModel({
         name: `${$t.value('modelDefaultPrefix')}${modelList.value.length + 1}`,
-        url: uploadedUrl,
-        createdAt: Date.now(),
+        image: uploadedUrl,
+      })
+      if (createRes.code !== 0) {
+        return
       }
-      modelList.value.unshift(item)
-      saveModels()
+
+      await loadModels()
+      uni.showToast({ title: $t.value('createSuccess') || '创建成功', icon: 'none' })
     },
   })
 }
@@ -104,12 +121,21 @@ const renameModel = (item) => {
     editable: true,
     placeholderText: $t.value('modelNamePlaceholder'),
     content: item.name || '',
-    success: (res) => {
+    success: async (res) => {
       if (!res.confirm) return
       const value = (res.content || '').trim()
       if (!value) return
+
+      const renameRes = await updateTryonModel({
+        ID: Number(item.id),
+        name: value,
+      })
+      if (renameRes.code !== 0) {
+        return
+      }
+
       item.name = value
-      saveModels()
+      uni.showToast({ title: $t.value('updateSuccess') || '更新成功', icon: 'none' })
     },
   })
 }
@@ -118,10 +144,16 @@ const removeModel = (item) => {
   uni.showModal({
     title: $t.value('pendingOrderTitle'),
     content: $t.value('confirmDeleteModel'),
-    success: (res) => {
+    success: async (res) => {
       if (!res.confirm) return
+
+      const deleteRes = await deleteTryonModel({ ID: Number(item.id) })
+      if (deleteRes.code !== 0) {
+        return
+      }
+
       modelList.value = modelList.value.filter(v => v.id !== item.id)
-      saveModels()
+      uni.showToast({ title: $t.value('deleteSuccess') || '删除成功', icon: 'none' })
     },
   })
 }
@@ -141,7 +173,7 @@ const useForRoom = (item, roomType) => {
   const isRemote = !!value && !isTempLocalPath(value)
   setSelectedTryonModel({
     roomType,
-    modelID: item.id,
+    modelID: String(item.id || ''),
     modelName: item.name,
     localPath: isRemote ? '' : value,
     remoteUrl: isRemote ? getUrl(value) : '',

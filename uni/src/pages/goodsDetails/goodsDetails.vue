@@ -1,13 +1,13 @@
 <template>
-  <view class="nf-goods-detail" :style="skuVisible || couponshow ? 'height:100vh;overflow:hidden;' : ''">
+  <view class="nf-goods-detail" :class="{ 'lock-scroll': isPageLocked }">
     <!-- 页面滚动锁定：弹窗打开时禁止body滚动 -->
-    <page-meta :page-style="skuVisible || couponshow ? 'overflow: hidden; height: 100vh;' : ''" />
+    <page-meta :page-style="isPageLocked ? 'overflow: hidden;' : ''" />
     <!-- 自定义导航栏（悬浮在轮播上方） -->
     <view class="nf-navbar">
       <view class="nf-navbar-status"></view>
       <view class="nf-navbar-content">
         <view class="nf-navbar-back" @tap="goBack">
-          <uni-icons type="left" size="20" color="#fff"></uni-icons>
+          <uni-icons type="left" size="20" color="#0f172a"></uni-icons>
         </view>
         <text class="nf-navbar-title">{{ $t('goodsDetail') }}</text>
         <view style="width: 64rpx;"></view>
@@ -77,7 +77,7 @@
     <view class="nf-section-card" @tap="opencoupon">
       <view class="nf-section-row">
         <view class="nf-section-label">
-          <text class="nf-label-dot" style="background: #e50914;"></text>
+          <text class="nf-label-dot" style="background: #2563eb;"></text>
           <text>{{ $t('coupon') }}</text>
         </view>
         <view class="nf-section-value">
@@ -87,7 +87,7 @@
               : $t('couponNoMin').replace('{off}', selectedCoupon.discount/100) }}
           </text>
           <text class="nf-coupon-hint" v-else>{{ $t('claimCoupon') }}</text>
-          <uni-icons type="right" size="14" color="rgba(255,255,255,0.3)"></uni-icons>
+          <uni-icons type="right" size="14" color="rgba(15,23,42,0.3)"></uni-icons>
         </view>
       </view>
     </view>
@@ -121,7 +121,7 @@
           <text class="nf-nav-icon-text">{{ $t('home') }}</text>
         </view>
         <view class="nf-nav-icon-item" @tap="goToKefu">
-          <uni-icons type="headphones" size="20" color="rgba(255,255,255,0.6)"></uni-icons>
+          <uni-icons type="headphones" size="20" color="rgba(15,23,42,0.62)"></uni-icons>
           <text class="nf-nav-icon-text">{{ $t('customerService') }}</text>
         </view>
         <view class="nf-nav-icon-item" @tap="goTo('cart')">
@@ -145,7 +145,7 @@
       <view class="nf-coupon-popup-header">
         <text class="nf-coupon-popup-title">{{ $t('claimCoupon') }}</text>
         <view class="nf-coupon-popup-close" @tap="hidecoupon">
-          <uni-icons type="close" size="18" color="rgba(255,255,255,0.6)"></uni-icons>
+          <uni-icons type="close" size="18" color="rgba(15,23,42,0.68)"></uni-icons>
         </view>
       </view>
       <scroll-view class="nf-coupon-scroll" scroll-y>
@@ -361,7 +361,7 @@ const addToCart = () => {
 }
 
 const goTo = (path) => {
-  if (path === 'cart') uni.switchTab({ url: '/pages/tabBar/shop/shop' })
+  if (path === 'cart') uni.navigateTo({ url: '/pages/cart/index' })
   else uni.switchTab({ url: '/pages/tabBar/index' })
 }
 
@@ -426,6 +426,7 @@ const addCollect = async () => {
 const selectedCoupon = ref({})
 const couponshow = ref(false)
 const couponList = ref([])
+const isPageLocked = computed(() => skuVisible.value || couponshow.value)
 
 const getTotalInventory = (skus) => {
   if (!skus || skus.length === 0) return 0
@@ -443,7 +444,9 @@ const opencoupon = async () => {
     })
   }
 }
-const hidecoupon = () => { couponshow.value = false }
+const hidecoupon = () => {
+  couponshow.value = false
+}
 
 const onReceive = async (item) => {
   uni.showLoading({ title: item.couponNum == 0 ? $t.value('claiming') : $t.value('selecting'), mask: true })
@@ -462,81 +465,99 @@ const onReceive = async (item) => {
 </script>
 
 <style lang="scss">
-page { background-color: #000; }
+page { background-color: #f4f7fb; }
 
-.nf-goods-detail { min-height: 100vh; background: #000; padding-bottom: 120rpx; }
+.nf-goods-detail {
+  --nf-text-secondary: rgba(15, 23, 42, 0.62);
+  --nf-text-tertiary: rgba(15, 23, 42, 0.52);
+  --nf-text-weak: rgba(15, 23, 42, 0.45);
+  min-height: 100vh;
+  background: #f4f7fb;
+  padding-bottom: 120rpx;
+}
+.nf-goods-detail.lock-scroll { height: 100vh; overflow: hidden; }
 
 /* 导航栏 */
 .nf-navbar {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(24px);
+  background: rgba(244, 247, 251, 0.9); backdrop-filter: blur(24px);
+  border-bottom: 1rpx solid rgba(148, 163, 184, 0.24);
   padding: 0 28rpx 16rpx;
 }
 .nf-navbar-status { height: var(--status-bar-height, 0px); }
 .nf-navbar-content { display: flex; align-items: center; justify-content: space-between; height: 88rpx; }
 .nf-navbar-back {
   width: 64rpx; height: 64rpx; border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12); border: 1rpx solid rgba(255, 255, 255, 0.15);
+  background: #ffffff; border: 1rpx solid rgba(148, 163, 184, 0.3);
+  box-shadow: 0 10rpx 24rpx rgba(15, 23, 42, 0.08);
   display: flex; align-items: center; justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  &:active {
+    transform: scale(0.96);
+    box-shadow: 0 6rpx 16rpx rgba(15, 23, 42, 0.1);
+  }
 }
-.nf-navbar-title { font-size: 34rpx; font-weight: 700; color: #fff; letter-spacing: 2rpx; }
+.nf-navbar-title { font-size: 34rpx; font-weight: 700; color: #0f172a; letter-spacing: 1rpx; }
 
 /* 商品信息 */
 .nf-product-info {
+  margin: 16rpx 24rpx 0;
   padding: 28rpx 24rpx;
-  background: rgba(255, 255, 255, 0.04);
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+  background: #ffffff;
+  border: 1rpx solid rgba(148, 163, 184, 0.2);
+  border-radius: 20rpx;
+  box-shadow: 0 12rpx 28rpx rgba(15, 23, 42, 0.08);
 }
 .nf-price-row {
   display: flex; align-items: baseline; gap: 4rpx; margin-bottom: 16rpx; flex-wrap: wrap;
 }
-.nf-price-symbol { font-size: 30rpx; font-weight: 700; color: #e50914; }
-.nf-price-num { font-size: 52rpx; font-weight: 800; color: #e50914; line-height: 1; }
+.nf-price-symbol { font-size: 30rpx; font-weight: 700; color: #2563eb; }
+.nf-price-num { font-size: 52rpx; font-weight: 800; color: #2563eb; line-height: 1; }
 .nf-sale-tag {
-  margin-left: 16rpx; font-size: 20rpx; color: rgba(255, 255, 255, 0.4);
-  padding: 4rpx 14rpx; background: rgba(255, 255, 255, 0.06); border-radius: 8rpx;
+  margin-left: 16rpx; font-size: 20rpx; color: var(--nf-text-tertiary);
+  padding: 4rpx 14rpx; background: rgba(226, 232, 240, 0.7); border-radius: 8rpx;
 }
 .nf-presale-badge {
   margin-left: 12rpx; font-size: 20rpx; color: #fff; font-weight: 600;
   padding: 4rpx 16rpx; background: linear-gradient(135deg, #f59e0b, #ef4444); border-radius: 8rpx;
 }
-.nf-product-title { display: block; font-size: 32rpx; font-weight: 700; color: #fff; line-height: 1.4; margin-bottom: 8rpx; }
-.nf-product-desc { display: block; font-size: 26rpx; color: rgba(255, 255, 255, 0.5); line-height: 1.4; margin-bottom: 12rpx; }
+.nf-product-title { display: block; font-size: 32rpx; font-weight: 700; color: #0f172a; line-height: 1.4; margin-bottom: 8rpx; }
+.nf-product-desc { display: block; font-size: 26rpx; color: var(--nf-text-secondary); line-height: 1.45; margin-bottom: 12rpx; }
 .nf-meta-row {
-  font-size: 24rpx; color: rgba(255, 255, 255, 0.3); display: flex; gap: 24rpx;
+  font-size: 24rpx; color: var(--nf-text-tertiary); display: flex; gap: 24rpx;
 }
 .nf-meta-sep { }
 .nf-presale-time {
   display: flex; align-items: center; gap: 10rpx; margin-top: 16rpx; padding: 16rpx 20rpx;
-  background: rgba(245, 158, 11, 0.08); border: 1rpx solid rgba(245, 158, 11, 0.15);
+  background: rgba(245, 158, 11, 0.12); border: 1rpx solid rgba(245, 158, 11, 0.2);
   border-radius: 12rpx; font-size: 24rpx; color: #f59e0b;
 }
 /* 预售倒计时+进度条 */
 .nf-presale-countdown-section {
   margin-top: 16rpx; padding: 20rpx 24rpx;
-  background: rgba(245, 158, 11, 0.06); border: 1rpx solid rgba(245, 158, 11, 0.12);
+  background: rgba(245, 158, 11, 0.1); border: 1rpx solid rgba(245, 158, 11, 0.18);
   border-radius: 12rpx;
 }
 .nf-presale-countdown-row {
   display: flex; align-items: center; gap: 12rpx; margin-bottom: 16rpx;
 }
 .nf-countdown-label { font-size: 24rpx; color: #f59e0b; font-weight: 600; }
-.nf-countdown-ended { color: rgba(255,255,255,0.4); }
+.nf-countdown-ended { color: rgba(15, 23, 42, 0.45); }
 .nf-countdown-time {
-  font-size: 28rpx; color: #fff; font-weight: 700;
-  padding: 4rpx 16rpx; background: rgba(229,9,20,0.15); border-radius: 8rpx;
+  font-size: 28rpx; color: #0f172a; font-weight: 700;
+  padding: 4rpx 16rpx; background: rgba(37, 99, 235, 0.12); border-radius: 8rpx;
   font-variant-numeric: tabular-nums;
 }
 .nf-presale-progress { margin-top: 4rpx; }
 .nf-progress-bar {
-  height: 12rpx; background: rgba(255,255,255,0.08); border-radius: 6rpx; overflow: hidden;
+  height: 12rpx; background: rgba(148, 163, 184, 0.28); border-radius: 6rpx; overflow: hidden;
 }
 .nf-progress-fill {
   height: 100%; background: linear-gradient(90deg, #f59e0b, #ef4444); border-radius: 6rpx;
   transition: width 0.3s;
 }
 .nf-progress-text {
-  display: block; margin-top: 8rpx; font-size: 22rpx; color: rgba(255,255,255,0.4); text-align: right;
+  display: block; margin-top: 8rpx; font-size: 22rpx; color: var(--nf-text-tertiary); text-align: right;
 }
 
 /* 属性网格 */
@@ -544,33 +565,39 @@ page { background-color: #000; }
 .nf-attr-item {
   display: flex; flex-direction: column; gap: 4rpx;
   min-width: 200rpx; padding: 12rpx 16rpx;
-  background: rgba(255, 255, 255, 0.04); border-radius: 10rpx;
+  background: #f8fafc; border-radius: 10rpx;
+  border: 1rpx solid rgba(148, 163, 184, 0.24);
 }
-.nf-attr-label { font-size: 22rpx; color: rgba(255, 255, 255, 0.4); }
-.nf-attr-value { font-size: 26rpx; color: rgba(255, 255, 255, 0.8); }
+.nf-attr-label { font-size: 22rpx; color: var(--nf-text-tertiary); }
+.nf-attr-value { font-size: 26rpx; color: #0f172a; }
 
 /* 通用区块卡片 */
 .nf-section-card {
   margin: 20rpx 24rpx; padding: 24rpx 28rpx;
-  background: rgba(255, 255, 255, 0.04); border: 1rpx solid rgba(255, 255, 255, 0.06);
-  border-radius: 20rpx; backdrop-filter: blur(8px);
+  background: #ffffff; border: 1rpx solid rgba(148, 163, 184, 0.2);
+  border-radius: 20rpx; box-shadow: 0 12rpx 28rpx rgba(15, 23, 42, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  &:active {
+    transform: translateY(1rpx);
+    box-shadow: 0 8rpx 20rpx rgba(15, 23, 42, 0.1);
+  }
 }
 .nf-section-row { display: flex; justify-content: space-between; align-items: center; }
-.nf-section-label { display: flex; align-items: center; gap: 12rpx; font-size: 28rpx; color: #fff; }
+.nf-section-label { display: flex; align-items: center; gap: 12rpx; font-size: 28rpx; color: #0f172a; }
 .nf-label-dot { width: 12rpx; height: 12rpx; border-radius: 4rpx; }
 .nf-section-value { display: flex; align-items: center; gap: 8rpx; }
-.nf-coupon-text { font-size: 26rpx; color: #e50914; font-weight: 600; }
-.nf-coupon-hint { font-size: 26rpx; color: rgba(255, 255, 255, 0.4); }
+.nf-coupon-text { font-size: 26rpx; color: #2563eb; font-weight: 600; }
+.nf-coupon-hint { font-size: 26rpx; color: var(--nf-text-weak); }
 
 /* 图文详情分割 */
 .nf-detail-divider {
   display: flex; align-items: center; justify-content: center;
   gap: 20rpx; padding: 30rpx 0;
-  text { font-size: 26rpx; color: rgba(255, 255, 255, 0.4); }
+  text { font-size: 26rpx; color: var(--nf-text-weak); }
 }
 .nf-divider-line {
   height: 1rpx; width: 100rpx;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+  background: linear-gradient(90deg, transparent, rgba(15, 23, 42, 0.16), transparent);
 }
 .nf-detail-content { padding: 0 24rpx; }
 
@@ -578,79 +605,97 @@ page { background-color: #000; }
 .nf-bottom-nav {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 98;
   display: flex; align-items: center; height: 110rpx;
-  background: rgba(0, 0, 0, 0.95); backdrop-filter: blur(24px);
-  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(24px);
+  border-top: 1rpx solid rgba(148, 163, 184, 0.24);
   padding-bottom: constant(safe-area-inset-bottom);
   padding-bottom: env(safe-area-inset-bottom);
 }
 .nf-nav-icons { display: flex; flex: 1; }
 .nf-nav-icon-item {
   display: flex; flex-direction: column; align-items: center; justify-content: center; width: 96rpx;
+  transition: transform 0.2s ease;
+  &:active { transform: scale(0.95); }
 }
-.nf-nav-icon-img { width: 40rpx; height: 40rpx; margin-bottom: 4rpx; opacity: 0.6; }
-.nf-nav-icon-text { font-size: 20rpx; color: rgba(255, 255, 255, 0.5); }
+.nf-nav-icon-img { width: 40rpx; height: 40rpx; margin-bottom: 4rpx; opacity: 0.72; }
+.nf-nav-icon-text { font-size: 20rpx; color: var(--nf-text-tertiary); }
 .nf-buy-buttons { display: flex; height: 100%; }
 .nf-add-cart-btn, .nf-buy-now-btn {
   padding: 0 36rpx; height: 100%; display: flex; align-items: center; justify-content: center;
   font-size: 28rpx; font-weight: 600; color: #fff;
+  transition: filter 0.2s ease, transform 0.2s ease;
+  &:active {
+    filter: brightness(0.95);
+    transform: translateY(1rpx);
+  }
 }
-.nf-add-cart-btn { background: rgba(255, 149, 0, 0.9); }
-.nf-buy-now-btn { background: #e50914; }
+.nf-add-cart-btn { background: linear-gradient(135deg, #f59e0b, #fb923c); }
+.nf-buy-now-btn { background: linear-gradient(135deg, #2563eb, #0ea5e9); }
 
 /* 优惠券弹出层 Netflix风格 */
 .nf-mask {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.7); z-index: 900;
+  background: rgba(2, 6, 23, 0.52); z-index: 900;
 }
 .nf-coupon-popup {
   position: fixed; left: 0; right: 0; bottom: -100vh; z-index: 999;
-  background: #141414; border-radius: 24rpx 24rpx 0 0;
+  background: #f8fafc; border-radius: 28rpx 28rpx 0 0;
   transition: all 0.3s ease;
   &.show { bottom: 0; }
 }
 .nf-coupon-popup-header {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 28rpx 32rpx 16rpx; border-bottom: 1rpx solid rgba(255,255,255,0.06);
+  padding: 28rpx 32rpx 16rpx; border-bottom: 1rpx solid rgba(148, 163, 184, 0.18);
 }
-.nf-coupon-popup-title { font-size: 32rpx; font-weight: 700; color: #fff; }
+.nf-coupon-popup-title { font-size: 32rpx; font-weight: 700; color: #0f172a; }
 .nf-coupon-popup-close {
   width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,0.08); border-radius: 50%;
+  background: rgba(148, 163, 184, 0.16); border-radius: 50%;
 }
 .nf-coupon-scroll { width: 100vw; height: 55vh; padding: 16rpx 0; }
 .nf-coupon-empty {
   display: flex; align-items: center; justify-content: center; height: 200rpx;
-  color: rgba(255,255,255,0.3); font-size: 28rpx;
+  color: rgba(71, 85, 105, 0.75); font-size: 28rpx;
 }
 
 /* 优惠券卡片 */
 .nf-coupon-card {
   display: flex; align-items: center; margin: 16rpx 24rpx; padding: 24rpx;
-  background: rgba(255,255,255,0.04); border: 1rpx solid rgba(255,255,255,0.06);
+  background: #ffffff; border: 1rpx solid rgba(148, 163, 184, 0.2);
   border-radius: 16rpx; position: relative; overflow: hidden;
+  box-shadow: 0 12rpx 28rpx rgba(15, 23, 42, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  &:active {
+    transform: scale(0.996);
+    box-shadow: 0 8rpx 20rpx rgba(15, 23, 42, 0.1);
+  }
 }
 .nf-coupon-card::before {
   content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 8rpx;
-  background: linear-gradient(180deg, #e50914, #ff6b35);
+  background: linear-gradient(180deg, #2563eb, #0ea5e9);
 }
 .nf-coupon-disabled { opacity: 0.45; }
 .nf-coupon-left {
   min-width: 160rpx; text-align: center; padding-right: 20rpx;
-  border-right: 1rpx dashed rgba(255,255,255,0.1);
+  border-right: 1rpx dashed rgba(148, 163, 184, 0.35);
 }
-.nf-coupon-amount { display: block; font-size: 44rpx; font-weight: 800; color: #e50914; line-height: 1.2; }
-.nf-coupon-condition { display: block; font-size: 20rpx; color: rgba(255,255,255,0.4); margin-top: 4rpx; }
+.nf-coupon-amount { display: block; font-size: 44rpx; font-weight: 800; color: #2563eb; line-height: 1.2; }
+.nf-coupon-condition { display: block; font-size: 20rpx; color: var(--nf-text-tertiary); margin-top: 4rpx; }
 .nf-coupon-right { flex: 1; padding: 0 20rpx; }
-.nf-coupon-name { display: block; font-size: 26rpx; color: #fff; font-weight: 600; margin-bottom: 6rpx; }
-.nf-coupon-date { display: block; font-size: 20rpx; color: rgba(255,255,255,0.3); }
-.nf-coupon-unavail { display: block; font-size: 20rpx; color: #e50914; margin-top: 4rpx; }
+.nf-coupon-name { display: block; font-size: 26rpx; color: #0f172a; font-weight: 600; margin-bottom: 6rpx; }
+.nf-coupon-date { display: block; font-size: 20rpx; color: var(--nf-text-tertiary); }
+.nf-coupon-unavail { display: block; font-size: 20rpx; color: #2563eb; margin-top: 4rpx; }
 .nf-coupon-action { min-width: 120rpx; display: flex; align-items: center; justify-content: center; }
 .nf-coupon-btn {
   padding: 10rpx 24rpx; border-radius: 8rpx; font-size: 24rpx; font-weight: 600; text-align: center;
+  transition: filter 0.2s ease, transform 0.2s ease;
+  &:active {
+    filter: brightness(0.95);
+    transform: translateY(1rpx);
+  }
 }
-.nf-coupon-btn-claim { background: #e50914; color: #fff; }
-.nf-coupon-btn-use { background: rgba(255,149,0,0.9); color: #fff; }
-.nf-coupon-btn-used { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.3); }
+.nf-coupon-btn-claim { background: linear-gradient(135deg, #2563eb, #0ea5e9); color: #fff; }
+.nf-coupon-btn-use { background: linear-gradient(135deg, #f59e0b, #fb923c); color: #fff; }
+.nf-coupon-btn-used { background: rgba(148, 163, 184, 0.2); color: rgba(15, 23, 42, 0.35); }
 .nf-coupon-btn-disabled { display: none; }
 </style>
 

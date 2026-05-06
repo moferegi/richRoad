@@ -90,7 +90,7 @@ func (s *MarketingRewardService) TriggerReward(userID uint, triggerType string, 
 	if triggerType == "order" && reward.OrderOnce != nil && *reward.OrderOnce {
 		var count int64
 		global.GVA_DB.Model(&client.PointRecord{}).
-			Where("user_id = ? AND operation_type = ?", userID, "order_complete").
+			Where("user_id = ? AND operation_type = ? AND (asset_type = ? OR asset_type IS NULL)", userID, "order_complete", client.AssetTypePoint).
 			Count(&count)
 		if count > 0 {
 			return nil // 已发放过，跳过
@@ -101,6 +101,7 @@ func (s *MarketingRewardService) TriggerReward(userID uint, triggerType string, 
 	if reward.Points != nil && *reward.Points > 0 {
 		pointRecordService := &clientService.PointRecordService{}
 		uid := int(userID)
+		assetType := client.AssetTypePoint
 		changeType := "increase"
 		points := *reward.Points
 		remark := ""
@@ -109,6 +110,7 @@ func (s *MarketingRewardService) TriggerReward(userID uint, triggerType string, 
 		}
 
 		record := &client.PointRecord{
+			AssetType:     &assetType,
 			UserId:        &uid,
 			ChangeType:    &changeType,
 			PointChange:   &points,

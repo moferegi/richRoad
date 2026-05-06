@@ -3,7 +3,7 @@ import { useUserStore } from "@/pinia/modules/user";
 export const myRouter = (url,isRedirectTo)=>{
     const userStore = useUserStore()
     const token = userStore.token || ''
-    const blackList = ['/pages/orderInfo/orderInfo', '/pages/tabBar/shop/shop', '/pages/order/order', '/pages/tabBar/my/my']
+	const blackList = ['/pages/orderInfo/orderInfo', '/pages/tabBar/shop/shop', '/pages/order/order']
 
 	const loginList = ['/pages/user/login','/pages/user/register']
     const inBlack = blackList.some(b=>{
