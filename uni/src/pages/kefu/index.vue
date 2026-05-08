@@ -7,7 +7,7 @@
       <view class="nf-navbar-status"></view>
       <view class="nf-navbar-content">
         <view class="nf-navbar-back" @tap="goBack">
-          <uni-icons type="left" size="20" color="#fff"></uni-icons>
+          <uni-icons type="left" size="20" color="#0f172a"></uni-icons>
         </view>
         <text class="nf-navbar-title">{{ $t('kefuTitle') }}</text>
         <view style="width: 64rpx;"></view>
@@ -31,7 +31,11 @@
           </view>
           <view class="nf-payment-meta-row">
             <text class="nf-payment-meta-label">{{ $t('kefuPaymentMethod') }}</text>
-            <text class="nf-payment-meta-value">{{ prefillPayMethodLabel }}</text>
+            <text class="nf-payment-meta-value">{{ expectedPayMethodLabel }}</text>
+          </view>
+          <view class="nf-payment-meta-row" v-if="prefillSelectedQrName">
+            <text class="nf-payment-meta-label">{{ $t('kefuPaymentQrLabel') }}</text>
+            <text class="nf-payment-meta-value">{{ prefillSelectedQrName }}</text>
           </view>
 
           <view class="nf-payment-draft-wrap">
@@ -78,7 +82,7 @@
         <view v-if="showExternalList" class="nf-section-title">{{ $t('kefuPlatformSection') }}</view>
         <view class="nf-plat-cs-card" @tap="enterPlatChat">
           <view class="nf-plat-cs-avatar">
-            <uni-icons type="chat-filled" size="40" color="#e50914" />
+            <uni-icons type="chat-filled" size="40" color="#2563eb" />
           </view>
           <view class="nf-plat-cs-info">
             <text class="nf-plat-cs-name">{{ $t('kefuPlatformName') }}</text>
@@ -106,6 +110,7 @@ import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getKefuList, getCsConfig, getSysConfigByKey } from '@/api/kefu.js'
 import { getUrl } from '@/utils/url.js'
+import { t as i18nT } from '@/utils/i18n.js'
 import { trackVisitorEvent } from '@/utils/visitorEvent.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
@@ -129,8 +134,25 @@ const KEFU_CHAT_PREFILL_KEY = 'kefu:chat:prefill'
 const prefillOrderID = ref('')
 const prefillPayMethod = ref('')
 const prefillPayMethodLabel = ref('')
+const prefillPreferredPayMethod = ref('')
+const prefillPreferredPayMethodLabel = ref('')
+const prefillPreferredPayMethodCopyText = ref('')
+const prefillSelectedQrName = ref('')
 
 const hasPaymentContext = computed(() => !!prefillOrderID.value)
+const expectedPayMethodLabel = computed(() => {
+  const preferredKey = String(prefillPreferredPayMethod.value || '').trim().toLowerCase()
+  if (preferredKey && preferredKey !== 'contact' && preferredKey !== 'qrcode') {
+    return prefillPreferredPayMethodLabel.value || getPayMethodLabel(preferredKey)
+  }
+
+  const payKey = String(prefillPayMethod.value || '').trim().toLowerCase()
+  if (payKey === 'contact') {
+    return $t.value('paymentPreferredMethodMissing')
+  }
+
+  return prefillPayMethodLabel.value || getPayMethodLabel(payKey)
+})
 
 const extractLinkHost = (link) => {
   const target = String(link || '').trim()
@@ -148,6 +170,9 @@ const trackKefuGuideEvent = (action, extra = {}) => {
     orderNo: prefillOrderID.value || '',
     payMethod: prefillPayMethod.value || '',
     payMethodLabel: prefillPayMethodLabel.value || '',
+    preferredPayMethod: prefillPreferredPayMethod.value || '',
+    preferredPayMethodLabel: expectedPayMethodLabel.value || '',
+    selectedQrName: prefillSelectedQrName.value || '',
     ...extra
   }
   return trackVisitorEvent({
@@ -173,9 +198,14 @@ const getPayMethodLabel = (method) => {
 
 const paymentDraftText = computed(() => {
   if (!prefillOrderID.value) return ''
-  return $t.value('kefuPaymentDraftTemplate')
+  const template = prefillPreferredPayMethodCopyText.value || $t.value('kefuPaymentDraftTemplatePending')
+  let text = template
     .replace('{orderID}', prefillOrderID.value || '-')
-    .replace('{payMethod}', prefillPayMethodLabel.value || getPayMethodLabel(prefillPayMethod.value))
+    .replace('{payMethod}', expectedPayMethodLabel.value || '-')
+  if (prefillSelectedQrName.value) {
+    text += `\n${$t.value('kefuPaymentQrSource').replace('{qrName}', prefillSelectedQrName.value)}`
+  }
+  return text
 })
 
 const safeDecode = (val) => {
@@ -241,9 +271,39 @@ const copyDraftThenOpenExternal = (link) => {
   })
 }
 
+const STATUS_KEY_TO_I18N = {
+  online: 'kefuOnline',
+  offline: 'kefuOffline',
+  busy: 'kefuBusy',
+}
+const STATUS_ALIAS_LANGS = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id']
+
+const buildStatusAliasMap = () => {
+  const aliasMap = {
+    online: 'online',
+    offline: 'offline',
+    busy: 'busy',
+  }
+
+  Object.keys(STATUS_KEY_TO_I18N).forEach((status) => {
+    const i18nKey = STATUS_KEY_TO_I18N[status]
+    STATUS_ALIAS_LANGS.forEach((lang) => {
+      const text = String(i18nT(i18nKey, lang) || '').trim()
+      if (!text) return
+      aliasMap[text] = status
+      aliasMap[text.replace(/\s+/g, '')] = status
+    })
+  })
+
+  return aliasMap
+}
+
+const statusAliasMap = buildStatusAliasMap()
+
 const normalizeStatus = (status) => {
-  const map = { '在线': 'online', 'online': 'online', '离线': 'offline', 'offline': 'offline', '忙碌': 'busy', 'busy': 'busy' }
-  return map[status] || 'offline'
+  const rawStatus = String(status || '').trim()
+  const normalizedStatus = rawStatus.replace(/\s+/g, '')
+  return statusAliasMap[rawStatus] || statusAliasMap[normalizedStatus] || 'offline'
 }
 
 const avatarInitial = (name) => {
@@ -309,6 +369,10 @@ onLoad((options = {}) => {
   prefillOrderID.value = safeDecode(options.orderID)
   prefillPayMethod.value = safeDecode(options.payMethod)
   prefillPayMethodLabel.value = safeDecode(options.payMethodLabel) || getPayMethodLabel(prefillPayMethod.value)
+  prefillPreferredPayMethod.value = safeDecode(options.preferredPayMethod)
+  prefillPreferredPayMethodLabel.value = safeDecode(options.preferredPayMethodLabel) || getPayMethodLabel(prefillPreferredPayMethod.value)
+  prefillPreferredPayMethodCopyText.value = safeDecode(options.preferredPayMethodCopyText)
+  prefillSelectedQrName.value = safeDecode(options.selectedQrName)
   syncChatPrefill()
   if (hasPaymentContext.value) {
     trackKefuGuideEvent('kefu_page_view')
@@ -371,7 +435,7 @@ const goBack = () => {
 
 <style lang="scss">
 page {
-  background-color: #000;
+  background-color: #f4f7fb;
 }
 
 .nf-kefu {
@@ -379,7 +443,7 @@ page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #000;
+  background: #f4f7fb;
   position: relative;
 }
 
@@ -390,16 +454,16 @@ page {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 30% 0%, rgba(229, 9, 20, 0.12) 0%, transparent 60%),
-    radial-gradient(ellipse at 70% 10%, rgba(229, 9, 20, 0.08) 0%, transparent 50%);
+    radial-gradient(ellipse at 30% -10%, rgba(37, 99, 235, 0.2) 0%, transparent 58%),
+    radial-gradient(ellipse at 75% 10%, rgba(14, 165, 233, 0.15) 0%, transparent 52%);
 }
 
 /* ===== 导航栏 ===== */
 .nf-navbar {
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(244, 247, 251, 0.92);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1rpx solid rgba(148, 163, 184, 0.2);
   padding: 0 28rpx 16rpx;
   position: sticky;
   top: 0;
@@ -428,14 +492,15 @@ page {
   width: 64rpx;
   height: 64rpx;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  background: #ffffff;
+  border: 1rpx solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 8rpx 22rpx rgba(15, 23, 42, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
 
   &:active {
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(241, 245, 249, 0.98);
     transform: scale(0.93);
   }
 }
@@ -443,7 +508,7 @@ page {
 .nf-navbar-title {
   font-size: 34rpx;
   font-weight: 700;
-  color: #fff;
+  color: #0f172a;
   letter-spacing: 2rpx;
 }
 
@@ -471,8 +536,8 @@ page {
 }
 
 .nf-payment-hint-card {
-  background: rgba(229, 9, 20, 0.08);
-  border: 1rpx solid rgba(229, 9, 20, 0.25);
+  background: rgba(219, 234, 254, 0.75);
+  border: 1rpx solid rgba(37, 99, 235, 0.2);
   border-radius: 20rpx;
   padding: 20rpx;
 }
@@ -486,18 +551,18 @@ page {
 
 .nf-payment-hint-title {
   font-size: 26rpx;
-  color: #fff;
+  color: #0f172a;
   font-weight: 600;
 }
 
 .nf-payment-copy-btn {
   padding: 8rpx 16rpx;
   border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(37, 99, 235, 0.14);
 }
 
 .nf-payment-copy-btn-text {
-  color: #fff;
+  color: #1d4ed8;
   font-size: 22rpx;
 }
 
@@ -510,29 +575,29 @@ page {
 
 .nf-payment-meta-label {
   font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(15, 23, 42, 0.56);
 }
 
 .nf-payment-meta-value {
   font-size: 22rpx;
-  color: #fff;
+  color: #0f172a;
 }
 
 .nf-payment-draft-wrap {
   margin-top: 10rpx;
   padding-top: 10rpx;
-  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-top: 1rpx solid rgba(15, 23, 42, 0.08);
 }
 
 .nf-payment-draft-text {
   margin-top: 8rpx;
   font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(15, 23, 42, 0.72);
   line-height: 1.45;
 }
 
 .nf-section-title {
-  color: rgba(255, 255, 255, 0.62);
+  color: rgba(15, 23, 42, 0.6);
   font-size: 24rpx;
   letter-spacing: 2rpx;
   margin-bottom: 16rpx;
@@ -550,17 +615,16 @@ page {
 .nf-plat-cs-card {
   display: flex;
   align-items: center;
-  background: rgba(229, 9, 20, 0.08);
-  border: 1rpx solid rgba(229, 9, 20, 0.3);
+  background: rgba(255, 255, 255, 0.98);
+  border: 1rpx solid rgba(37, 99, 235, 0.16);
   border-radius: 24rpx;
   padding: 40rpx 32rpx;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 14rpx 28rpx rgba(37, 99, 235, 0.1);
   transition: transform 0.3s, background 0.3s;
 
   &:active {
     transform: scale(0.985);
-    background: rgba(229, 9, 20, 0.14);
+    background: rgba(239, 246, 255, 0.98);
   }
 }
 
@@ -568,7 +632,7 @@ page {
   width: 100rpx;
   height: 100rpx;
   border-radius: 50%;
-  background: rgba(229, 9, 20, 0.12);
+  background: rgba(37, 99, 235, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -586,29 +650,28 @@ page {
 .nf-plat-cs-name {
   font-size: 34rpx;
   font-weight: 600;
-  color: #fff;
+  color: #0f172a;
 }
 
 .nf-plat-cs-desc {
   font-size: 26rpx;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(15, 23, 42, 0.58);
 }
 
 .nf-kefu-card {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.98);
+  border: 1rpx solid rgba(148, 163, 184, 0.2);
   border-radius: 24rpx;
   padding: 32rpx 28rpx;
   margin-bottom: 20rpx;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 12rpx 24rpx rgba(15, 23, 42, 0.07);
   transition: transform 0.3s, background 0.3s;
 
   &:active {
     transform: scale(0.985);
-    background: rgba(255, 255, 255, 0.07);
+    background: #f8fbff;
   }
 }
 
@@ -623,8 +686,8 @@ page {
   width: 108rpx;
   height: 108rpx;
   border-radius: 50%;
-  border: 3rpx solid rgba(229, 9, 20, 0.4);
-  box-shadow: 0 0 20rpx rgba(229, 9, 20, 0.15);
+  border: 3rpx solid rgba(37, 99, 235, 0.28);
+  box-shadow: 0 10rpx 18rpx rgba(37, 99, 235, 0.12);
 }
 
 .nf-kefu-avatar-fallback {
@@ -646,7 +709,7 @@ page {
   width: 24rpx;
   height: 24rpx;
   border-radius: 50%;
-  border: 3rpx solid #000;
+  border: 3rpx solid #ffffff;
 }
 
 .nf-dot-online {
@@ -672,7 +735,7 @@ page {
 .nf-kefu-name {
   font-size: 32rpx;
   font-weight: 700;
-  color: #fff;
+  color: #0f172a;
   letter-spacing: 1rpx;
   margin-bottom: 8rpx;
   overflow: hidden;
@@ -695,7 +758,7 @@ page {
 }
 
 .nf-status-offline {
-  color: #6b7280;
+  color: #94a3b8;
 }
 
 .nf-status-busy {
@@ -707,23 +770,23 @@ page {
   flex-shrink: 0;
   margin-left: 16rpx;
   padding: 14rpx 32rpx;
-  background: linear-gradient(135deg, #e50914, #b20710);
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
   border-radius: 40rpx;
-  box-shadow: 0 4rpx 16rpx rgba(229, 9, 20, 0.35);
+  box-shadow: 0 8rpx 18rpx rgba(37, 99, 235, 0.3);
   transition: all 0.3s;
 
   &:active {
     transform: scale(0.95);
-    box-shadow: 0 2rpx 8rpx rgba(229, 9, 20, 0.5);
+    box-shadow: 0 2rpx 8rpx rgba(37, 99, 235, 0.45);
   }
 }
 
 .nf-action-disabled {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(148, 163, 184, 0.18);
   box-shadow: none;
 
   .nf-kefu-action-text {
-    color: rgba(255, 255, 255, 0.3);
+    color: rgba(15, 23, 42, 0.35);
   }
 }
 
@@ -747,8 +810,8 @@ page {
   width: 120rpx;
   height: 120rpx;
   border-radius: 50%;
-  background: rgba(229, 9, 20, 0.08);
-  border: 1rpx solid rgba(229, 9, 20, 0.15);
+  background: rgba(37, 99, 235, 0.1);
+  border: 1rpx solid rgba(37, 99, 235, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -757,7 +820,7 @@ page {
 
 .nf-kefu-empty-text {
   font-size: 28rpx;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(15, 23, 42, 0.48);
   letter-spacing: 2rpx;
 }
 </style>

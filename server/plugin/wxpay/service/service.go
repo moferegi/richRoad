@@ -5,6 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"math"
+	"strconv"
+	"strings"
+
 	"github.com/ArtisanCloud/PowerWeChat/v3/src/payment"
 	"github.com/ArtisanCloud/PowerWeChat/v3/src/payment/order/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
@@ -15,9 +20,6 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	utils2 "github.com/wechatpay-apiv3/wechatpay-go/utils"
 	"gorm.io/gorm"
-	"log"
-	"math"
-	"strconv"
 )
 
 var shopService = service.ServiceGroupApp.ShopServiceGroup.OrderService
@@ -110,7 +112,7 @@ func GetPayConf(ctx context.Context, client *payment.Payment, order model.Order)
 	//fmt.Println(rs.Data)
 	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
 		var o shop.Order
-		fe := tx.First(&o, "id = ?", order.OrderID).Error
+		fe := tx.First(&o, "id = ? AND user_id = ?", order.OrderID, order.CustomerID).Error
 		if fe != nil {
 			return fe
 		}
@@ -119,10 +121,13 @@ func GetPayConf(ctx context.Context, client *payment.Payment, order model.Order)
 		}
 		//先创建一个空的订单
 		//然后 订单一定要记录好订单上面关联的产品ID 包含产品的介绍 名字 金额等
-		snowflakeID := utils.GenerateSnowflakeID() // 获取雪花id
-		b := o.TotalPrice                          // 产品价格  分
+		b := o.TotalPrice // 产品价格  分
 		Name := "订单支付"
-		outTradeNo := fmt.Sprintf("%d", snowflakeID)
+		outTradeNo := strings.TrimSpace(o.OutTradeNo)
+		if outTradeNo == "" {
+			snowflakeID := utils.GenerateSnowflakeID() // 获取雪花id
+			outTradeNo = fmt.Sprintf("%d", snowflakeID)
+		}
 
 		options := &request.RequestJSAPIPrepay{
 			Amount: &request.JSAPIAmount{
@@ -147,8 +152,10 @@ func GetPayConf(ctx context.Context, client *payment.Payment, order model.Order)
 			return errors.New(response.ResponseBase.Message)
 		}
 		prepayID = response.PrepayID
-		if err := tx.Model(&shop.Order{}).Where("id = ?", order.OrderID).Update("out_trade_no", outTradeNo).Error; err != nil {
-			return err
+		if strings.TrimSpace(o.OutTradeNo) == "" {
+			if err := tx.Model(&shop.Order{}).Where("id = ?", order.OrderID).Update("out_trade_no", outTradeNo).Error; err != nil {
+				return err
+			}
 		}
 
 		wxOrder := model.Order{
@@ -199,25 +206,31 @@ func closeOrder(ctx context.Context, client *payment.Payment, order model.Order)
 		return err
 	} else {
 		// 处理返回结果
-		global.GVA_LOG.Info(fmt.Sprintf("status = %d", result.ResultCode))
+		global.GVA_LOG.Info(fmt.Sprintf("status = %s", result.ResultCode))
 		return nil
 	}
 }
 
 // 查询订单 传入订单ID即可
-func (e *WxpayService) GetOrderById(orderID string) (error, model.Order) {
+func (e *WxpayService) GetOrderById(orderID string, customerID uint) (error, model.Order) {
 	err, ctx, client := utils.CreateClientAndCtx()
 	if err != nil {
 		return err, model.Order{}
 	}
-	return queryOrderByOutTradeNo(ctx, client, orderID)
+	return queryOrderByOutTradeNo(ctx, client, orderID, customerID)
 }
 
-func queryOrderByOutTradeNo(ctx context.Context, client *payment.Payment, orderID string) (err error, order model.Order) {
+func queryOrderByOutTradeNo(ctx context.Context, client *payment.Payment, orderID string, customerID uint) (err error, order model.Order) {
+	if customerID == 0 {
+		return errors.New("请先登录"), model.Order{}
+	}
 
 	var shopOrder shop.Order
-	err = global.GVA_DB.First(&shopOrder, "id = ?", orderID).Error
+	err = global.GVA_DB.First(&shopOrder, "id = ? AND user_id = ?", orderID, customerID).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("订单不存在"), model.Order{}
+		}
 		return err, model.Order{}
 	}
 	if shopOrder.OutTradeNo == "" {

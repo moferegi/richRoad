@@ -9,3 +9,7 @@ type SysConfigSearch struct {
 	ConfigKey   string `json:"configKey" form:"configKey"`
 	request.PageInfo
 }
+
+type AliyunTryonQuotaSearch struct {
+	ModelKey string `json:"modelKey" form:"modelKey"`
+}

@@ -1,7 +1,10 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
@@ -9,6 +12,22 @@ import (
 )
 
 type SysConfigService struct{}
+
+type AliyunTryonQuotaItem struct {
+	ModelKey                 string `json:"modelKey"`
+	Model                    string `json:"model"`
+	Provider                 string `json:"provider"`
+	FreeQuotaTotal           int    `json:"freeQuotaTotal"`
+	UsedSuccessCount         int64  `json:"usedSuccessCount"`
+	RemainingEstimate        int64  `json:"remainingEstimate"`
+	RefinerEnabled           bool   `json:"refinerEnabled"`
+	RefinerModel             string `json:"refinerModel"`
+	RefinerFreeQuotaTotal    int    `json:"refinerFreeQuotaTotal"`
+	RefinerUsedSuccessCount  int64  `json:"refinerUsedSuccessCount"`
+	RefinerRemainingEstimate int64  `json:"refinerRemainingEstimate"`
+	LastRefreshedAt          string `json:"lastRefreshedAt"`
+	EstimateDescription      string `json:"estimateDescription"`
+}
 
 // GetSysConfigList 分页获取系统参数列表
 func (s *SysConfigService) GetSysConfigList(info clientReq.SysConfigSearch) (list []client.SysConfig, total int64, err error) {
@@ -81,4 +100,116 @@ func (s *SysConfigService) GetAnnouncementConfig() (map[string]string, error) {
 		result[cfg.ConfigKey] = cfg.ConfigValue
 	}
 	return result, nil
+}
+
+func (s *SysConfigService) GetAliyunTryonQuotaEstimate(modelKey string) (list []AliyunTryonQuotaItem, err error) {
+	raw, err := s.GetConfigByKey("tryon_models")
+	if err != nil {
+		return nil, err
+	}
+
+	models := make([]tryonModelConfig, 0)
+	if strings.TrimSpace(raw) != "" {
+		if err = json.Unmarshal([]byte(raw), &models); err != nil {
+			return nil, err
+		}
+	}
+
+	modelKey = strings.TrimSpace(modelKey)
+	nowText := time.Now().Format(time.RFC3339)
+	for i := range models {
+		item := &models[i]
+		key := strings.TrimSpace(item.Key)
+		if key == "" {
+			continue
+		}
+		if modelKey != "" && !strings.EqualFold(key, modelKey) {
+			continue
+		}
+		if !isAliyunQuotaSupportedModel(item) {
+			continue
+		}
+
+		freeQuotaTotal := item.FreeQuotaTotal
+		if freeQuotaTotal <= 0 {
+			freeQuotaTotal = 400
+		}
+
+		var usedSuccessCount int64
+		err = global.GVA_DB.Model(&client.TryonTask{}).
+			Where("provider = ? AND status = ?", key, tryonTaskStatusSuccess).
+			Count(&usedSuccessCount).Error
+		if err != nil {
+			return nil, err
+		}
+
+		remainingEstimate := int64(freeQuotaTotal) - usedSuccessCount
+		if remainingEstimate < 0 {
+			remainingEstimate = 0
+		}
+
+		supportsRefiner := item.supportsRefinerValue()
+		refinerModel := ""
+		refinerFreeQuotaTotal := 0
+		var refinerUsedSuccessCount int64
+		var refinerRemainingEstimate int64
+
+		if supportsRefiner {
+			refinerModel = item.refinerModelValue()
+			refinerFreeQuotaTotal = item.RefinerFreeQuotaTotal
+			if refinerFreeQuotaTotal <= 0 {
+				if freeQuotaTotal > 0 {
+					refinerFreeQuotaTotal = freeQuotaTotal
+				} else {
+					refinerFreeQuotaTotal = 400
+				}
+			}
+
+			err = global.GVA_DB.Model(&client.TryonTask{}).
+				Where("provider = ? AND enable_refiner = ? AND refiner_status = ?", key, true, tryonRefinerStatusSuccess).
+				Count(&refinerUsedSuccessCount).Error
+			if err != nil {
+				return nil, err
+			}
+
+			refinerRemainingEstimate = int64(refinerFreeQuotaTotal) - refinerUsedSuccessCount
+			if refinerRemainingEstimate < 0 {
+				refinerRemainingEstimate = 0
+			}
+		}
+
+		list = append(list, AliyunTryonQuotaItem{
+			ModelKey:                 key,
+			Model:                    strings.TrimSpace(item.Model),
+			Provider:                 strings.TrimSpace(item.Provider),
+			FreeQuotaTotal:           freeQuotaTotal,
+			UsedSuccessCount:         usedSuccessCount,
+			RemainingEstimate:        remainingEstimate,
+			RefinerEnabled:           supportsRefiner,
+			RefinerModel:             refinerModel,
+			RefinerFreeQuotaTotal:    refinerFreeQuotaTotal,
+			RefinerUsedSuccessCount:  refinerUsedSuccessCount,
+			RefinerRemainingEstimate: refinerRemainingEstimate,
+			LastRefreshedAt:          nowText,
+			EstimateDescription:      "本地估算值（按当前系统成功任务数统计，含基础与精修接口），官方免费额度请以百炼控制台为准",
+		})
+	}
+
+	return list, nil
+}
+
+func isAliyunQuotaSupportedModel(item *tryonModelConfig) bool {
+	if item == nil {
+		return false
+	}
+	provider := strings.ToLower(strings.TrimSpace(item.Provider))
+	if strings.Contains(provider, "aliyun") || strings.Contains(provider, "dashscope") {
+		return true
+	}
+	model := strings.ToLower(strings.TrimSpace(item.Model))
+	if strings.HasPrefix(model, "aitryon") {
+		return true
+	}
+	key := strings.ToLower(strings.TrimSpace(item.Key))
+	return strings.Contains(key, "aliyun") || strings.Contains(key, "aitryon")
 }

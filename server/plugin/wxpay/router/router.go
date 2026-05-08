@@ -1,6 +1,7 @@
 package router
 
 import (
+	"github.com/flipped-aurora/gin-vue-admin/server/middleware"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/wxpay/api"
 	"github.com/gin-gonic/gin"
 )
@@ -9,14 +10,18 @@ type WxpayRouter struct {
 }
 
 func (s *WxpayRouter) InitWxpayRouter(Router *gin.RouterGroup) {
-	plugRouter := Router
+	authRouter := Router.Group("").Use(middleware.JWTAuth())
+	publicRouter := Router.Group("")
 	plugApi := api.ApiGroupApp.WxpayApi
 	{
-		plugRouter.POST("getPayCode", plugApi.GetPayCode)
-		plugRouter.POST("getPayParams", plugApi.GetPayParams)
-		plugRouter.POST("checkNeedPay", plugApi.CheckNeedPay)
+		authRouter.POST("getPayCode", plugApi.GetPayCode)
+		authRouter.POST("getPayParams", plugApi.GetPayParams)
+		authRouter.POST("checkNeedPay", plugApi.CheckNeedPay)
 
-		plugRouter.GET("getOrderById", plugApi.GetOrderById)
-		plugRouter.POST("payAction", plugApi.PayAction)
+		authRouter.GET("getOrderById", plugApi.GetOrderById)
+	}
+
+	{
+		publicRouter.POST("payAction", plugApi.PayAction)
 	}
 }

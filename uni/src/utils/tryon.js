@@ -1,10 +1,12 @@
 import { baseUrl } from '@/utils/request.js'
-import { localText } from '@/utils/i18n.js'
+import { localText, t } from '@/utils/i18n.js'
 
 const TRYON_DRAFT_KEY = 'tryon:draft:v1'
 const TRYON_HISTORY_KEY = 'tryon:history:v1'
 const TRYON_SELECTED_CLOTHES_KEY = 'tryon:selectedClothes:v1'
 const TRYON_SELECTED_MODEL_KEY = 'tryon:selectedModel:v1'
+
+const getUploadFailMessage = () => t('uploadFail')
 
 export const createTryonRequestId = () => `uni_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`
 
@@ -50,6 +52,14 @@ export const getTryonLocalHistory = () => {
   return []
 }
 
+export const setTryonLocalHistory = (list) => {
+  if (!Array.isArray(list)) {
+    uni.setStorageSync(TRYON_HISTORY_KEY, [])
+    return
+  }
+  uni.setStorageSync(TRYON_HISTORY_KEY, list)
+}
+
 export const appendTryonLocalHistory = (item) => {
   if (!item || typeof item !== 'object') return
   const oldList = getTryonLocalHistory()
@@ -57,6 +67,14 @@ export const appendTryonLocalHistory = (item) => {
   const filtered = oldList.filter(v => (v.taskNo || v.requestID || '') !== taskNo)
   const merged = [{ ...item, savedAt: Date.now() }, ...filtered].slice(0, 100)
   uni.setStorageSync(TRYON_HISTORY_KEY, merged)
+}
+
+export const removeTryonLocalHistoryByTaskKey = (taskKey) => {
+  const key = String(taskKey || '').trim()
+  if (!key) return
+  const oldList = getTryonLocalHistory()
+  const filtered = oldList.filter(v => String(v.taskNo || v.requestID || '').trim() !== key)
+  setTryonLocalHistory(filtered)
 }
 
 // Keep uni upload behavior aligned with backend default OSS strategy.
@@ -94,12 +112,20 @@ export const getTryonUploadFolder = ({ sceneType = 'clothes', operationType = 't
   return normalizeUploadFolder(`tryon/${scene}/${pathRole}`)
 }
 
-export const uploadTryonImage = (tempFilePath, folder = '') => {
+export const uploadTryonImage = (tempFilePath, folder = '', uploadType = '', uploadPosition = 'tryon') => {
   return new Promise((resolve, reject) => {
     const formData = {}
     const uploadFolder = normalizeUploadFolder(folder)
     if (uploadFolder) {
       formData.folder = uploadFolder
+    }
+    const normalizedUploadType = String(uploadType || '').trim()
+    if (normalizedUploadType) {
+      formData.uploadType = normalizedUploadType
+    }
+    const normalizedUploadPosition = String(uploadPosition || '').trim().toLowerCase()
+    if (normalizedUploadPosition) {
+      formData.uploadPosition = normalizedUploadPosition
     }
 
     uni.uploadFile({
@@ -117,12 +143,12 @@ export const uploadTryonImage = (tempFilePath, folder = '') => {
             resolve(data.data.file.url)
             return
           }
-          reject(new Error(data.msg || '上传失败'))
+          reject(new Error(data.msg || getUploadFailMessage()))
         } catch (e) {
-          reject(new Error('上传失败'))
+          reject(new Error(getUploadFailMessage()))
         }
       },
-      fail: (err) => reject(new Error(err.errMsg || '上传失败')),
+      fail: (err) => reject(new Error(err.errMsg || getUploadFailMessage())),
     })
   })
 }
@@ -138,6 +164,37 @@ const isModelEnabled = (item) => {
   if (typeof item.enabled === 'boolean') return item.enabled
   const text = String(item.enabled).trim().toLowerCase()
   return text === '1' || text === 'true' || text === 'yes' || text === 'on'
+}
+
+const toBool = (value, fallback = false) => {
+  if (typeof value === 'boolean') return value
+  if (value === undefined || value === null || value === '') return fallback
+  const text = String(value).trim().toLowerCase()
+  if (['1', 'true', 'yes', 'on'].includes(text)) return true
+  if (['0', 'false', 'no', 'off'].includes(text)) return false
+  return fallback
+}
+
+const isAliyunTryonModel = (item = {}) => {
+  const provider = String(item.provider || '').trim().toLowerCase()
+  const key = String(item.key || item.modelKey || '').trim().toLowerCase()
+  const model = String(item.model || '').trim().toLowerCase()
+  if (provider.includes('aliyun') || provider.includes('dashscope')) return true
+  if (key.includes('aliyun') || key.includes('aitryon')) return true
+  return model.startsWith('aitryon')
+}
+
+const inferSupportsRefiner = (item = {}) => {
+  if (!isAliyunTryonModel(item)) return false
+  const model = String(item.model || '').trim().toLowerCase()
+  const key = String(item.key || item.modelKey || '').trim().toLowerCase()
+  return model === 'aitryon' || model === 'aitryon-plus' || key.includes('aliyun_aitryon') || key.includes('aliyun_aitryon_plus')
+}
+
+const normalizeRefinerGender = (value, fallback = 'woman') => {
+  const gender = String(value || '').trim().toLowerCase()
+  if (gender === 'woman' || gender === 'man') return gender
+  return fallback
 }
 
 const matchSceneType = (item, sceneType) => {
@@ -176,6 +233,8 @@ export const parseTryonModels = (modelsRaw, sceneType, fallbackCost = 1, lang = 
 
       const rawName = item.nameI18n || item.name || item.titleI18n || item.title || key
       const rawDesc = item.descI18n || item.desc || item.descriptionI18n || item.description || ''
+      const rawRefinerDesc = item.refinerDescI18n || item.refinerDesc || ''
+      const supportsRefiner = toBool(item.supportsRefiner, inferSupportsRefiner(item))
 
       return {
         key,
@@ -187,6 +246,12 @@ export const parseTryonModels = (modelsRaw, sceneType, fallbackCost = 1, lang = 
         mode: item.mode || '',
         url: item.url || item.providerUrl || '',
         token: item.token || item.providerToken || '',
+        supportsRefiner,
+        refinerModel: String(item.refinerModel || 'aitryon-refiner'),
+        refinerGender: normalizeRefinerGender(item.refinerGender, 'woman'),
+        refinerDesc: rawRefinerDesc,
+        refinerDescText: toLocalizedText(rawRefinerDesc, lang),
+        freeQuotaTotal: Math.max(0, Number(item.freeQuotaTotal || 0)),
       }
     })
 
@@ -198,9 +263,17 @@ export const parseTryonModels = (modelsRaw, sceneType, fallbackCost = 1, lang = 
     key: 'aitryon',
     name: 'aitryon',
     cost: Number(fallbackCost || 1),
+    supportsRefiner: true,
+    refinerModel: 'aitryon-refiner',
+    refinerGender: 'woman',
     desc: {
-      zh: '默认AI试衣模型，适合常规试衣场景',
       en: 'Default AI try-on model for common try-on scenes',
+      zh: 'Default AI try-on model for common try-on scenes',
+      'zh-TW': 'Default AI try-on model for common try-on scenes',
+      mn: 'Default AI try-on model for common try-on scenes',
+      th: 'Default AI try-on model for common try-on scenes',
+      hi: 'Default AI try-on model for common try-on scenes',
+      id: 'Default AI try-on model for common try-on scenes',
     },
   }]
 }

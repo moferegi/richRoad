@@ -9,6 +9,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	clientReq "github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type PointRecordService struct{}
@@ -86,7 +87,7 @@ func (cprService *PointRecordService) executePointRecordLogic(tx *gorm.DB, cpr *
 
 	// 1. 获取当前用户信息并锁定记录
 	var user client.ClientUser
-	if err := tx.Where("id = ?", *cpr.UserId).First(&user).Error; err != nil {
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", *cpr.UserId).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("用户不存在")
 		}

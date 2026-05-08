@@ -88,6 +88,7 @@
                 <el-icon style="margin-right: 5px"><InfoFilled /></el-icon>
                 查看详情
             </el-button>
+            <el-button type="warning" link @click="openTryonPointDialog(scope.row)">试衣币</el-button>
             <el-button type="primary" link @click="showSubordinates(scope.row)">下级</el-button>
             <el-button type="primary" link icon="edit" class="table-button" @click="updateClientUserFunc(scope.row)">变更</el-button>
             <el-button type="primary" link icon="delete" @click="deleteRow(scope.row)">删除</el-button>
@@ -189,6 +190,33 @@
         />
       </div>
     </el-drawer>
+
+    <el-dialog v-model="tryonPointDialogVisible" title="调整试衣币" width="460px" destroy-on-close>
+      <el-form ref="tryonPointFormRef" :model="tryonPointForm" :rules="tryonPointRules" label-width="92px">
+        <el-form-item label="用户">
+          <div class="tryon-point-user">
+            <span>{{ currentTryonPointUser.nickname || currentTryonPointUser.username }}</span>
+            <el-tag size="small" type="warning">余额 {{ currentTryonPointUser.tryonPoint || 0 }}</el-tag>
+          </div>
+        </el-form-item>
+        <el-form-item label="调整类型" prop="changeType">
+          <el-segmented v-model="tryonPointForm.changeType" :options="tryonPointChangeOptions" />
+        </el-form-item>
+        <el-form-item label="数量" prop="amount">
+          <el-input-number v-model="tryonPointForm.amount" :min="1" :step="1" controls-position="right" style="width: 180px" />
+        </el-form-item>
+        <el-form-item label="原因" prop="reason">
+          <el-input v-model="tryonPointForm.reason" maxlength="80" show-word-limit placeholder="例如：客服补偿、人工充值、违规扣回" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="tryonPointForm.remark" type="textarea" :rows="3" maxlength="200" show-word-limit />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="tryonPointDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="tryonPointSaving" @click="submitTryonPointAdjust">确认调整</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -200,7 +228,8 @@ import {
   updateClientUser,
   findClientUser,
   getClientUserList,
-  getSubordinates
+  getSubordinates,
+  adjustTryonPoint
 } from '@/api/client/user'
 
 // 全量引入格式化工具 请按需保留
@@ -546,8 +575,64 @@ const handleSubPageChange = (val) => {
   loadSubordinates()
 }
 
+// ============== 试衣币调整 ===============
+const tryonPointDialogVisible = ref(false)
+const tryonPointSaving = ref(false)
+const tryonPointFormRef = ref()
+const currentTryonPointUser = ref({})
+const tryonPointForm = ref({
+  userID: 0,
+  changeType: 'increase',
+  amount: 1,
+  reason: '',
+  remark: ''
+})
+const tryonPointChangeOptions = [
+  { label: '增加', value: 'increase' },
+  { label: '减少', value: 'decrease' }
+]
+const tryonPointRules = reactive({
+  changeType: [{ required: true, message: '请选择调整类型', trigger: 'change' }],
+  amount: [{ required: true, message: '请输入调整数量', trigger: 'blur' }],
+  reason: [
+    { required: true, message: '请输入调整原因', trigger: 'blur' },
+    { whitespace: true, message: '不能只输入空格', trigger: ['input', 'blur'] }
+  ]
+})
+
+const openTryonPointDialog = (row) => {
+  currentTryonPointUser.value = row
+  tryonPointForm.value = {
+    userID: row.ID,
+    changeType: 'increase',
+    amount: 1,
+    reason: '',
+    remark: ''
+  }
+  tryonPointDialogVisible.value = true
+}
+
+const submitTryonPointAdjust = () => {
+  tryonPointFormRef.value?.validate(async (valid) => {
+    if (!valid) return
+    tryonPointSaving.value = true
+    const res = await adjustTryonPoint(tryonPointForm.value)
+    tryonPointSaving.value = false
+    if (res.code === 0) {
+      ElMessage.success('试衣币调整成功')
+      tryonPointDialogVisible.value = false
+      getTableData()
+    }
+  })
+}
+
 </script>
 
-<style>
+<style scoped>
+.tryon-point-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
 </style>

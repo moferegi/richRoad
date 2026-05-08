@@ -19,10 +19,10 @@
       class="collect-scroll"
       @scrolltolower="debouncedLower"
     >
-      <view class="collect-summary" v-if="collectList.length">
+      <!-- <view class="collect-summary" v-if="collectList.length">
         <text class="collect-summary-title">{{ $t('myCollectionMenu') }}</text>
         <text class="collect-summary-count">{{ collectList.length }}</text>
-      </view>
+      </view> -->
 
       <view class="collect-grid" v-if="collectList.length">
         <view

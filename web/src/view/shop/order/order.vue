@@ -106,7 +106,7 @@
                 <el-icon style="margin-right: 5px"><InfoFilled /></el-icon>
                 查看详情
             </el-button>
-              <el-button v-if="scope.row.status === '0'" type="success" link class="table-button" @click="confirmPaymentFunc(scope.row)">确认收款</el-button>
+              <el-button v-if="scope.row.status === '0' || scope.row.status === '8'" type="success" link class="table-button" @click="confirmPaymentFunc(scope.row)">确认收款</el-button>
               <el-button v-if="scope.row.status === '6'" type="danger" link class="table-button" @click="refundOrderFunc(scope.row)">同意退款</el-button>
               <el-button v-if="scope.row.status === '1'" type="primary" link icon="van" class="table-button" @click="sendOut(scope.row)">发货</el-button>
               <el-button v-if="scope.row.status === '2'" type="primary" link icon="van" class="table-button" @click="checkRoutersFunc(scope.row)">查看物流</el-button>
@@ -774,6 +774,7 @@ const closeDetailDialog = () => {
 const getStatusType = (status) => {
   const statusMap = {
     '0': 'info',     // 待支付
+      '8': 'warning',  // 待后台确认
     '1': 'warning',  // 待发货
     '2': 'primary',  // 已发货
     '3': 'success',  // 已完成

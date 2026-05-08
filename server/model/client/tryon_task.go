@@ -19,6 +19,9 @@ type TryonTask struct {
 	ResultImage    string     `json:"resultImage" form:"resultImage" gorm:"column:result_image;type:text;comment:生成结果图;"`
 	Provider       string     `json:"provider" form:"provider" gorm:"column:provider;size:50;comment:模型服务提供方;"`
 	ProviderTaskID string     `json:"providerTaskID" form:"providerTaskID" gorm:"column:provider_task_id;size:128;index;comment:第三方异步任务ID;"`
+	EnableRefiner  bool       `json:"enableRefiner" form:"enableRefiner" gorm:"column:enable_refiner;default:false;comment:是否开启图片精修;"`
+	RefinerStatus  string     `json:"refinerStatus" form:"refinerStatus" gorm:"column:refiner_status;size:20;default:'';comment:精修状态(disabled/pending/processing/success/failed);"`
+	RefinerTaskID  string     `json:"refinerTaskID" form:"refinerTaskID" gorm:"column:refiner_task_id;size:128;index;comment:精修任务ID;"`
 	CostPoints     int        `json:"costPoints" form:"costPoints" gorm:"column:cost_points;default:0;comment:扣除试衣币;"`
 	RefundPoints   int        `json:"refundPoints" form:"refundPoints" gorm:"column:refund_points;default:0;comment:退还试衣币;"`
 	ErrorMessage   string     `json:"errorMessage" form:"errorMessage" gorm:"column:error_message;size:500;comment:失败原因;"`

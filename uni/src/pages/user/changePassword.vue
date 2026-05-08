@@ -47,6 +47,7 @@
 <script setup>
 import { reactive, ref, computed } from 'vue'
 import { getCaptcha, changePassword } from '@/api/base.js'
+import { t as i18nT } from '@/utils/i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
@@ -60,13 +61,27 @@ const goKefu = () => {
   uni.navigateTo({ url: '/pages/kefu/index' })
 }
 
-// Backend error message i18n mapping
-const errorMsgMap = {
-  '旧密码错误': 'oldPasswordWrong',
-  '用户不存在': 'userNotFound',
-  '验证码请求过于频繁，请稍后再试': 'captchaRateLimit',
-  '密码错误': 'passwordWrong',
+const ERROR_KEYS = ['oldPasswordWrong', 'userNotFound', 'captchaRateLimit', 'passwordWrong']
+const ERROR_ALIAS_LANGS = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id']
+
+const buildErrorAliasMap = () => {
+  const aliasMap = {}
+
+  ERROR_KEYS.forEach((key) => {
+    aliasMap[key] = key
+
+    ERROR_ALIAS_LANGS.forEach((lang) => {
+      const text = String(i18nT(key, lang) || '').trim()
+      if (!text) return
+      aliasMap[text] = key
+      aliasMap[text.replace(/\s+/g, '')] = key
+    })
+  })
+
+  return aliasMap
 }
+
+const errorAliasMap = buildErrorAliasMap()
 
 const form = reactive({
   oldPassword: '',
@@ -116,9 +131,13 @@ const onSubmit = async () => {
     uni.showToast({ title: $t.value('changeSuccess'), icon: 'success' })
     setTimeout(() => goBack(), 1500)
   } else {
-    const key = errorMsgMap[res.msg]
+    const rawMsg = String(res.msg || '').trim()
+    const normalizedMsg = rawMsg.replace(/\s+/g, '')
+    const key = errorAliasMap[rawMsg] || errorAliasMap[normalizedMsg]
     if (key) {
       uni.showToast({ title: $t.value(key), icon: 'none' })
+    } else if (rawMsg) {
+      uni.showToast({ title: rawMsg, icon: 'none' })
     }
     getCaptchaFunc()
   }

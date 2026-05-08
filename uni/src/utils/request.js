@@ -1,20 +1,56 @@
 import { myRouter }from  '@/utils/permission.js'
-import { t, localText } from '@/utils/i18n.js'
+import { t } from '@/utils/i18n.js'
 
-// 后端中文错误消息 → i18n key 映射
-const backendErrorMap = {
-    '验证码请求过于频繁，请稍后再试': 'captchaRateLimit',
-    '旧密码错误': 'oldPasswordWrong',
-    '用户不存在': 'userNotFound',
-    '密码错误': 'passwordWrong',
-    '该手机号已注册': 'phoneAlreadyRegistered',
-    '手机号格式不正确': 'phoneFormatInvalid',
-    '手机号不存在或密码错误': 'phoneOrPasswordWrong',
-    '用户名或密码错误': 'usernameOrPasswordWrong',
-    '用户名不存在或者密码错误': 'usernameOrPasswordWrong',
-    '登录失败次数过多，请稍后再试': 'loginLocked',
-    '注册次数已达上限': 'registerIPLimit',
-    '今日已签到': 'alreadySigned',
+const BACKEND_ERROR_KEYS = [
+    'captchaRateLimit',
+    'oldPasswordWrong',
+    'userNotFound',
+    'passwordWrong',
+    'phoneAlreadyRegistered',
+    'phoneFormatInvalid',
+    'phoneOrPasswordWrong',
+    'usernameOrPasswordWrong',
+    'loginLocked',
+    'registerIPLimit',
+    'alreadySigned',
+]
+
+const BACKEND_ERROR_ALIAS_LANGS = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id']
+
+const buildBackendErrorAliasMap = () => {
+    const aliasMap = {}
+
+    BACKEND_ERROR_KEYS.forEach((key) => {
+        aliasMap[key] = key
+
+        BACKEND_ERROR_ALIAS_LANGS.forEach((lang) => {
+            const text = String(t(key, lang) || '').trim()
+            if (!text) return
+            aliasMap[text] = key
+            aliasMap[text.replace(/\s+/g, '')] = key
+        })
+    })
+
+    return aliasMap
+}
+
+const backendErrorAliasMap = buildBackendErrorAliasMap()
+
+const hasOwn = Object.prototype.hasOwnProperty
+
+const isApiResponseObject = (payload) => {
+    return !!payload && typeof payload === 'object' && !Array.isArray(payload) && hasOwn.call(payload, 'code')
+}
+
+const normalizeApiResponse = (payload) => {
+    if (isApiResponseObject(payload)) {
+        return payload
+    }
+    return {
+        code: -1,
+        data: null,
+        msg: t('apiResponseInvalid'),
+    }
 }
 
 // 定义并导出 baseUrl 变量
@@ -91,16 +127,29 @@ export const request = ({url, data, header, method, params}) => {
                     resolve(res.data)
                     return
                 }
+                const payload = normalizeApiResponse(res.data)
+                if (!isApiResponseObject(res.data)) {
+                    uni.showToast({
+                        title: payload.msg,
+                        icon: 'none'
+                    })
+                    resolve(payload)
+                    return
+                }
                 // 通用错误提示：排除上面已处理的特殊状态
-                if(res.data.code != 0){
-                    const i18nKey = backendErrorMap[res.data.msg]
-                    const msg = i18nKey ? t(i18nKey) : res.data.msg
-					uni.showToast({
-						title: msg,
-						icon: 'none'
-					});
+                if(payload.code != 0){
+                    const rawMsg = String(payload.msg || '').trim()
+                    const normalizedMsg = rawMsg.replace(/\s+/g, '')
+                    const i18nKey = backendErrorAliasMap[rawMsg] || backendErrorAliasMap[normalizedMsg]
+                    const msg = i18nKey ? t(i18nKey) : rawMsg
+                    if (msg) {
+						uni.showToast({
+							title: msg,
+							icon: 'none'
+						});
+                    }
 				}
-                resolve(res.data)
+                resolve(payload)
 
             },
             fail: (err) => {

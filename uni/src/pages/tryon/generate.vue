@@ -190,11 +190,11 @@ const startPolling = (taskID) => {
   pollTimer = setTimeout(loop, POLL_INTERVAL)
 }
 
-const ensureRemoteImage = async (remoteUrl, localPath, folder = '') => {
+const ensureRemoteImage = async (remoteUrl, localPath, folder = '', uploadType = '') => {
   const remote = String(remoteUrl || '').trim()
   if (remote && !isTempLocalPath(remote)) return remote
   if (!localPath) return ''
-  return uploadTryonImage(localPath, folder)
+  return uploadTryonImage(localPath, folder, uploadType)
 }
 
 const getDraftUploadFolder = (role) => {
@@ -212,6 +212,17 @@ const getDraftUploadFolder = (role) => {
     operationType: draft.value.operationType || 'tryon',
     role,
   })
+}
+
+const getDraftUploadType = (role) => {
+  const roomType = String(draft.value.roomType || '').trim().toLowerCase()
+  if (role === 'source') {
+    return 'person'
+  }
+  if (roomType === 'shoe') {
+    return 'shoe'
+  }
+  return 'cloth'
 }
 
 const createTask = async () => {
@@ -236,12 +247,14 @@ const createTask = async () => {
     const sourceImage = await ensureRemoteImage(
       draft.value.sourceRemoteUrl,
       draft.value.sourceLocalPath,
-      getDraftUploadFolder('source')
+      getDraftUploadFolder('source'),
+      getDraftUploadType('source')
     )
     const templateImage = await ensureRemoteImage(
       draft.value.templateRemoteUrl,
       draft.value.templateLocalPath,
-      getDraftUploadFolder('template')
+      getDraftUploadFolder('template'),
+      getDraftUploadType('template')
     )
 
     if (!sourceImage) {
@@ -257,6 +270,7 @@ const createTask = async () => {
       sourceImage,
       templateImage,
       modelKey: draft.value.modelKey || '',
+      enableRefiner: !!draft.value.enableRefiner,
     })
 
     const taskData = normalizeTask(res)
@@ -296,19 +310,79 @@ const previewResult = () => {
   uni.previewImage({ urls: [resultPreview.value] })
 }
 
+const ensureAlbumPermission = async () => {
+  // #ifdef H5
+  return true
+  // #endif
+
+  try {
+    const settingRes = await uni.getSetting()
+    const authState = settingRes?.authSetting?.['scope.writePhotosAlbum']
+    if (authState === false) {
+      const openRes = await uni.openSetting()
+      return !!openRes?.authSetting?.['scope.writePhotosAlbum']
+    }
+    return true
+  } catch {
+    return true
+  }
+}
+
+const saveImageToAlbumWithRetry = async (filePath) => {
+  const canSave = await ensureAlbumPermission()
+  if (!canSave) {
+    throw new Error('NO_ALBUM_PERMISSION')
+  }
+
+  try {
+    await uni.saveImageToPhotosAlbum({ filePath })
+  } catch (e) {
+    const errMsg = String(e?.errMsg || '').toLowerCase()
+    if (!/auth|permission/.test(errMsg)) {
+      throw e
+    }
+
+    const openRes = await uni.openSetting()
+    const granted = !!openRes?.authSetting?.['scope.writePhotosAlbum']
+    if (!granted) {
+      throw new Error('NO_ALBUM_PERMISSION')
+    }
+
+    await uni.saveImageToPhotosAlbum({ filePath })
+  }
+}
+
 const downloadResult = async () => {
   if (!resultPreview.value) {
     uni.showToast({ title: $t.value('noImagePreview'), icon: 'none' })
     return
   }
+
+  // #ifdef H5
+  const anchor = document.createElement('a')
+  anchor.href = resultPreview.value
+  anchor.target = '_blank'
+  anchor.rel = 'noopener'
+  anchor.download = `tryon-${Date.now()}`
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  uni.showToast({ title: $t.value('downloadAction'), icon: 'none' })
+  return
+  // #endif
+
   try {
     uni.showLoading({ title: $t.value('loading'), mask: true })
     const downloadRes = await uni.downloadFile({ url: resultPreview.value })
     const filePath = downloadRes?.tempFilePath
     if (!filePath) throw new Error($t.value('downloadFailed'))
-    await uni.saveImageToPhotosAlbum({ filePath })
+    await saveImageToAlbumWithRetry(filePath)
     uni.showToast({ title: $t.value('savedToAlbum'), icon: 'none' })
   } catch (e) {
+    if (String(e?.message || '') === 'NO_ALBUM_PERMISSION') {
+      uni.showToast({ title: $t.value('saveToAlbumFailed'), icon: 'none' })
+      return
+    }
     uni.showToast({ title: $t.value('saveToAlbumFailed'), icon: 'none' })
   } finally {
     uni.hideLoading()

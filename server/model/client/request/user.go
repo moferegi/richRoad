@@ -39,6 +39,14 @@ type UpdateKV struct {
 	Value string `json:"value"`
 }
 
+type AdjustTryonPointRequest struct {
+	UserID     uint   `json:"userID" form:"userID" binding:"required"`
+	ChangeType string `json:"changeType" form:"changeType" binding:"required"`
+	Amount     int    `json:"amount" form:"amount" binding:"required"`
+	Reason     string `json:"reason" form:"reason" binding:"required"`
+	Remark     string `json:"remark" form:"remark"`
+}
+
 type SetPhoneRequest struct {
 	Password  string `json:"password"`  // 当前密码
 	Phone     string `json:"phone"`     // 新手机号

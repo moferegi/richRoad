@@ -19,8 +19,15 @@ type WxpayApi struct{}
 // @Router /wxpay/getPayCode[post]
 func (p *WxpayApi) GetPayCode(c *gin.Context) {
 	var order model.Order
+	if err := c.ShouldBindJSON(&order); err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
 	order.CustomerID = utils.GetUserID(c)
-	c.ShouldBindJSON(&order)
+	if order.CustomerID == 0 {
+		response.FailWithMessage("请先登录", c)
+		return
+	}
 	if err, codeUrl, codeId := service.ServiceGroupApp.GetPayCode(order); err != nil {
 		global.GVA_LOG.Error("失败!", zap.Error(err))
 		response.FailWithMessage("获取付款码失败:"+err.Error(), c)
@@ -34,8 +41,15 @@ func (p *WxpayApi) GetPayCode(c *gin.Context) {
 
 func (p *WxpayApi) CheckNeedPay(c *gin.Context) {
 	var order model.Order
-	c.ShouldBindJSON(&order)
+	if err := c.ShouldBindJSON(&order); err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
 	order.CustomerID = utils.GetUserID(c)
+	if order.CustomerID == 0 {
+		response.FailWithMessage("请先登录", c)
+		return
+	}
 
 	err, needPay := service.ServiceGroupApp.CheckNeedPay(order)
 
@@ -54,8 +68,15 @@ func (p *WxpayApi) CheckNeedPay(c *gin.Context) {
 // @Router /wxpay/GetPayParams[post]
 func (p *WxpayApi) GetPayParams(c *gin.Context) {
 	var order model.Order
-	c.ShouldBindJSON(&order)
+	if err := c.ShouldBindJSON(&order); err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
 	order.CustomerID = utils.GetUserID(c)
+	if order.CustomerID == 0 {
+		response.FailWithMessage("请先登录", c)
+		return
+	}
 	if err, patConf := service.ServiceGroupApp.GetPayConf(order); err != nil {
 		global.GVA_LOG.Error("失败!", zap.Error(err))
 		response.FailWithMessage("获取付款码失败:"+err.Error(), c)
@@ -71,7 +92,12 @@ func (p *WxpayApi) GetPayParams(c *gin.Context) {
 // @Router /wxpay/getOrderById[get]
 func (p *WxpayApi) GetOrderById(c *gin.Context) {
 	id := c.Query("orderID")
-	if err, data := service.ServiceGroupApp.GetOrderById(id); err != nil {
+	userID := utils.GetUserID(c)
+	if userID == 0 {
+		response.FailWithMessage("请先登录", c)
+		return
+	}
+	if err, data := service.ServiceGroupApp.GetOrderById(id, userID); err != nil {
 		global.GVA_LOG.Error("失败!", zap.Error(err))
 		response.FailWithMessage("获取付款码失败:"+err.Error(), c)
 	} else {

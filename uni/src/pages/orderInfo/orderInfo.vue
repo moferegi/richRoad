@@ -152,7 +152,6 @@ import { findGood } from '@/api/product.js'
 import { getDefaultAddress } from '@/api/address.js'
 import { getPaymentConfig } from '@/api/sysConfig.js'
 import { getUrl, getExternalUrl } from "@/utils/url.js"
-import { trackVisitorEvent } from '@/utils/visitorEvent.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
@@ -201,97 +200,6 @@ const paymentMethodLabelMap = () => ({
 
 const getPaymentMethodLabel = (key, label) => {
   return paymentMethodLabelMap()[key] || label || key || '-'
-}
-
-const getManualFallbackTip = (payMethod, payMethodLabel) => {
-  const tipKeyMap = {
-    wechat: 'paymentManualTipWechat',
-    alipay: 'paymentManualTipAlipay',
-    bank_card_cn: 'paymentManualTipBankCn',
-    bank_card_us: 'paymentManualTipBankUs',
-    bank_card_mn: 'paymentManualTipBankMn',
-    paypal: 'paymentManualTipPaypal',
-  }
-  const tipKey = tipKeyMap[payMethod] || 'paymentManualTipDefault'
-  const fallbackLabel = payMethodLabel || getPaymentMethodLabel(payMethod)
-  return $t.value(tipKey).replace('{}', fallbackLabel)
-}
-
-const buildKefuUrl = (orderNo, payMethod, payMethodLabel) => {
-  const orderID = encodeURIComponent(String(orderNo || ''))
-  const method = encodeURIComponent(String(payMethod || ''))
-  const methodLabel = encodeURIComponent(String(payMethodLabel || ''))
-  return `/pages/kefu/index?orderID=${orderID}&payMethod=${method}&payMethodLabel=${methodLabel}`
-}
-
-const trackKefuGuideEvent = (action, extra = {}) => {
-  const payload = { source: 'order_info', ...extra }
-  return trackVisitorEvent({
-    action,
-    label: String(payload.payMethod || ''),
-    extra: payload
-  })
-}
-
-const routeToKefuByMethod = (orderNo, payMethod, payMethodLabel, useRedirect = false) => {
-  const url = buildKefuUrl(orderNo, payMethod, payMethodLabel)
-  uni.setClipboardData({
-    data: String(orderNo),
-    success: () => {
-      trackKefuGuideEvent('copy_order_no', { orderNo, payMethod, payMethodLabel })
-      uni.showToast({ title: `${$t.value('orderNoCopied')}: ${orderNo}`, icon: 'none', duration: 2000 })
-      setTimeout(() => {
-        trackKefuGuideEvent('navigate_kefu', {
-          orderNo,
-          payMethod,
-          payMethodLabel,
-          navigateMode: useRedirect ? 'redirectTo' : 'navigateTo'
-        })
-        if (useRedirect) {
-          uni.redirectTo({ url })
-          return
-        }
-        uni.navigateTo({ url })
-      }, 1500)
-    },
-    fail: () => {
-      trackKefuGuideEvent('copy_order_no_fail', { orderNo, payMethod, payMethodLabel })
-      trackKefuGuideEvent('navigate_kefu', {
-        orderNo,
-        payMethod,
-        payMethodLabel,
-        navigateMode: useRedirect ? 'redirectTo' : 'navigateTo'
-      })
-      if (useRedirect) {
-        uni.redirectTo({ url })
-        return
-      }
-      uni.navigateTo({ url })
-    },
-  })
-}
-
-const confirmManualFallback = (payMethod, payMethodLabel) => {
-  trackKefuGuideEvent('manual_fallback_modal_show', { payMethod, payMethodLabel })
-  return new Promise((resolve) => {
-    uni.showModal({
-      title: payMethodLabel || $t.value('paymentManualFallbackTitle'),
-      content: `${getManualFallbackTip(payMethod, payMethodLabel)}\n\n${$t.value('paymentManualProofHint')}`,
-      confirmText: $t.value('paymentManualFallbackContact'),
-      cancelText: $t.value('paymentManualFallbackLater'),
-      success: (res) => {
-        trackKefuGuideEvent(res.confirm ? 'manual_fallback_confirm' : 'manual_fallback_cancel', {
-          payMethod,
-          payMethodLabel
-        })
-        resolve(!!res.confirm)
-      },
-      fail: () => {
-        trackKefuGuideEvent('manual_fallback_cancel', { payMethod, payMethodLabel, fail: true })
-        resolve(false)
-      },
-    })
-  })
 }
 
 const buildDefaultPaymentMethods = () => ([
@@ -571,6 +479,7 @@ const doCreateOrder = async (payMethod) => {
       return
     }
     const newOrderID = String(res.data.orderID)
+    const newOrderNo = String(res.data.orderNo || newOrderID)
 
     // 2. 如果使用积分，调用积分抵扣
     if (usePoints.value) {
@@ -588,33 +497,10 @@ const doCreateOrder = async (payMethod) => {
       return
     }
 
-    // 4. 按选择的支付方式跳转（统一用 redirectTo 离开本页，防止返回重复提交）
-    if (selectedPayMethod === 'qrcode') {
-      // 二维码支付
-      const encodedPayMethod = encodeURIComponent(selectedPayMethod)
-      const encodedPayMethodLabel = encodeURIComponent(selectedMethodLabel)
-      uni.redirectTo({ url: `/pages/pay/index?amount=${(totalPrice.value / 100).toFixed(2)}&orderNo=${newOrderID}&orderId=${newOrderID}&payMethod=${encodedPayMethod}&payMethodLabel=${encodedPayMethodLabel}` })
-    } else {
-      trackKefuGuideEvent('guide_entry', {
-        orderNo: newOrderID,
-        payMethod: selectedPayMethod,
-        payMethodLabel: selectedMethodLabel
-      })
-
-      if (selectedPayMethod !== 'contact') {
-        const shouldContactNow = await confirmManualFallback(selectedPayMethod, selectedMethodLabel)
-        if (!shouldContactNow) {
-          uni.showToast({ title: $t.value('paymentManualSavedOrder'), icon: 'none' })
-          setTimeout(() => {
-            uni.redirectTo({ url: `/pages/orderDetail/orderDetail?orderID=${newOrderID}` })
-          }, 1200)
-          return
-        }
-      }
-
-      // 联系客服支付：redirectTo 替换本页，防止返回重复提交
-      routeToKefuByMethod(newOrderID, selectedPayMethod, selectedMethodLabel, true)
-    }
+    // 4. 统一跳转支付中间页（二维码/人工/自动渠道一致）
+    const encodedPayMethod = encodeURIComponent(selectedPayMethod)
+    const encodedPayMethodLabel = encodeURIComponent(selectedMethodLabel)
+    uni.redirectTo({ url: `/pages/pay/index?amount=${(totalPrice.value / 100).toFixed(2)}&orderNo=${newOrderNo}&orderId=${newOrderID}&payMethod=${encodedPayMethod}&payMethodLabel=${encodedPayMethodLabel}` })
   } catch (e) {
     uni.showToast({ title: $t.value('orderCreateFail'), icon: 'none' })
   } finally {

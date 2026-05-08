@@ -7,6 +7,7 @@ type ApiGroup struct {
 	AddressApi
 	CollectApi
 	PointRecordApi
+	TryonRechargeOrderApi
 	TryonTaskApi
 	TryonModelApi
 	VisitorApi

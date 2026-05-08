@@ -186,7 +186,15 @@ const loadCalendarSignedDates = async () => {
   } catch (e) { console.error(e) }
 }
 
-const weekDays = ['日', '一', '二', '三', '四', '五', '六']
+const weekDays = computed(() => [
+  $t.value('weekDaySunShort'),
+  $t.value('weekDayMonShort'),
+  $t.value('weekDayTueShort'),
+  $t.value('weekDayWedShort'),
+  $t.value('weekDayThuShort'),
+  $t.value('weekDayFriShort'),
+  $t.value('weekDaySatShort'),
+])
 
 const calendarCells = computed(() => {
   const y = calendarYear.value

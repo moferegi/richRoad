@@ -25,3 +25,17 @@ export const updateSysConfig = (data) => {
     data: data
   })
 }
+
+/**
+ * 获取阿里试衣模型剩余额度估算（管理端）
+ * @param {Object} params 查询参数
+ * @param {string} params.modelKey 模型key，不传返回全部
+ * @returns {Promise}
+ */
+export const getAliyunTryonQuotaEstimate = (params = {}) => {
+  return service({
+    url: '/sysConfig/getAliyunTryonQuotaEstimate',
+    method: 'get',
+    params
+  })
+}

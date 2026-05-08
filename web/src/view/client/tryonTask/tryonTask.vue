@@ -532,11 +532,8 @@ const openDetail = (row) => {
 }
 
 const tableRowClassName = ({ row }) => {
-  if (row.status === 'failed') {
-    return 'tryon-row-failed'
-  }
-  if (row.status === 'processing') {
-    return 'tryon-row-processing'
+  if (row.status !== 'processing') {
+    return 'tryon-row-non-processing'
   }
   return ''
 }
@@ -1041,11 +1038,7 @@ getModelTableData()
   font-weight: 500;
 }
 
-:deep(.el-table .tryon-row-failed > td.el-table__cell) {
-  background: rgba(245, 108, 108, 0.12);
-}
-
-:deep(.el-table .tryon-row-processing > td.el-table__cell) {
+:deep(.el-table .tryon-row-non-processing > td.el-table__cell) {
   background: rgba(230, 162, 60, 0.12);
 }
 </style>

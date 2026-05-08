@@ -142,6 +142,29 @@ func (goodApi *GoodApi) GetGoodHistory(c *gin.Context) {
 	}
 }
 
+// ClearGoodHistory 清空用户的商品浏览历史
+// @Tags Good
+// @Summary 清空用户的商品浏览历史
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Success 200 {string} string "{\"success\":true,\"data\":{},\"msg\":\"清空成功\"}"
+// @Router /good/clearGoodHistory [delete]
+func (goodApi *GoodApi) ClearGoodHistory(c *gin.Context) {
+	userID := utils.GetUserID(c)
+	if userID == 0 {
+		response.FailWithMessage("用户未登录", c)
+		return
+	}
+
+	if err := goodService.ClearGoodHistory(userID); err != nil {
+		global.GVA_LOG.Error("清空历史记录失败!", zap.Error(err))
+		response.FailWithMessage("清空历史记录失败", c)
+	} else {
+		response.OkWithMessage("清空成功", c)
+	}
+}
+
 // GetGoodList 分页获取商品列表
 // @Tags Good
 // @Summary 分页获取商品列表

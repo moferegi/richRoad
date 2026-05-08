@@ -50,8 +50,8 @@ const currentLang = computed(() => langStore.locale)
 
 // 回退硬编码列表（API加载前或加载失败时使用）
 const fallbackLangs = [
-  { value: 'zh', label: '中文', native: '简体中文', flag: '🇨🇳' },
-  { value: 'zh-TW', label: '繁體中文', native: '繁體中文', flag: '🇹🇼' },
+  { value: 'zh', label: 'ZH', native: 'Simplified Chinese', flag: '🇨🇳' },
+  { value: 'zh-TW', label: 'ZH-TW', native: 'Traditional Chinese', flag: '🇹🇼' },
   { value: 'en', label: 'English', native: 'English', flag: '🇬🇧' },
   { value: 'mn', label: 'Монгол', native: 'Монгол хэл', flag: '🇲🇳' },
   { value: 'th', label: 'ไทย', native: 'ภาษาไทย', flag: '🇹🇭' },

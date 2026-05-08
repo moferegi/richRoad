@@ -89,10 +89,21 @@ func (goodService *GoodService) GetGoodHistory(userID uint) (goods []shop.Good, 
 		var good shop.Good
 		err = global.GVA_DB.Where("id = ?", history.GoodID).Preload("SKUS").First(&good).Error
 		if err == nil {
+			good.CreatedAt = history.UpdatedAt
+			good.UpdatedAt = history.UpdatedAt
 			goods = append(goods, good)
 		}
 	}
 	return goods, nil
+}
+
+func (goodService *GoodService) ClearGoodHistory(userID uint) (err error) {
+	if userID == 0 {
+		return nil
+	}
+
+	err = global.GVA_DB.Where("user_id = ?", userID).Delete(&shop.History{}).Error
+	return err
 }
 
 // GetGoodInfoList 分页获取商品记录

@@ -3,6 +3,7 @@
     <div class="flex gap-4 pt-2">
       <div
         class="flex-none w-64 bg-white text-slate-700 dark:text-slate-400 dark:bg-slate-900 rounded p-4"
+        v-if="showCategoryPanel"
       >
         <el-scrollbar style="height: calc(100vh - 300px)">
           <el-tree
@@ -78,8 +79,19 @@
               class="w-72"
               placeholder="请输入文件名或备注"
             />
+            <el-select v-model="search.position" class="w-44" placeholder="上传位置" clearable>
+              <el-option
+                v-for="item in positionOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
             <el-button type="primary" icon="search" @click="onSubmit"
               >查询
+            </el-button>
+            <el-button @click="toggleCategoryPanel">
+              {{ showCategoryPanel ? '隐藏分类' : '显示分类' }}
             </el-button>
           </div>
 
@@ -120,6 +132,29 @@
               prop="url"
               min-width="300"
             />
+            <el-table-column
+              align="left"
+              label="缩略图链接"
+              prop="thumbnailUrl"
+              min-width="260"
+              show-overflow-tooltip
+            />
+            <el-table-column align="left" label="分类标签" prop="categories" width="120">
+              <template #default="scope">
+                <el-tag type="info" disable-transitions>{{ scope.row.categories || '-' }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column align="left" label="位置" prop="position" width="120">
+              <template #default="scope">
+                <el-tag disable-transitions>{{ getPositionLabel(scope.row.position) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column align="left" label="真实大小" prop="size" width="120">
+              <template #default="scope">
+                <span>{{ formatRealSize(scope.row.size) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column align="left" label="关键词" prop="keywords" min-width="160" show-overflow-tooltip />
             <el-table-column align="left" label="标签" prop="tag" width="100">
               <template #default="scope">
                 <el-tag
@@ -219,7 +254,7 @@
   import { CreateUUID, formatDate } from '@/utils/format'
   import WarningBar from '@/components/warningBar/warningBar.vue'
 
-  import { ref } from 'vue'
+  import { ref, watch } from 'vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import {
     addCategory,
@@ -233,8 +268,33 @@
     name: 'Upload'
   })
 
+  const CATEGORY_PANEL_STORAGE_KEY = 'gva:upload:show-category-panel'
+
+  const getStoredCategoryPanelVisible = () => {
+    try {
+      if (typeof window === 'undefined' || !window.localStorage) return false
+      return window.localStorage.getItem(CATEGORY_PANEL_STORAGE_KEY) === '1'
+    } catch {
+      return false
+    }
+  }
+
   const fullscreenLoading = ref(false)
   const path = ref(import.meta.env.VITE_BASE_API)
+  const showCategoryPanel = ref(getStoredCategoryPanelVisible())
+
+  watch(showCategoryPanel, (visible) => {
+    try {
+      if (typeof window === 'undefined' || !window.localStorage) return
+      window.localStorage.setItem(CATEGORY_PANEL_STORAGE_KEY, visible ? '1' : '0')
+    } catch {
+      // ignore storage errors
+    }
+  })
+
+  const toggleCategoryPanel = () => {
+    showCategoryPanel.value = !showCategoryPanel.value
+  }
 
   const imageUrl = ref('')
   const imageCommon = ref('')
@@ -244,8 +304,40 @@
   const pageSize = ref(10)
   const search = ref({
     keyword: null,
-    classId: 0
+    classId: 0,
+    position: ''
   })
+
+  const positionOptions = [
+    { label: '试衣位置', value: 'tryon' },
+    { label: '客服位置', value: 'kefu' },
+    { label: '其他位置', value: 'other' }
+  ]
+
+  const getPositionLabel = (position) => {
+    if (position === 'tryon') return '试衣位置'
+    if (position === 'kefu') return '客服位置'
+    return '其他位置'
+  }
+
+  const formatRealSize = (size) => {
+    const bytes = Number(size || 0)
+    if (!Number.isFinite(bytes) || bytes <= 0) return '-'
+    if (bytes < 1024) return `${bytes} B`
+
+    const kb = bytes / 1024
+    if (kb < 1024) {
+      return `${kb >= 10 ? kb.toFixed(0) : kb.toFixed(1)} KB`
+    }
+
+    const mb = kb / 1024
+    if (mb < 1024) {
+      return `${mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)} MB`
+    }
+
+    const gb = mb / 1024
+    return `${gb >= 10 ? gb.toFixed(0) : gb.toFixed(1)} GB`
+  }
   const tableData = ref([])
 
   // 分页
@@ -280,6 +372,25 @@
     }
   }
   getTableData()
+
+  const inferMediaCategory = (text) => {
+    const value = String(text || '').toLowerCase()
+    if (value.includes('shoe')) return 'shoe'
+    if (value.includes('person') || value.includes('model')) return 'person'
+    if (value.includes('cloth') || value.includes('upper') || value.includes('lower')) return 'cloth'
+    return 'cloth'
+  }
+
+  const inferUploadPosition = (text) => {
+    const value = String(text || '').toLowerCase()
+    if (value.includes('kefu') || value.includes('workbench') || value.includes('chat') || value.includes('/cs') || value.includes('cs/')) {
+      return 'kefu'
+    }
+    if (value.includes('tryon') || value.includes('shoe') || value.includes('shoeroom') || value.includes('cloth-on')) {
+      return 'tryon'
+    }
+    return 'other'
+  }
 
   const deleteFileFunc = async (row) => {
     ElMessageBox.confirm('此操作将永久删除文件, 是否继续?', '提示', {
@@ -380,6 +491,10 @@
             importData.push({
               name: name,
               url: url,
+              thumbnailUrl: url,
+              categories: inferMediaCategory(`${name} ${url}`),
+              position: inferUploadPosition(`${name} ${url}`),
+              keywords: '',
               classId: search.value.classId,
               tag: url.substring(url.lastIndexOf('.') + 1),
               key: CreateUUID()

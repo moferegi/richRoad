@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 
@@ -61,6 +63,8 @@ func initDefaultSysConfigs() {
 		{ConfigKey: "payment_auto_enabled", ConfigValue: "false", ConfigName: "自动支付总开关", ConfigGroup: "payment", Remark: "是否启用自动支付渠道(true/false)，默认关闭保留人工流程"},
 		{ConfigKey: "payment_manual_qrcode_enabled", ConfigValue: "true", ConfigName: "人工二维码支付开关", ConfigGroup: "payment", Remark: "是否展示人工二维码付款(true/false)"},
 		{ConfigKey: "payment_manual_contact_enabled", ConfigValue: "true", ConfigName: "人工联系客服支付开关", ConfigGroup: "payment", Remark: "是否展示联系客服付款(true/false)"},
+		{ConfigKey: "payment_manual_methods", ConfigValue: "[{\"key\":\"qrcode\",\"enabled\":true,\"manual\":true,\"sort\":10,\"name\":{\"zh\":\"二维码支付\",\"en\":\"QR Payment\",\"mn\":\"QR төлбөр\"},\"copyText\":{\"zh\":\"请扫码后备注订单号\",\"en\":\"Please include your order number after payment\",\"mn\":\"Төлбөр хийхдээ захиалгын дугаараа тэмдэглэнэ үү\"},\"image\":\"\",\"externalPath\":\"\"},{\"key\":\"contact\",\"enabled\":true,\"manual\":true,\"sort\":20,\"name\":{\"zh\":\"联系客服\",\"en\":\"Contact Support\",\"mn\":\"Хэрэглэгчийн дэмжлэг\"},\"copyText\":{\"zh\":\"付款后请联系客服并提供订单号\",\"en\":\"Please contact support with your order number after payment\",\"mn\":\"Төлбөр хийсний дараа захиалгын дугаартайгаа客服-т хандана уу\"},\"image\":\"\",\"externalPath\":\"\"},{\"key\":\"wechat\",\"enabled\":false,\"manual\":false,\"sort\":30,\"name\":{\"zh\":\"微信支付\",\"en\":\"WeChat Pay\",\"mn\":\"WeChat Pay\"},\"copyText\":{},\"image\":\"\",\"externalPath\":\"\"},{\"key\":\"alipay\",\"enabled\":false,\"manual\":false,\"sort\":40,\"name\":{\"zh\":\"支付宝\",\"en\":\"Alipay\",\"mn\":\"Alipay\"},\"copyText\":{},\"image\":\"\",\"externalPath\":\"\"},{\"key\":\"bank_card_cn\",\"enabled\":false,\"manual\":false,\"sort\":50,\"name\":{\"zh\":\"银行卡(国内)\",\"en\":\"Bank Card (CN)\",\"mn\":\"Банкны карт (CN)\"},\"copyText\":{},\"image\":\"\",\"externalPath\":\"\"},{\"key\":\"bank_card_us\",\"enabled\":false,\"manual\":false,\"sort\":60,\"name\":{\"zh\":\"银行卡(美国)\",\"en\":\"Bank Card (US)\",\"mn\":\"Банкны карт (US)\"},\"copyText\":{},\"image\":\"\",\"externalPath\":\"\"},{\"key\":\"bank_card_mn\",\"enabled\":false,\"manual\":false,\"sort\":70,\"name\":{\"zh\":\"银行卡(蒙古)\",\"en\":\"Bank Card (MN)\",\"mn\":\"Банкны карт (MN)\"},\"copyText\":{},\"image\":\"\",\"externalPath\":\"\"},{\"key\":\"paypal\",\"enabled\":false,\"manual\":false,\"sort\":80,\"name\":{\"zh\":\"PayPal\",\"en\":\"PayPal\",\"mn\":\"PayPal\"},\"copyText\":{},\"image\":\"\",\"externalPath\":\"\"}]", ConfigName: "支付方式配置", ConfigGroup: "payment", Remark: "支付中间页方式配置(JSON)：支持多语言名称、图片、复制信息、开关和排序"},
+		{ConfigKey: "payment_uni_preferred_methods", ConfigValue: "[{\"key\":\"wechat\",\"enabled\":true,\"sort\":10,\"name\":{\"zh\":\"微信支付\",\"en\":\"WeChat Pay\",\"mn\":\"WeChat Pay\"},\"copyText\":{\"zh\":\"您好，我的订单号是 {orderID}，期望使用 {payMethod} 支付，请协助提供收款方式并处理订单。\",\"en\":\"Hi, my order number is {orderID}. I expect to pay via {payMethod}. Please provide the receiving method and help process this order.\",\"mn\":\"Сайн байна уу, миний захиалгын дугаар {orderID}. Би {payMethod} аргаар төлөхийг хүсэж байна. Хүлээн авах мэдээлэл өгч, захиалгыг боловсруулж өгнө үү.\"},\"image\":\"cloth-on/up/wechat.png\",\"externalPath\":\"\"},{\"key\":\"alipay\",\"enabled\":true,\"sort\":20,\"name\":{\"zh\":\"支付宝\",\"en\":\"Alipay\",\"mn\":\"Alipay\"},\"copyText\":{\"zh\":\"您好，我的订单号是 {orderID}，期望使用 {payMethod} 支付，请协助提供收款方式并处理订单。\",\"en\":\"Hi, my order number is {orderID}. I expect to pay via {payMethod}. Please provide the receiving method and help process this order.\",\"mn\":\"Сайн байна уу, миний захиалгын дугаар {orderID}. Би {payMethod} аргаар төлөхийг хүсэж байна. Хүлээн авах мэдээлэл өгч, захиалгыг боловсруулж өгнө үү.\"},\"image\":\"cloth-on/up/alipay.png\",\"externalPath\":\"\"},{\"key\":\"bank_card_cn\",\"enabled\":true,\"sort\":30,\"name\":{\"zh\":\"银行卡(国内)\",\"en\":\"Bank Card (CN)\",\"mn\":\"Банкны карт (CN)\"},\"copyText\":{\"zh\":\"您好，我的订单号是 {orderID}，期望使用 {payMethod} 支付，请协助提供收款方式并处理订单。\",\"en\":\"Hi, my order number is {orderID}. I expect to pay via {payMethod}. Please provide the receiving method and help process this order.\",\"mn\":\"Сайн байна уу, миний захиалгын дугаар {orderID}. Би {payMethod} аргаар төлөхийг хүсэж байна. Хүлээн авах мэдээлэл өгч, захиалгыг боловсруулж өгнө үү.\"},\"image\":\"cloth-on/up/bank-card-cn.png\",\"externalPath\":\"\"}]", ConfigName: "Uni期望支付方式配置", ConfigGroup: "payment", Remark: "仅用于uni支付页“联系客服付款”场景(JSON)：支持多语言名称、图片、复制话术、开关和排序，独立于payment_manual_methods"},
 		{ConfigKey: "payment_wechat_enabled", ConfigValue: "false", ConfigName: "微信支付开关", ConfigGroup: "payment", Remark: "是否启用微信自动支付渠道(true/false)"},
 		{ConfigKey: "payment_alipay_enabled", ConfigValue: "false", ConfigName: "支付宝支付开关", ConfigGroup: "payment", Remark: "是否启用支付宝自动支付渠道(true/false)"},
 		{ConfigKey: "payment_bank_cn_enabled", ConfigValue: "false", ConfigName: "国内银行卡支付开关", ConfigGroup: "payment", Remark: "是否启用国内银行卡自动支付渠道(true/false)"},
@@ -98,12 +102,14 @@ func initDefaultSysConfigs() {
 		// points 分组
 		{ConfigKey: "points_exchange_rate", ConfigValue: "100", ConfigName: "积分兑换比率", ConfigGroup: "points", Remark: "多少积分兑换1货币单位，如100积分=1元"},
 		// tryon 分组
-		{ConfigKey: "tryon_guest_init_points", ConfigValue: "3", ConfigName: "游客初始试衣币", ConfigGroup: "tryon", Remark: "游客首次进入赠送的试衣币数量"},
+		{ConfigKey: "tryon_guest_init_points", ConfigValue: "0", ConfigName: "游客初始试衣币", ConfigGroup: "tryon", Remark: "游客模式不再赠送试衣币，保留为兼容参数"},
 		{ConfigKey: "tryon_register_reward_points", ConfigValue: "8", ConfigName: "注册奖励试衣币", ConfigGroup: "tryon", Remark: "用户注册成功后奖励的试衣币数量"},
+		{ConfigKey: "tryon_invite_register_reward_points", ConfigValue: "0", ConfigName: "邀请注册奖励试衣币", ConfigGroup: "tryon", Remark: "邀请下级注册成功后奖励给邀请人的试衣币数量，0表示不赠送"},
 		{ConfigKey: "tryon_cost_points", ConfigValue: "1", ConfigName: "单次试衣消耗", ConfigGroup: "tryon", Remark: "每次发起试衣或试鞋消耗的试衣币数量"},
 		{ConfigKey: "tryon_fail_refund_percent", ConfigValue: "100", ConfigName: "试衣失败退币比例", ConfigGroup: "tryon", Remark: "试衣失败时退回试衣币百分比，默认100"},
-		{ConfigKey: "tryon_models", ConfigValue: "[{\"key\":\"aliyun_aitryon\",\"enabled\":true,\"scenes\":[\"clothes\",\"shoes\"],\"model\":\"aitryon\",\"name\":{\"zh\":\"阿里AI试衣（基础）\",\"en\":\"Aliyun AI Try-On (Basic)\",\"mn\":\"Aliyun AI өмсгөл (Суурь)\"},\"desc\":{\"zh\":\"基础版试衣模型，速度更快，适合日常试衣。\",\"en\":\"Basic try-on model with faster generation for everyday use.\",\"mn\":\"Өдөр тутмын туршилтад тохирох, хурдан суурь загвар.\"},\"cost\":1,\"provider\":\"aliyun\",\"mode\":\"prod\",\"url\":\"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis\",\"taskQueryUrl\":\"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}\",\"token\":\"\",\"resolution\":-1,\"restoreFace\":true},{\"key\":\"aliyun_aitryon_plus\",\"enabled\":true,\"scenes\":[\"clothes\",\"shoes\"],\"model\":\"aitryon-plus\",\"name\":{\"zh\":\"阿里AI试衣（Plus）\",\"en\":\"Aliyun AI Try-On (Plus)\",\"mn\":\"Aliyun AI өмсгөл (Plus)\"},\"desc\":{\"zh\":\"Plus版细节更好，适合高质量试衣图。\",\"en\":\"Higher quality rendering with better texture and logo details.\",\"mn\":\"Нэхмэл, логог илүү сайн сэргээдэг өндөр чанарын загвар.\"},\"cost\":1,\"provider\":\"aliyun\",\"mode\":\"prod\",\"url\":\"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis\",\"taskQueryUrl\":\"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}\",\"token\":\"\",\"resolution\":-1,\"restoreFace\":true},{\"key\":\"aliyun_aitryon_parsing\",\"enabled\":false,\"scenes\":[\"takeoff\"],\"model\":\"aitryon-parsing-v1\",\"name\":{\"zh\":\"阿里取衣分割\",\"en\":\"Aliyun Takeoff Parsing\",\"mn\":\"Aliyun хувцас салгах\"},\"desc\":{\"zh\":\"用于取衣区分割模特服饰并输出可用服饰图。\",\"en\":\"Segments garment regions for takeoff area and outputs reusable garment images.\",\"mn\":\"Загварын хувцсыг ялган авч, дахин ашиглах зургийг гаргана.\"},\"cost\":1,\"provider\":\"aliyun\",\"mode\":\"prod\",\"url\":\"https://dashscope.aliyuncs.com/api/v1/services/vision/image-process/process\",\"token\":\"\",\"clothesType\":[\"upper\"]}]", ConfigName: "试衣模型列表", ConfigGroup: "tryon", Remark: "JSON数组：可配置多模型及开关、多语言名称与说明、接口地址等"},
-		{ConfigKey: "tryon_recharge_plans", ConfigValue: "[{\"points\":50,\"price\":\"9.9\"},{\"points\":180,\"price\":\"29.9\"},{\"points\":680,\"price\":\"99.9\"}]", ConfigName: "试衣币充值套餐", ConfigGroup: "tryon", Remark: "JSON数组：充值套餐配置，如[{points:50,price:'9.9'}]"},
+		{ConfigKey: "tryon_models", ConfigValue: "[{\"key\":\"aliyun_aitryon\",\"enabled\":true,\"scenes\":[\"clothes\",\"shoes\"],\"model\":\"aitryon\",\"name\":{\"zh\":\"阿里AI试衣（基础）\",\"en\":\"Aliyun AI Try-On (Basic)\",\"mn\":\"Aliyun AI өмсгөл (Суурь)\"},\"desc\":{\"zh\":\"基础版试衣模型，速度更快，适合日常试衣。\",\"en\":\"Basic try-on model with faster generation for everyday use.\",\"mn\":\"Өдөр тутмын туршилтад тохирох, хурдан суурь загвар.\"},\"cost\":1,\"provider\":\"aliyun\",\"mode\":\"prod\",\"url\":\"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis\",\"taskQueryUrl\":\"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}\",\"token\":\"\",\"resolution\":-1,\"restoreFace\":true},{\"key\":\"aliyun_aitryon_plus\",\"enabled\":true,\"scenes\":[\"clothes\",\"shoes\"],\"model\":\"aitryon-plus\",\"name\":{\"zh\":\"阿里AI试衣（Plus）\",\"en\":\"Aliyun AI Try-On (Plus)\",\"mn\":\"Aliyun AI өмсгөл (Plus)\"},\"desc\":{\"zh\":\"Plus版细节更好，适合高质量试衣图。\",\"en\":\"Higher quality rendering with better texture and logo details.\",\"mn\":\"Нэхмэл, логог илүү сайн сэргээдэг өндөр чанарын загвар.\"},\"cost\":1,\"provider\":\"aliyun\",\"mode\":\"prod\",\"url\":\"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis\",\"taskQueryUrl\":\"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}\",\"token\":\"\",\"resolution\":-1,\"restoreFace\":true},{\"key\":\"yisol_idm_vton\",\"enabled\":true,\"scenes\":[\"clothes\"],\"model\":\"IDM-VTON\",\"name\":{\"zh\":\"IDM-VTON 开源试衣\",\"en\":\"IDM-VTON Open Try-On\",\"mn\":\"IDM-VTON нээлттэй өмсгөл\"},\"desc\":{\"zh\":\"HuggingFace Space yisol/IDM-VTON，使用 Gradio /tryon 接口，支持自动蒙版与裁剪参数。\",\"en\":\"HuggingFace Space yisol/IDM-VTON via Gradio /tryon API with auto-mask and crop options.\",\"mn\":\"HuggingFace Space yisol/IDM-VTON Gradio /tryon API ашиглана.\"},\"cost\":1,\"provider\":\"gradio\",\"mode\":\"prod\",\"url\":\"https://yisol-idm-vton.hf.space\",\"apiName\":\"/tryon\",\"garmentDes\":\"clothing item\",\"isChecked\":true,\"isCheckedCrop\":false,\"denoiseSteps\":30,\"seed\":42,\"token\":\"\",\"resolution\":-1,\"restoreFace\":true},{\"key\":\"aliyun_aitryon_parsing\",\"enabled\":false,\"scenes\":[\"takeoff\"],\"model\":\"aitryon-parsing-v1\",\"name\":{\"zh\":\"阿里取衣分割\",\"en\":\"Aliyun Takeoff Parsing\",\"mn\":\"Aliyun хувцас салгах\"},\"desc\":{\"zh\":\"用于取衣区分割模特服饰并输出可用服饰图。\",\"en\":\"Segments garment regions for takeoff area and outputs reusable garment images.\",\"mn\":\"Загварын хувцсыг ялган авч, дахин ашиглах зургийг гаргана.\"},\"cost\":1,\"provider\":\"aliyun\",\"mode\":\"prod\",\"url\":\"https://dashscope.aliyuncs.com/api/v1/services/vision/image-process/process\",\"token\":\"\",\"clothesType\":[\"upper\"]}]", ConfigName: "试衣模型列表", ConfigGroup: "tryon", Remark: "JSON数组：可配置多模型及开关、多语言名称与说明、接口地址等"},
+		{ConfigKey: "shoe_models", ConfigValue: "[{\"key\":\"aliyun_shoes_and_boots\",\"enabled\":true,\"scenes\":[\"shoes\"],\"model\":\"shoes-and-boots\",\"name\":{\"zh\":\"阿里AI试鞋\",\"en\":\"Aliyun Shoes Try-On\",\"mn\":\"Aliyun гутлын туршилт\"},\"desc\":{\"zh\":\"适用于鞋靴类虚拟试穿。\",\"en\":\"Suitable for virtual try-on of shoes and boots.\",\"mn\":\"Гутал, түрийвчний виртуал туршилтад тохиромжтой.\"},\"cost\":1,\"provider\":\"aliyun\",\"mode\":\"prod\",\"url\":\"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis\",\"taskQueryUrl\":\"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}\",\"token\":\"\",\"resolution\":-1,\"restoreFace\":true}]", ConfigName: "试鞋模型列表", ConfigGroup: "tryon", Remark: "JSON数组：专用于试鞋场景的模型配置，支持多语言名称与说明、接口地址等"},
+		{ConfigKey: "tryon_recharge_plans", ConfigValue: "[{\"points\":{\"zh\":\"50\",\"en\":\"50\",\"mn\":\"50\"},\"coinLabel\":{\"zh\":\"试衣币\",\"en\":\"Try-on Coins\",\"mn\":\"Туршилтын зоос\"},\"currencySymbol\":{\"zh\":\"￥\",\"en\":\"CNY \"},\"price\":{\"zh\":\"9.9\",\"en\":\"9.9\",\"mn\":\"9.9\"},\"currencySuffix\":{\"zh\":\"元\",\"en\":\"\",\"mn\":\"\"}},{\"points\":{\"zh\":\"180\",\"en\":\"180\",\"mn\":\"180\"},\"coinLabel\":{\"zh\":\"试衣币\",\"en\":\"Try-on Coins\",\"mn\":\"Туршилтын зоос\"},\"currencySymbol\":{\"zh\":\"￥\",\"en\":\"CNY \"},\"price\":{\"zh\":\"29.9\",\"en\":\"29.9\",\"mn\":\"29.9\"},\"currencySuffix\":{\"zh\":\"元\",\"en\":\"\",\"mn\":\"\"}},{\"points\":{\"zh\":\"680\",\"en\":\"680\",\"mn\":\"680\"},\"coinLabel\":{\"zh\":\"试衣币\",\"en\":\"Try-on Coins\",\"mn\":\"Туршилтын зоос\"},\"currencySymbol\":{\"zh\":\"￥\",\"en\":\"CNY \"},\"price\":{\"zh\":\"99.9\",\"en\":\"99.9\",\"mn\":\"99.9\"},\"currencySuffix\":{\"zh\":\"元\",\"en\":\"\",\"mn\":\"\"}}]", ConfigName: "试衣币充值套餐", ConfigGroup: "tryon", Remark: "后台可视化维护：点数、币名、货币符号、价格和单位均支持多语言"},
 		{ConfigKey: "tryon_provider_mode", ConfigValue: "mock_success", ConfigName: "试衣模型模式", ConfigGroup: "tryon", Remark: "mock_success表示本地联调直接返回原图，prod表示调用真实模型"},
 		{ConfigKey: "tryon_provider_url", ConfigValue: "", ConfigName: "试衣模型地址", ConfigGroup: "tryon", Remark: "真实模型推理服务地址(URL)"},
 		{ConfigKey: "tryon_provider_token", ConfigValue: "", ConfigName: "试衣模型令牌", ConfigGroup: "tryon", Remark: "调用真实模型服务的Bearer Token"},
@@ -129,6 +135,7 @@ func initDefaultSysConfigs() {
 			}
 		}
 	}
+	appendIDMVTONTryonModelIfMissing()
 
 	// 为已存在的用户生成邀请码（如果缺失）
 	var users []client.ClientUser
@@ -139,4 +146,62 @@ func initDefaultSysConfigs() {
 		code := hex.EncodeToString(b)
 		global.GVA_DB.Model(&client.ClientUser{}).Where("id = ?", u.ID).Update("invite_code", code)
 	}
+}
+
+func appendIDMVTONTryonModelIfMissing() {
+	var cfg client.SysConfig
+	if err := global.GVA_DB.Where("config_key = ?", "tryon_models").First(&cfg).Error; err != nil {
+		return
+	}
+
+	models := make([]map[string]interface{}, 0)
+	if err := json.Unmarshal([]byte(cfg.ConfigValue), &models); err != nil {
+		global.GVA_LOG.Warn("试衣模型配置解析失败，跳过IDM-VTON自动追加", zap.Error(err))
+		return
+	}
+
+	for _, model := range models {
+		if strings.EqualFold(strings.TrimSpace(toString(model["key"])), "yisol_idm_vton") {
+			return
+		}
+	}
+
+	models = append(models, map[string]interface{}{
+		"key":           "yisol_idm_vton",
+		"enabled":       true,
+		"scenes":        []string{"clothes"},
+		"model":         "IDM-VTON",
+		"name":          map[string]string{"zh": "IDM-VTON 开源试衣", "en": "IDM-VTON Open Try-On", "mn": "IDM-VTON нээлттэй өмсгөл"},
+		"desc":          map[string]string{"zh": "HuggingFace Space yisol/IDM-VTON，使用 Gradio /tryon 接口，支持自动蒙版与裁剪参数。", "en": "HuggingFace Space yisol/IDM-VTON via Gradio /tryon API with auto-mask and crop options.", "mn": "HuggingFace Space yisol/IDM-VTON Gradio /tryon API ашиглана."},
+		"cost":          1,
+		"provider":      "gradio",
+		"mode":          "prod",
+		"url":           "https://yisol-idm-vton.hf.space",
+		"apiName":       "/tryon",
+		"garmentDes":    "clothing item",
+		"isChecked":     true,
+		"isCheckedCrop": false,
+		"denoiseSteps":  30,
+		"seed":          42,
+		"token":         "",
+		"resolution":    -1,
+		"restoreFace":   true,
+	})
+
+	encoded, err := json.Marshal(models)
+	if err != nil {
+		global.GVA_LOG.Warn("试衣模型配置编码失败，跳过IDM-VTON自动追加", zap.Error(err))
+		return
+	}
+
+	if err := global.GVA_DB.Model(&client.SysConfig{}).Where("id = ?", cfg.ID).Update("config_value", string(encoded)).Error; err != nil {
+		global.GVA_LOG.Warn("追加IDM-VTON试衣模型失败", zap.Error(err))
+	}
+}
+
+func toString(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(value))
 }

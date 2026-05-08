@@ -7,7 +7,7 @@
       <view class="nf-navbar-status"></view>
       <view class="nf-navbar-content">
         <view class="nf-navbar-back" @tap="goBack">
-          <uni-icons type="left" size="20" color="#fff"></uni-icons>
+          <uni-icons type="left" size="20" color="#0f172a"></uni-icons>
         </view>
         <text class="nf-navbar-title">{{ $t('myOrders') }}</text>
         <view style="width: 64rpx;"></view>
@@ -94,6 +94,11 @@
             <view class="nf-action nf-action-primary" @tap.stop="payOff(item.ID)">{{ $t('payNow') }}</view>
           </template>
 
+          <template v-if="item.status === '8'">
+            <view class="nf-action-tag refunding">{{ $t('ordersPendingConfirm') }}</view>
+            <view class="nf-action nf-action-primary" @tap.stop="goKefuWithOrder(item)">{{ $t('contactCustomerService') }}</view>
+          </template>
+
           <!-- 待发货/待收货/待评价/已评价 共用退款 -->
           <view v-if="showRefundBtn && canApplyRefund(item)" class="nf-action nf-action-warn" @tap.stop="openRefund(item)">{{ $t('applyRefund') }}</view>
           <view v-else-if="item.status === '6'" class="nf-action-tag refunding">{{ $t('ordersRefunding') }}</view>
@@ -160,6 +165,7 @@ const showLogisticsBtn = ref(true)
 const tabColumns = computed(() => [
   { title: $t.value('viewAll'), id: '' },
   { title: $t.value('ordersPending'), id: '0' },
+  { title: $t.value('ordersPendingConfirm'), id: '8' },
   { title: $t.value('ordersShipping'), id: '1' },
   { title: $t.value('ordersReceiving'), id: '2' },
   { title: $t.value('ordersToReview'), id: '3' },
@@ -172,6 +178,20 @@ const tabColumns = computed(() => [
 const getStatusLabel = (status) => {
   const tab = tabColumns.value.find(t => t.id === status)
   return tab ? tab.title : ''
+}
+
+const getPayMethodLabel = (method) => {
+  const map = {
+    qrcode: $t.value('payByQrcode'),
+    contact: $t.value('payByContact'),
+    wechat: $t.value('payMethodWechat'),
+    alipay: $t.value('payMethodAlipay'),
+    bank_card_cn: $t.value('payMethodBankCn'),
+    bank_card_us: $t.value('payMethodBankUs'),
+    bank_card_mn: $t.value('payMethodBankMn'),
+    paypal: $t.value('payMethodPaypal'),
+  }
+  return map[method] || method || '-'
 }
 
 const orderList = ref([])
@@ -323,6 +343,15 @@ const buyAgain = (item) => {
   }
 }
 
+const goKefuWithOrder = (item) => {
+  const orderNo = item.outTradeNo || item.OutTradeNo || item.ID
+  const payMethod = item.payMethod || item.PayMethod || ''
+  const payMethodLabel = getPayMethodLabel(payMethod)
+  uni.navigateTo({
+    url: `/pages/kefu/index?orderID=${encodeURIComponent(String(orderNo))}&payMethod=${encodeURIComponent(String(payMethod))}&payMethodLabel=${encodeURIComponent(String(payMethodLabel || payMethod || '-'))}`
+  })
+}
+
 const confirm = async (item) => {
   const res = await updateOrderStatus({ ID: item.ID, status: '3' })
   if (res.code === 0) { uni.showToast({ title: $t.value('confirmReceiptSuccess'), icon: "none" }); init() }
@@ -354,47 +383,48 @@ const goBack = () => { uni.navigateBack() }
 </script>
 
 <style lang="scss">
-page { background-color: #000; }
+page { background-color: #f4f7fb; }
 
-.nf-order { min-height: 100vh; background: #000; position: relative; }
+.nf-order { min-height: 100vh; background: #f4f7fb; position: relative; }
 
 .nf-order-bg {
   position: fixed; top: 0; left: 0; right: 0; height: 500rpx; z-index: 0; pointer-events: none;
-  background: radial-gradient(ellipse at 30% 0%, rgba(229, 9, 20, 0.10) 0%, transparent 60%),
-    radial-gradient(ellipse at 70% 10%, rgba(229, 9, 20, 0.06) 0%, transparent 50%);
+  background: radial-gradient(ellipse at 30% -10%, rgba(37, 99, 235, 0.18) 0%, transparent 58%),
+    radial-gradient(ellipse at 75% 10%, rgba(14, 165, 233, 0.14) 0%, transparent 52%);
 }
 
 .nf-navbar {
-  background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(24px);
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+  background: rgba(244, 247, 251, 0.92); backdrop-filter: blur(24px);
+  border-bottom: 1rpx solid rgba(148, 163, 184, 0.2);
   padding: 0 28rpx 16rpx; position: sticky; top: 0; z-index: 99;
 }
 .nf-navbar-status { height: var(--status-bar-height, 0px); }
 .nf-navbar-content { display: flex; align-items: center; justify-content: space-between; height: 88rpx; }
 .nf-navbar-back {
   width: 64rpx; height: 64rpx; border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06); border: 1rpx solid rgba(255, 255, 255, 0.1);
+  background: #ffffff; border: 1rpx solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 8rpx 22rpx rgba(15, 23, 42, 0.08);
   display: flex; align-items: center; justify-content: center;
 }
-.nf-navbar-title { font-size: 34rpx; font-weight: 700; color: #fff; letter-spacing: 2rpx; }
+.nf-navbar-title { font-size: 34rpx; font-weight: 700; color: #0f172a; letter-spacing: 2rpx; }
 
 .nf-tabs {
   position: sticky; top: 0; z-index: 98;
-  background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(16px);
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+  background: rgba(244, 247, 251, 0.95); backdrop-filter: blur(16px);
+  border-bottom: 1rpx solid rgba(148, 163, 184, 0.2);
 }
 .nf-tabs-scroll { white-space: nowrap; }
 .nf-tabs-inner { display: inline-flex; padding: 0 16rpx; }
 .nf-tab {
   display: inline-flex; padding: 20rpx 28rpx;
-  font-size: 26rpx; color: rgba(255, 255, 255, 0.5); font-weight: 500;
+  font-size: 26rpx; color: rgba(15, 23, 42, 0.52); font-weight: 500;
   position: relative; white-space: nowrap; flex-shrink: 0;
   &.active {
-    color: #fff; font-weight: 700;
+    color: #0f172a; font-weight: 700;
     &::after {
       content: ''; position: absolute; bottom: 0;
       left: 28rpx; right: 28rpx; height: 4rpx;
-      background: #e50914; border-radius: 2rpx;
+      background: #2563eb; border-radius: 2rpx;
     }
   }
 }
@@ -403,68 +433,70 @@ page { background-color: #000; }
   display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh;
 }
 .nf-empty-icon { font-size: 120rpx; margin-bottom: 20rpx; opacity: 0.5; }
-.nf-empty-text { font-size: 28rpx; color: rgba(255, 255, 255, 0.4); }
+.nf-empty-text { font-size: 28rpx; color: rgba(15, 23, 42, 0.46); }
 
 .nf-order-list { padding: 20rpx 24rpx; position: relative; z-index: 1; }
 
 .nf-order-card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.98);
+  border: 1rpx solid rgba(148, 163, 184, 0.2);
   border-radius: 20rpx; margin-bottom: 20rpx;
-  overflow: hidden; backdrop-filter: blur(8px);
+  overflow: hidden;
+  box-shadow: 0 12rpx 24rpx rgba(15, 23, 42, 0.07);
 }
 
 .nf-order-header {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 24rpx 28rpx; border-bottom: 1rpx solid rgba(255, 255, 255, 0.04);
+  padding: 24rpx 28rpx; border-bottom: 1rpx solid rgba(148, 163, 184, 0.15);
 }
 .nf-order-date {
-  font-size: 24rpx; color: rgba(255, 255, 255, 0.5);
+  font-size: 24rpx; color: rgba(15, 23, 42, 0.55);
   display: flex; align-items: center; gap: 10rpx;
 }
 .nf-presale-tag {
   font-size: 20rpx; color: #fff;
-  background: linear-gradient(135deg, #ff6b35, #e50914);
+  background: linear-gradient(135deg, #0ea5e9, #2563eb);
   padding: 2rpx 12rpx; border-radius: 6rpx;
 }
 .nf-order-status { font-size: 24rpx; font-weight: 600; }
-.nf-st-0 { color: #e50914; }
+.nf-st-0 { color: #ef4444; }
+.nf-st-8 { color: #d97706; }
 .nf-st-1 { color: #22c55e; }
 .nf-st-2 { color: #3b82f6; }
 .nf-st-3 { color: #f59e0b; }
-.nf-st-4 { color: rgba(255,255,255,0.3); }
-.nf-st-5 { color: rgba(255,255,255,0.4); }
+.nf-st-4 { color: rgba(15, 23, 42, 0.35); }
+.nf-st-5 { color: rgba(15, 23, 42, 0.4); }
 .nf-st-6 { color: #f59e0b; }
 .nf-st-7 { color: #22c55e; }
-.nf-countdown { font-size: 22rpx; color: #e50914; margin-left: 8rpx; }
+.nf-countdown { font-size: 22rpx; color: #ef4444; margin-left: 8rpx; }
 
 .nf-goods-scroll { padding: 20rpx 28rpx; }
 .nf-goods-row { display: inline-flex; gap: 12rpx; }
 .nf-goods-thumb {
   width: 140rpx; height: 140rpx; border-radius: 12rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.06); flex-shrink: 0;
+  border: 1rpx solid rgba(148, 163, 184, 0.2); flex-shrink: 0;
 }
 .nf-goods-single { display: flex; padding: 20rpx 28rpx; gap: 20rpx; }
 .nf-goods-thumb-lg {
   width: 160rpx; height: 160rpx; border-radius: 12rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.06); flex-shrink: 0;
+  border: 1rpx solid rgba(148, 163, 184, 0.2); flex-shrink: 0;
 }
 .nf-goods-single-info { flex: 1; display: flex; flex-direction: column; justify-content: center; }
 .nf-goods-single-name {
-  font-size: 28rpx; font-weight: 600; color: #fff; margin-bottom: 8rpx;
+  font-size: 28rpx; font-weight: 600; color: #0f172a; margin-bottom: 8rpx;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .nf-goods-single-desc {
-  font-size: 24rpx; color: rgba(255, 255, 255, 0.4);
+  font-size: 24rpx; color: rgba(15, 23, 42, 0.45);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 .nf-order-summary {
   display: flex; justify-content: flex-end; align-items: center;
-  padding: 16rpx 28rpx; border-top: 1rpx solid rgba(255, 255, 255, 0.04); gap: 8rpx;
+  padding: 16rpx 28rpx; border-top: 1rpx solid rgba(148, 163, 184, 0.15); gap: 8rpx;
 }
-.nf-order-count { font-size: 24rpx; color: rgba(255, 255, 255, 0.4); }
-.nf-order-price { font-size: 30rpx; font-weight: 700; color: #e50914; }
+.nf-order-count { font-size: 24rpx; color: rgba(15, 23, 42, 0.5); }
+.nf-order-price { font-size: 30rpx; font-weight: 700; color: #ef4444; }
 
 .nf-order-actions {
   display: flex; justify-content: flex-end; align-items: center;
@@ -476,10 +508,10 @@ page { background-color: #000; }
   text-align: center; transition: all 0.2s;
   &:active { transform: scale(0.96); }
 }
-.nf-action-primary { background: #e50914; color: #fff; }
+.nf-action-primary { background: linear-gradient(90deg, #2563eb, #0ea5e9); color: #fff; }
 .nf-action-ghost {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1rpx solid rgba(255, 255, 255, 0.12); color: rgba(255, 255, 255, 0.7);
+  background: rgba(241, 245, 249, 0.95);
+  border: 1rpx solid rgba(148, 163, 184, 0.24); color: rgba(15, 23, 42, 0.72);
 }
 .nf-action-warn {
   background: rgba(245, 158, 11, 0.15);
@@ -487,20 +519,21 @@ page { background-color: #000; }
 }
 .nf-action-tag {
   font-size: 22rpx; padding: 6rpx 20rpx; border-radius: 20rpx;
-  &.cancelled { color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.04); }
+  &.cancelled { color: rgba(15, 23, 42, 0.35); background: rgba(241, 245, 249, 0.95); }
   &.refunding { color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
-  &.refunded { color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.04); }
+  &.refunded { color: rgba(15, 23, 42, 0.42); background: rgba(241, 245, 249, 0.95); }
 }
 
 .nf-load-more {
   display: flex; justify-content: center; align-items: center;
   padding: 32rpx 0 16rpx; min-height: 80rpx;
 }
-.nf-load-text { font-size: 24rpx; color: rgba(255, 255, 255, 0.3); }
+.nf-load-text { font-size: 24rpx; color: rgba(15, 23, 42, 0.42); }
 .nf-load-btn {
-  font-size: 26rpx; color: rgba(255, 255, 255, 0.6);
+  font-size: 26rpx; color: rgba(15, 23, 42, 0.72);
   padding: 16rpx 48rpx; border-radius: 30rpx;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1rpx solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1rpx solid rgba(148, 163, 184, 0.25);
 }
+
 </style>

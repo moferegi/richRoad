@@ -15,7 +15,7 @@ const migrateClientTryonPointKey = "migration_client_user_tryon_point_v1"
 
 func bizModel() error {
 	db := global.GVA_DB
-	err := db.AutoMigrate(client.ClientUser{}, shop.Banner{}, shop.Category{}, shop.Good{}, shop.Sku{}, shop.Cart{}, shop.CreateOrder{}, shop.OrderDetail{}, client.Address{}, client.Collect{}, shop.Comment{}, shop.Tag{}, shop.Coupon{}, shop.CouponOrderUser{}, shop.Promotion{}, shop.History{}, client.PointRecord{}, client.TryonTask{}, client.TryonModel{}, wxpayModel.Order{}, shop.Kefu{}, client.VisitorLog{}, client.VisitorSummary{}, client.SysConfig{}, shop.GoodPurchase{}, shop.QrcodePayment{}, shop.Popup{}, shop.MarketingReward{}, client.SysLanguage{}, client.PhoneAreaCode{}, client.SignIn{}, client.ExternalLinkDomain{}, client.LoginFailRecord{}, client.RegisterIPRecord{}, shop.SkuSpec{})
+	err := db.AutoMigrate(client.ClientUser{}, shop.Banner{}, shop.Category{}, shop.Good{}, shop.Sku{}, shop.Cart{}, shop.CreateOrder{}, shop.OrderDetail{}, client.Address{}, client.Collect{}, shop.Comment{}, shop.Tag{}, shop.Coupon{}, shop.CouponOrderUser{}, shop.Promotion{}, shop.History{}, client.PointRecord{}, client.TryonRechargeOrder{}, client.TryonTask{}, client.TryonModel{}, wxpayModel.Order{}, shop.Kefu{}, client.VisitorLog{}, client.VisitorSummary{}, client.SysConfig{}, shop.GoodPurchase{}, shop.QrcodePayment{}, shop.Popup{}, shop.MarketingReward{}, client.SysLanguage{}, client.PhoneAreaCode{}, client.SignIn{}, client.ExternalLinkDomain{}, client.LoginFailRecord{}, client.RegisterIPRecord{}, shop.SkuSpec{})
 	if err != nil {
 		return err
 	}

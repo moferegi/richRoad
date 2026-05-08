@@ -1,8 +1,5 @@
 <template>
 	<view class="order-evaluate-container">
-<!--		<view class="header">
-			<text class="title">{{ viewMode ? '查看评价' : '订单评价' }}</text>
-		</view>-->
 
 		<view class="items-container">
 			<view class="item-card" v-for="(item, index) in orderItems" :key="index">

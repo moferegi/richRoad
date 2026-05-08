@@ -183,7 +183,7 @@ func (a *MessageApi) UploadImage(c *gin.Context) {
 		return
 	}
 
-	file, err := gvaService.ServiceGroupApp.ExampleServiceGroup.FileUploadAndDownloadService.UploadFile(header, "0", 0, "cs")
+	file, err := gvaService.ServiceGroupApp.ExampleServiceGroup.FileUploadAndDownloadService.UploadFile(header, "0", 0, "cloth-on/kefu", "", "kefu")
 	if err != nil {
 		global.GVA_LOG.Error("客服图片上传失败", zap.Error(err))
 		response.FailWithMessage("上传失败", c)

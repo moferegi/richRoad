@@ -1,70 +1,80 @@
 <template>
-  <view class="nf-page">
-    <view class="nf-bg"></view>
+  <view class="invite-page">
+    <view class="invite-bg"></view>
 
-    <!-- 自定义导航栏 -->
-    <view class="nf-navbar">
-      <view class="nf-navbar-status"></view>
-      <view class="nf-navbar-content">
-        <view class="nf-navbar-back" @tap="goBack">
-          <uni-icons type="left" size="20" color="#fff" />
+    <view class="invite-nav">
+      <view class="invite-nav-status"></view>
+      <view class="invite-nav-content">
+        <view class="invite-nav-back" @tap="goBack">
+          <uni-icons type="left" size="20" color="#0f172a" />
         </view>
-        <text class="nf-navbar-title">{{ $t('inviteFriends') }}</text>
+        <text class="invite-nav-title">{{ $t('inviteFriends') }}</text>
+        <view class="invite-nav-right-spacer"></view>
       </view>
     </view>
 
-    <view class="nf-container">
-      <!-- 邀请码卡片 -->
-      <view class="nf-card invite-card">
-        <text class="invite-title">{{ $t('myInviteCode') }}</text>
-        <text class="invite-code">{{ inviteInfo.inviteCode || '--' }}</text>
-        <view class="invite-btn-row">
-          <button class="nf-btn nf-btn-primary invite-copy-btn" @tap="copyCode">{{ $t('copyInviteCode') }}</button>
-          <button class="nf-btn nf-btn-ghost invite-share-btn" @tap="shareLink">{{ $t('shareLink') }}</button>
-        </view>
-      </view>
-
-      <!-- 统计 -->
-      <view class="nf-card stats-card">
-        <view class="stats-row">
-          <view class="stats-item">
-            <text class="stats-value">{{ inviteInfo.subordinateCount || 0 }}</text>
-            <text class="stats-label">{{ $t('invited') }}</text>
-          </view>
-          <view class="stats-divider"></view>
-          <view class="stats-item">
-            <text class="stats-value">{{ inviteInfo.point || 0 }}</text>
-            <text class="stats-label">{{ $t('myPoints') }}</text>
+    <scroll-view class="invite-scroll" scroll-y>
+      <view class="invite-body">
+        <view class="invite-card code-card">
+          <text class="code-title">{{ $t('myInviteCode') }}</text>
+          <text class="code-value">{{ inviteInfo.inviteCode || '--' }}</text>
+          <view class="code-actions">
+            <view class="code-btn primary" @tap="copyCode">{{ $t('copyInviteCode') }}</view>
+            <view class="code-btn" @tap="shareLink">{{ $t('shareLink') }}</view>
           </view>
         </view>
-      </view>
 
-      <!-- 下级列表 -->
-      <view class="nf-card">
-        <text class="section-title">{{ $t('myFriends') }}</text>
-        <view v-if="subordinateList.length === 0" class="empty-tip">
-          <text>{{ $t('noInviteRecord') }}</text>
-        </view>
-        <view v-for="(item, index) in subordinateList" :key="index" class="sub-item">
-          <view class="sub-left">
-            <image class="sub-avatar" :src="item.avatar || defaultAvatar" mode="aspectFill"></image>
-            <view class="sub-info">
-              <text class="sub-name">{{ item.nickname || item.username }}</text>
-              <text class="sub-time">{{ formatTime(item.CreatedAt) }}</text>
+        <view class="invite-card stats-card">
+          <view class="stats-grid">
+            <view class="stats-item">
+              <text class="stats-value">{{ inviteInfo.subordinateCount || 0 }}</text>
+              <text class="stats-label">{{ $t('invited') }}</text>
+            </view>
+            <view class="stats-item">
+              <text class="stats-value">{{ inviteRewardTotal }}</text>
+              <text class="stats-label">{{ $t('inviteRewardTryonCoins') }}</text>
+            </view>
+            <view class="stats-item">
+              <text class="stats-value">{{ inviteInfo.tryonPoint || 0 }}</text>
+              <text class="stats-label">{{ $t('tryonCoins') }}</text>
             </view>
           </view>
+          <text class="stats-tip">{{ $t('inviteRewardTimes') }}: {{ inviteRewardCount }}</text>
         </view>
-        <view v-if="hasMore" class="load-more" @tap="loadMore">
-          <text>{{ $t('loadMore') }}</text>
+
+        <view class="invite-card friends-card">
+          <view class="friends-head">
+            <text class="friends-title">{{ $t('myFriends') }}</text>
+            <text class="friends-sub">{{ subordinateList.length }}/{{ total }}</text>
+          </view>
+
+          <view v-if="subordinateList.length === 0" class="empty-tip">
+            <text>{{ $t('noInviteRecord') }}</text>
+          </view>
+
+          <view v-else>
+            <view v-for="(item, index) in subordinateList" :key="item.ID || item.id || index" class="friend-item">
+              <image class="friend-avatar" :src="item.avatar || defaultAvatar" mode="aspectFill" />
+              <view class="friend-main">
+                <text class="friend-name">{{ item.nickname || item.username }}</text>
+                <text class="friend-time">{{ formatTime(item.CreatedAt || item.createdAt) }}</text>
+              </view>
+            </view>
+
+            <view v-if="hasMore" class="load-more-btn" @tap="loadMore">{{ $t('loadMore') }}</view>
+            <text v-else class="load-more-end">{{ $t('reachedBottom') }}</text>
+          </view>
         </view>
       </view>
-    </view>
+    </scroll-view>
   </view>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { computed, ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { getMyInviteInfo, getMySubordinates } from '@/api/base.js'
+import { request } from '@/utils/request.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
@@ -75,14 +85,22 @@ const defaultAvatar = 'https://qmplusimg.henrongyi.top/gva_header.jpg'
 const inviteInfo = ref({
   inviteCode: '',
   subordinateCount: 0,
-  point: 0
+  point: 0,
+  tryonPoint: 0,
+})
+
+const inviteRewardStats = ref({
+  totalTryonReward: 0,
+  rewardCount: 0,
 })
 
 const subordinateList = ref([])
 const page = ref(1)
-const pageSize = ref(20)
+const pageSize = ref(10)
 const total = ref(0)
 const hasMore = computed(() => subordinateList.value.length < total.value)
+const inviteRewardTotal = computed(() => Number(inviteRewardStats.value.totalTryonReward || 0))
+const inviteRewardCount = computed(() => Number(inviteRewardStats.value.rewardCount || 0))
 
 const goBack = () => {
   uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/tabBar/my/index' }) })
@@ -90,25 +108,70 @@ const goBack = () => {
 
 const loadInviteInfo = async () => {
   const res = await getMyInviteInfo()
-  if (res.code === 0) {
-    inviteInfo.value = res.data
+  if (res.code !== 0 || !res.data) return
+  inviteInfo.value = {
+    ...inviteInfo.value,
+    ...res.data,
   }
 }
 
 const loadSubordinates = async () => {
   const res = await getMySubordinates({ page: page.value, pageSize: pageSize.value })
-  if (res.code === 0) {
-    if (page.value === 1) {
-      subordinateList.value = res.data.list || []
-    } else {
-      subordinateList.value.push(...(res.data.list || []))
-    }
-    total.value = res.data.total
+  if (res.code !== 0 || !res.data) return
+
+  if (page.value === 1) {
+    subordinateList.value = res.data.list || []
+  } else {
+    subordinateList.value.push(...(res.data.list || []))
   }
+  total.value = Number(res.data.total || 0)
+}
+
+const loadInviteRewardStats = async () => {
+  const stat = {
+    totalTryonReward: 0,
+    rewardCount: 0,
+  }
+
+  let nextPage = 1
+  const maxPage = 30
+  const fetchSize = 100
+
+  while (nextPage <= maxPage) {
+    const res = await request({
+      url: '/cpr/getPointRecordList',
+      method: 'get',
+      params: {
+        page: nextPage,
+        pageSize: fetchSize,
+        assetType: 'tryon_point',
+        operationType: 'tryon_invite_register_reward',
+        sort: 'created_at',
+        order: 'descending',
+      },
+    })
+
+    const list = Array.isArray(res?.data?.list) ? res.data.list : []
+    list.forEach((item) => {
+      const rawChange = Number(item?.pointChange ?? item?.PointChange ?? 0)
+      if (!Number.isFinite(rawChange) || rawChange <= 0) return
+      stat.totalTryonReward += rawChange
+      stat.rewardCount += 1
+    })
+
+    const totalCount = Number(res?.data?.total || 0)
+    if (list.length < fetchSize || nextPage * fetchSize >= totalCount) {
+      break
+    }
+    nextPage += 1
+  }
+
+  inviteRewardStats.value = stat
 }
 
 const loadMore = () => {
-  page.value++
+  if (!hasMore.value) return
+  page.value += 1
   loadSubordinates()
 }
 
@@ -117,13 +180,13 @@ const copyCode = () => {
   uni.setClipboardData({
     data: inviteInfo.value.inviteCode,
     success: () => {
-      uni.showToast({ title: $t.value('inviteCodeCopied'), icon: 'success' })
-    }
+      uni.showToast({ title: $t.value('inviteCodeCopied'), icon: 'none' })
+    },
   })
 }
 
 const shareLink = () => {
-  const code = inviteInfo.value.inviteCode
+  const code = String(inviteInfo.value.inviteCode || '').trim()
   if (!code) return
   // #ifdef H5
   const origin = window.location.origin
@@ -135,215 +198,285 @@ const shareLink = () => {
   uni.setClipboardData({
     data: link,
     success: () => {
-      uni.showToast({ title: $t.value('shareLinkCopied'), icon: 'success' })
-    }
+      uni.showToast({ title: $t.value('shareLinkCopied'), icon: 'none' })
+    },
   })
 }
 
-const formatTime = (t) => {
-  if (!t) return ''
-  return t.substring(0, 10)
+const formatTime = (value) => {
+  if (!value) return '--'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '--'
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
-onMounted(() => {
-  loadInviteInfo()
-  loadSubordinates()
+const refreshInvitePage = async () => {
+  page.value = 1
+  total.value = 0
+  subordinateList.value = []
+  inviteRewardStats.value = { totalTryonReward: 0, rewardCount: 0 }
+
+  await Promise.all([
+    loadInviteInfo(),
+    loadSubordinates(),
+    loadInviteRewardStats(),
+  ])
+}
+
+onShow(() => {
+  refreshInvitePage()
 })
 </script>
 
 <style lang="scss" scoped>
-page { background-color: #000; }
+page {
+  background: #f4f7fb;
+}
 
-.nf-page {
+.invite-page {
   min-height: 100vh;
-  background: #000;
-  position: relative;
+  background: radial-gradient(120% 80% at 100% -10%, #dbeafe 0%, transparent 62%), #f4f7fb;
+  color: #0f172a;
 }
 
-.nf-bg {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 500rpx;
-  background: linear-gradient(180deg, rgba(229,9,20,0.3) 0%, transparent 100%);
+.invite-bg {
+  position: fixed;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 520rpx;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(37, 99, 235, 0.16), transparent 52%),
+    radial-gradient(circle at 90% 18%, rgba(14, 165, 233, 0.12), transparent 48%);
 }
 
-.nf-navbar {
-  position: relative;
-  z-index: 10;
+.invite-nav {
+  position: sticky;
+  top: 0;
+  z-index: 99;
+  padding: 0 24rpx 12rpx;
+  backdrop-filter: blur(16rpx);
+  background: rgba(244, 247, 251, 0.72);
+  border-bottom: 1rpx solid rgba(15, 23, 42, 0.06);
 }
 
-.nf-navbar-status {
-  height: var(--status-bar-height, 44px);
+.invite-nav-status {
+  height: var(--status-bar-height, 44rpx);
 }
 
-.nf-navbar-content {
+.invite-nav-content {
+  height: 88rpx;
   display: flex;
   align-items: center;
-  height: 88rpx;
-  padding: 0 24rpx;
+  justify-content: space-between;
 }
 
-.nf-navbar-back {
+.invite-nav-back {
   width: 64rpx;
   height: 64rpx;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  border: 1rpx solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.95);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.nf-navbar-title {
-  flex: 1;
-  text-align: center;
-  font-size: 34rpx;
-  font-weight: 600;
-  color: #fff;
+.invite-nav-right-spacer {
+  width: 64rpx;
 }
 
-.nf-container {
+.invite-nav-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.invite-scroll {
+  height: calc(100vh - var(--status-bar-height, 44rpx) - 100rpx);
+}
+
+.invite-body {
   position: relative;
-  z-index: 5;
-  padding: 0 30rpx;
-}
-
-.nf-card {
-  background: rgba(255,255,255,0.08);
-  border-radius: 20rpx;
-  padding: 36rpx;
-  margin-bottom: 24rpx;
-  backdrop-filter: blur(10px);
+  z-index: 1;
+  padding: 20rpx;
 }
 
 .invite-card {
+  border-radius: 18rpx;
+  border: 1rpx solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 12rpx 28rpx rgba(15, 23, 42, 0.06);
+  padding: 20rpx;
+  margin-bottom: 14rpx;
+}
+
+.code-card {
   text-align: center;
 }
 
-.invite-title {
-  font-size: 28rpx;
-  color: rgba(255,255,255,0.6);
-}
-
-.invite-code {
+.code-title {
   display: block;
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.56);
+}
+
+.code-value {
+  display: block;
+  margin: 12rpx 0 16rpx;
   font-size: 56rpx;
-  font-weight: 700;
-  color: #e50914;
-  letter-spacing: 8rpx;
-  margin: 20rpx 0 30rpx;
+  line-height: 1;
+  letter-spacing: 6rpx;
+  font-weight: 800;
+  color: #1d4ed8;
 }
 
-.invite-btn-row {
+.code-actions {
   display: flex;
-  gap: 20rpx;
+  gap: 10rpx;
 }
 
-.nf-btn {
+.code-btn {
   flex: 1;
-  height: 80rpx;
-  line-height: 80rpx;
-  border-radius: 12rpx;
-  font-size: 28rpx;
+  height: 68rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  color: #0f172a;
+  background: rgba(241, 245, 249, 0.9);
+  border: 1rpx solid rgba(15, 23, 42, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.code-btn.primary {
+  color: #ffffff;
+  border-color: transparent;
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8rpx;
+}
+
+.stats-item {
   text-align: center;
+  padding: 10rpx 6rpx;
+  border-radius: 12rpx;
+  background: rgba(241, 245, 249, 0.86);
 }
 
-.nf-btn-primary {
-  background: #e50914;
-  color: #fff;
+.stats-value {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #0f172a;
 }
 
-.nf-btn-ghost {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.3);
-  color: #fff;
+.stats-label {
+  display: block;
+  margin-top: 4rpx;
+  font-size: 20rpx;
+  color: rgba(15, 23, 42, 0.56);
 }
 
-.stats-card {
-  .stats-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .stats-item {
-    flex: 1;
-    text-align: center;
-  }
-  .stats-value {
-    display: block;
-    font-size: 48rpx;
-    font-weight: 700;
-    color: #fff;
-  }
-  .stats-label {
-    font-size: 24rpx;
-    color: rgba(255,255,255,0.5);
-  }
-  .stats-divider {
-    width: 1px;
-    height: 60rpx;
-    background: rgba(255,255,255,0.15);
-  }
+.stats-tip {
+  display: block;
+  margin-top: 12rpx;
+  text-align: center;
+  font-size: 22rpx;
+  color: rgba(15, 23, 42, 0.56);
 }
 
-.section-title {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #fff;
-  margin-bottom: 24rpx;
+.friends-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10rpx;
+}
+
+.friends-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.friends-sub {
+  font-size: 22rpx;
+  color: rgba(15, 23, 42, 0.52);
 }
 
 .empty-tip {
+  padding: 54rpx 0;
   text-align: center;
-  padding: 40rpx 0;
-  color: rgba(255,255,255,0.4);
-  font-size: 26rpx;
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.5);
 }
 
-.sub-item {
+.friend-item {
   display: flex;
   align-items: center;
-  padding: 20rpx 0;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-
-  &:last-child {
-    border-bottom: none;
-  }
+  gap: 12rpx;
+  padding: 14rpx 0;
+  border-bottom: 1rpx solid rgba(15, 23, 42, 0.06);
 }
 
-.sub-left {
-  display: flex;
-  align-items: center;
-  flex: 1;
+.friend-item:last-child {
+  border-bottom: none;
 }
 
-.sub-avatar {
+.friend-avatar {
   width: 72rpx;
   height: 72rpx;
   border-radius: 50%;
-  margin-right: 20rpx;
+  background: #e2e8f0;
 }
 
-.sub-info {
-  display: flex;
-  flex-direction: column;
+.friend-main {
+  flex: 1;
+  min-width: 0;
 }
 
-.sub-name {
-  font-size: 28rpx;
-  color: #fff;
-}
-
-.sub-time {
-  font-size: 22rpx;
-  color: rgba(255,255,255,0.4);
-  margin-top: 4rpx;
-}
-
-.load-more {
-  text-align: center;
-  padding: 20rpx 0;
-  color: rgba(255,255,255,0.5);
+.friend-name {
+  display: block;
   font-size: 26rpx;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.friend-time {
+  display: block;
+  margin-top: 4rpx;
+  font-size: 22rpx;
+  color: rgba(15, 23, 42, 0.5);
+}
+
+.load-more-btn {
+  margin-top: 12rpx;
+  width: 260rpx;
+  height: 62rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(15, 23, 42, 0.14);
+  background: rgba(241, 245, 249, 0.96);
+  color: #0f172a;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.load-more-end {
+  display: block;
+  margin-top: 12rpx;
+  text-align: center;
+  font-size: 22rpx;
+  color: rgba(15, 23, 42, 0.46);
 }
 </style>

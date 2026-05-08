@@ -1,10 +1,12 @@
 package client
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
@@ -148,6 +150,48 @@ func (clientUserService *ClientUserService) GetClientUserInfoList(info clientReq
 func (clientUserService *ClientUserService) SetClientUserInfo(key string, value string, userID uint) (err error) {
 	err = global.GVA_DB.Model(&client.ClientUser{}).Where("id = ?", userID).Update(key, value).Error
 	return err
+}
+
+// AdjustTryonPoint 后台调整用户试衣币，统一写入试衣币流水
+func (clientUserService *ClientUserService) AdjustTryonPoint(ctx context.Context, req clientReq.AdjustTryonPointRequest, operatorID uint) error {
+	if req.UserID == 0 {
+		return errors.New("用户ID不能为空")
+	}
+	if req.Amount <= 0 {
+		return errors.New("调整数量必须大于0")
+	}
+	changeType := strings.TrimSpace(req.ChangeType)
+	if changeType != "increase" && changeType != "decrease" {
+		return errors.New("调整类型必须是 increase 或 decrease")
+	}
+	reason := strings.TrimSpace(req.Reason)
+	if reason == "" {
+		return errors.New("调整原因不能为空")
+	}
+
+	uid := int(req.UserID)
+	assetType := client.AssetTypeTryonPoint
+	operationType := "admin_adjust_tryon_point"
+	pointChange := req.Amount
+	remark := strings.TrimSpace(req.Remark)
+	if remark != "" {
+		remark = fmt.Sprintf("operator:%d; %s", operatorID, remark)
+	} else {
+		remark = fmt.Sprintf("operator:%d", operatorID)
+	}
+
+	record := client.PointRecord{
+		AssetType:     &assetType,
+		UserId:        &uid,
+		ChangeType:    &changeType,
+		PointChange:   &pointChange,
+		OperationType: &operationType,
+		Reason:        &reason,
+		Remark:        &remark,
+	}
+
+	pointRecordService := PointRecordService{}
+	return pointRecordService.CreatePointRecord(ctx, &record)
 }
 
 // GetSubordinates 获取用户的直接下级列表

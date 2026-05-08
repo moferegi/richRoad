@@ -5,7 +5,7 @@
         <uni-icons type="left" size="20" color="#0f172a" />
       </view>
       <text class="nav-title">{{ $t('tryonHistory') }}</text>
-      <view class="nav-btn" @tap="loadHistory">
+      <view class="nav-btn" @tap="loadHistory(true)">
         <uni-icons type="reload" size="18" color="#0f172a" />
       </view>
     </view>
@@ -16,7 +16,7 @@
       <view class="filter-chip" :class="{ active: currentFilter === 'shoe' }" @tap="currentFilter = 'shoe'">{{ $t('tryonShoes') }}</view>
     </scroll-view>
 
-    <scroll-view class="list-wrap" scroll-y>
+    <scroll-view class="list-wrap" scroll-y @scrolltolower="onReachBottom">
       <view class="card" v-for="item in filteredList" :key="item._key" @tap="preview(item)">
         <view class="thumb-wrap">
           <image class="thumb" :src="item.resultImage ? getUrl(item.resultImage) : getUrl(item.templateImage || item.sourceImage)" mode="aspectFill" />
@@ -29,14 +29,71 @@
           <text class="no">{{ $t('tryonTaskNo') }}：{{ item.taskNo || '-' }}</text>
           <text class="time">{{ formatTime(item.CreatedAt || item.savedAt) }}</text>
           <text class="error" v-if="item.status === 'failed' && item.errorMessage">{{ item.errorMessage }}</text>
+          <view class="card-actions">
+            <view class="mini-btn danger" @tap.stop="removeHistory(item)">{{ $t('delete') }}</view>
+          </view>
         </view>
       </view>
 
       <view class="empty" v-if="filteredList.length === 0">
         <text>{{ $t('tryonNoTask') }}</text>
       </view>
+
+      <view class="load-more-row" v-if="showLoadMoreButton">
+        <view class="load-more-btn" :class="{ disabled: loadingMoreHistory }" @tap="loadMoreHistory">
+          {{ loadingMoreHistory ? $t('loading') : $t('loadMore') }}
+        </view>
+      </view>
+
       <view style="height: 30rpx"></view>
     </scroll-view>
+
+    <view class="preview-mask" v-if="previewVisible" @tap="closePreview">
+      <view class="preview-panel" @tap.stop>
+        <view class="preview-head">
+          <text class="preview-title">{{ $t('imagePreviewTitle') }}</text>
+          <view class="preview-close" @tap="closePreview">
+            <uni-icons type="closeempty" size="20" color="#0f172a" />
+          </view>
+        </view>
+
+        <view class="preview-tabs">
+          <view
+            class="preview-tab"
+            :class="{ active: previewTab === 'result', disabled: !previewResultImages.length }"
+            @tap="switchPreviewTab('result')"
+          >
+            {{ $t('previewResultTab') }}
+          </view>
+          <view
+            class="preview-tab"
+            :class="{ active: previewTab === 'origin', disabled: !previewOriginImages.length }"
+            @tap="switchPreviewTab('origin')"
+          >
+            {{ $t('previewOriginTab') }}
+          </view>
+        </view>
+
+        <view class="preview-body" v-if="currentPreviewImages.length">
+          <swiper class="preview-swiper" :current="previewCurrentIndex" @change="onPreviewSwiperChange">
+            <swiper-item v-for="(img, idx) in currentPreviewImages" :key="`${img}_${idx}`">
+              <view class="preview-image-wrap">
+                <image class="preview-image" :src="getUrl(img)" mode="aspectFit" />
+              </view>
+            </swiper-item>
+          </swiper>
+          <text class="preview-index">{{ previewCurrentIndex + 1 }}/{{ currentPreviewImages.length }}</text>
+        </view>
+
+        <view class="preview-empty" v-else>
+          <text>{{ $t('noImagePreview') }}</text>
+        </view>
+
+        <view class="preview-actions">
+          <view class="preview-action-btn" @tap="downloadCurrentImage">{{ $t('downloadAction') }}</view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -44,15 +101,34 @@
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
-import { getMyTryonTaskList } from '@/api/tryonTask.js'
+import { getMyTryonTaskList, deleteMyTryonTask } from '@/api/tryonTask.js'
 import { getUrl } from '@/utils/url.js'
-import { getTryonLocalHistory } from '@/utils/tryon.js'
+import { getTryonLocalHistory, removeTryonLocalHistoryByTaskKey } from '@/utils/tryon.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 
+const PAGE_SIZE = 10
 const currentFilter = ref('all')
 const allList = ref([])
+const localTaskKeys = ref([])
+const localListCache = ref([])
+const serverList = ref([])
+const mergedList = ref([])
+const serverPage = ref(1)
+const serverHasMore = ref(false)
+const displayPage = ref(1)
+const hasMoreHistory = ref(false)
+const reachedBottom = ref(false)
+const loadingMoreHistory = ref(false)
+
+const previewVisible = ref(false)
+const previewTab = ref('result')
+const previewResultImages = ref([])
+const previewOriginImages = ref([])
+const previewCurrentIndex = ref(0)
+
+const getTaskKey = (item) => String(item?.taskNo || item?.requestID || '').trim()
 
 const normalizeServerType = (item) => {
   if (item.sceneType === 'shoes') return 'shoe'
@@ -68,6 +144,15 @@ const filteredList = computed(() => {
   if (currentFilter.value === 'all') return allList.value
   return allList.value.filter(item => recordType(item) === currentFilter.value)
 })
+
+const currentPreviewImages = computed(() => {
+  if (previewTab.value === 'origin') {
+    return previewOriginImages.value
+  }
+  return previewResultImages.value
+})
+
+const showLoadMoreButton = computed(() => hasMoreHistory.value && reachedBottom.value)
 
 const typeLabel = (item) => {
   const type = recordType(item)
@@ -127,35 +212,313 @@ const mergeHistory = (serverList, localList) => {
   })
 }
 
-const loadHistory = async () => {
-  const token = uni.getStorageSync('x-token') || ''
-  const localList = getTryonLocalHistory()
+const extractImageValues = (value) => {
+  if (!value) return []
 
-  if (!token) {
-    allList.value = mergeHistory([], localList)
-    return
+  if (Array.isArray(value)) {
+    return value.flatMap(item => extractImageValues(item))
   }
 
-  const res = await getMyTryonTaskList({
-    page: 1,
-    pageSize: 50,
-  })
+  if (typeof value === 'string') {
+    const text = value.trim()
+    if (!text) return []
 
-  if (res.code === 0 && res.data) {
-    allList.value = mergeHistory(res.data.list || [], localList)
-    return
+    if (text.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(text)
+        return extractImageValues(parsed)
+      } catch {
+        // ignore parse error and keep splitting below
+      }
+    }
+
+    return text
+      .split(/[\n\r,;|，]+/)
+      .map(item => item.trim())
+      .filter(Boolean)
   }
 
-  allList.value = mergeHistory([], localList)
+  return []
 }
 
-const preview = (item) => {
-  const url = item.resultImage || item.templateImage || item.sourceImage
-  if (!url) {
+const uniqueImageList = (list) => {
+  const dedup = new Set()
+  ;(list || []).forEach((item) => {
+    const val = String(item || '').trim()
+    if (val) dedup.add(val)
+  })
+  return Array.from(dedup)
+}
+
+const syncVisibleList = () => {
+  mergedList.value = mergeHistory(serverList.value, localListCache.value)
+  const visibleCount = displayPage.value * PAGE_SIZE
+  allList.value = mergedList.value.slice(0, visibleCount)
+  hasMoreHistory.value = mergedList.value.length > allList.value.length || serverHasMore.value
+}
+
+const fetchServerPage = async (pageNo) => {
+  const res = await getMyTryonTaskList({
+    page: pageNo,
+    pageSize: PAGE_SIZE,
+  })
+
+  if (res.code !== 0 || !res.data) {
+    if (pageNo === 1) {
+      serverList.value = []
+    }
+    serverHasMore.value = false
+    return
+  }
+
+  if (!Array.isArray(res.data.list)) {
+    uni.showToast({ title: $t.value('apiResponseInvalid'), icon: 'none' })
+    if (pageNo === 1) {
+      serverList.value = []
+    }
+    serverHasMore.value = false
+    return
+  }
+
+  const list = res.data.list
+  if (pageNo === 1) {
+    serverList.value = list
+  } else {
+    serverList.value = serverList.value.concat(list)
+  }
+
+  serverPage.value = pageNo
+  const total = Number(res.data.total || 0)
+  if (total > 0) {
+    serverHasMore.value = serverList.value.length < total
+  } else {
+    serverHasMore.value = list.length >= PAGE_SIZE
+  }
+}
+
+const resetHistoryState = () => {
+  displayPage.value = 1
+  serverPage.value = 1
+  serverHasMore.value = false
+  serverList.value = []
+  mergedList.value = []
+  allList.value = []
+  hasMoreHistory.value = false
+  reachedBottom.value = false
+}
+
+const loadHistory = async (reset = false) => {
+  if (loadingMoreHistory.value) return
+  loadingMoreHistory.value = true
+
+  if (reset) {
+    resetHistoryState()
+  }
+
+  const token = uni.getStorageSync('x-token') || ''
+  localListCache.value = getTryonLocalHistory()
+  localTaskKeys.value = localListCache.value.map(v => getTaskKey(v)).filter(Boolean)
+
+  try {
+    if (!token) {
+      serverList.value = []
+      serverHasMore.value = false
+      syncVisibleList()
+      return
+    }
+
+    await fetchServerPage(1)
+    syncVisibleList()
+  } finally {
+    loadingMoreHistory.value = false
+  }
+}
+
+const onReachBottom = () => {
+  if (!hasMoreHistory.value) return
+  reachedBottom.value = true
+}
+
+const loadMoreHistory = async () => {
+  if (loadingMoreHistory.value || !hasMoreHistory.value) return
+  loadingMoreHistory.value = true
+
+  try {
+    const token = uni.getStorageSync('x-token') || ''
+    const nextDisplayPage = displayPage.value + 1
+    const requiredCount = nextDisplayPage * PAGE_SIZE
+
+    if (mergedList.value.length < requiredCount && token && serverHasMore.value) {
+      await fetchServerPage(serverPage.value + 1)
+    }
+
+    displayPage.value = nextDisplayPage
+    syncVisibleList()
+    reachedBottom.value = false
+  } finally {
+    loadingMoreHistory.value = false
+  }
+}
+
+const switchPreviewTab = (tab) => {
+  if (tab === 'result' && !previewResultImages.value.length) return
+  if (tab === 'origin' && !previewOriginImages.value.length) return
+
+  previewTab.value = tab
+  previewCurrentIndex.value = 0
+}
+
+const onPreviewSwiperChange = (e) => {
+  previewCurrentIndex.value = Number(e?.detail?.current || 0)
+}
+
+const closePreview = () => {
+  previewVisible.value = false
+  previewCurrentIndex.value = 0
+  previewResultImages.value = []
+  previewOriginImages.value = []
+}
+
+const currentPreviewImage = () => {
+  const list = currentPreviewImages.value
+  return list[previewCurrentIndex.value] || ''
+}
+
+const ensureAlbumPermission = async () => {
+  // #ifdef H5
+  return true
+  // #endif
+
+  try {
+    const settingRes = await uni.getSetting()
+    const authState = settingRes?.authSetting?.['scope.writePhotosAlbum']
+    if (authState === false) {
+      const openRes = await uni.openSetting()
+      return !!openRes?.authSetting?.['scope.writePhotosAlbum']
+    }
+    return true
+  } catch {
+    return true
+  }
+}
+
+const saveImageToAlbumWithRetry = async (filePath) => {
+  const canSave = await ensureAlbumPermission()
+  if (!canSave) {
+    throw new Error('NO_ALBUM_PERMISSION')
+  }
+
+  try {
+    await uni.saveImageToPhotosAlbum({ filePath })
+  } catch (e) {
+    const errMsg = String(e?.errMsg || '').toLowerCase()
+    if (!/auth|permission/.test(errMsg)) {
+      throw e
+    }
+
+    const openRes = await uni.openSetting()
+    const granted = !!openRes?.authSetting?.['scope.writePhotosAlbum']
+    if (!granted) {
+      throw new Error('NO_ALBUM_PERMISSION')
+    }
+
+    await uni.saveImageToPhotosAlbum({ filePath })
+  }
+}
+
+const downloadCurrentImage = async () => {
+  const target = currentPreviewImage()
+  if (!target) {
     uni.showToast({ title: $t.value('noImagePreview'), icon: 'none' })
     return
   }
-  uni.previewImage({ urls: [getUrl(url)] })
+
+  const fullUrl = getUrl(target)
+  if (!fullUrl) {
+    uni.showToast({ title: $t.value('imageUrlInvalid'), icon: 'none' })
+    return
+  }
+
+  // #ifdef H5
+  const anchor = document.createElement('a')
+  anchor.href = fullUrl
+  anchor.target = '_blank'
+  anchor.rel = 'noopener'
+  anchor.download = `tryon-${Date.now()}`
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  uni.showToast({ title: $t.value('downloadStarted'), icon: 'none' })
+  return
+  // #endif
+
+  uni.showLoading({ title: $t.value('loading'), mask: true })
+  try {
+    const res = await uni.downloadFile({ url: fullUrl })
+    if (res.statusCode !== 200 || !res.tempFilePath) {
+      uni.showToast({ title: $t.value('downloadFailed'), icon: 'none' })
+      return
+    }
+
+    await saveImageToAlbumWithRetry(res.tempFilePath)
+    uni.showToast({ title: $t.value('savedToAlbum'), icon: 'none' })
+  } catch (e) {
+    if (String(e?.message || '') === 'NO_ALBUM_PERMISSION') {
+      uni.showToast({ title: $t.value('saveToAlbumFailed'), icon: 'none' })
+      return
+    }
+    uni.showToast({ title: $t.value('downloadFailed'), icon: 'none' })
+  } finally {
+    uni.hideLoading()
+  }
+}
+
+const removeHistory = (item) => {
+  const taskKey = getTaskKey(item)
+  if (!taskKey) {
+    uni.showToast({ title: $t.value('historyRecordNotFound'), icon: 'none' })
+    return
+  }
+
+  uni.showModal({
+    title: $t.value('deleteHistoryConfirmTitle'),
+    content: $t.value('deleteHistoryConfirmContent'),
+    success: async (res) => {
+      if (!res.confirm) return
+
+      const token = uni.getStorageSync('x-token') || ''
+      if (token && item.taskNo) {
+        const deleteRes = await deleteMyTryonTask({ taskNo: item.taskNo })
+        if (deleteRes.code !== 0) {
+          uni.showToast({ title: deleteRes.msg || $t.value('operationFailed'), icon: 'none' })
+          return
+        }
+      }
+
+      removeTryonLocalHistoryByTaskKey(taskKey)
+      await loadHistory(true)
+      uni.showToast({ title: $t.value('deleteSuccess'), icon: 'none' })
+    },
+  })
+}
+
+const preview = (item) => {
+  const resultImages = uniqueImageList(extractImageValues(item.resultImage))
+  const originImages = uniqueImageList([
+    ...extractImageValues(item.sourceImage),
+    ...extractImageValues(item.templateImage),
+  ])
+
+  if (!resultImages.length && !originImages.length) {
+    uni.showToast({ title: $t.value('noImagePreview'), icon: 'none' })
+    return
+  }
+
+  previewResultImages.value = resultImages
+  previewOriginImages.value = originImages
+  previewTab.value = resultImages.length ? 'result' : 'origin'
+  previewCurrentIndex.value = 0
+  previewVisible.value = true
 }
 
 const goBack = () => {
@@ -163,7 +526,7 @@ const goBack = () => {
 }
 
 onShow(() => {
-  loadHistory()
+  loadHistory(true)
 })
 </script>
 
@@ -302,9 +665,183 @@ page {
   color: #ffaaaa;
 }
 
+.card-actions {
+  margin-top: 8rpx;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mini-btn {
+  height: 42rpx;
+  padding: 0 14rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(220, 38, 38, 0.25);
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+  font-size: 20rpx;
+  display: inline-flex;
+  align-items: center;
+}
+
+.mini-btn.danger {
+  color: #b91c1c;
+}
+
 .empty {
   margin-top: 120rpx;
   text-align: center;
   color: rgba(15,23,42,0.55);
+}
+
+.load-more-row {
+  margin-top: 8rpx;
+  margin-bottom: 8rpx;
+  display: flex;
+  justify-content: center;
+}
+
+.load-more-btn {
+  width: 260rpx;
+  height: 64rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.96);
+  color: #0f172a;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.load-more-btn.disabled {
+  opacity: 0.65;
+}
+
+.preview-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(15, 23, 42, 0.58);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24rpx;
+}
+
+.preview-panel {
+  width: 100%;
+  max-width: 680rpx;
+  border-radius: 18rpx;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.preview-head {
+  height: 88rpx;
+  padding: 0 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1rpx solid rgba(15, 23, 42, 0.08);
+}
+
+.preview-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.preview-close {
+  width: 54rpx;
+  height: 54rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.preview-tabs {
+  padding: 14rpx 16rpx;
+  display: flex;
+  gap: 12rpx;
+}
+
+.preview-tab {
+  flex: 1;
+  height: 56rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(15, 23, 42, 0.12);
+  color: rgba(15, 23, 42, 0.64);
+  background: rgba(15, 23, 42, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+}
+
+.preview-tab.active {
+  color: #ffffff;
+  border-color: transparent;
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
+}
+
+.preview-tab.disabled {
+  opacity: 0.45;
+}
+
+.preview-body {
+  padding: 0 16rpx 10rpx;
+}
+
+.preview-swiper {
+  width: 100%;
+  height: 680rpx;
+}
+
+.preview-image-wrap {
+  width: 100%;
+  height: 680rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+}
+
+.preview-index {
+  margin-top: 8rpx;
+  text-align: center;
+  display: block;
+  font-size: 22rpx;
+  color: rgba(15, 23, 42, 0.58);
+}
+
+.preview-empty {
+  padding: 90rpx 16rpx;
+  text-align: center;
+  color: rgba(15, 23, 42, 0.52);
+}
+
+.preview-actions {
+  padding: 10rpx 16rpx 18rpx;
+}
+
+.preview-action-btn {
+  width: 100%;
+  height: 66rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 24rpx;
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
 }
 </style>

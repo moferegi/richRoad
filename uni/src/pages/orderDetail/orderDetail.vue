@@ -7,7 +7,7 @@
       <view class="nf-navbar-status"></view>
       <view class="nf-navbar-content">
         <view class="nf-navbar-back" @tap="goBack">
-          <uni-icons type="left" size="20" color="#fff"></uni-icons>
+          <uni-icons type="left" size="20" color="#0f172a"></uni-icons>
         </view>
         <text class="nf-navbar-title">{{ $t('orderDetail') }}</text>
         <view style="width: 64rpx;"></view>
@@ -32,7 +32,7 @@
           <text class="nf-address-name">{{ $t('selectAddress') }}</text>
           <text class="nf-address-detail">{{ $t('addAddressHint') }}</text>
         </view>
-        <uni-icons v-if="data.status === '0'" type="right" size="16" color="rgba(255,255,255,0.3)"></uni-icons>
+        <uni-icons v-if="data.status === '0'" type="right" size="16" color="rgba(15,23,42,0.32)"></uni-icons>
       </view>
 
       <!-- 商品列表 -->
@@ -76,7 +76,7 @@
         <view class="nf-info-row">
           <text class="nf-info-label">{{ $t('orderNo') }}</text>
           <view class="nf-info-value" @tap="copyOrderNo">
-            <text>{{ data.ID }}</text>
+            <text>{{ data.outTradeNo || data.OutTradeNo || data.ID }}</text>
             <text class="nf-copy-btn">{{ $t('copy') }}</text>
           </view>
         </view>
@@ -102,6 +102,11 @@
         </view>
       </view>
 
+      <view class="nf-card nf-kefu-tip-card">
+        <text class="nf-kefu-tip-text">{{ $t('orderDetailKefuCarryTip') }}</text>
+        <view class="nf-kefu-tip-btn" @tap="goKefuFromOrder">{{ $t('contactCustomerService') }}</view>
+      </view>
+
       <!-- 退款操作 -->
       <view class="nf-card nf-refund-card" v-if="canApplyRefund || isRefunding || isRefunded">
         <view v-if="canApplyRefund" class="nf-refund-btn" @tap="openRefund">{{ $t('applyRefund') }}</view>
@@ -124,6 +129,14 @@
         </view>
         <view class="nf-footer-btn" @tap="payNow">
           <text>{{ $t('payNow') }}</text>
+        </view>
+      </template>
+      <template v-else-if="data.status === '8'">
+        <view class="nf-footer-info">
+          <text class="nf-footer-label">{{ $t('ordersPendingConfirm') }}</text>
+        </view>
+        <view class="nf-footer-btn" @tap="goKefuFromOrder">
+          <text>{{ $t('contactCustomerService') }}</text>
         </view>
       </template>
       <!-- 待收货 -->
@@ -175,7 +188,6 @@ import { checkNeedPay } from '@/api/base.js'
 import { getSysConfigByKey } from '@/api/sysConfig.js'
 import { getPaymentConfig } from '@/api/sysConfig.js'
 import { getUrl, getExternalUrl } from "@/utils/url.js"
-import { trackVisitorEvent } from '@/utils/visitorEvent.js'
 import RefundApplyPopup from '@/components/refund-apply-popup/refund-apply-popup.vue'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
@@ -200,6 +212,7 @@ const goBack = () => { uni.navigateBack() }
 const getStatusLabel = (status) => {
   const map = {
     '0': $t.value('ordersPending'),
+    '8': $t.value('ordersPendingConfirm'),
     '1': $t.value('ordersShipping'),
     '2': $t.value('ordersReceiving'),
     '3': $t.value('ordersToReview'),
@@ -229,90 +242,6 @@ const buildDefaultPaymentMethods = () => ([
   { key: 'qrcode', label: $t.value('payByQrcode') },
   { key: 'contact', label: $t.value('payByContact') },
 ])
-
-const getManualFallbackTip = (payMethod, payMethodLabel) => {
-  const tipKeyMap = {
-    wechat: 'paymentManualTipWechat',
-    alipay: 'paymentManualTipAlipay',
-    bank_card_cn: 'paymentManualTipBankCn',
-    bank_card_us: 'paymentManualTipBankUs',
-    bank_card_mn: 'paymentManualTipBankMn',
-    paypal: 'paymentManualTipPaypal',
-  }
-  const tipKey = tipKeyMap[payMethod] || 'paymentManualTipDefault'
-  const fallbackLabel = payMethodLabel || getPayMethodLabel(payMethod)
-  return $t.value(tipKey).replace('{}', fallbackLabel)
-}
-
-const buildKefuUrl = (orderNo, payMethod, payMethodLabel) => {
-  const orderID = encodeURIComponent(String(orderNo || ''))
-  const method = encodeURIComponent(String(payMethod || ''))
-  const methodLabel = encodeURIComponent(String(payMethodLabel || ''))
-  return `/pages/kefu/index?orderID=${orderID}&payMethod=${method}&payMethodLabel=${methodLabel}`
-}
-
-const trackKefuGuideEvent = (action, extra = {}) => {
-  const payload = { source: 'order_detail', ...extra }
-  return trackVisitorEvent({
-    action,
-    label: String(payload.payMethod || ''),
-    extra: payload
-  })
-}
-
-const routeToKefuByMethod = (orderNo, payMethod, payMethodLabel) => {
-  const url = buildKefuUrl(orderNo, payMethod, payMethodLabel)
-  uni.setClipboardData({
-    data: String(orderNo),
-    success: () => {
-      trackKefuGuideEvent('copy_order_no', { orderNo, payMethod, payMethodLabel })
-      uni.showToast({ title: `${$t.value('orderNoCopied')}: ${orderNo}`, icon: 'none', duration: 2000 })
-      setTimeout(() => {
-        trackKefuGuideEvent('navigate_kefu', {
-          orderNo,
-          payMethod,
-          payMethodLabel,
-          navigateMode: 'navigateTo'
-        })
-        uni.navigateTo({ url })
-      }, 1500)
-    },
-    fail: () => {
-      trackKefuGuideEvent('copy_order_no_fail', { orderNo, payMethod, payMethodLabel })
-      trackKefuGuideEvent('navigate_kefu', {
-        orderNo,
-        payMethod,
-        payMethodLabel,
-        navigateMode: 'navigateTo'
-      })
-      uni.navigateTo({ url })
-    },
-  })
-}
-
-const confirmManualFallback = (payMethod, payMethodLabel) => {
-  trackKefuGuideEvent('manual_fallback_modal_show', { payMethod, payMethodLabel, orderNo: data.value.ID })
-  return new Promise((resolve) => {
-    uni.showModal({
-      title: payMethodLabel || $t.value('paymentManualFallbackTitle'),
-      content: `${getManualFallbackTip(payMethod, payMethodLabel)}\n\n${$t.value('paymentManualProofHint')}`,
-      confirmText: $t.value('paymentManualFallbackContact'),
-      cancelText: $t.value('paymentManualFallbackLater'),
-      success: (res) => {
-        trackKefuGuideEvent(res.confirm ? 'manual_fallback_confirm' : 'manual_fallback_cancel', {
-          payMethod,
-          payMethodLabel,
-          orderNo: data.value.ID
-        })
-        resolve(!!res.confirm)
-      },
-      fail: () => {
-        trackKefuGuideEvent('manual_fallback_cancel', { payMethod, payMethodLabel, orderNo: data.value.ID, fail: true })
-        resolve(false)
-      },
-    })
-  })
-}
 
 const loadPaymentMethods = async () => {
   try {
@@ -349,8 +278,9 @@ const formatTime = (t) => {
 }
 
 const copyOrderNo = () => {
+  const orderNo = String(data.value.outTradeNo || data.value.OutTradeNo || data.value.ID)
   uni.setClipboardData({
-    data: String(data.value.ID),
+    data: orderNo,
     success: () => { uni.showToast({ title: $t.value('orderNoCopied'), icon: 'none' }) }
   })
 }
@@ -528,29 +458,21 @@ const payNow = async () => {
       const payMethodLabel = paymentMethods.value[res.tapIndex]?.label || getPayMethodLabel(payMethod)
       // 同步支付方式到后端
       await updateOrder({ ID: Number(orderID.value), payMethod })
-      if (payMethod === 'qrcode') {
-        const encodedPayMethod = encodeURIComponent(payMethod)
-        const encodedPayMethodLabel = encodeURIComponent(payMethodLabel)
-        const encodedCloseTime = data.value.closeTime ? `&closeTime=${encodeURIComponent(data.value.closeTime)}` : ''
-        uni.navigateTo({ url: `/pages/pay/index?amount=${((data.value.totalPrice || 0) / 100).toFixed(2)}&orderNo=${data.value.ID}&orderId=${orderID.value}&payMethod=${encodedPayMethod}&payMethodLabel=${encodedPayMethodLabel}${encodedCloseTime}` })
-      } else {
-        trackKefuGuideEvent('guide_entry', {
-          orderNo: data.value.ID,
-          payMethod,
-          payMethodLabel
-        })
-
-        if (payMethod !== 'contact') {
-          const shouldContactNow = await confirmManualFallback(payMethod, payMethodLabel)
-          if (!shouldContactNow) {
-            uni.showToast({ title: $t.value('paymentManualSavedMethod'), icon: 'none' })
-            return
-          }
-        }
-
-        routeToKefuByMethod(data.value.ID, payMethod, payMethodLabel)
-      }
+      const encodedPayMethod = encodeURIComponent(payMethod)
+      const encodedPayMethodLabel = encodeURIComponent(payMethodLabel)
+      const encodedCloseTime = data.value.closeTime ? `&closeTime=${encodeURIComponent(data.value.closeTime)}` : ''
+      const orderNo = encodeURIComponent(String(data.value.outTradeNo || data.value.OutTradeNo || data.value.ID || orderID.value))
+      uni.navigateTo({ url: `/pages/pay/index?amount=${((data.value.totalPrice || 0) / 100).toFixed(2)}&orderNo=${orderNo}&orderId=${orderID.value}&payMethod=${encodedPayMethod}&payMethodLabel=${encodedPayMethodLabel}${encodedCloseTime}` })
     }
+  })
+}
+
+const goKefuFromOrder = () => {
+  const orderNo = String(data.value.outTradeNo || data.value.OutTradeNo || data.value.ID || orderID.value)
+  const payMethod = String(data.value.payMethod || '')
+  const payMethodLabel = getPayMethodLabel(payMethod)
+  uni.navigateTo({
+    url: `/pages/kefu/index?orderID=${encodeURIComponent(orderNo)}&payMethod=${encodeURIComponent(payMethod)}&payMethodLabel=${encodeURIComponent(payMethodLabel)}`
   })
 }
 
@@ -587,137 +509,413 @@ const goGoodsDetail = (d) => {
 </script>
 
 <style lang="scss">
-page { background-color: #000; }
+page {
+  background: #f4f7fb;
+}
 
-.nf-orderinfo { min-height: 100vh; background: #000; position: relative; }
+.nf-orderinfo {
+  min-height: 100vh;
+  background: radial-gradient(120% 80% at 100% -10%, #dbeafe 0%, transparent 62%), #f4f7fb;
+  position: relative;
+  color: #0f172a;
+}
 
 .nf-orderinfo-bg {
-  position: fixed; top: 0; left: 0; right: 0; height: 500rpx; z-index: 0; pointer-events: none;
-  background: radial-gradient(ellipse at 50% 0%, rgba(229, 9, 20, 0.10) 0%, transparent 60%);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 580rpx;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 12% 14%, rgba(59, 130, 246, 0.12), transparent 46%),
+    radial-gradient(circle at 92% 12%, rgba(14, 165, 233, 0.12), transparent 42%);
 }
 
 .nf-navbar {
-  background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(24px);
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
-  padding: 0 28rpx 16rpx; position: sticky; top: 0; z-index: 99;
+  position: sticky;
+  top: 0;
+  z-index: 99;
+  padding: 0 24rpx 12rpx;
+  backdrop-filter: blur(16rpx);
+  background: rgba(244, 247, 251, 0.72);
+  border-bottom: 1rpx solid rgba(15, 23, 42, 0.06);
 }
-.nf-navbar-status { height: var(--status-bar-height, 0px); }
-.nf-navbar-content { display: flex; align-items: center; justify-content: space-between; height: 88rpx; }
-.nf-navbar-back {
-  width: 64rpx; height: 64rpx; border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06); border: 1rpx solid rgba(255, 255, 255, 0.1);
-  display: flex; align-items: center; justify-content: center;
-}
-.nf-navbar-title { font-size: 34rpx; font-weight: 700; color: #fff; letter-spacing: 2rpx; }
 
-.nf-body { padding: 20rpx 24rpx; position: relative; z-index: 1; }
+.nf-navbar-status {
+  height: var(--status-bar-height, 0px);
+}
+
+.nf-navbar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 88rpx;
+}
+
+.nf-navbar-back {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  border: 1rpx solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nf-navbar-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.nf-body {
+  position: relative;
+  z-index: 1;
+  padding: 24rpx;
+}
 
 .nf-card {
-  background: rgba(255, 255, 255, 0.04); border: 1rpx solid rgba(255, 255, 255, 0.06);
-  border-radius: 20rpx; margin-bottom: 20rpx; backdrop-filter: blur(8px); overflow: hidden;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1rpx solid rgba(15, 23, 42, 0.08);
+  border-radius: 20rpx;
+  margin-bottom: 18rpx;
+  box-shadow: 0 12rpx 28rpx rgba(15, 23, 42, 0.06);
+  overflow: hidden;
 }
 
-/* 状态卡片 */
 .nf-status-card {
-  padding: 28rpx; display: flex; flex-direction: column; align-items: center; gap: 12rpx;
+  padding: 28rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  background: linear-gradient(135deg, rgba(219, 234, 254, 0.92), rgba(239, 246, 255, 0.98));
+  border-color: rgba(37, 99, 235, 0.2);
 }
-.nf-status-text { font-size: 36rpx; font-weight: 700; }
-.nf-status-countdown { font-size: 26rpx; color: #e50914; }
-.nf-st-0 { color: #e50914; }
-.nf-st-1 { color: #22c55e; }
-.nf-st-2 { color: #3b82f6; }
+
+.nf-status-text {
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.nf-status-countdown {
+  font-size: 24rpx;
+  color: #dc2626;
+}
+
+.nf-st-0 { color: #dc2626; }
+.nf-st-8 { color: #d97706; }
+.nf-st-1 { color: #16a34a; }
+.nf-st-2 { color: #2563eb; }
 .nf-st-3 { color: #f59e0b; }
-.nf-st-4 { color: rgba(255,255,255,0.3); }
-.nf-st-5 { color: rgba(255,255,255,0.4); }
+.nf-st-4 { color: rgba(15, 23, 42, 0.42); }
+.nf-st-5 { color: rgba(15, 23, 42, 0.5); }
 .nf-st-6 { color: #f59e0b; }
-.nf-st-7 { color: #22c55e; }
+.nf-st-7 { color: #16a34a; }
 
-/* 地址卡片 */
 .nf-address-card {
-  display: flex; align-items: center; padding: 28rpx; gap: 16rpx;
+  display: flex;
+  align-items: center;
+  padding: 24rpx;
+  gap: 14rpx;
 }
-.nf-address-icon { font-size: 40rpx; }
-.nf-address-info { flex: 1; }
-.nf-address-name { font-size: 28rpx; font-weight: 600; color: #fff; display: block; margin-bottom: 6rpx; }
-.nf-address-detail { font-size: 24rpx; color: rgba(255, 255, 255, 0.4); display: block; }
 
-/* 商品卡片 */
-.nf-goods-card { padding: 24rpx; }
+.nf-address-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(37, 99, 235, 0.1);
+  font-size: 34rpx;
+}
+
+.nf-address-info {
+  flex: 1;
+}
+
+.nf-address-name {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #0f172a;
+  display: block;
+  margin-bottom: 6rpx;
+}
+
+.nf-address-detail {
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.54);
+  display: block;
+}
+
+.nf-goods-card {
+  padding: 22rpx;
+}
+
 .nf-goods-item {
-  display: flex; gap: 20rpx; padding: 12rpx 0;
-  & + .nf-goods-item { border-top: 1rpx solid rgba(255, 255, 255, 0.04); }
+  display: flex;
+  gap: 16rpx;
+  padding: 14rpx 0;
+
+  & + .nf-goods-item {
+    border-top: 1rpx solid rgba(15, 23, 42, 0.06);
+  }
 }
+
 .nf-goods-img {
-  width: 168rpx; height: 168rpx; border-radius: 12rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.06); flex-shrink: 0;
+  width: 168rpx;
+  height: 168rpx;
+  border-radius: 12rpx;
+  border: 1rpx solid rgba(15, 23, 42, 0.1);
+  background: #e2e8f0;
+  flex-shrink: 0;
 }
-.nf-goods-info { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
-.nf-goods-name { font-size: 24rpx; color: rgba(255, 255, 255, 0.5); margin-bottom: 4rpx; }
-.nf-goods-desc { font-size: 28rpx; color: #fff; font-weight: 500; margin-bottom: 6rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nf-goods-specs { font-size: 22rpx; color: rgba(255, 255, 255, 0.3); margin-bottom: 8rpx; }
-.nf-goods-bottom { display: flex; justify-content: space-between; align-items: center; }
-.nf-goods-price { font-size: 28rpx; font-weight: 700; color: #e50914; }
-.nf-goods-qty { font-size: 24rpx; color: rgba(255, 255, 255, 0.4); }
 
-/* 价格卡片 */
-.nf-price-card { padding: 20rpx 28rpx; }
+.nf-goods-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.nf-goods-name {
+  font-size: 26rpx;
+  color: rgba(15, 23, 42, 0.88);
+  font-weight: 600;
+  margin-bottom: 4rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nf-goods-desc {
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.64);
+  margin-bottom: 6rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nf-goods-specs {
+  font-size: 22rpx;
+  color: rgba(15, 23, 42, 0.46);
+  margin-bottom: 8rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nf-goods-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nf-goods-price {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #dc2626;
+}
+
+.nf-goods-qty {
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.5);
+}
+
+.nf-price-card {
+  padding: 18rpx 24rpx;
+}
+
 .nf-price-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 14rpx 0; border-bottom: 1rpx solid rgba(255, 255, 255, 0.04);
-  &:last-child { border-bottom: none; }
-}
-.nf-price-label { font-size: 26rpx; color: rgba(255, 255, 255, 0.5); }
-.nf-price-val { font-size: 26rpx; color: #fff; }
-.nf-price-discount .nf-price-val { color: #e50914; }
-.nf-price-total { border-top: 1rpx solid rgba(255,255,255,0.08); margin-top: 8rpx; padding-top: 20rpx; }
-.nf-price-total-val { font-size: 32rpx; font-weight: 700; color: #e50914; }
-.nf-points-used { color: #e50914; }
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14rpx 0;
+  border-bottom: 1rpx solid rgba(15, 23, 42, 0.06);
 
-/* 订单信息卡片 */
-.nf-info-card { padding: 24rpx 28rpx; }
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.nf-price-label {
+  font-size: 26rpx;
+  color: rgba(15, 23, 42, 0.54);
+}
+
+.nf-price-val {
+  font-size: 26rpx;
+  color: #0f172a;
+}
+
+.nf-price-discount .nf-price-val,
+.nf-points-used {
+  color: #dc2626;
+}
+
+.nf-price-total {
+  border-top: 1rpx solid rgba(15, 23, 42, 0.08);
+  margin-top: 8rpx;
+  padding-top: 18rpx;
+}
+
+.nf-price-total-val {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #dc2626;
+}
+
+.nf-info-card {
+  padding: 20rpx 24rpx;
+}
+
 .nf-info-row {
-  display: flex; justify-content: space-between; align-items: center; padding: 10rpx 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10rpx 0;
 }
-.nf-info-label { font-size: 24rpx; color: rgba(255, 255, 255, 0.4); min-width: 140rpx; }
-.nf-info-value { font-size: 24rpx; color: rgba(255, 255, 255, 0.7); text-align: right; flex: 1; }
+
+.nf-info-label {
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.5);
+  min-width: 150rpx;
+}
+
+.nf-info-value {
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.78);
+  text-align: right;
+  flex: 1;
+}
+
 .nf-copy-btn {
-  font-size: 22rpx; color: #e50914; margin-left: 12rpx;
-  padding: 4rpx 12rpx; border: 1rpx solid rgba(229, 9, 20, 0.3);
-  border-radius: 8rpx; background: rgba(229, 9, 20, 0.1);
+  font-size: 22rpx;
+  color: #1d4ed8;
+  margin-left: 12rpx;
+  padding: 4rpx 12rpx;
+  border: 1rpx solid rgba(37, 99, 235, 0.32);
+  border-radius: 999rpx;
+  background: rgba(219, 234, 254, 0.6);
 }
 
-/* 退款 */
-.nf-refund-card { padding: 20rpx 28rpx; display: flex; justify-content: flex-end; }
+.nf-refund-card {
+  padding: 18rpx 24rpx;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.nf-kefu-tip-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 18rpx 24rpx;
+}
+
+.nf-kefu-tip-text {
+  flex: 1;
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.6);
+}
+
+.nf-kefu-tip-btn {
+  padding: 10rpx 22rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  color: #1d4ed8;
+  background: rgba(219, 234, 254, 0.7);
+  border: 1rpx solid rgba(37, 99, 235, 0.3);
+}
+
 .nf-refund-btn {
-  padding: 12rpx 28rpx; border-radius: 30rpx; font-size: 26rpx; font-weight: 600;
-  background: rgba(245, 158, 11, 0.15); border: 1rpx solid rgba(245, 158, 11, 0.3); color: #f59e0b;
-}
-.nf-refund-status {
-  padding: 12rpx 28rpx; border-radius: 30rpx; font-size: 26rpx;
-  background: rgba(255, 255, 255, 0.04); border: 1rpx solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.4);
+  padding: 12rpx 28rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1rpx solid rgba(245, 158, 11, 0.38);
 }
 
-/* 底部操作栏 */
+.nf-refund-status {
+  padding: 12rpx 28rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.5);
+  background: rgba(241, 245, 249, 0.95);
+  border: 1rpx solid rgba(15, 23, 42, 0.1);
+}
+
 .nf-footer {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 99;
-  display: flex; align-items: center; height: 110rpx;
-  background: rgba(0, 0, 0, 0.95); backdrop-filter: blur(24px);
-  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
-  padding-bottom: constant(safe-area-inset-bottom);
-  padding-bottom: env(safe-area-inset-bottom);
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 99;
+  display: flex;
+  align-items: center;
+  min-height: 112rpx;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16rpx);
+  border-top: 1rpx solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 -10rpx 24rpx rgba(15, 23, 42, 0.06);
+  padding: 8rpx 20rpx;
+  padding-bottom: calc(8rpx + env(safe-area-inset-bottom));
 }
-.nf-footer-info { flex: 1; padding-left: 32rpx; display: flex; align-items: baseline; gap: 8rpx; }
-.nf-footer-label { font-size: 26rpx; color: rgba(255, 255, 255, 0.5); }
-.nf-footer-price { font-size: 38rpx; font-weight: 700; color: #e50914; }
+
+.nf-footer-info {
+  flex: 1;
+  padding-left: 8rpx;
+  display: flex;
+  align-items: baseline;
+  gap: 8rpx;
+}
+
+.nf-footer-label {
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.54);
+}
+
+.nf-footer-price {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #dc2626;
+}
+
 .nf-footer-btn {
-  min-width: 180rpx; height: 100%; background: #e50914;
-  display: flex; justify-content: center; align-items: center;
-  font-size: 28rpx; font-weight: 700; color: #fff; padding: 0 24rpx;
-  &:active { background: #b30710; }
+  min-width: 168rpx;
+  height: 72rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #fff;
+  padding: 0 22rpx;
+  box-shadow: 0 10rpx 20rpx rgba(37, 99, 235, 0.24);
+
+  &:active {
+    opacity: 0.9;
+  }
 }
+
+.nf-footer-btn + .nf-footer-btn {
+  margin-left: 10rpx;
+}
+
 .nf-footer-btn-ghost {
-  background: transparent; border-left: 1rpx solid rgba(255,255,255,0.06);
-  color: rgba(255,255,255,0.6);
-  &:active { background: rgba(255,255,255,0.04); }
+  background: rgba(255, 255, 255, 0.95);
+  color: rgba(15, 23, 42, 0.7);
+  border: 1rpx solid rgba(15, 23, 42, 0.14);
+  box-shadow: none;
 }
 </style>

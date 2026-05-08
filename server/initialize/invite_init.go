@@ -24,8 +24,10 @@ func InitInviteData() {
 func initInviteApis(db *gorm.DB) {
 	apis := []sysModel.SysApi{
 		{ApiGroup: "系统参数", Method: "GET", Path: "/sysConfig/getSysConfigList", Description: "获取系统参数列表"},
+		{ApiGroup: "系统参数", Method: "GET", Path: "/sysConfig/getAliyunTryonQuotaEstimate", Description: "获取阿里试衣模型额度估算"},
 		{ApiGroup: "系统参数", Method: "PUT", Path: "/sysConfig/updateSysConfig", Description: "更新系统参数"},
 		{ApiGroup: "客户端用户", Method: "GET", Path: "/clientUser/getSubordinates", Description: "获取下级用户列表"},
+		{ApiGroup: "客户端用户", Method: "POST", Path: "/clientUser/adjustTryonPoint", Description: "后台调整用户试衣币"},
 		{ApiGroup: "客户端用户", Method: "GET", Path: "/clientUser/getMyInviteInfo", Description: "获取我的邀请信息"},
 		{ApiGroup: "客户端用户", Method: "GET", Path: "/clientUser/getMySubordinates", Description: "获取我的下级列表"},
 	}
@@ -98,7 +100,9 @@ func initInviteCasbin(db *gorm.DB) {
 		Method string
 	}{
 		{"/sysConfig/getSysConfigList", "GET"},
+		{"/sysConfig/getAliyunTryonQuotaEstimate", "GET"},
 		{"/sysConfig/updateSysConfig", "PUT"},
+		{"/clientUser/adjustTryonPoint", "POST"},
 	}
 
 	for _, auth := range authorities {
@@ -135,5 +139,14 @@ func initInviteCasbin(db *gorm.DB) {
 	db.Exec(
 		"DELETE FROM casbin_rule WHERE ptype = ? AND v1 = ? AND v2 = ? AND v0 NOT IN (?, ?)",
 		"p", "/sysConfig/getSysConfigList", "GET", "888", "8881",
+	)
+	// 收敛历史脏数据：移除非管理员对阿里模型额度估算接口的访问权限
+	db.Exec(
+		"DELETE FROM casbin_rule WHERE ptype = ? AND v1 = ? AND v2 = ? AND v0 NOT IN (?, ?)",
+		"p", "/sysConfig/getAliyunTryonQuotaEstimate", "GET", "888", "8881",
+	)
+	db.Exec(
+		"DELETE FROM casbin_rule WHERE ptype = ? AND v1 = ? AND v2 = ? AND v0 NOT IN (?, ?)",
+		"p", "/clientUser/adjustTryonPoint", "POST", "888", "8881",
 	)
 }

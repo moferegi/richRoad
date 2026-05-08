@@ -90,10 +90,10 @@ const addModel = () => {
       const path = res.tempFilePaths && res.tempFilePaths[0]
       if (!path) return
 
-      uni.showLoading({ title: $t.value('uploading') || '上传中', mask: true })
+      uni.showLoading({ title: $t.value('uploading'), mask: true })
       let uploadedUrl = ''
       try {
-        uploadedUrl = await uploadTryonImage(path, 'tryon/model/source')
+        uploadedUrl = await uploadTryonImage(path, 'cloth-on/uni-model', 'person')
       } catch (e) {
         uni.showToast({ title: e.message || $t.value('uploadFail'), icon: 'none' })
         return
@@ -110,7 +110,7 @@ const addModel = () => {
       }
 
       await loadModels()
-      uni.showToast({ title: $t.value('createSuccess') || '创建成功', icon: 'none' })
+      uni.showToast({ title: $t.value('createSuccess'), icon: 'none' })
     },
   })
 }
@@ -135,7 +135,7 @@ const renameModel = (item) => {
       }
 
       item.name = value
-      uni.showToast({ title: $t.value('updateSuccess') || '更新成功', icon: 'none' })
+      uni.showToast({ title: $t.value('updateSuccess'), icon: 'none' })
     },
   })
 }
@@ -153,7 +153,7 @@ const removeModel = (item) => {
       }
 
       modelList.value = modelList.value.filter(v => v.id !== item.id)
-      uni.showToast({ title: $t.value('deleteSuccess') || '删除成功', icon: 'none' })
+      uni.showToast({ title: $t.value('deleteSuccess'), icon: 'none' })
     },
   })
 }

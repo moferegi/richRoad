@@ -186,8 +186,43 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 	if err := service.ServiceGroupApp.ClientServiceGroup.TryonTaskService.GrantRegisterRewardPoints(c.Request.Context(), clientUser.ID); err != nil {
 		global.GVA_LOG.Error("注册奖励试衣币发放失败", zap.Error(err), zap.Uint("userID", clientUser.ID))
 	}
+	if clientUser.InvitedBy > 0 {
+		if err := service.ServiceGroupApp.ClientServiceGroup.TryonTaskService.GrantInviteRegisterRewardPoints(c.Request.Context(), clientUser.InvitedBy, clientUser.ID, clientUser.Username); err != nil {
+			global.GVA_LOG.Error("邀请注册奖励试衣币发放失败", zap.Error(err), zap.Uint("inviterID", clientUser.InvitedBy), zap.Uint("userID", clientUser.ID))
+		}
+	}
 
 	response.OkWithMessage(i18n.T(c, "createSuccess"), c)
+}
+
+// AdjustClientUserTryonPoint 后台调整客户端用户试衣币
+// @Tags ClientUser
+// @Summary 后台增加或减少客户端用户试衣币
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data body clientReq.AdjustTryonPointRequest true "调整试衣币参数"
+// @Success 200 {object} response.Response{msg=string} "调整成功"
+// @Router /clientUser/adjustTryonPoint [post]
+func (clientUserApi *ClientUserApi) AdjustClientUserTryonPoint(c *gin.Context) {
+	if !isSysConfigAdmin(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限调整试衣币", c)
+		return
+	}
+
+	var req clientReq.AdjustTryonPointRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+
+	if err := clientUserService.AdjustTryonPoint(c.Request.Context(), req, utils.GetUserID(c)); err != nil {
+		global.GVA_LOG.Error("调整试衣币失败!", zap.Error(err), zap.Uint("targetUserID", req.UserID))
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+
+	response.OkWithMessage("调整成功", c)
 }
 
 // CreateClientUser 创建客户端用户
@@ -642,6 +677,11 @@ func (clientUserApi *ClientUserApi) PhoneRegister(c *gin.Context) {
 
 	if err := service.ServiceGroupApp.ClientServiceGroup.TryonTaskService.GrantRegisterRewardPoints(c.Request.Context(), clientUser.ID); err != nil {
 		global.GVA_LOG.Error("注册奖励试衣币发放失败", zap.Error(err), zap.Uint("userID", clientUser.ID))
+	}
+	if clientUser.InvitedBy > 0 {
+		if err := service.ServiceGroupApp.ClientServiceGroup.TryonTaskService.GrantInviteRegisterRewardPoints(c.Request.Context(), clientUser.InvitedBy, clientUser.ID, clientUser.Username); err != nil {
+			global.GVA_LOG.Error("邀请注册奖励试衣币发放失败", zap.Error(err), zap.Uint("inviterID", clientUser.InvitedBy), zap.Uint("userID", clientUser.ID))
+		}
 	}
 
 	response.OkWithMessage(i18n.T(c, "createSuccess"), c)

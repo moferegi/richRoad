@@ -108,3 +108,21 @@ export const getSubordinates = (params) => {
     params
   })
 }
+
+/**
+ * 后台调整客户端用户试衣币
+ * @param {Object} data 调整参数
+ * @param {number} data.userID 用户ID
+ * @param {'increase'|'decrease'} data.changeType 调整类型
+ * @param {number} data.amount 调整数量
+ * @param {string} data.reason 调整原因
+ * @param {string} data.remark 备注
+ * @returns {Promise} 调整结果
+ */
+export const adjustTryonPoint = (data) => {
+  return service({
+    url: '/clientUser/adjustTryonPoint',
+    method: 'post',
+    data
+  })
+}

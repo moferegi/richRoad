@@ -186,3 +186,11 @@ export const getGoodHistory = (params) => {
     method: 'get',
   })
 }
+
+// 清空浏览历史
+export const clearGoodHistory = () => {
+  return request({
+    url: '/good/clearGoodHistory',
+    method: 'delete',
+  })
+}

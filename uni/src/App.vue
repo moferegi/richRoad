@@ -39,6 +39,8 @@
 		},
 		onShow: function() {
 			console.log('App Show')
+			const langStore = useLangStore()
+			langStore.updateTabBar(langStore.locale || uni.getStorageSync('app-lang') || 'mn')
 			this.reportVisitor()
 		},
 		onHide: function() {

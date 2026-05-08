@@ -42,6 +42,11 @@ description: "GVA 功能开发标准工作流。用于新建/扩展插件或业�
 - web/src/api 按模块封装接口
 - web/src/plugin/<name>/view 增加页面
 - uni 端文案必须使用 i18n key，禁止新增硬编码
+- uni 新增/修改后端接口字段若会给用户展示，必须定义 i18n 方案（i18n key 或多语言对象）
+- 后端返回多语言对象或 JSON 字符串（如 {mn:"",en:""}）时，必须使用 localText(value, langStore.locale) 解析后展示
+- uni 的 toast/modal/弹窗标题与内容/placeholder/JS 拼接文案必须纳入 i18n
+- 试衣间公告 announcement_content 必须按多语言解析，禁止 String(...) 直接渲染
+- 新增词条时同步更新 layout/client/language（或项目实际 i18n 文件）
 - 上传规则（格式/大小）优先走后端配置源
 
 ## 提交前检查清单
@@ -51,3 +56,8 @@ description: "GVA 功能开发标准工作流。用于新建/扩展插件或业�
 - 写接口是否记录操作日志
 - uni 与 web 是否跟随后端单一配置源
 - 是否存在中文硬编码未进入 i18n
+- uni.showToast / uni.showModal / JS 文案是否仍有硬编码
+- 试衣间公告 announcement_content 是否按 localText 解析并随语言切换生效
+- 修改 initialize/gorm*.go（含 gorm_biz.go）后，是否清理未使用 model 导入，且导入模型与 AutoMigrate 列表保持一致
+- 修改初始化或迁移文件后，是否至少执行 go test ./initialize 做快速编译验证，防止 unused import 回归
+- 新增 Private 路由后，是否同步更新 initialize 下对应的 SysApi 注册与 Casbin 路径清单（例如 invite_init/new_modules_init/shop_init），防止出现“权限不足”

@@ -62,12 +62,13 @@ func (orderApi *OrderApi) PlaceOrder(c *gin.Context) {
 	}
 	order.UserID = utils.GetUserID(c)
 
-	if orderID, err := orderService.PlaceOrder(&order); err != nil {
+	if orderID, orderNo, err := orderService.PlaceOrder(&order); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
 		response.FailWithMessage(err.Error(), c)
 	} else {
 		response.OkWithData(gin.H{
 			"orderID": orderID,
+			"orderNo": orderNo,
 		}, c)
 	}
 }
@@ -88,12 +89,13 @@ func (orderApi *OrderApi) PlaceOrderByCart(c *gin.Context) {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	if orderID, err := orderService.PlaceOrderByCart(userID, req); err != nil {
+	if orderID, orderNo, err := orderService.PlaceOrderByCart(userID, req); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
 		response.FailWithMessage(err.Error(), c)
 	} else {
 		response.OkWithData(gin.H{
 			"orderID": orderID,
+			"orderNo": orderNo,
 		}, c)
 	}
 }
@@ -202,11 +204,23 @@ func (orderApi *OrderApi) RefundOrder(c *gin.Context) {
 func (orderApi *OrderApi) UpdateOrderStatus(c *gin.Context) {
 	ID := c.Query("ID")
 	status := c.Query("status")
-	if status != "3" && status != "4" {
+	if status != "3" && status != "4" && status != "8" {
 		response.FailWithMessage("状态错误", c)
 		return
 	}
-	if err := orderService.UpdateOrderStatus(nil, ID, status); err != nil {
+	authorityID := utils.GetUserAuthorityId(c)
+	if status == "8" && (authorityID == 888 || authorityID == 8881) {
+		response.FailWithMessage("仅用户可提交付款确认", c)
+		return
+	}
+	var err error
+	if authorityID == 888 || authorityID == 8881 {
+		err = orderService.UpdateOrderStatus(nil, ID, status)
+	} else {
+		userID := utils.GetUserID(c)
+		err = orderService.UpdateOrderStatusForUser(userID, ID, status)
+	}
+	if err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
 		response.FailWithMessage(err.Error(), c)
 	} else {
@@ -359,20 +373,16 @@ func (orderApi *OrderApi) UpdateOrder(c *gin.Context) {
 		return
 	}
 	authorityID := utils.GetUserAuthorityId(c)
-	if authorityID != 888 {
-		order.Status = ""
-		order.UserID = 0
-		order.TotalPrice = 0
-		order.Express = ""
-		order.Status = ""
-		order.Detail = nil
-		order.OutTradeNo = ""
-		order.Comment = nil
+	if authorityID == 888 || authorityID == 8881 {
+		err = orderService.UpdateOrder(order)
+	} else {
+		userID := utils.GetUserID(c)
+		err = orderService.UpdateOrderForUser(userID, order)
 	}
 
-	if err := orderService.UpdateOrder(order); err != nil {
+	if err != nil {
 		global.GVA_LOG.Error(err.Error(), zap.Error(err))
-		response.FailWithMessage("更新失败", c)
+		response.FailWithMessage(err.Error(), c)
 	} else {
 		response.OkWithMessage("更新成功", c)
 	}

@@ -364,6 +364,7 @@ func (i *initApi) InitializeData(ctx context.Context) (context.Context, error) {
 		{ApiGroup: "订单", Method: "POST", Path: "/order/changeOrderCoupon", Description: "更换优惠券"},
 		{ApiGroup: "订单", Method: "POST", Path: "/order/changeOrderPoints", Description: "调整是否使用积分"},
 		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getPaymentConfig", Description: "获取支付方式配置"},
+		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getUniPreferredPayConfig", Description: "获取uni期望支付方式配置"},
 
 		{ApiGroup: "版本控制", Method: "GET", Path: "/sysVersion/findSysVersion", Description: "获取单一版本"},
 		{ApiGroup: "版本控制", Method: "GET", Path: "/sysVersion/getSysVersionList", Description: "获取版本列表"},

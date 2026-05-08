@@ -9,7 +9,7 @@
         <view class="nf-navbar-back" @tap="goBack">
           <uni-icons type="left" size="20" color="#fff"></uni-icons>
         </view>
-        <text class="nf-navbar-title">{{ t('couponCenter') || '优惠券中心' }}</text>
+        <text class="nf-navbar-title">{{ t('couponCenter') }}</text>
         <view style="width: 64rpx;"></view>
       </view>
     </view>

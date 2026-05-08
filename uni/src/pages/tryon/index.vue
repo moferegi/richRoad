@@ -304,6 +304,9 @@ const uploadSingleImage = (tempFilePath) => {
       header: { 'x-token': uni.getStorageSync('x-token') },
       filePath: tempFilePath,
       name: 'file',
+      formData: {
+        uploadPosition: 'tryon'
+      },
       success: (res) => {
         try {
           const data = JSON.parse(res.data)

@@ -1,7 +1,7 @@
 <template>
   <view class="order-confirm">
     <scroll-view class="content-scroll" scroll-y>
-    <!-- 收货地址 -->
+    <!-- Address -->
     <view class="address-section">
       <view class="address-content" @click="chooseAddress">
         <view class="left">
@@ -20,7 +20,7 @@
       </view>
     </view>
 
-    <!-- 店铺商品信息 -->
+    <!-- Store goods -->
     <view class="store-section">
       <view class="store-header">
         <view class="store-avatar" :style="{ backgroundColor: '#ddd' }"></view>
@@ -42,7 +42,7 @@
       </view>
     </view>
 
-    <!-- 优惠券选择 -->
+    <!-- Coupon -->
     <view class="coupon-section" @click="chooseCoupon">
       <text class="section-title">{{ $t('couponSection') }}</text>
       <view class="section-content">
@@ -51,7 +51,7 @@
       </view>
     </view>
 
-    <!-- 商家促销 -->
+    <!-- Promotion -->
     <view class="promotion-section">
       <text class="section-title">{{ $t('merchantPromotion') }}</text>
       <view class="section-content">
@@ -59,13 +59,13 @@
       </view>
     </view>
 
-    <!-- 订单备注 -->
+    <!-- Remark -->
     <view class="remark-section">
       <text class="section-title">{{ $t('remark') }}</text>
       <input class="remark-input" type="text" v-model="remark" :placeholder="$t('remarkPlaceholder')" />
     </view>
 
-    <!-- 金额明细 -->
+    <!-- Amount summary -->
     <view class="amount-section">
       <view class="amount-item">
         <text>{{ $t('goodsAmount') }}</text>
@@ -82,7 +82,7 @@
     </view>
     </scroll-view>
 
-    <!-- 底部提交栏 -->
+    <!-- Submit bar -->
     <view class="submit-bar">
       <view class="total-wrap">
         <text>{{ $t('actualPay') }}</text>
@@ -103,101 +103,66 @@ const $t = computed(() => langStore.$t)
 const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 
-// Mock数据
-const address = ref({
-  name: '许小星',
+const address = computed(() => ({
+  name: $t.value('orderConfirmMockName'),
   phone: '13853989563',
-  detail: '山东省济南市历城区 149号'
+  detail: $t.value('orderConfirmMockAddress')
+}));
+
+const buildMockGood = (titleKey) => ({
+  title: $t.value(titleKey),
+  spec: $t.value('orderConfirmMockGoodsSpec'),
+  price: '17.8',
+  count: 1
 });
 
-const store = ref({
-  name: '西城小店铺',
-  goods: [
-    {
-      title: '古缘妃 短袖t恤女夏装2019新款',
-      spec: '春装款 L',
-      price: '17.8',
-      count: 1
-    },
-    {
-      title: '韩版牛星洞洞裙鞋 夏季浴室防滑简约',
-      spec: '春装款 L',
-      price: '17.8',
-      count: 1
-    }, {
-      title: '古缘妃 短袖t恤女夏装2019新款',
-      spec: '春装款 L',
-      price: '17.8',
-      count: 1
-    },
-    {
-      title: '韩版牛星洞洞裙鞋 夏季浴室防滑简约',
-      spec: '春装款 L',
-      price: '17.8',
-      count: 1
-    }, {
-      title: '古缘妃 短袖t恤女夏装2019新款',
-      spec: '春装款 L',
-      price: '17.8',
-      count: 1
-    },
-    {
-      title: '韩版牛星洞洞裙鞋 夏季浴室防滑简约',
-      spec: '春装款 L',
-      price: '17.8',
-      count: 1
-    }, {
-      title: '古缘妃 短袖t恤女夏装2019新款',
-      spec: '春装款 L',
-      price: '17.8',
-      count: 1
-    },
-    {
-      title: '韩版牛星洞洞裙鞋 夏季浴室防滑简约',
-      spec: '春装款 L',
-      price: '17.8',
-      count: 1
-    },
-  ]
-});
+const mockGoods = computed(() => ([
+  buildMockGood('orderConfirmMockGoodsTitleA'),
+  buildMockGood('orderConfirmMockGoodsTitleB'),
+  buildMockGood('orderConfirmMockGoodsTitleA'),
+  buildMockGood('orderConfirmMockGoodsTitleB')
+]));
+
+const store = computed(() => ({
+  name: $t.value('orderConfirmMockStoreName'),
+  goods: mockGoods.value
+}));
 
 const selectedCoupon = ref(null);
 const remark = ref('');
 const shipping = ref(0);
 
-// 计算总金额
+// Total amount
 const totalAmount = computed(() => {
   return store.value.goods.reduce((total, item) => {
     return total + Number(item.price) * item.count;
   }, 0).toFixed(2);
 });
 
-// 优惠券金额
+// Coupon amount
 const couponAmount = computed(() => {
   return selectedCoupon.value ? selectedCoupon.value.amount : 0;
 });
 
-// 最终支付金额
+// Final payment amount
 const finalAmount = computed(() => {
   return (Number(totalAmount.value) - couponAmount.value + shipping.value).toFixed(2);
 });
 
-// 选择地址
+// Choose address
 const chooseAddress = () => {
-  console.log('选择地址');
+  uni.showToast({ title: $t.value('selectAddress'), icon: 'none' });
 };
 
-// 选择优惠券
+// Choose coupon
 const chooseCoupon = () => {
-  console.log('选择优惠券');
+  uni.showToast({ title: $t.value('selectCoupon'), icon: 'none' });
 };
 
-// 提交订单
+// Submit order
 const submitOrder = () => {
   uni.navigateTo({
-    url: '/pages/pay/index',
-    success: () => console.log('跳转成功'),
-    fail: (err) => console.error('跳转失败', err)
+    url: '/pages/pay/index'
   });
 };
 </script>
@@ -212,7 +177,7 @@ const submitOrder = () => {
 
 .content-scroll {
   flex: 1;
-  height: 0; // 这一行很重要，确保内容区域可以正确滚动
+  height: 0; // Required to keep the scroll area working
 }
 
 .address-section {
@@ -255,7 +220,7 @@ const submitOrder = () => {
 }
 
 .submit-bar {
-  position: relative; // 改为相对定位
+  position: relative; // Keep layout stable before fixed bar styles below
   height: 100rpx;
   background-color: #fff;
   display: flex;

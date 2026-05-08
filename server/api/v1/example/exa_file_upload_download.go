@@ -24,12 +24,16 @@ type FileUploadAndDownloadApi struct{}
 // @Produce   application/json
 // @Param     file  formData  file                                                           true  "上传文件示例"
 // @Param     folder  formData  string                                                        false "上传目录，如 tryon/clothes/source"
+// @Param     uploadType  formData  string                                                    false "上传类型标签，如 shoe/person/cloth"
+// @Param     uploadPosition  formData  string                                                false "上传位置标签，如 tryon/kefu"
 // @Success   200   {object}  response.Response{data=exampleRes.ExaFileResponse,msg=string}  "上传文件示例,返回包括文件详情"
 // @Router    /fileUploadAndDownload/upload [post]
 func (b *FileUploadAndDownloadApi) UploadFile(c *gin.Context) {
 	var file example.ExaFileUploadAndDownload
 	noSave := c.DefaultQuery("noSave", "0")
 	folder := normalizeUploadFolder(c.DefaultPostForm("folder", c.DefaultQuery("folder", "")))
+	uploadType := strings.TrimSpace(c.DefaultPostForm("uploadType", c.DefaultQuery("uploadType", "")))
+	uploadPosition := strings.TrimSpace(c.DefaultPostForm("uploadPosition", c.DefaultQuery("uploadPosition", "")))
 	_, header, err := c.Request.FormFile("file")
 	classId, _ := strconv.Atoi(c.DefaultPostForm("classId", "0"))
 	if err != nil {
@@ -37,7 +41,7 @@ func (b *FileUploadAndDownloadApi) UploadFile(c *gin.Context) {
 		response.FailWithMessage("接收文件失败", c)
 		return
 	}
-	file, err = fileUploadAndDownloadService.UploadFile(header, noSave, classId, folder) // 文件上传后拿到文件路径
+	file, err = fileUploadAndDownloadService.UploadFile(header, noSave, classId, folder, uploadType, uploadPosition) // 文件上传后拿到文件路径
 	if err != nil {
 		global.GVA_LOG.Error("上传文件失败!", zap.Error(err))
 		response.FailWithMessage("上传文件失败", c)

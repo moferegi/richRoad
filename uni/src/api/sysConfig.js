@@ -156,3 +156,11 @@ export const getPaymentConfig = () => {
     method: 'get'
   })
 }
+
+// 获取 uni 联系客服场景的期望支付方式配置（独立于 payment_manual_methods）
+export const getUniPreferredPayConfig = () => {
+  return request({
+    url: '/sysConfig/getUniPreferredPayConfig',
+    method: 'get'
+  })
+}

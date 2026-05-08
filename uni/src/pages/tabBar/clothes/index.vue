@@ -5,12 +5,20 @@
         <input class="search-input" v-model="searchName" :placeholder="$t('clothesSearchPlaceholder')" confirm-type="search" @confirm="onSearch" />
         <view class="search-btn" @tap="onSearch">{{ $t('searchAction') }}</view>
       </view>
-      <scroll-view class="category-tabs" scroll-x :show-scrollbar="false" v-if="categoryList.length">
+      <scroll-view
+        class="category-tabs"
+        scroll-x
+        :show-scrollbar="false"
+        scroll-with-animation
+        :scroll-left="categoryScrollLeft"
+        v-if="categoryList.length"
+      >
         <view class="category-track">
           <view
             class="category-tab"
             v-for="item in categoryList"
             :key="item.ID || item.id"
+            :id="categoryTabDomId(item)"
             :class="{ active: Number(item.ID || item.id) === Number(activeCategoryID) }"
             @tap="switchCategory(item)"
           >
@@ -20,7 +28,7 @@
       </scroll-view>
     </view>
 
-    <scroll-view class="list-wrap" scroll-y>
+    <scroll-view class="list-wrap" scroll-y @scrolltolower="onScrollToLower">
       <view class="grid">
         <view class="card" v-for="item in displayList" :key="item.ID || item.id || item.name">
           <image class="card-image" :src="mainImage(item)" mode="aspectFill" />
@@ -37,9 +45,9 @@
         </view>
       </view>
 
-      <view class="load-more-wrap">
-        <view class="load-more" v-if="hasMore" @tap="loadMore">{{ $t('loadMoreAction') }}</view>
-        <text class="all-loaded" v-else>{{ $t('allLoadedText') }}</text>
+      <view class="load-more-wrap" v-if="displayList.length">
+        <text class="all-loaded" v-if="loading">{{ $t('loading') }}</text>
+        <text class="all-loaded" v-else-if="!hasMore">{{ $t('allLoadedText') }}</text>
       </view>
       <view style="height: 40rpx"></view>
     </scroll-view>
@@ -47,15 +55,17 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getGoodList, getCategoryMobile } from '@/api/homePage.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
-import { localText } from '@/utils/i18n.js'
+import { localText, t as i18nT } from '@/utils/i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { usePlayHistoryStore } from '@/pinia/modules/playHistory.js'
 import { setSelectedClothes } from '@/utils/tryon.js'
 
 const langStore = useLangStore()
+const playHistoryStore = usePlayHistoryStore()
 const $t = langStore.$t
 const searchName = ref('')
 const page = ref(1)
@@ -66,6 +76,53 @@ const goodsList = ref([])
 const displayList = ref([])
 const categoryList = ref([])
 const activeCategoryID = ref(0)
+const categoryScrollLeft = ref(0)
+
+const TRYON_LOWER_KEYWORD_LANGS = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id']
+const DEFAULT_TRYON_LOWER_KEYWORDS = ['pants', 'skirt', 'bottom', 'lower', 'trousers', 'jeans']
+
+const normalizeKeyword = (value) => String(value || '').trim().toLowerCase()
+
+const splitKeywordText = (value) => {
+  const text = String(value || '').trim()
+  if (!text) return []
+  return text
+    .split(/[\s,，;；|/]+/)
+    .map(normalizeKeyword)
+    .filter(Boolean)
+}
+
+const getTryonLowerKeywords = () => {
+  const keywordSet = new Set(DEFAULT_TRYON_LOWER_KEYWORDS.map(normalizeKeyword))
+
+  TRYON_LOWER_KEYWORD_LANGS.forEach((lang) => {
+    ;[
+      i18nT('tryonLowerKeywords', lang),
+      i18nT('uploadLowerImage', lang),
+      i18nT('tryonExampleLowerPrefix', lang),
+    ].forEach((raw) => {
+      splitKeywordText(raw).forEach((keyword) => keywordSet.add(keyword))
+    })
+  })
+
+  return [...keywordSet]
+}
+
+const inferTryonPart = (item) => {
+  const explicitPart = resolveLocaleText(
+    item?.tryonPart ||
+      item?.part ||
+      item?.clothesPart ||
+      item?.position ||
+      item?.bodyPart ||
+      item?.tryonType
+  )
+
+  const text = `${explicitPart} ${categoryText(item)} ${goodName(item)} ${extractTags(item).join(' ')}`
+  const searchable = normalizeKeyword(text)
+  const isLower = getTryonLowerKeywords().some((keyword) => searchable.includes(keyword))
+  return isLower ? 'lower' : 'upper'
+}
 
 const parseJsonSafe = (raw) => {
   try {
@@ -104,6 +161,38 @@ const categoryName = (item) => {
   return resolveLocaleText(item?.title || item?.name || item?.label)
 }
 
+const categoryIdentity = (item) => String(item?.ID ?? item?.id ?? '0')
+
+const categoryTabDomId = (item) => {
+  return `category-tab-${categoryIdentity(item).replace(/[^a-zA-Z0-9_-]/g, '_')}`
+}
+
+const centerCategoryTab = (item) => {
+  if (!item) return
+
+  const tabId = categoryTabDomId(item)
+  const query = uni.createSelectorQuery()
+  query.select('.category-tabs').boundingClientRect()
+  query.select('.category-track').boundingClientRect()
+  query.select(`#${tabId}`).boundingClientRect()
+  query.exec((res) => {
+    const wrap = res && res[0]
+    const track = res && res[1]
+    const tab = res && res[2]
+    if (!wrap || !track || !tab) return
+
+    const maxScroll = Math.max(0, Math.round((track.width || 0) - wrap.width))
+    if (maxScroll <= 0) {
+      categoryScrollLeft.value = 0
+      return
+    }
+
+    const delta = tab.left - wrap.left
+    const target = categoryScrollLeft.value + delta - (wrap.width - tab.width) / 2
+    categoryScrollLeft.value = Math.max(0, Math.min(maxScroll, Math.round(target)))
+  })
+}
+
 const goodName = (item) => {
   return resolveLocaleText(item?.nameI18n || item?.name || item?.titleI18n || item?.title)
 }
@@ -124,9 +213,63 @@ const mainImage = (item) => {
 const extractTags = (item) => {
   const tags = []
 
+  const parseTagString = (value) => {
+    const text = String(value || '').trim()
+    if (!text) return []
+
+    if (text.startsWith('[') || text.startsWith('{')) {
+      const parsed = parseJsonSafe(text)
+      if (Array.isArray(parsed)) return parsed
+      if (parsed) return [parsed]
+    }
+
+    if (/[\n\r,;|，]/.test(text)) {
+      return text
+        .split(/[\n\r,;|，]+/)
+        .map(v => v.trim())
+        .filter(Boolean)
+    }
+
+    return [text]
+  }
+
+  const tagLabel = (value) => {
+    if (!value) return ''
+
+    if (typeof value === 'string') {
+      const list = parseTagString(value)
+      if (list.length === 1 && list[0] === value) {
+        return resolveLocaleText(value)
+      }
+      return tagLabel(list[0])
+    }
+
+    if (typeof value === 'object') {
+      return (
+        resolveLocaleText(value.nameI18n) ||
+        resolveLocaleText(value.name) ||
+        resolveLocaleText(value.tagNameI18n) ||
+        resolveLocaleText(value.tagName) ||
+        resolveLocaleText(value.label) ||
+        resolveLocaleText(value.tag) ||
+        resolveLocaleText(value.titleI18n) ||
+        resolveLocaleText(value.title) ||
+        ''
+      )
+    }
+
+    return resolveLocaleText(value)
+  }
+
   const appendTag = (value) => {
-    const text = resolveLocaleText(value)
+    const text = tagLabel(value)
     if (text) tags.push(text)
+  }
+
+  if (Array.isArray(item.tagNames)) {
+    item.tagNames.forEach(appendTag)
+  } else if (typeof item.tagNames === 'string') {
+    parseTagString(item.tagNames).forEach(appendTag)
   }
 
   if (Array.isArray(item.tags)) {
@@ -138,25 +281,35 @@ const extractTags = (item) => {
     } else if (parsed) {
       appendTag(parsed)
     } else {
-      appendTag(item.tags)
+      parseTagString(item.tags).forEach(appendTag)
     }
   } else if (item.tags && typeof item.tags === 'object') {
     appendTag(item.tags)
   }
 
   if (item.tag) appendTag(item.tag)
-
-  const category = categoryText(item)
-  if (category) tags.push(category)
+  if (item.tagName) appendTag(item.tagName)
+  if (item.tag_name) appendTag(item.tag_name)
   return [...new Set(tags)].slice(0, 2)
 }
 
 const loadCategories = async () => {
   const res = await getCategoryMobile()
   if (res.code === 0 && Array.isArray(res.data)) {
-    categoryList.value = res.data
-    if (!activeCategoryID.value && categoryList.value.length > 0) {
-      activeCategoryID.value = Number(categoryList.value[0].ID || categoryList.value[0].id || 0)
+    const allCategory = {
+      ID: 0,
+      id: 0,
+      title: $t('all'),
+    }
+    categoryList.value = [allCategory, ...res.data]
+    if (!categoryList.value.find(item => Number(item?.ID || item?.id || 0) === Number(activeCategoryID.value))) {
+      activeCategoryID.value = 0
+    }
+
+    await nextTick()
+    const activeItem = categoryList.value.find(item => Number(item?.ID || item?.id || 0) === Number(activeCategoryID.value))
+    if (activeItem) {
+      centerCategoryTab(activeItem)
     }
   }
 }
@@ -215,8 +368,9 @@ const onSearch = () => {
 
 const switchCategory = (category) => {
   const nextID = Number(category?.ID || category?.id || 0)
-  if (!nextID || nextID === Number(activeCategoryID.value)) return
+  if (nextID === Number(activeCategoryID.value)) return
   activeCategoryID.value = nextID
+  nextTick(() => centerCategoryTab(category))
   loadList(true)
 }
 
@@ -226,15 +380,19 @@ const loadMore = async () => {
   await loadList(false)
 }
 
+const onScrollToLower = () => {
+  if (loading.value || !hasMore.value) return
+  loadMore()
+}
+
 const chooseTryon = (item) => {
   const image = item.externalImagePath ? getExternalUrl(item.externalImagePath) : (item.imageUrl || item.picture || '')
   if (!image) {
     uni.showToast({ title: $t('goodsImageMissing'), icon: 'none' })
     return
   }
-  const text = `${goodName(item) || ''}${categoryText(item) || ''}`
-  const isLower = /(裤|裙|下装|pants|skirt|bottom)/i.test(text)
-  setSelectedClothes(isLower ? { lowerImage: image } : { upperImage: image })
+  const tryonPart = inferTryonPart(item)
+  setSelectedClothes(tryonPart === 'lower' ? { lowerImage: image } : { upperImage: image })
   uni.switchTab({ url: '/pages/tabBar/index' })
 }
 
@@ -244,6 +402,12 @@ const goDetail = (item) => {
     uni.showToast({ title: $t('goodsInfoInvalid'), icon: 'none' })
     return
   }
+
+  playHistoryStore.saveBrowse(goodID, {
+    imageUrl: item.externalImagePath || item.imageUrl || item.picture || item.image || '',
+    title: goodName(item) || '',
+  })
+
   uni.navigateTo({ url: `/pages/goodsDetails/goodsDetails?id=${goodID}` })
 }
 

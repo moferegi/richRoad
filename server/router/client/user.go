@@ -24,6 +24,7 @@ func (s *ClientUserRouter) InitClientUserRouter(Router *gin.RouterGroup, PublicR
 		clientUserRouter.GET("getUserInfo", clientUserApi.GetUserInfo)                        // 客户端获取自身信息
 		clientUserRouter.POST("changePassword", clientUserApi.ChangePassword)                 // 修改密码
 		clientUserRouter.POST("setPhoneVerified", clientUserApi.SetPhoneVerified)             // 验证后设置手机号
+		clientUserRouter.POST("adjustTryonPoint", clientUserApi.AdjustClientUserTryonPoint)   // 后台调整试衣币
 	}
 	{
 		clientUserRouterWithoutRecord.GET("findClientUser", clientUserApi.FindClientUser)       // 根据ID获取客户端用户

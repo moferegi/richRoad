@@ -75,6 +75,17 @@ func initNewModulesApis(db *gorm.DB) {
 		{ApiGroup: "试衣任务", Method: "GET", Path: "/tryonTask/getTryonTaskList", Description: "获取试衣任务列表(管理端)"},
 		{ApiGroup: "试衣任务", Method: "GET", Path: "/tryonTask/getTryonTaskStats", Description: "获取试衣任务统计(管理端)"},
 		{ApiGroup: "试衣任务", Method: "GET", Path: "/tryonTask/getTryonTaskTrend", Description: "获取试衣任务趋势(管理端)"},
+		{ApiGroup: "客户端用户", Method: "POST", Path: "/clientUser/adjustTryonPoint", Description: "后台调整用户试衣币"},
+		// 试衣币充值订单
+		{ApiGroup: "试衣币充值订单", Method: "POST", Path: "/tryonRechargeOrder/createTryonRechargeOrder", Description: "创建试衣币充值订单"},
+		{ApiGroup: "试衣币充值订单", Method: "POST", Path: "/tryonRechargeOrder/updateTryonRechargeOrderPayMethod", Description: "更新试衣币充值订单支付方式"},
+		{ApiGroup: "试衣币充值订单", Method: "POST", Path: "/tryonRechargeOrder/submitTryonRechargeOrderPayment", Description: "提交试衣币充值订单付款确认"},
+		{ApiGroup: "试衣币充值订单", Method: "POST", Path: "/tryonRechargeOrder/cancelTryonRechargeOrder", Description: "取消试衣币充值订单"},
+		{ApiGroup: "试衣币充值订单", Method: "POST", Path: "/tryonRechargeOrder/confirmTryonRechargeOrderPayment", Description: "确认试衣币充值订单支付(管理端)"},
+		{ApiGroup: "试衣币充值订单", Method: "GET", Path: "/tryonRechargeOrder/selfTryonRechargeOrder", Description: "获取我的试衣币充值订单"},
+		{ApiGroup: "试衣币充值订单", Method: "GET", Path: "/tryonRechargeOrder/findTryonRechargeOrder", Description: "获取试衣币充值订单(管理端)"},
+		{ApiGroup: "试衣币充值订单", Method: "GET", Path: "/tryonRechargeOrder/getMyTryonRechargeOrderList", Description: "获取我的试衣币充值订单列表"},
+		{ApiGroup: "试衣币充值订单", Method: "GET", Path: "/tryonRechargeOrder/getTryonRechargeOrderList", Description: "获取试衣币充值订单列表(管理端)"},
 		// 我的模特
 		{ApiGroup: "我的模特", Method: "POST", Path: "/tryonModel/createTryonModel", Description: "创建我的模特"},
 		{ApiGroup: "我的模特", Method: "PUT", Path: "/tryonModel/updateTryonModel", Description: "重命名我的模特"},
@@ -92,7 +103,9 @@ func initNewModulesApis(db *gorm.DB) {
 		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getSysConfigByGroup", Description: "按分组获取配置"},
 		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getSysConfigByKey", Description: "按Key获取配置"},
 		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getPaymentConfig", Description: "获取支付方式配置"},
+		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getUniPreferredPayConfig", Description: "获取uni期望支付方式配置"},
 		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getTryonConfig", Description: "获取试衣配置"},
+		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getAliyunTryonQuotaEstimate", Description: "获取阿里试衣模型额度估算"},
 		// 访客统计扩展
 		{ApiGroup: "访客统计", Method: "GET", Path: "/visitor/getKefuGuideStats", Description: "获取客服引导漏斗统计"},
 	}
@@ -148,6 +161,8 @@ func initNewModulesMenus(db *gorm.DB) {
 			menuDef{"externalLinkDomain", "externalLinkDomain", "view/client/externalLinkDomain/externalLinkDomain.vue", "外部链接域名", "link", clientParent.ID, 15},
 			menuDef{"signInManage", "signInManage", "view/client/signIn/signIn.vue", "签到管理", "calendar", clientParent.ID, 16},
 			menuDef{"tryonTaskManage", "tryonTaskManage", "view/client/tryonTask/tryonTask.vue", "试衣任务", "camera", clientParent.ID, 17},
+			menuDef{"tryonPointRecord", "tryonPointRecord", "view/client/tryonPointRecord/tryonPointRecord.vue", "试衣币记录", "coin", clientParent.ID, 18},
+			menuDef{"tryonRechargeOrder", "tryonRechargeOrder", "view/client/tryonRechargeOrder/tryonRechargeOrder.vue", "试衣币充值订单", "wallet", clientParent.ID, 19},
 		)
 	}
 
@@ -243,6 +258,17 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/tryonTask/getTryonTaskList", "GET"},
 		{"/tryonTask/getTryonTaskStats", "GET"},
 		{"/tryonTask/getTryonTaskTrend", "GET"},
+		{"/clientUser/adjustTryonPoint", "POST"},
+		// 试衣币充值订单
+		{"/tryonRechargeOrder/createTryonRechargeOrder", "POST"},
+		{"/tryonRechargeOrder/updateTryonRechargeOrderPayMethod", "POST"},
+		{"/tryonRechargeOrder/submitTryonRechargeOrderPayment", "POST"},
+		{"/tryonRechargeOrder/cancelTryonRechargeOrder", "POST"},
+		{"/tryonRechargeOrder/confirmTryonRechargeOrderPayment", "POST"},
+		{"/tryonRechargeOrder/selfTryonRechargeOrder", "GET"},
+		{"/tryonRechargeOrder/findTryonRechargeOrder", "GET"},
+		{"/tryonRechargeOrder/getMyTryonRechargeOrderList", "GET"},
+		{"/tryonRechargeOrder/getTryonRechargeOrderList", "GET"},
 		// 我的模特
 		{"/tryonModel/createTryonModel", "POST"},
 		{"/tryonModel/updateTryonModel", "PUT"},
@@ -260,6 +286,7 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/sysConfig/getSysConfigByGroup", "GET"},
 		{"/sysConfig/getSysConfigByKey", "GET"},
 		{"/sysConfig/getPaymentConfig", "GET"},
+		{"/sysConfig/getUniPreferredPayConfig", "GET"},
 		// 访客统计扩展
 		{"/visitor/getKefuGuideStats", "GET"},
 	}
@@ -275,6 +302,25 @@ func initNewModulesCasbin(db *gorm.DB) {
 					"p", authId, p.Path, p.Method)
 			}
 		}
+	}
+
+	adminOnlyPaths := []struct {
+		Path   string
+		Method string
+	}{
+		{"/sysConfig/getSysConfigList", "GET"},
+		{"/sysConfig/getAliyunTryonQuotaEstimate", "GET"},
+		{"/sysConfig/updateSysConfig", "PUT"},
+		{"/clientUser/adjustTryonPoint", "POST"},
+		{"/tryonRechargeOrder/confirmTryonRechargeOrderPayment", "POST"},
+		{"/tryonRechargeOrder/findTryonRechargeOrder", "GET"},
+		{"/tryonRechargeOrder/getTryonRechargeOrderList", "GET"},
+	}
+	for _, p := range adminOnlyPaths {
+		db.Exec(
+			"DELETE FROM casbin_rule WHERE ptype = ? AND v1 = ? AND v2 = ? AND v0 NOT IN (?, ?)",
+			"p", p.Path, p.Method, "888", "8881",
+		)
 	}
 }
 

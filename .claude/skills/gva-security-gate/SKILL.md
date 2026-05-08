@@ -35,6 +35,11 @@ description: "GVA 安全闸门检查流程。用于发布前或功能合并前�
 6. 多语言一致性
 - 页面与提示语禁止直接写中文
 - 后端中文错误建议映射为错误码或 i18n key
+- Uni 的模板文案、toast、modal、placeholder、JS 拼接文本必须全部走 i18n
+- 后端给 Uni 展示的字段若是多语言对象/JSON 字符串，必须通过 localText(value, langStore.locale) 解析
+- 禁止把多语言对象直接 String(...) 渲染到页面
+- 系统配置文案（重点：试衣间 announcement_content）必须验证是否支持语言切换
+- 新功能上线前检查 layout/client/language（或项目实际 i18n 文件）是否补齐词条，避免缺词回退硬编码
 
 ## 输出格式
 - 风险级别：严重 / 高 / 中

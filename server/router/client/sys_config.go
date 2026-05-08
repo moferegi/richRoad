@@ -18,14 +18,16 @@ func (s *SysConfigRouter) InitSysConfigRouter(Router *gin.RouterGroup, PublicRou
 		sysConfigRouter.PUT("updateSysConfig", sysConfigApi.UpdateSysConfig) // 更新系统参数
 	}
 	{
-		sysConfigRouterWithoutRecord.GET("getSysConfigList", sysConfigApi.GetSysConfigList)       // 获取系统参数列表
-		sysConfigRouterWithoutRecord.GET("getSysConfigByGroup", sysConfigApi.GetSysConfigByGroup) // 按分组获取参数
+		sysConfigRouterWithoutRecord.GET("getSysConfigList", sysConfigApi.GetSysConfigList)                       // 获取系统参数列表
+		sysConfigRouterWithoutRecord.GET("getSysConfigByGroup", sysConfigApi.GetSysConfigByGroup)                 // 按分组获取参数
+		sysConfigRouterWithoutRecord.GET("getAliyunTryonQuotaEstimate", sysConfigApi.GetAliyunTryonQuotaEstimate) // 阿里模型剩余额度估算(管理端)
 	}
 	{
 		sysConfigPublicRouter.GET("getAnnouncementConfig", sysConfigApi.GetAnnouncementConfig) // 公告配置(公开)
 		sysConfigPublicRouter.GET("getLoginConfig", sysConfigApi.GetLoginConfig)               // 登录配置(公开)
 		sysConfigPublicRouter.GET("getPaymentConfig", sysConfigApi.GetPaymentConfig)           // 支付方式配置(公开)
-		sysConfigPublicRouter.GET("getTryonConfig", sysConfigApi.GetTryonConfig)               // 试衣配置(公开)
-		sysConfigPublicRouter.GET("getSysConfigByKey", sysConfigApi.GetSysConfigByKey)         // 按key获取参数(公开)
+		sysConfigPublicRouter.GET("getUniPreferredPayConfig", sysConfigApi.GetUniPreferredPayConfig)
+		sysConfigPublicRouter.GET("getTryonConfig", sysConfigApi.GetTryonConfig)       // 试衣配置(公开)
+		sysConfigPublicRouter.GET("getSysConfigByKey", sysConfigApi.GetSysConfigByKey) // 按key获取参数(公开)
 	}
 }

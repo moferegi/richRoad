@@ -165,6 +165,16 @@
 
 		},
 		{
+			"path": "pages/rechargeRecord/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
 			"path": "pages/tabBar/my/index",
 			"style": {
 				"navigationStyle": "custom",

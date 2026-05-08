@@ -7,6 +7,7 @@ type RouterGroup struct {
 	AddressRouter
 	CollectRouter
 	PointRecordRouter
+	TryonRechargeOrderRouter
 	TryonTaskRouter
 	TryonModelRouter
 	VisitorRouter

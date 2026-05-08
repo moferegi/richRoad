@@ -37,6 +37,15 @@ export const getMyTryonTaskList = (params) => {
   })
 }
 
+// 删除我的试衣任务（按taskNo）
+export const deleteMyTryonTask = (params) => {
+  return request({
+    url: '/tryonTask/deleteMyTryonTask',
+    method: 'delete',
+    params,
+  })
+}
+
 // 创建我的模特
 export const createTryonModel = (data) => {
   return request({

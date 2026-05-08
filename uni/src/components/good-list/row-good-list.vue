@@ -6,9 +6,9 @@
                 <view class="goods-info">
                     <text class="goods-name">{{ item.name }}</text>
                     <view class="merchant-tags">
-                        <text v-if="item.isSelfOperated" class="merchant-tag self-operated">自营</text>
-                        <text v-if="item.hasQualityAssurance" class="merchant-tag quality-assured">放心购</text>
-                        <text v-if="item.isPlusDelivery" class="merchant-tag plus-delivery">Plus免邮</text>
+                        <text v-if="item.isSelfOperated" class="merchant-tag self-operated">{{ $t('selfOperated') }}</text>
+                        <text v-if="item.hasQualityAssurance" class="merchant-tag quality-assured">{{ $t('qualityAssured') }}</text>
+                        <text v-if="item.isPlusDelivery" class="merchant-tag plus-delivery">{{ $t('freeShipping') }}</text>
                     </view>
                     <view class="price-container">
                         <text class="discount-price">{{ cs }}{{ item.discountPrice }}</text>
@@ -20,7 +20,7 @@
                             <image class="shop-avatar" :src="item.shop.avatar" mode="aspectFill" />
                             <text class="shop-name">{{ item.shop.name }}</text>
                         </view>
-                        <view class="enter-shop" @click.stop="enterShop(item.shop)">进店</view>
+                        <view class="enter-shop" @click.stop="enterShop(item.shop)">{{ $t('goShopping') }}</view>
                     </view>
                 </view>
             </view>
@@ -31,12 +31,15 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
+import { useLangStore } from '@/pinia/modules/lang.js'
 const appConfigStore = useAppConfigStore()
+const langStore = useLangStore()
 const cs = computed(() => appConfigStore.currencySymbol)
+const $t = computed(() => langStore.$t)
 const goodsList = ref([])
 const mockData = [
     {
-        name: '2023新款时尚运动鞋男女同款透气网面跑步鞋减震耐磨休闲运动鞋',
+        name: '2023 Breathable running sneakers for men and women',
         image: 'https://picsum.photos/300/300?random=1',
         originalPrice: 399,
         discountPrice: 299,
@@ -45,19 +48,19 @@ const mockData = [
         rating: 4.8,
         ratingCount: 2531,
         monthSales: 1688,
-        tags: ['正品保证', '极速发货', '七天退换'],
+        tags: ['Authentic', 'Fast Shipping', '7-Day Return'],
         isSelfOperated: true,
         hasQualityAssurance: true,
         isPlusDelivery: true,
         shop: {
-            name: '运动户外专营店',
+            name: 'Sport & Outdoor Store',
             avatar: 'https://picsum.photos/64/64?random=1',
             rating: 4.8,
             isOfficial: true
         }
     },
     {
-        name: '新款时尚帆布双肩包大容量学生书包防水耐磨电脑包户外旅行背包',
+        name: 'Large waterproof canvas backpack for school and travel',
         image: 'https://picsum.photos/300/300?random=2',
         originalPrice: 199,
         discountPrice: 139,
@@ -66,19 +69,19 @@ const mockData = [
         rating: 4.6,
         ratingCount: 1234,
         monthSales: 966,
-        tags: ['品牌精选', '免邮费'],
+        tags: ['Brand Choice', 'Free Shipping'],
         isSelfOperated: true,
         hasQualityAssurance: true,
         isPlusDelivery: false,
         shop: {
-            name: '时尚箱包旗舰店',
+            name: 'Fashion Bags Flagship',
             avatar: 'https://picsum.photos/64/64?random=2',
             rating: 4.7,
             isOfficial: true
         }
     },
     {
-        name: '智能手表多功能运动计步心率血压监测防水触屏蓝牙通话智能手环',
+        name: 'Smart watch with sports tracking and heart monitoring',
         image: 'https://picsum.photos/300/300?random=3',
         originalPrice: 899,
         discountPrice: 699,
@@ -87,19 +90,19 @@ const mockData = [
         rating: 4.7,
         ratingCount: 1876,
         monthSales: 1245,
-        tags: ['智能手表', '防水'],
+        tags: ['Smart Watch', 'Waterproof'],
         isSelfOperated: true,
         hasQualityAssurance: true,
         isPlusDelivery: true,
         shop: {
-            name: '智能设备旗舰店',
+            name: 'Smart Devices Flagship',
             avatar: 'https://picsum.photos/64/64?random=3',
             rating: 4.7,
             isOfficial: true
         }
     },
     {
-        name: '真无线蓝牙耳机主动降噪双耳入耳式运动防水高音质长续航通话耳机',
+        name: 'True wireless earbuds with active noise cancellation',
         image: 'https://picsum.photos/300/300?random=4',
         originalPrice: 299,
         discountPrice: 199,
@@ -108,19 +111,19 @@ const mockData = [
         rating: 4.5,
         ratingCount: 1023,
         monthSales: 789,
-        tags: ['无线耳机', '降噪'],
+        tags: ['Wireless Earbuds', 'Noise Canceling'],
         isSelfOperated: true,
         hasQualityAssurance: true,
         isPlusDelivery: false,
         shop: {
-            name: '音频设备旗舰店',
+            name: 'Audio Devices Flagship',
             avatar: 'https://picsum.photos/64/64?random=4',
             rating: 4.5,
             isOfficial: true
         }
     },
     {
-        name: '智能手环心率血压监测运动计步器防水彩屏信息提醒健康管理手环',
+        name: 'Health smart band with heart rate and activity tracking',
         image: 'https://picsum.photos/300/300?random=5',
         originalPrice: 199,
         discountPrice: 149,
@@ -129,19 +132,19 @@ const mockData = [
         rating: 4.3,
         ratingCount: 852,
         monthSales: 654,
-        tags: ['智能手环', '健康监测'],
+        tags: ['Smart Band', 'Health Tracking'],
         isSelfOperated: true,
         hasQualityAssurance: true,
         isPlusDelivery: true,
         shop: {
-            name: '健康监测旗舰店',
+            name: 'Health Monitoring Flagship',
             avatar: 'https://picsum.photos/64/64?random=5',
             rating: 4.3,
             isOfficial: true
         }
     },
     {
-        name: '便携式蓝牙音箱无线重低音炮户外防水迷你小音响手机电脑通用音箱',
+        name: 'Portable bluetooth speaker with waterproof design',
         image: 'https://picsum.photos/300/300?random=6',
         originalPrice: 299,
         discountPrice: 239,
@@ -150,19 +153,19 @@ const mockData = [
         rating: 4.9,
         ratingCount: 3000,
         monthSales: 2000,
-        tags: ['蓝牙音箱', '无线连接'],
+        tags: ['Bluetooth Speaker', 'Wireless'],
         isSelfOperated: true,
         hasQualityAssurance: true,
         isPlusDelivery: true,
         shop: {
-            name: '智能家居旗舰店',
+            name: 'Smart Home Flagship',
             avatar: 'https://picsum.photos/64/64?random=6',
             rating: 4.9,
             isOfficial: true
         }
     },
     {
-        name: '大容量商务电脑包防盗防水15.6寸笔记本双肩包男女休闲旅行背包',
+        name: 'Business laptop backpack with anti-theft design',
         image: 'https://picsum.photos/300/300?random=7',
         originalPrice: 259,
         discountPrice: 189,
@@ -171,19 +174,19 @@ const mockData = [
         rating: 4.2,
         ratingCount: 1500,
         monthSales: 1000,
-        tags: ['电脑背包', '防水'],
+        tags: ['Laptop Backpack', 'Waterproof'],
         isSelfOperated: true,
         hasQualityAssurance: true,
         isPlusDelivery: false,
         shop: {
-            name: '电脑配件旗舰店',
+            name: 'Computer Accessories Flagship',
             avatar: 'https://picsum.photos/64/64?random=7',
             rating: 4.2,
             isOfficial: true
         }
     },
     {
-        name: '机械键盘青轴黑轴茶轴红轴游戏办公专用有线无线蓝牙双模RGB背光',
+        name: 'Mechanical keyboard with RGB backlight and dual mode',
         image: 'https://picsum.photos/300/300?random=8',
         originalPrice: 499,
         discountPrice: 399,
@@ -192,12 +195,12 @@ const mockData = [
         rating: 4.7,
         ratingCount: 2200,
         monthSales: 1500,
-        tags: ['机械键盘', '背光'],
+        tags: ['Mechanical Keyboard', 'Backlight'],
         isSelfOperated: true,
         hasQualityAssurance: true,
         isPlusDelivery: true,
         shop: {
-            name: '电子配件旗舰店',
+            name: 'Electronics Accessories Flagship',
             avatar: 'https://picsum.photos/64/64?random=8',
             rating: 4.7,
             isOfficial: true
@@ -207,13 +210,13 @@ const mockData = [
 
 const paging = ref(null)
 const getDiscountText = (discount) => {
-    if (discount >= 9.5) return '小降'
-    if (discount >= 9.0) return '优惠'
-    if (discount >= 8.0) return '特惠'
-    if (discount >= 7.0) return '好价'
-    if (discount >= 6.0) return '低价'
-    if (discount >= 5.0) return '特价'
-    return '折扣'
+    if (discount >= 9.5) return $t.value('discountSmall')
+    if (discount >= 9.0) return $t.value('discountNormal')
+    if (discount >= 8.0) return $t.value('discountGood')
+    if (discount >= 7.0) return $t.value('discountGreat')
+    if (discount >= 6.0) return $t.value('discountLow')
+    if (discount >= 5.0) return $t.value('discountSpecial')
+    return $t.value('discountDefault')
 }
 const queryList = async (pageNo, pageSize) => {
         // 模拟网络延迟1.5秒

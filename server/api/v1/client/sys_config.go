@@ -1,6 +1,10 @@
 package client
 
 import (
+	"encoding/json"
+	"fmt"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
@@ -14,36 +18,40 @@ import (
 type SysConfigApi struct{}
 
 var publicConfigKeyAllowlist = map[string]struct{}{
-	"app_logo":                       {},
-	"app_name":                       {},
-	"currency_suffix":                {},
-	"currency_symbol":                {},
-	"order_logistics_enabled":        {},
-	"order_refund_enabled":           {},
-	"payment_qr_code":                {},
-	"payment_auto_enabled":           {},
-	"payment_manual_qrcode_enabled":  {},
-	"payment_manual_contact_enabled": {},
-	"payment_wechat_enabled":         {},
-	"payment_alipay_enabled":         {},
-	"payment_bank_cn_enabled":        {},
-	"payment_bank_us_enabled":        {},
-	"payment_bank_mn_enabled":        {},
-	"payment_paypal_enabled":         {},
-	"payment_tip_text":               {},
-	"payment_tip_text_color":         {},
-	"payment_tip_text_size":          {},
-	"points_exchange_rate":           {},
-	"presale_home_count":             {},
-	"review_pic_enabled":             {},
-	"shop_kefu_enabled":              {},
-	"sign_in_enabled":                {},
-	"tryon_cost_points":              {},
-	"tryon_fail_refund_percent":      {},
-	"tryon_guest_init_points":        {},
-	"tryon_models":                   {},
-	"tryon_recharge_plans":           {},
-	"tryon_register_reward_points":   {},
+	"app_logo":                            {},
+	"app_name":                            {},
+	"currency_suffix":                     {},
+	"currency_symbol":                     {},
+	"order_logistics_enabled":             {},
+	"order_refund_enabled":                {},
+	"payment_qr_code":                     {},
+	"payment_auto_enabled":                {},
+	"payment_manual_qrcode_enabled":       {},
+	"payment_manual_contact_enabled":      {},
+	"payment_manual_methods":              {},
+	"payment_uni_preferred_methods":       {},
+	"payment_wechat_enabled":              {},
+	"payment_alipay_enabled":              {},
+	"payment_bank_cn_enabled":             {},
+	"payment_bank_us_enabled":             {},
+	"payment_bank_mn_enabled":             {},
+	"payment_paypal_enabled":              {},
+	"payment_tip_text":                    {},
+	"payment_tip_text_color":              {},
+	"payment_tip_text_size":               {},
+	"points_exchange_rate":                {},
+	"presale_home_count":                  {},
+	"review_pic_enabled":                  {},
+	"shop_kefu_enabled":                   {},
+	"sign_in_enabled":                     {},
+	"shoe_models":                         {},
+	"tryon_cost_points":                   {},
+	"tryon_fail_refund_percent":           {},
+	"tryon_guest_init_points":             {},
+	"tryon_invite_register_reward_points": {},
+	"tryon_models":                        {},
+	"tryon_recharge_plans":                {},
+	"tryon_register_reward_points":        {},
 }
 
 func isPublicConfigKeyAllowed(key string) bool {
@@ -213,15 +221,20 @@ func (s *SysConfigApi) GetLoginConfig(c *gin.Context) {
 func (s *SysConfigApi) GetTryonConfig(c *gin.Context) {
 	guestInit, _ := sysConfigService.GetConfigByKey("tryon_guest_init_points")
 	registerReward, _ := sysConfigService.GetConfigByKey("tryon_register_reward_points")
+	inviteRegisterReward, _ := sysConfigService.GetConfigByKey("tryon_invite_register_reward_points")
 	costPoints, _ := sysConfigService.GetConfigByKey("tryon_cost_points")
 	failRefundPercent, _ := sysConfigService.GetConfigByKey("tryon_fail_refund_percent")
 	tryonModels, _ := sysConfigService.GetConfigByKey("tryon_models")
+	shoeModels, _ := sysConfigService.GetConfigByKey("shoe_models")
 
 	if guestInit == "" {
-		guestInit = "3"
+		guestInit = "0"
 	}
 	if registerReward == "" {
 		registerReward = "8"
+	}
+	if inviteRegisterReward == "" {
+		inviteRegisterReward = "0"
 	}
 	if costPoints == "" {
 		costPoints = "1"
@@ -232,13 +245,56 @@ func (s *SysConfigApi) GetTryonConfig(c *gin.Context) {
 	if strings.TrimSpace(tryonModels) == "" {
 		tryonModels = defaultTryonModelsConfig()
 	}
+	if strings.TrimSpace(shoeModels) == "" {
+		shoeModels = defaultShoeModelsConfig()
+	}
 
 	response.OkWithDetailed(map[string]string{
-		"tryon_guest_init_points":      guestInit,
-		"tryon_register_reward_points": registerReward,
-		"tryon_cost_points":            costPoints,
-		"tryon_fail_refund_percent":    failRefundPercent,
-		"tryon_models":                 tryonModels,
+		"tryon_guest_init_points":             guestInit,
+		"tryon_register_reward_points":        registerReward,
+		"tryon_invite_register_reward_points": inviteRegisterReward,
+		"tryon_cost_points":                   costPoints,
+		"tryon_fail_refund_percent":           failRefundPercent,
+		"tryon_models":                        tryonModels,
+		"shoe_models":                         shoeModels,
+	}, "获取成功", c)
+}
+
+// GetAliyunTryonQuotaEstimate 获取阿里试衣模型剩余额度估算（管理端）
+// @Tags SysConfig
+// @Summary 获取阿里试衣模型剩余额度估算（管理端）
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param modelKey query string false "模型key，不传则返回全部阿里模型"
+// @Success 200 {object} response.Response{data=map[string]interface{},msg=string} "获取成功"
+// @Router /sysConfig/getAliyunTryonQuotaEstimate [get]
+func (s *SysConfigApi) GetAliyunTryonQuotaEstimate(c *gin.Context) {
+	if !isSysConfigAdmin(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限查看阿里模型额度", c)
+		return
+	}
+
+	var query request.AliyunTryonQuotaSearch
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+
+	list, err := sysConfigService.GetAliyunTryonQuotaEstimate(query.ModelKey)
+	if err != nil {
+		global.GVA_LOG.Error("获取阿里模型额度估算失败", zap.Error(err))
+		response.FailWithMessage("获取失败", c)
+		return
+	}
+
+	response.OkWithDetailed(gin.H{
+		"list": list,
+		"meta": gin.H{
+			"source":               "local_success_count_estimate",
+			"officialApiAvailable": false,
+			"officialHint":         "阿里云百炼当前未提供可由 API-Key 直接查询免费额度余量的公开HTTP接口，请以控制台数据为准。",
+		},
 	}, "获取成功", c)
 }
 
@@ -278,8 +334,294 @@ func getConfigBoolOrDefault(key string, defaultVal bool) bool {
 	return parseBoolConfig(val, defaultVal)
 }
 
+func defaultPaymentMethodName(key string) map[string]string {
+	switch key {
+	case "qrcode":
+		return map[string]string{"zh": "二维码支付", "en": "QR Payment", "mn": "QR төлбөр"}
+	case "contact":
+		return map[string]string{"zh": "联系客服", "en": "Contact Support", "mn": "Хэрэглэгчийн дэмжлэг"}
+	case "wechat":
+		return map[string]string{"zh": "微信支付", "en": "WeChat Pay", "mn": "WeChat Pay"}
+	case "alipay":
+		return map[string]string{"zh": "支付宝", "en": "Alipay", "mn": "Alipay"}
+	case "bank_card_cn":
+		return map[string]string{"zh": "银行卡(国内)", "en": "Bank Card (CN)", "mn": "Банкны карт (CN)"}
+	case "bank_card_us":
+		return map[string]string{"zh": "银行卡(美国)", "en": "Bank Card (US)", "mn": "Банкны карт (US)"}
+	case "bank_card_mn":
+		return map[string]string{"zh": "银行卡(蒙古)", "en": "Bank Card (MN)", "mn": "Банкны карт (MN)"}
+	case "paypal":
+		return map[string]string{"zh": "PayPal", "en": "PayPal", "mn": "PayPal"}
+	default:
+		fallback := strings.TrimSpace(key)
+		if fallback == "" {
+			fallback = "Payment"
+		}
+		return map[string]string{"zh": fallback, "en": fallback, "mn": fallback}
+	}
+}
+
+func extractStringValue(value interface{}) string {
+	switch typed := value.(type) {
+	case nil:
+		return ""
+	case string:
+		return strings.TrimSpace(typed)
+	case json.Number:
+		return strings.TrimSpace(typed.String())
+	case float64:
+		return strings.TrimSpace(strconv.FormatFloat(typed, 'f', -1, 64))
+	case float32:
+		return strings.TrimSpace(strconv.FormatFloat(float64(typed), 'f', -1, 32))
+	case int:
+		return strconv.Itoa(typed)
+	case int32:
+		return strconv.Itoa(int(typed))
+	case int64:
+		return strconv.FormatInt(typed, 10)
+	case bool:
+		if typed {
+			return "true"
+		}
+		return "false"
+	default:
+		return strings.TrimSpace(fmt.Sprintf("%v", typed))
+	}
+}
+
+func extractBoolValue(value interface{}, defaultVal bool) bool {
+	if value == nil {
+		return defaultVal
+	}
+	return parseBoolConfig(extractStringValue(value), defaultVal)
+}
+
+func extractIntValue(value interface{}, defaultVal int) int {
+	text := extractStringValue(value)
+	if text == "" {
+		return defaultVal
+	}
+	n, err := strconv.Atoi(text)
+	if err != nil {
+		return defaultVal
+	}
+	return n
+}
+
+func extractI18nMap(value interface{}) map[string]string {
+	result := map[string]string{}
+	appendFallback := func(text string) map[string]string {
+		text = strings.TrimSpace(text)
+		if text == "" {
+			return result
+		}
+		result["zh"] = text
+		result["en"] = text
+		result["mn"] = text
+		return result
+	}
+
+	switch typed := value.(type) {
+	case nil:
+		return result
+	case string:
+		text := strings.TrimSpace(typed)
+		if text == "" {
+			return result
+		}
+		if strings.HasPrefix(text, "{") {
+			var parsed map[string]interface{}
+			if err := json.Unmarshal([]byte(text), &parsed); err == nil {
+				return extractI18nMap(parsed)
+			}
+		}
+		return appendFallback(text)
+	case map[string]interface{}:
+		for k, v := range typed {
+			key := strings.TrimSpace(k)
+			if key == "" {
+				continue
+			}
+			valueText := extractStringValue(v)
+			if valueText == "" {
+				continue
+			}
+			result[key] = valueText
+		}
+		return result
+	case map[string]string:
+		for k, v := range typed {
+			key := strings.TrimSpace(k)
+			valueText := strings.TrimSpace(v)
+			if key == "" || valueText == "" {
+				continue
+			}
+			result[key] = valueText
+		}
+		return result
+	default:
+		return appendFallback(extractStringValue(typed))
+	}
+}
+
+func pickMethodLabel(name map[string]string, fallback string) string {
+	for _, key := range []string{"zh", "en", "mn"} {
+		if text := strings.TrimSpace(name[key]); text != "" {
+			return text
+		}
+	}
+	for _, text := range name {
+		if text = strings.TrimSpace(text); text != "" {
+			return text
+		}
+	}
+	return strings.TrimSpace(fallback)
+}
+
+func methodSortValue(method gin.H) int {
+	if method == nil {
+		return 999
+	}
+	if val, ok := method["sort"]; ok {
+		return extractIntValue(val, 999)
+	}
+	return 999
+}
+
+func methodKeyValue(method gin.H) string {
+	if method == nil {
+		return ""
+	}
+	return strings.TrimSpace(extractStringValue(method["key"]))
+}
+
+func appendLegacyPaymentMethod(methods []gin.H, key string, manual bool, sortValue int) []gin.H {
+	name := defaultPaymentMethodName(key)
+	label := pickMethodLabel(name, key)
+	methods = append(methods, gin.H{
+		"key":          key,
+		"label":        label,
+		"name":         name,
+		"manual":       manual,
+		"enabled":      true,
+		"sort":         sortValue,
+		"image":        "",
+		"externalPath": "",
+		"copyText":     map[string]string{},
+	})
+	return methods
+}
+
+func defaultUniPreferredPayMethodCopyText() map[string]string {
+	return map[string]string{
+		"zh": "您好，我的订单号是 {orderID}，期望使用 {payMethod} 支付，请协助提供收款方式并处理订单。",
+		"en": "Hi, my order number is {orderID}. I expect to pay via {payMethod}. Please provide the receiving method and help process this order.",
+		"mn": "Сайн байна уу, миний захиалгын дугаар {orderID}. Би {payMethod} аргаар төлөхийг хүсэж байна. Хүлээн авах мэдээлэл өгч, захиалгыг боловсруулж өгнө үү.",
+	}
+}
+
+func defaultUniPreferredPayMethods() []gin.H {
+	copyText := defaultUniPreferredPayMethodCopyText()
+	methods := []gin.H{
+		{
+			"key":          "wechat",
+			"label":        "微信支付",
+			"name":         defaultPaymentMethodName("wechat"),
+			"enabled":      true,
+			"sort":         10,
+			"image":        "cloth-on/up/wechat.png",
+			"externalPath": "",
+			"copyText":     copyText,
+		},
+		{
+			"key":          "alipay",
+			"label":        "支付宝",
+			"name":         defaultPaymentMethodName("alipay"),
+			"enabled":      true,
+			"sort":         20,
+			"image":        "cloth-on/up/alipay.png",
+			"externalPath": "",
+			"copyText":     copyText,
+		},
+		{
+			"key":          "bank_card_cn",
+			"label":        "银行卡(国内)",
+			"name":         defaultPaymentMethodName("bank_card_cn"),
+			"enabled":      true,
+			"sort":         30,
+			"image":        "cloth-on/up/bank-card-cn.png",
+			"externalPath": "",
+			"copyText":     copyText,
+		},
+	}
+	return methods
+}
+
+func parseUniPreferredPayMethods(raw string) []gin.H {
+	methods := make([]gin.H, 0, 8)
+	if strings.TrimSpace(raw) == "" {
+		return methods
+	}
+
+	var configuredMethods []map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &configuredMethods); err != nil {
+		return methods
+	}
+
+	for _, item := range configuredMethods {
+		key := strings.ToLower(strings.TrimSpace(extractStringValue(item["key"])))
+		if key == "" || key == "qrcode" || key == "contact" {
+			continue
+		}
+		if !extractBoolValue(item["enabled"], true) {
+			continue
+		}
+
+		name := extractI18nMap(item["name"])
+		if len(name) == 0 {
+			name = defaultPaymentMethodName(key)
+		}
+
+		label := strings.TrimSpace(extractStringValue(item["label"]))
+		if label == "" {
+			label = pickMethodLabel(name, key)
+		}
+
+		copyText := extractI18nMap(item["copyText"])
+		if len(copyText) == 0 {
+			copyText = defaultUniPreferredPayMethodCopyText()
+		}
+
+		methods = append(methods, gin.H{
+			"key":          key,
+			"label":        label,
+			"name":         name,
+			"enabled":      true,
+			"sort":         extractIntValue(item["sort"], 999),
+			"image":        strings.TrimSpace(extractStringValue(item["image"])),
+			"externalPath": strings.TrimSpace(extractStringValue(item["externalPath"])),
+			"copyText":     copyText,
+		})
+	}
+
+	sort.SliceStable(methods, func(i, j int) bool {
+		iSort := methodSortValue(methods[i])
+		jSort := methodSortValue(methods[j])
+		if iSort == jSort {
+			return methodKeyValue(methods[i]) < methodKeyValue(methods[j])
+		}
+		return iSort < jSort
+	})
+
+	return methods
+}
+
 func defaultTryonModelsConfig() string {
-	return `[{"key":"aliyun_aitryon","enabled":true,"scenes":["clothes","shoes"],"model":"aitryon","name":{"zh":"阿里AI试衣（基础）","en":"Aliyun AI Try-On (Basic)","mn":"Aliyun AI өмсгөл (Суурь)"},"desc":{"zh":"基础版试衣模型，速度更快，适合日常试衣。","en":"Basic try-on model with faster generation for everyday use.","mn":"Өдөр тутмын туршилтад тохирох, хурдан суурь загвар."},"cost":1,"provider":"aliyun","mode":"prod","url":"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis","taskQueryUrl":"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}","token":"","resolution":-1,"restoreFace":true},{"key":"aliyun_aitryon_plus","enabled":true,"scenes":["clothes","shoes"],"model":"aitryon-plus","name":{"zh":"阿里AI试衣（Plus）","en":"Aliyun AI Try-On (Plus)","mn":"Aliyun AI өмсгөл (Plus)"},"desc":{"zh":"Plus版细节更好，适合高质量试衣图。","en":"Higher quality rendering with better texture and logo details.","mn":"Нэхмэл, логог илүү сайн сэргээдэг өндөр чанарын загвар."},"cost":1,"provider":"aliyun","mode":"prod","url":"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis","taskQueryUrl":"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}","token":"","resolution":-1,"restoreFace":true},{"key":"aliyun_aitryon_parsing","enabled":false,"scenes":["takeoff"],"model":"aitryon-parsing-v1","name":{"zh":"阿里取衣分割","en":"Aliyun Takeoff Parsing","mn":"Aliyun хувцас салгах"},"desc":{"zh":"用于取衣区分割模特服饰并输出可用服饰图。","en":"Segments garment regions for takeoff area and outputs reusable garment images.","mn":"Загварын хувцсыг ялган авч, дахин ашиглах зургийг гаргана."},"cost":1,"provider":"aliyun","mode":"prod","url":"https://dashscope.aliyuncs.com/api/v1/services/vision/image-process/process","token":"","clothesType":["upper"]}]`
+	return `[{"key":"aliyun_aitryon","enabled":true,"scenes":["clothes","shoes"],"model":"aitryon","name":{"zh":"阿里AI试衣（基础）","en":"Aliyun AI Try-On (Basic)","mn":"Aliyun AI өмсгөл (Суурь)"},"desc":{"zh":"基础版试衣模型，速度更快，适合日常试衣。","en":"Basic try-on model with faster generation for everyday use.","mn":"Өдөр тутмын туршилтад тохирох, хурдан суурь загвар."},"cost":1,"provider":"aliyun","mode":"prod","url":"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis","taskQueryUrl":"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}","token":"","resolution":-1,"restoreFace":true},{"key":"aliyun_aitryon_plus","enabled":true,"scenes":["clothes","shoes"],"model":"aitryon-plus","name":{"zh":"阿里AI试衣（Plus）","en":"Aliyun AI Try-On (Plus)","mn":"Aliyun AI өмсгөл (Plus)"},"desc":{"zh":"Plus版细节更好，适合高质量试衣图。","en":"Higher quality rendering with better texture and logo details.","mn":"Нэхмэл, логог илүү сайн сэргээдэг өндөр чанарын загвар."},"cost":1,"provider":"aliyun","mode":"prod","url":"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis","taskQueryUrl":"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}","token":"","resolution":-1,"restoreFace":true},{"key":"yisol_idm_vton","enabled":true,"scenes":["clothes"],"model":"IDM-VTON","name":{"zh":"IDM-VTON 开源试衣","en":"IDM-VTON Open Try-On","mn":"IDM-VTON нээлттэй өмсгөл"},"desc":{"zh":"HuggingFace Space yisol/IDM-VTON，使用 Gradio /tryon 接口，支持自动蒙版与裁剪参数。","en":"HuggingFace Space yisol/IDM-VTON via Gradio /tryon API with auto-mask and crop options.","mn":"HuggingFace Space yisol/IDM-VTON Gradio /tryon API ашиглана."},"cost":1,"provider":"gradio","mode":"prod","url":"https://yisol-idm-vton.hf.space","apiName":"/tryon","garmentDes":"clothing item","isChecked":true,"isCheckedCrop":false,"denoiseSteps":30,"seed":42,"token":"","resolution":-1,"restoreFace":true},{"key":"aliyun_aitryon_parsing","enabled":false,"scenes":["takeoff"],"model":"aitryon-parsing-v1","name":{"zh":"阿里取衣分割","en":"Aliyun Takeoff Parsing","mn":"Aliyun хувцас салгах"},"desc":{"zh":"用于取衣区分割模特服饰并输出可用服饰图。","en":"Segments garment regions for takeoff area and outputs reusable garment images.","mn":"Загварын хувцсыг ялган авч, дахин ашиглах зургийг гаргана."},"cost":1,"provider":"aliyun","mode":"prod","url":"https://dashscope.aliyuncs.com/api/v1/services/vision/image-process/process","token":"","clothesType":["upper"]}]`
+}
+
+func defaultShoeModelsConfig() string {
+	return `[{"key":"aliyun_shoes_and_boots","enabled":true,"scenes":["shoes"],"model":"shoes-and-boots","name":{"zh":"阿里AI试鞋","en":"Aliyun Shoes Try-On","mn":"Aliyun гутлын туршилт"},"desc":{"zh":"适用于鞋靴类虚拟试穿。","en":"Suitable for virtual try-on of shoes and boots.","mn":"Гутал, түрийвчний виртуал туршилтад тохиромжтой."},"cost":1,"provider":"aliyun","mode":"prod","url":"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis","taskQueryUrl":"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}","token":"","resolution":-1,"restoreFace":true}]`
 }
 
 // GetPaymentConfig 获取支付方式配置（公开接口）
@@ -301,35 +643,108 @@ func (s *SysConfigApi) GetPaymentConfig(c *gin.Context) {
 	bankMNEnabled := autoEnabled && getConfigBoolOrDefault("payment_bank_mn_enabled", false)
 	paypalEnabled := autoEnabled && getConfigBoolOrDefault("payment_paypal_enabled", false)
 
+	autoChannelEnabled := map[string]bool{
+		"wechat":       wechatEnabled,
+		"alipay":       alipayEnabled,
+		"bank_card_cn": bankCNEnabled,
+		"bank_card_us": bankUSEnabled,
+		"bank_card_mn": bankMNEnabled,
+		"paypal":       paypalEnabled,
+	}
+
 	methods := make([]gin.H, 0, 8)
-	if manualQrcodeEnabled {
-		methods = append(methods, gin.H{"key": "qrcode", "label": "二维码支付", "manual": true, "enabled": true})
+	manualMethodsRaw, _ := sysConfigService.GetConfigByKey("payment_manual_methods")
+	if strings.TrimSpace(manualMethodsRaw) != "" {
+		var configuredMethods []map[string]interface{}
+		if err := json.Unmarshal([]byte(manualMethodsRaw), &configuredMethods); err == nil {
+			for _, item := range configuredMethods {
+				key := strings.ToLower(strings.TrimSpace(extractStringValue(item["key"])))
+				if key == "" {
+					continue
+				}
+
+				manual := extractBoolValue(item["manual"], key == "qrcode" || key == "contact")
+				enabled := extractBoolValue(item["enabled"], true)
+				switch key {
+				case "qrcode":
+					enabled = enabled && manualQrcodeEnabled
+				case "contact":
+					enabled = enabled && manualContactEnabled
+				default:
+					if !manual {
+						enabled = enabled && autoEnabled
+						if legacyEnabled, ok := autoChannelEnabled[key]; ok {
+							enabled = enabled && legacyEnabled
+						}
+					}
+				}
+				if !enabled {
+					continue
+				}
+
+				name := extractI18nMap(item["name"])
+				if len(name) == 0 {
+					name = defaultPaymentMethodName(key)
+				}
+				label := strings.TrimSpace(extractStringValue(item["label"]))
+				if label == "" {
+					label = pickMethodLabel(name, key)
+				}
+
+				methods = append(methods, gin.H{
+					"key":          key,
+					"label":        label,
+					"name":         name,
+					"manual":       manual,
+					"enabled":      true,
+					"sort":         extractIntValue(item["sort"], 999),
+					"image":        strings.TrimSpace(extractStringValue(item["image"])),
+					"externalPath": strings.TrimSpace(extractStringValue(item["externalPath"])),
+					"copyText":     extractI18nMap(item["copyText"]),
+				})
+			}
+		}
 	}
-	if manualContactEnabled {
-		methods = append(methods, gin.H{"key": "contact", "label": "联系客服", "manual": true, "enabled": true})
+
+	if len(methods) == 0 {
+		if manualQrcodeEnabled {
+			methods = appendLegacyPaymentMethod(methods, "qrcode", true, 10)
+		}
+		if manualContactEnabled {
+			methods = appendLegacyPaymentMethod(methods, "contact", true, 20)
+		}
+		if wechatEnabled {
+			methods = appendLegacyPaymentMethod(methods, "wechat", false, 30)
+		}
+		if alipayEnabled {
+			methods = appendLegacyPaymentMethod(methods, "alipay", false, 40)
+		}
+		if bankCNEnabled {
+			methods = appendLegacyPaymentMethod(methods, "bank_card_cn", false, 50)
+		}
+		if bankUSEnabled {
+			methods = appendLegacyPaymentMethod(methods, "bank_card_us", false, 60)
+		}
+		if bankMNEnabled {
+			methods = appendLegacyPaymentMethod(methods, "bank_card_mn", false, 70)
+		}
+		if paypalEnabled {
+			methods = appendLegacyPaymentMethod(methods, "paypal", false, 80)
+		}
 	}
-	if wechatEnabled {
-		methods = append(methods, gin.H{"key": "wechat", "label": "微信支付", "manual": false, "enabled": true})
-	}
-	if alipayEnabled {
-		methods = append(methods, gin.H{"key": "alipay", "label": "支付宝", "manual": false, "enabled": true})
-	}
-	if bankCNEnabled {
-		methods = append(methods, gin.H{"key": "bank_card_cn", "label": "银行卡(国内)", "manual": false, "enabled": true})
-	}
-	if bankUSEnabled {
-		methods = append(methods, gin.H{"key": "bank_card_us", "label": "Bank Card (US)", "manual": false, "enabled": true})
-	}
-	if bankMNEnabled {
-		methods = append(methods, gin.H{"key": "bank_card_mn", "label": "Банкны карт (MN)", "manual": false, "enabled": true})
-	}
-	if paypalEnabled {
-		methods = append(methods, gin.H{"key": "paypal", "label": "PayPal", "manual": false, "enabled": true})
-	}
+
+	sort.SliceStable(methods, func(i, j int) bool {
+		iSort := methodSortValue(methods[i])
+		jSort := methodSortValue(methods[j])
+		if iSort == jSort {
+			return methodKeyValue(methods[i]) < methodKeyValue(methods[j])
+		}
+		return iSort < jSort
+	})
 
 	// 至少保留一个人工渠道，避免用户无法支付
 	if len(methods) == 0 {
-		methods = append(methods, gin.H{"key": "contact", "label": "联系客服", "manual": true, "enabled": true})
+		methods = appendLegacyPaymentMethod(methods, "contact", true, 999)
 		manualContactEnabled = true
 	}
 
@@ -348,5 +763,24 @@ func (s *SysConfigApi) GetPaymentConfig(c *gin.Context) {
 			"paypal":  paypalEnabled,
 		},
 		"methods": methods,
+	}, "获取成功", c)
+}
+
+// GetUniPreferredPayConfig 获取uni联系客服页期望支付方式配置（公开接口）
+// @Tags SysConfig
+// @Summary 获取uni期望支付方式配置
+// @accept application/json
+// @Produce application/json
+// @Success 200 {object} response.Response{data=map[string]interface{},msg=string} "获取成功"
+// @Router /sysConfig/getUniPreferredPayConfig [get]
+func (s *SysConfigApi) GetUniPreferredPayConfig(c *gin.Context) {
+	preferredMethodsRaw, _ := sysConfigService.GetConfigByKey("payment_uni_preferred_methods")
+	preferredMethods := parseUniPreferredPayMethods(preferredMethodsRaw)
+	if len(preferredMethods) == 0 {
+		preferredMethods = defaultUniPreferredPayMethods()
+	}
+
+	response.OkWithDetailed(gin.H{
+		"methods": preferredMethods,
 	}, "获取成功", c)
 }

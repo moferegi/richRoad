@@ -50,6 +50,10 @@ func Timer() {
 			if e != nil {
 				fmt.Println("过期订单清理失败:", e)
 			}
+			e = task.ClearExpiredTryonRechargeOrders(global.GVA_DB)
+			if e != nil {
+				fmt.Println("过期试衣币充值订单清理失败:", e)
+			}
 		}, "定时清理已过期订单", option...)
 		if err != nil {
 			fmt.Println("add timer error:", err)

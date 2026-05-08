@@ -27,6 +27,13 @@
         </view>
       </view>
 
+      <view class="nf-pay-info-card" v-if="purchaseInfoText">
+        <text class="nf-pay-info-title">{{ $t('orderDetail') }}</text>
+        <text class="nf-pay-info-text">{{ purchaseInfoText }}</text>
+      </view>
+
+      <view class="nf-pay-carry-tip" v-if="orderNo">{{ $t('orderDetailKefuCarryTip') }}</view>
+
       <!-- 支付方式 -->
       <view class="nf-pay-method-card" v-if="paymentMethods.length">
         <view class="nf-pay-method-tabs">
@@ -37,6 +44,9 @@
             :class="{ active: selectedPayMethod === item.key }"
             @tap="selectPayMethod(item.key)"
           >{{ item.label }}</view>
+        </view>
+        <view class="nf-pay-method-hint" v-if="isQrMethod">
+          <text>{{ qrFallbackHint }}</text>
         </view>
       </view>
 
@@ -70,7 +80,43 @@
 
       <!-- 人工支付提示 -->
       <view class="nf-pay-manual-card" v-else>
-        <text class="nf-pay-manual-title">{{ selectedPayMethodLabel }}</text>
+        <text class="nf-pay-manual-title">{{ manualCardTitle }}</text>
+
+        <view class="nf-pay-manual-methods" v-if="preferredPayMethods.length">
+          <text class="nf-pay-manual-methods-title">{{ $t('preferredPayMethod') }}</text>
+          <view class="nf-pay-preferred-grid">
+            <view
+              v-for="item in preferredPayMethods"
+              :key="item.key"
+              class="nf-pay-preferred-item"
+              :class="{ active: selectedPreferredPayMethod === item.key }"
+              @tap="selectPreferredPayMethod(item.key)"
+            >
+              <image
+                v-if="getPreferredPayMethodImage(item)"
+                class="nf-pay-preferred-item-img"
+                :src="getPreferredPayMethodImage(item)"
+                mode="aspectFit"
+              />
+              <view v-else class="nf-pay-preferred-item-fallback">
+                <text>{{ (item.label || '?').slice(0, 1) }}</text>
+              </view>
+              <text class="nf-pay-preferred-item-label">{{ item.label }}</text>
+            </view>
+          </view>
+        </view>
+        <text class="nf-pay-manual-empty" v-else>{{ $t('paymentPreferredMethodMissing') }}</text>
+
+        <view class="nf-pay-copy-card" v-if="selectedPreferredPayMethodDraftText">
+          <view class="nf-pay-copy-head">
+            <text class="nf-pay-copy-title">{{ $t('kefuPaymentDraftLabel') }}</text>
+            <view class="nf-pay-copy-btn" @tap="copyPreferredPayDraft">
+              <text>{{ $t('copy') }}</text>
+            </view>
+          </view>
+          <text class="nf-pay-copy-text">{{ selectedPreferredPayMethodDraftText }}</text>
+        </view>
+
         <text class="nf-pay-manual-tip">{{ manualFallbackTip }}</text>
         <text class="nf-pay-manual-proof">{{ $t('paymentManualProofHint') }}</text>
       </view>
@@ -124,9 +170,14 @@ import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { request } from '@/utils/request.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { getEnabledQrcodePayments } from '@/api/qrcodePayment.js'
-import { getPaymentConfig } from '@/api/sysConfig.js'
+import { getPaymentConfig, getUniPreferredPayConfig } from '@/api/sysConfig.js'
 import { localText } from '@/utils/i18n'
-import { selfOrder } from '@/api/order.js'
+import { selfOrder, updateOrder, updateOrderStatus } from '@/api/order.js'
+import {
+  selfTryonRechargeOrder,
+  updateTryonRechargeOrderPayMethod,
+  submitTryonRechargeOrderPayment,
+} from '@/api/tryonRechargeOrder.js'
 
 const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
@@ -136,8 +187,25 @@ const $t = computed(() => langStore.$t)
 const amount = ref('0.00')
 const orderNo = ref('')
 const orderId = ref('')
+const orderType = ref('shop')
+const orderStatus = ref('0')
+const rechargePoints = ref(0)
+const orderSummaryName = ref('')
 const paymentMethods = ref([])
+const preferredPayMethods = ref([])
 const selectedPayMethod = ref('qrcode')
+const selectedPreferredPayMethod = ref('')
+const isRechargeOrder = computed(() => orderType.value === 'recharge')
+
+const purchaseInfoText = computed(() => {
+  if (isRechargeOrder.value) {
+    if (rechargePoints.value > 0) {
+      return `${$t.value('tryonCoins')}: ${rechargePoints.value}`
+    }
+    return ''
+  }
+  return orderSummaryName.value
+})
 
 const paymentMethodLabelMap = computed(() => ({
   qrcode: $t.value('payByQrcode'),
@@ -154,9 +222,9 @@ const getPaymentMethodLabel = (payMethod, label) => {
   return paymentMethodLabelMap.value[payMethod] || label || payMethod || $t.value('contactCustomerService')
 }
 
-const buildDefaultPaymentMethods = () => ([
-  { key: 'qrcode', label: getPaymentMethodLabel('qrcode') },
-  { key: 'contact', label: getPaymentMethodLabel('contact') }
+const buildDefaultRawMethods = () => ([
+  { key: 'qrcode', label: getPaymentMethodLabel('qrcode'), manual: true, copyText: {} },
+  { key: 'contact', label: getPaymentMethodLabel('contact'), manual: true, copyText: {} }
 ])
 
 const normalizePaymentMethods = (methods) => {
@@ -167,8 +235,56 @@ const normalizePaymentMethods = (methods) => {
     .filter(item => item && typeof item.key === 'string' && item.key)
     .map(item => ({
       key: item.key,
-      label: getPaymentMethodLabel(item.key, item.label)
+      label: getPaymentMethodLabel(item.key, item.label),
+      manual: Boolean(item.manual),
+      name: item.name || {},
+      copyText: item.copyText || {}
     }))
+}
+
+const buildModePaymentMethods = (methods) => {
+  const hasQrcode = methods.some(item => item.key === 'qrcode')
+  const hasContact = methods.some(item => item.key === 'contact') || methods.some(item => item.manual && item.key !== 'qrcode')
+  const list = []
+  if (hasQrcode) {
+    list.push({ key: 'qrcode', label: getPaymentMethodLabel('qrcode') })
+  }
+  if (hasContact) {
+    list.push({ key: 'contact', label: getPaymentMethodLabel('contact') })
+  }
+  return list.length > 0 ? list : [{ key: 'contact', label: getPaymentMethodLabel('contact') }]
+}
+
+const normalizePreferredPayMethods = (methods) => {
+  if (!Array.isArray(methods)) {
+    return []
+  }
+  return methods
+    .filter(item => item && typeof item.key === 'string')
+    .map(item => ({
+      key: String(item.key || '').trim().toLowerCase(),
+      label: getPaymentMethodLabel(String(item.key || '').trim().toLowerCase(), item.label),
+      name: item.name || {},
+      image: String(item.image || '').trim(),
+      externalPath: String(item.externalPath || '').trim(),
+      copyText: item.copyText || {}
+    }))
+    .filter(item => item.key && item.key !== 'qrcode' && item.key !== 'contact')
+}
+
+const getPreferredPayMethodImage = (method) => {
+  if (!method) return ''
+  if (method.externalPath) {
+    return getExternalUrl(method.externalPath)
+  }
+  if (method.image) {
+    return getUrl(method.image)
+  }
+  return ''
+}
+
+const selectPreferredPayMethod = (payMethod) => {
+  selectedPreferredPayMethod.value = payMethod
 }
 
 const isQrMethod = computed(() => selectedPayMethod.value === 'qrcode')
@@ -176,10 +292,49 @@ const selectedPayMethodLabel = computed(() => {
   const found = paymentMethods.value.find(item => item.key === selectedPayMethod.value)
   return found?.label || getPaymentMethodLabel(selectedPayMethod.value)
 })
+const selectedPreferredPayMethodLabel = computed(() => {
+  const found = preferredPayMethods.value.find(item => item.key === selectedPreferredPayMethod.value)
+  return found?.label || ''
+})
+const manualCardTitle = computed(() => {
+  if (selectedPreferredPayMethodLabel.value) {
+    return selectedPreferredPayMethodLabel.value
+  }
+  if (selectedPayMethod.value === 'contact') {
+    return $t.value('preferredPayMethod')
+  }
+  return selectedPayMethodLabel.value
+})
+const selectedPreferredPayMethodCopyText = computed(() => {
+  const found = preferredPayMethods.value.find(item => item.key === selectedPreferredPayMethod.value)
+  return localText(found?.copyText, langStore.locale) || ''
+})
+const selectedPreferredPayMethodDraftText = computed(() => {
+  if (!selectedPreferredPayMethod.value) {
+    return ''
+  }
+  const orderRef = String(orderNo.value || orderId.value || '').trim() || '-'
+  const payLabel = selectedPreferredPayMethodLabel.value || selectedPayMethodLabel.value || '-'
+  const template = selectedPreferredPayMethodCopyText.value || $t.value('kefuPaymentDraftTemplatePending')
+  return String(template)
+    .replace('{orderID}', orderRef)
+    .replace('{payMethod}', payLabel)
+})
+const supportedPreferredMethodsText = computed(() => {
+  return preferredPayMethods.value.map(item => item.label).join(' / ')
+})
+const qrFallbackHint = computed(() => {
+  return $t.value('paymentQrFallbackTip').replace('{methods}', supportedPreferredMethodsText.value || $t.value('contactCustomerService'))
+})
 
 // 多码支持
 const qrList = ref([])
 const currentQrIndex = ref(0)
+const currentQrLabel = computed(() => {
+  const qr = qrList.value[currentQrIndex.value]
+  if (!qr) return ''
+  return localText(qr.nameI18n, langStore.locale) || qr.name || getPaymentMethodLabel('qrcode')
+})
 const currentQrUrl = computed(() => {
   const qr = qrList.value[currentQrIndex.value]
   if (!qr) return ''
@@ -206,7 +361,12 @@ const getManualFallbackTip = (payMethod, payMethodLabel) => {
 }
 
 const manualFallbackTip = computed(() => {
-  return getManualFallbackTip(selectedPayMethod.value, selectedPayMethodLabel.value)
+  if (selectedPayMethod.value === 'contact' && !selectedPreferredPayMethod.value) {
+    return $t.value('paymentPreferredMethodMissing')
+  }
+  const currentMethod = selectedPreferredPayMethod.value || selectedPayMethod.value
+  const currentMethodLabel = selectedPreferredPayMethodLabel.value || selectedPayMethodLabel.value
+  return getManualFallbackTip(currentMethod, currentMethodLabel)
 })
 
 const steps = computed(() => {
@@ -216,50 +376,106 @@ const steps = computed(() => {
   return [manualFallbackTip.value, $t.value('paymentManualProofHint'), $t.value('contactCustomerService')]
 })
 
-const selectPayMethod = (payMethod) => {
-  selectedPayMethod.value = payMethod
-  if (payMethod === 'qrcode' && qrList.value.length === 0) {
-    loadQrCodes()
+const syncOrderPayMethod = async (payMethod) => {
+  if (!orderId.value || !payMethod) return
+  try {
+    if (isRechargeOrder.value) {
+      await updateTryonRechargeOrderPayMethod({ id: Number(orderId.value), payMethod })
+      return
+    }
+    await updateOrder({ ID: Number(orderId.value), payMethod })
+  } catch (e) {
+    uni.showToast({ title: e?.message || $t.value('operationFailed'), icon: 'none' })
   }
 }
 
+const selectPayMethod = async (payMethod) => {
+  selectedPayMethod.value = payMethod
+  if (payMethod === 'contact' && !selectedPreferredPayMethod.value && preferredPayMethods.value.length > 0) {
+    selectPreferredPayMethod(preferredPayMethods.value[0].key)
+  }
+  if (payMethod === 'qrcode' && qrList.value.length === 0) {
+    loadQrCodes()
+  }
+  await syncOrderPayMethod(payMethod)
+}
+
 const loadPaymentMethods = async (preferredMethod, preferredLabel) => {
-  let methods = []
-  try {
-    const res = await getPaymentConfig()
-    if (res.code === 0 && res.data) {
-      methods = normalizePaymentMethods(res.data.methods)
+  const normalizedPreferredMethod = String(preferredMethod || '').trim().toLowerCase()
+  let allMethods = []
+  let preferredMethods = []
+
+  const [paymentConfigResult, preferredConfigResult] = await Promise.allSettled([
+    getPaymentConfig(),
+    getUniPreferredPayConfig()
+  ])
+
+  if (paymentConfigResult.status === 'fulfilled') {
+    const paymentRes = paymentConfigResult.value
+    if (paymentRes.code === 0 && paymentRes.data) {
+      allMethods = normalizePaymentMethods(paymentRes.data.methods)
     }
-  } catch (e) {
-    methods = []
   }
 
-  if (methods.length === 0) {
-    methods = buildDefaultPaymentMethods()
-  }
-
-  if (preferredMethod && typeof preferredMethod === 'string') {
-    const existing = methods.find(item => item.key === preferredMethod)
-    if (existing) {
-      if (preferredLabel) {
-        existing.label = preferredLabel
+  if (preferredConfigResult.status === 'fulfilled') {
+    const preferredRes = preferredConfigResult.value
+    if (preferredRes.code === 0 && preferredRes.data) {
+      const preferredList = Array.isArray(preferredRes.data)
+        ? preferredRes.data
+        : (preferredRes.data.methods || preferredRes.data.list || [])
+      const normalizedPreferred = normalizePreferredPayMethods(preferredList)
+      if (normalizedPreferred.length > 0) {
+        preferredMethods = normalizedPreferred
       }
-    } else {
-      methods.unshift({
-        key: preferredMethod,
-        label: preferredLabel || getPaymentMethodLabel(preferredMethod)
+    }
+  }
+
+  if (allMethods.length === 0) {
+    allMethods = buildDefaultRawMethods()
+  }
+
+  preferredPayMethods.value = preferredMethods
+
+  if (normalizedPreferredMethod && normalizedPreferredMethod !== 'qrcode' && normalizedPreferredMethod !== 'contact') {
+    const existing = preferredPayMethods.value.find(item => item.key === normalizedPreferredMethod)
+    if (!existing) {
+      preferredPayMethods.value.unshift({
+        key: normalizedPreferredMethod,
+        label: preferredLabel || getPaymentMethodLabel(normalizedPreferredMethod),
+        name: {},
+        image: '',
+        externalPath: '',
+        copyText: {}
       })
     }
   }
 
-  paymentMethods.value = methods
-  const preferred = methods.find(item => item.key === preferredMethod)?.key
-  if (preferred) {
-    selectedPayMethod.value = preferred
-  } else if (methods.some(item => item.key === 'qrcode')) {
+  paymentMethods.value = buildModePaymentMethods(allMethods)
+
+  if (normalizedPreferredMethod === 'qrcode' && paymentMethods.value.some(item => item.key === 'qrcode')) {
+    selectedPayMethod.value = 'qrcode'
+  } else if (normalizedPreferredMethod === 'contact' && paymentMethods.value.some(item => item.key === 'contact')) {
+    selectedPayMethod.value = 'contact'
+  } else if (normalizedPreferredMethod && normalizedPreferredMethod !== 'qrcode' && normalizedPreferredMethod !== 'contact') {
+    selectedPayMethod.value = 'contact'
+    if (preferredPayMethods.value.some(item => item.key === normalizedPreferredMethod)) {
+      selectPreferredPayMethod(normalizedPreferredMethod)
+    }
+  } else if (paymentMethods.value.some(item => item.key === 'qrcode')) {
     selectedPayMethod.value = 'qrcode'
   } else {
-    selectedPayMethod.value = methods[0]?.key || 'contact'
+    selectedPayMethod.value = paymentMethods.value[0]?.key || 'contact'
+  }
+
+  if (selectedPayMethod.value === 'contact' && !selectedPreferredPayMethod.value && preferredPayMethods.value.length > 0) {
+    selectPreferredPayMethod(preferredPayMethods.value[0].key)
+  }
+
+  if (preferredLabel && selectedPreferredPayMethod.value) {
+    const selected = preferredPayMethods.value.find(item => item.key === selectedPreferredPayMethod.value)
+    if (selected) {
+      selected.label = preferredLabel
+    }
   }
 
   if (selectedPayMethod.value === 'qrcode') {
@@ -268,9 +484,16 @@ const loadPaymentMethods = async (preferredMethod, preferredLabel) => {
 }
 
 onLoad((options) => {
-  if (options.amount) amount.value = options.amount
-  if (options.orderNo) orderNo.value = options.orderNo
-  if (options.orderId) orderId.value = options.orderId
+  if (options.amount) amount.value = decodeURIComponent(options.amount)
+  if (options.orderNo) orderNo.value = decodeURIComponent(options.orderNo)
+  if (options.orderId) orderId.value = decodeURIComponent(options.orderId)
+  if (options.orderType) {
+    const normalizedType = String(options.orderType || '').trim().toLowerCase()
+    orderType.value = normalizedType === 'recharge' ? 'recharge' : 'shop'
+  }
+  if (options.rechargePoints) {
+    rechargePoints.value = Number(decodeURIComponent(options.rechargePoints) || 0)
+  }
   if (options.closeTime) closeTime.value = decodeURIComponent(options.closeTime)
 
   const preferredMethod = typeof options.payMethod === 'string' ? decodeURIComponent(options.payMethod) : ''
@@ -287,15 +510,57 @@ let payTimer = null
 
 const loadOrderCloseTime = async () => {
   // 如果没有传入closeTime，从订单接口获取
-  if (!closeTime.value && orderId.value) {
+  if (orderId.value) {
     try {
-      const res = await selfOrder(orderId.value)
-      if (res.code === 0 && res.data && res.data.closeTime) {
-        closeTime.value = res.data.closeTime
+      if (isRechargeOrder.value) {
+        const rechargeRes = await selfTryonRechargeOrder(orderId.value)
+        const order = rechargeRes?.data?.order || rechargeRes?.data || {}
+        orderStatus.value = String(order.status || order.Status || orderStatus.value || '0')
+        const latestCloseTime = String(order.closeTime || order.CloseTime || '').trim()
+        if (!closeTime.value && latestCloseTime) {
+          closeTime.value = latestCloseTime
+        }
+        if (!orderNo.value) {
+          orderNo.value = String(order.outTradeNo || order.OutTradeNo || order.ID || order.id || '')
+        }
+        const points = Number(order.points || order.Points || 0)
+        if (points > 0) {
+          rechargePoints.value = points
+        }
+      } else {
+        const res = await selfOrder(orderId.value)
+        const order = res?.data || {}
+        orderStatus.value = String(order.status || order.Status || orderStatus.value || '0')
+        if (!closeTime.value && order.closeTime) {
+          closeTime.value = order.closeTime
+        }
+        if (!orderNo.value) {
+          orderNo.value = String(order.outTradeNo || order.OutTradeNo || order.ID || '')
+        }
+        const detail = Array.isArray(order.detail) ? order.detail : []
+        if (detail.length > 0) {
+          orderSummaryName.value = detail.map(item => {
+            const sku = item?.sku || {}
+            const good = item?.good || {}
+            const name = localText(sku?.nameI18n || sku?.name || good?.titleI18n || good?.title || good?.nameI18n || good?.name, langStore.locale) || ''
+            const specs = [...(Array.isArray(sku?.specs) ? sku.specs : []), ...(Array.isArray(sku?.attrs) ? sku.attrs : [])]
+              .map(spec => {
+                const label = localText(spec?.labelI18n || spec?.nameI18n || spec?.label || spec?.name, langStore.locale)
+                const value = localText(spec?.valueI18n || spec?.value, langStore.locale)
+                if (!label && !value) return ''
+                return label ? `${label}:${value}` : value
+              })
+              .filter(Boolean)
+              .join(', ')
+            const quantity = Number(item?.quantity || 1)
+            const quantityText = quantity > 1 ? ` x${quantity}` : ''
+            return `${name}${quantityText}${specs ? ` (${specs})` : ''}`
+          }).filter(Boolean).join(' ; ')
+        }
       }
     } catch (e) {}
   }
-  if (closeTime.value) startPayCountdown()
+  if (closeTime.value && orderStatus.value === '0') startPayCountdown()
 }
 
 const startPayCountdown = () => {
@@ -305,6 +570,11 @@ const startPayCountdown = () => {
 }
 
 const updatePayCountdown = () => {
+  if (orderStatus.value !== '0') {
+    payCountdown.value = ''
+    if (payTimer) clearInterval(payTimer)
+    return
+  }
   if (!closeTime.value) { payCountdown.value = ''; return }
   const remain = Math.max(0, Math.floor((new Date(closeTime.value).getTime() - Date.now()) / 1000))
   if (remain <= 0) {
@@ -328,6 +598,10 @@ onUnmounted(() => { if (payTimer) clearInterval(payTimer) })
 
 // ========== 离开页面（不取消订单） ==========
 const goToOrders = (isTab = false) => {
+  if (isRechargeOrder.value) {
+    uni.switchTab({ url: '/pages/tabBar/my/index' })
+    return
+  }
   if (isTab) { uni.switchTab({ url: '/pages/tabBar/index' }) } else { uni.redirectTo({ url: '/pages/order/order' }) }
 }
 
@@ -407,14 +681,48 @@ const saveQr = () => {
   })
 }
 
-const goKefu = () => {
-  const orderID = encodeURIComponent(String(orderNo.value || orderId.value || ''))
-  const payMethod = encodeURIComponent(String(selectedPayMethod.value || ''))
-  const payMethodLabel = encodeURIComponent(String(selectedPayMethodLabel.value || ''))
-  uni.navigateTo({ url: `/pages/kefu/index?orderID=${orderID}&payMethod=${payMethod}&payMethodLabel=${payMethodLabel}` })
+const copyPreferredPayDraft = () => {
+  if (!selectedPreferredPayMethodDraftText.value) {
+    uni.showToast({ title: $t.value('selectPreferredPayMethodFirst'), icon: 'none' })
+    return
+  }
+  uni.setClipboardData({
+    data: selectedPreferredPayMethodDraftText.value,
+    success: () => {
+      uni.showToast({ title: $t.value('copySuccess'), icon: 'none' })
+    }
+  })
 }
 
-const confirmPaid = () => {
+const goKefu = () => {
+  if (!isQrMethod.value && preferredPayMethods.value.length === 0) {
+    uni.showToast({ title: $t.value('paymentPreferredMethodMissing'), icon: 'none' })
+    return
+  }
+  if (!isQrMethod.value && !selectedPreferredPayMethod.value) {
+    uni.showToast({ title: $t.value('selectPreferredPayMethodFirst'), icon: 'none' })
+    return
+  }
+  const preferredMethod = selectedPreferredPayMethod.value || ''
+  const preferredMethodLabel = selectedPreferredPayMethodLabel.value || ''
+  const preferredMethodCopyText = selectedPreferredPayMethodCopyText.value || ''
+  const forwardPayMethodLabel = selectedPayMethod.value === 'contact'
+    ? (preferredMethodLabel || '')
+    : selectedPayMethodLabel.value
+  const qrName = isQrMethod.value ? currentQrLabel.value : ''
+  const orderID = encodeURIComponent(String(orderNo.value || orderId.value || ''))
+  const payMethod = encodeURIComponent(String(selectedPayMethod.value || ''))
+  const payMethodLabel = encodeURIComponent(String(forwardPayMethodLabel || ''))
+  const preferredPayMethod = encodeURIComponent(String(preferredMethod))
+  const preferredPayMethodLabel = encodeURIComponent(String(preferredMethodLabel))
+  const preferredPayMethodCopyText = encodeURIComponent(String(preferredMethodCopyText))
+  const selectedQrName = encodeURIComponent(String(qrName || ''))
+  uni.navigateTo({
+    url: `/pages/kefu/index?orderID=${orderID}&payMethod=${payMethod}&payMethodLabel=${payMethodLabel}&preferredPayMethod=${preferredPayMethod}&preferredPayMethodLabel=${preferredPayMethodLabel}&preferredPayMethodCopyText=${preferredPayMethodCopyText}&selectedQrName=${selectedQrName}`
+  })
+}
+
+const confirmPaid = async () => {
   if (!isQrMethod.value) {
     if (selectedPayMethod.value === 'contact') {
       goKefu()
@@ -433,6 +741,10 @@ const confirmPaid = () => {
         }
         uni.showToast({ title: $t.value('paymentManualSavedOrder'), icon: 'none' })
         setTimeout(() => {
+          if (isRechargeOrder.value) {
+            goToOrders()
+            return
+          }
           if (orderId.value) {
             uni.redirectTo({ url: `/pages/orderDetail/orderDetail?orderID=${orderId.value}` })
             return
@@ -444,10 +756,28 @@ const confirmPaid = () => {
     return
   }
 
-  uni.showToast({ title: $t.value('paidSuccess'), icon: 'success' })
-  setTimeout(() => {
-    uni.redirectTo({ url: '/pages/order/order' })
-  }, 1500)
+  if (!orderId.value) {
+    uni.showToast({ title: $t.value('operationFailed'), icon: 'none' })
+    return
+  }
+
+  uni.showLoading({ title: $t.value('checking'), mask: true })
+  try {
+    if (isRechargeOrder.value) {
+      await submitTryonRechargeOrderPayment({ id: Number(orderId.value) })
+    } else {
+      await updateOrderStatus({ ID: Number(orderId.value), status: '8' })
+    }
+    orderStatus.value = '8'
+    uni.showToast({ title: $t.value('paidSuccess'), icon: 'success' })
+    setTimeout(() => {
+      goToOrders()
+    }, 1500)
+  } catch (e) {
+    uni.showToast({ title: e?.message || $t.value('operationFailed'), icon: 'none' })
+  } finally {
+    uni.hideLoading()
+  }
 }
 
 const goHome = () => {
@@ -529,6 +859,35 @@ const goBack = () => {
   text-align: center;
   margin-bottom: 20rpx;
 }
+.nf-pay-info-card {
+  background: #ffffff;
+  border: 1rpx solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 12rpx 28rpx rgba(15, 23, 42, 0.08);
+  border-radius: 20rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 20rpx;
+}
+.nf-pay-info-title {
+  display: block;
+  font-size: 24rpx;
+  color: var(--nf-text-tertiary);
+}
+.nf-pay-info-text {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 28rpx;
+  color: #0f172a;
+  font-weight: 600;
+}
+.nf-pay-carry-tip {
+  margin: 0 0 20rpx;
+  padding: 14rpx 18rpx;
+  border-radius: 12rpx;
+  background: rgba(219, 234, 254, 0.72);
+  border: 1rpx solid rgba(37, 99, 235, 0.24);
+  font-size: 22rpx;
+  color: rgba(30, 64, 175, 0.95);
+}
 .nf-pay-method-card {
   background: #ffffff;
   border: 1rpx solid rgba(148, 163, 184, 0.2);
@@ -556,6 +915,11 @@ const goBack = () => {
   color: #2563eb;
   background: rgba(37, 99, 235, 0.1);
   border-color: rgba(37, 99, 235, 0.4);
+}
+.nf-pay-method-hint {
+  margin-top: 14rpx;
+  font-size: 22rpx;
+  color: rgba(30, 64, 175, 0.9);
 }
 .nf-pay-amount-label {
   font-size: 26rpx;
@@ -651,6 +1015,101 @@ const goBack = () => {
   color: #0f172a;
   display: block;
   margin-bottom: 18rpx;
+}
+.nf-pay-manual-methods {
+  margin-bottom: 16rpx;
+}
+.nf-pay-manual-methods-title {
+  display: block;
+  margin-bottom: 10rpx;
+  font-size: 24rpx;
+  color: var(--nf-text-tertiary);
+}
+.nf-pay-preferred-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12rpx;
+}
+.nf-pay-preferred-item {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  border-radius: 14rpx;
+  border: 1rpx solid rgba(148, 163, 184, 0.3);
+  background: #f8fafc;
+  padding: 14rpx 16rpx;
+  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+  &:active {
+    transform: scale(0.98);
+  }
+}
+.nf-pay-preferred-item.active {
+  border-color: rgba(37, 99, 235, 0.45);
+  background: rgba(37, 99, 235, 0.08);
+}
+.nf-pay-preferred-item-img {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 10rpx;
+  background: #ffffff;
+  border: 1rpx solid rgba(148, 163, 184, 0.28);
+}
+.nf-pay-preferred-item-fallback {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 10rpx;
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  font-size: 24rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nf-pay-preferred-item-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 24rpx;
+  color: #0f172a;
+  line-height: 1.4;
+}
+.nf-pay-copy-card {
+  margin-top: 16rpx;
+  border: 1rpx solid rgba(37, 99, 235, 0.24);
+  border-radius: 14rpx;
+  background: rgba(219, 234, 254, 0.5);
+  padding: 16rpx;
+}
+.nf-pay-copy-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10rpx;
+}
+.nf-pay-copy-title {
+  font-size: 22rpx;
+  color: rgba(30, 64, 175, 0.95);
+}
+.nf-pay-copy-btn {
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(37, 99, 235, 0.35);
+  color: #1d4ed8;
+  font-size: 22rpx;
+  background: #ffffff;
+}
+.nf-pay-copy-text {
+  display: block;
+  font-size: 23rpx;
+  line-height: 1.6;
+  color: #1e293b;
+  word-break: break-all;
+}
+.nf-pay-manual-empty {
+  display: block;
+  margin-bottom: 10rpx;
+  font-size: 24rpx;
+  color: rgba(220, 38, 38, 0.85);
 }
 .nf-pay-manual-tip {
   font-size: 26rpx;

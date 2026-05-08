@@ -10,6 +10,7 @@ import (
 type CreateTryonTaskReq struct {
 	RequestID     string `json:"requestID" form:"requestID"`
 	ModelKey      string `json:"modelKey" form:"modelKey"`
+	EnableRefiner bool   `json:"enableRefiner" form:"enableRefiner"`
 	SceneType     string `json:"sceneType" form:"sceneType" binding:"required,oneof=clothes shoes takeoff"`
 	SourceImage   string `json:"sourceImage" form:"sourceImage" binding:"required"`
 	TemplateImage string `json:"templateImage" form:"templateImage" binding:"required"`
@@ -26,4 +27,9 @@ type TryonTaskSearch struct {
 	Status         string     `json:"status" form:"status"`
 	SceneType      string     `json:"sceneType" form:"sceneType"`
 	request.PageInfo
+}
+
+// DeleteMyTryonTaskReq 删除我的试衣任务请求
+type DeleteMyTryonTaskReq struct {
+	TaskNo string `json:"taskNo" form:"taskNo" binding:"required"`
 }

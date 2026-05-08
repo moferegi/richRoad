@@ -77,6 +77,32 @@ func (api *TryonTaskApi) DeleteTryonTaskByIds(c *gin.Context) {
 	response.OkWithMessage("批量删除成功", c)
 }
 
+// DeleteMyTryonTask 删除我的试衣任务（客户端）
+// @Tags TryonTask
+// @Summary 删除我的试衣任务（客户端）
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param taskNo query string true "任务编号"
+// @Success 200 {object} response.Response{msg=string} "删除成功"
+// @Router /tryonTask/deleteMyTryonTask [delete]
+func (api *TryonTaskApi) DeleteMyTryonTask(c *gin.Context) {
+	taskNo := c.Query("taskNo")
+	if taskNo == "" {
+		response.FailWithMessage("taskNo参数错误", c)
+		return
+	}
+
+	userID := utils.GetUserID(c)
+	if err := tryonTaskService.DeleteMyTryonTaskByTaskNo(userID, taskNo); err != nil {
+		global.GVA_LOG.Error("删除我的试衣任务失败!", zap.Error(err), zap.Uint("userID", userID), zap.String("taskNo", taskNo))
+		response.FailWithMessage("删除失败", c)
+		return
+	}
+
+	response.OkWithMessage("删除成功", c)
+}
+
 // CreateTryonTask 创建试衣任务
 // @Tags TryonTask
 // @Summary 创建试衣任务（扣币后调用模型，失败全额退币）

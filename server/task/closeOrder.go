@@ -7,6 +7,7 @@ import (
 
 	"strconv"
 
+	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	"gorm.io/gorm"
@@ -58,6 +59,35 @@ func ClearExpiredOrders(db *gorm.DB) error {
 			continue
 		}
 		fmt.Printf("[ClearExpiredOrders] 自动取消订单 %d 成功\n", order.ID)
+	}
+	return lastErr
+}
+
+// ClearExpiredTryonRechargeOrders 清理超时未支付的试衣币充值订单
+func ClearExpiredTryonRechargeOrders(db *gorm.DB) error {
+	if db == nil {
+		return errors.New("db Cannot be empty")
+	}
+
+	now := time.Now()
+	var orders []client.TryonRechargeOrder
+	err := db.Where("status = ? AND close_time < ?", "0", now).Limit(500).Find(&orders).Error
+	if err != nil {
+		return err
+	}
+
+	var lastErr error
+	for _, order := range orders {
+		e := db.Model(&client.TryonRechargeOrder{}).Where("id = ? AND status = ?", order.ID, "0").Updates(map[string]interface{}{
+			"status":       "4",
+			"cancelled_at": now,
+		}).Error
+		if e != nil {
+			fmt.Printf("[ClearExpiredTryonRechargeOrders] 自动取消充值订单 %d 失败: %v\n", order.ID, e)
+			lastErr = e
+			continue
+		}
+		fmt.Printf("[ClearExpiredTryonRechargeOrders] 自动取消充值订单 %d 成功\n", order.ID)
 	}
 	return lastErr
 }

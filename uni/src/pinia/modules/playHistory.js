@@ -34,6 +34,7 @@ export const usePlayHistoryStore = defineStore('playHistory', () => {
     }
     histories.value[id].lastEpisodeIndex = episodeIndex ?? 0
     histories.value[id].updatedAt = Date.now()
+    histories.value[id].historyType = 'play'
     if (imageUrl) histories.value[id].imageUrl = imageUrl
     if (title) histories.value[id].title = title
     histories.value[id].episodes[epKey] = {
@@ -55,6 +56,10 @@ export const usePlayHistoryStore = defineStore('playHistory', () => {
     // 如果已存在完整播放记录，只更新时间和基础信息
     if (histories.value[id]) {
       histories.value[id].updatedAt = Date.now()
+      const hasEpisodes = histories.value[id].episodes && Object.keys(histories.value[id].episodes).length > 0
+      if (!hasEpisodes) {
+        histories.value[id].historyType = 'browse'
+      }
       if (imageUrl) histories.value[id].imageUrl = imageUrl
       if (title) histories.value[id].title = title
     } else {
@@ -62,6 +67,7 @@ export const usePlayHistoryStore = defineStore('playHistory', () => {
       histories.value[id] = {
         lastEpisodeIndex: 0,
         episodes: {},
+        historyType: 'browse',
         imageUrl: imageUrl || '',
         title: title || '',
         updatedAt: Date.now()
@@ -152,6 +158,40 @@ export const usePlayHistoryStore = defineStore('playHistory', () => {
     return arr.slice(0, limit)
   }
 
+  function isBrowseRecord(rec) {
+    if (!rec || typeof rec !== 'object') return false
+    if (rec.historyType === 'browse') return true
+    if (rec.historyType === 'play') return false
+    const episodes = rec.episodes && typeof rec.episodes === 'object' ? Object.keys(rec.episodes) : []
+    return episodes.length === 0
+  }
+
+  function getRecentBrowseList(limit = 20) {
+    const arr = []
+    for (const [id, rec] of Object.entries(histories.value)) {
+      if (!isBrowseRecord(rec) || !rec.imageUrl) continue
+      arr.push({
+        ID: Number(id) || id,
+        imageUrl: rec.imageUrl,
+        title: rec.title || '',
+        updatedAt: rec.updatedAt || 0,
+      })
+    }
+    arr.sort((a, b) => b.updatedAt - a.updatedAt)
+    return arr.slice(0, limit)
+  }
+
+  function clearBrowse() {
+    const nextHistories = {}
+    for (const [id, rec] of Object.entries(histories.value)) {
+      if (!isBrowseRecord(rec)) {
+        nextHistories[id] = rec
+      }
+    }
+    histories.value = nextHistories
+    persist()
+  }
+
   /**
    * 从本地 storage 重新加载数据（页面 onShow 时调用）
    */
@@ -174,7 +214,9 @@ export const usePlayHistoryStore = defineStore('playHistory', () => {
     getProgress,
     getEpisodeProgress,
     getRecentList,
+    getRecentBrowseList,
     reload,
+    clearBrowse,
     clearAll
   }
 })

@@ -266,7 +266,7 @@
 						// 更新内容 
 						this.content = this.getContentHTML(res.contents);
 						// 更新标题
-						this.title = res.title || '发现新版本';
+						this.title = res.title || 'New version available';
 						// 是否强制更新
 						this.isForceUpdata = res.is_mandatory;
 						// 是否wgt资源包

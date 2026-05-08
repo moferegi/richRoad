@@ -13,6 +13,10 @@ import (
 
 type PointRecordApi struct{}
 
+func isPointRecordAdmin(authorityId uint) bool {
+	return authorityId == 888 || authorityId == 8881
+}
+
 // CreatePointRecord 创建积分记录管理
 // @Tags PointRecord
 // @Summary 创建积分记录管理
@@ -23,6 +27,11 @@ type PointRecordApi struct{}
 // @Success 200 {object} response.Response{msg=string} "创建成功"
 // @Router /cpr/createPointRecord [post]
 func (cprApi *PointRecordApi) CreatePointRecord(c *gin.Context) {
+	if !isPointRecordAdmin(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限创建资产记录", c)
+		return
+	}
+
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -51,6 +60,11 @@ func (cprApi *PointRecordApi) CreatePointRecord(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "删除成功"
 // @Router /cpr/deletePointRecord [delete]
 func (cprApi *PointRecordApi) DeletePointRecord(c *gin.Context) {
+	if !isPointRecordAdmin(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限删除资产记录", c)
+		return
+	}
+
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -73,6 +87,11 @@ func (cprApi *PointRecordApi) DeletePointRecord(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "批量删除成功"
 // @Router /cpr/deletePointRecordByIds [delete]
 func (cprApi *PointRecordApi) DeletePointRecordByIds(c *gin.Context) {
+	if !isPointRecordAdmin(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限删除资产记录", c)
+		return
+	}
+
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -96,6 +115,11 @@ func (cprApi *PointRecordApi) DeletePointRecordByIds(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "更新成功"
 // @Router /cpr/updatePointRecord [put]
 func (cprApi *PointRecordApi) UpdatePointRecord(c *gin.Context) {
+	if !isPointRecordAdmin(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限更新资产记录", c)
+		return
+	}
+
 	// 从ctx获取标准context进行业务行为
 	ctx := c.Request.Context()
 
@@ -133,6 +157,13 @@ func (cprApi *PointRecordApi) FindPointRecord(c *gin.Context) {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
 		response.FailWithMessage(i18n.TWithSuffix(c, "queryFail", err.Error()), c)
 		return
+	}
+	if !isPointRecordAdmin(utils.GetUserAuthorityId(c)) {
+		uid := int(utils.GetUserID(c))
+		if recpr.UserId == nil || *recpr.UserId != uid {
+			response.FailWithMessage("无权限查看该资产记录", c)
+			return
+		}
 	}
 	response.OkWithData(recpr, c)
 }

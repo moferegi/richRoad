@@ -43,6 +43,27 @@
                 <span class="tryon-model-summary-text">启用 {{ enabledTryonModelsCount(scope.row.configValue) }} 个</span>
               </div>
             </template>
+            <!-- 试衣币充值套餐摘要 -->
+            <template v-else-if="isTryonRechargePlansConfig(scope.row)">
+              <div class="tryon-model-summary">
+                <el-tag size="small" type="warning">{{ rechargePlansCount(scope.row.configValue) }} 个套餐</el-tag>
+                <span class="tryon-model-summary-text">支持点数、币名、货币符号、价格、单位多语言</span>
+              </div>
+            </template>
+            <!-- 支付方式配置摘要 -->
+            <template v-else-if="isPaymentManualMethodsConfig(scope.row)">
+              <div class="tryon-model-summary">
+                <el-tag size="small" type="warning">{{ paymentMethodsCount(scope.row.configValue) }} 种方式</el-tag>
+                <span class="tryon-model-summary-text">支持多语言名称、图片、复制文案、开关与排序</span>
+              </div>
+            </template>
+            <!-- Uni期望支付方式配置摘要 -->
+            <template v-else-if="isPaymentUniPreferredMethodsConfig(scope.row)">
+              <div class="tryon-model-summary">
+                <el-tag size="small" type="success">{{ paymentPreferredMethodsCount(scope.row.configValue) }} 种方式</el-tag>
+                <span class="tryon-model-summary-text">仅用于uni联系客服支付：多语言名称、图片、复制文案、开关与排序</span>
+              </div>
+            </template>
             <!-- 颜色类型 -->
             <template v-else-if="isColorConfig(scope.row)">
               <div class="color-preview">
@@ -115,7 +136,11 @@
                 暂无模型，点击“新增模型”开始配置
               </div>
 
-              <el-collapse v-else>
+              <el-collapse
+                v-else
+                v-model="tryonModelActivePanels"
+                @change="handleTryonModelPanelChange"
+              >
                 <el-collapse-item
                   v-for="(model, index) in tryonModels"
                   :key="model.__uid"
@@ -123,7 +148,7 @@
                 >
                   <template #title>
                     <div class="tryon-model-title">
-                      <span>{{ model.name.zh || model.name.en || model.key || ('模型' + (index + 1)) }}</span>
+                      <span>{{ displayI18nText(model.name) || model.key || ('模型' + (index + 1)) }}</span>
                       <el-tag size="small" :type="model.enabled ? 'success' : 'info'">
                         {{ model.enabled ? '启用' : '关闭' }}
                       </el-tag>
@@ -131,6 +156,52 @@
                   </template>
 
                   <div class="tryon-model-panel">
+                    <div v-if="isAliyunModelForQuota(model)" class="tryon-model-quota">
+                      <div class="tryon-model-quota-head">
+                        <span class="tryon-model-label">阿里免费额度估算</span>
+                        <el-button
+                          link
+                          size="small"
+                          :loading="isAliyunQuotaLoading(model)"
+                          @click.stop="refreshAliyunQuota(model, true)"
+                        >
+                          刷新
+                        </el-button>
+                      </div>
+                      <div class="tryon-model-quota-content">
+                        <template v-if="getAliyunQuotaItem(model)">
+                          <el-tag type="success">
+                            基础剩余 {{ getAliyunQuotaItem(model).remainingEstimate }} / {{ getAliyunQuotaItem(model).freeQuotaTotal }}
+                          </el-tag>
+                          <el-tag
+                            v-if="getAliyunQuotaItem(model).refinerEnabled"
+                            type="warning"
+                          >
+                            精修剩余 {{ getAliyunQuotaItem(model).refinerRemainingEstimate }} / {{ getAliyunQuotaItem(model).refinerFreeQuotaTotal }}
+                          </el-tag>
+                        </template>
+                        <el-tag v-else type="info">暂无数据</el-tag>
+                        <span class="tryon-model-summary-text" v-if="getAliyunQuotaItem(model)">
+                          基础已用 {{ getAliyunQuotaItem(model).usedSuccessCount }}
+                        </span>
+                        <span
+                          class="tryon-model-summary-text"
+                          v-if="getAliyunQuotaItem(model) && getAliyunQuotaItem(model).refinerEnabled"
+                        >
+                          精修已用 {{ getAliyunQuotaItem(model).refinerUsedSuccessCount }}
+                        </span>
+                        <span class="tryon-model-summary-text" v-if="getAliyunQuotaItem(model)">
+                          {{ formatQuotaRefreshTime(getAliyunQuotaItem(model).lastRefreshedAt) }}
+                        </span>
+                      </div>
+                      <div class="tryon-model-quota-tip">
+                        本地估算值（按当前系统成功任务数统计），官方免费额度请以百炼控制台为准
+                      </div>
+                      <div class="tryon-model-quota-error" v-if="getAliyunQuotaError(model)">
+                        {{ getAliyunQuotaError(model) }}
+                      </div>
+                    </div>
+
                     <div class="tryon-model-grid">
                       <div class="tryon-model-field">
                         <span class="tryon-model-label">模型键 key</span>
@@ -173,7 +244,7 @@
 
                       <div class="tryon-model-field full">
                         <span class="tryon-model-label">模型地址 url</span>
-                        <el-input v-model="model.url" placeholder="如 https://dashscope.aliyuncs.com/api/v1/services/..." />
+                        <el-input v-model="model.url" placeholder="如 https://dashscope.aliyuncs.com/api/v1/services/... 或 https://yisol-idm-vton.hf.space" />
                       </div>
                       <div class="tryon-model-field full">
                         <span class="tryon-model-label">查询地址 taskQueryUrl</span>
@@ -182,6 +253,32 @@
                       <div class="tryon-model-field full">
                         <span class="tryon-model-label">模型 token</span>
                         <el-input v-model="model.token" type="password" show-password placeholder="留空则回退使用 tryon_provider_token" />
+                      </div>
+
+                      <div class="tryon-model-subtitle">Gradio / HuggingFace Space 参数</div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">API 名称 apiName</span>
+                        <el-input v-model="model.apiName" placeholder="/tryon" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">服装描述 garmentDes</span>
+                        <el-input v-model="model.garmentDes" placeholder="clothing item" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">自动蒙版 isChecked</span>
+                        <el-switch v-model="model.isChecked" active-text="开" inactive-text="关" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">自动裁剪 isCheckedCrop</span>
+                        <el-switch v-model="model.isCheckedCrop" active-text="开" inactive-text="关" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">降噪步数 denoiseSteps</span>
+                        <el-input-number v-model="model.denoiseSteps" :min="1" :max="100" :step="1" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">随机种子 seed</span>
+                        <el-input-number v-model="model.seed" :min="-1" :step="1" />
                       </div>
 
                       <div class="tryon-model-field">
@@ -201,38 +298,243 @@
                         </el-checkbox-group>
                       </div>
 
-                      <div class="tryon-model-subtitle">名称多语言 name</div>
+                      <div class="tryon-model-subtitle">图片精修配置（阿里基础/Plus）</div>
                       <div class="tryon-model-field">
-                        <span class="tryon-model-label">中文 zh</span>
-                        <el-input v-model="model.name.zh" placeholder="中文名称" />
+                        <span class="tryon-model-label">支持精修 supportsRefiner</span>
+                        <el-switch v-model="model.supportsRefiner" active-text="开" inactive-text="关" />
                       </div>
                       <div class="tryon-model-field">
-                        <span class="tryon-model-label">英文 en</span>
-                        <el-input v-model="model.name.en" placeholder="English name" />
+                        <span class="tryon-model-label">精修模型 refinerModel</span>
+                        <el-input v-model="model.refinerModel" placeholder="如 aitryon-refiner" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">精修性别 refinerGender</span>
+                        <el-select v-model="model.refinerGender" style="width: 100%">
+                          <el-option label="woman" value="woman" />
+                          <el-option label="man" value="man" />
+                        </el-select>
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">免费额度总数 freeQuotaTotal</span>
+                        <el-input-number v-model="model.freeQuotaTotal" :min="0" :step="1" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">精修额度总数 refinerFreeQuotaTotal</span>
+                        <el-input-number v-model="model.refinerFreeQuotaTotal" :min="0" :step="1" />
                       </div>
                       <div class="tryon-model-field full">
-                        <span class="tryon-model-label">蒙文 mn</span>
-                        <el-input v-model="model.name.mn" placeholder="Монгол нэр" />
+                        <span class="tryon-model-label">精修地址 refinerUrl</span>
+                        <el-input v-model="model.refinerUrl" placeholder="留空沿用 url（默认阿里 image-synthesis）" />
+                      </div>
+                      <div class="tryon-model-field full">
+                        <span class="tryon-model-label">精修查询地址 refinerTaskQueryUrl</span>
+                        <el-input v-model="model.refinerTaskQueryUrl" placeholder="留空沿用 taskQueryUrl" />
+                      </div>
+                      <div class="tryon-model-field full">
+                        <span class="tryon-model-label">精修 token refinerToken</span>
+                        <el-input v-model="model.refinerToken" type="password" show-password placeholder="留空沿用模型 token / tryon_provider_token" />
+                      </div>
+
+                      <div class="tryon-model-subtitle">名称多语言 name</div>
+                      <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`name-${model.__uid}-${lang.code}`">
+                        <span class="tryon-model-label">{{ lang.label }}</span>
+                        <el-input v-model="model.name[lang.code]" :placeholder="`name.${lang.code}`" />
                       </div>
 
                       <div class="tryon-model-subtitle">说明多语言 desc</div>
-                      <div class="tryon-model-field">
-                        <span class="tryon-model-label">中文 zh</span>
-                        <el-input v-model="model.desc.zh" type="textarea" :rows="2" placeholder="中文说明" />
+                      <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`desc-${model.__uid}-${lang.code}`">
+                        <span class="tryon-model-label">{{ lang.label }}</span>
+                        <el-input v-model="model.desc[lang.code]" type="textarea" :rows="2" :placeholder="`desc.${lang.code}`" />
                       </div>
-                      <div class="tryon-model-field">
-                        <span class="tryon-model-label">英文 en</span>
-                        <el-input v-model="model.desc.en" type="textarea" :rows="2" placeholder="English description" />
-                      </div>
-                      <div class="tryon-model-field full">
-                        <span class="tryon-model-label">蒙文 mn</span>
-                        <el-input v-model="model.desc.mn" type="textarea" :rows="2" placeholder="Монгол тайлбар" />
+
+                      <div class="tryon-model-subtitle">精修说明多语言 refinerDesc</div>
+                      <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`refiner-desc-${model.__uid}-${lang.code}`">
+                        <span class="tryon-model-label">{{ lang.label }}</span>
+                        <el-input v-model="model.refinerDesc[lang.code]" type="textarea" :rows="2" :placeholder="`refinerDesc.${lang.code}`" />
                       </div>
                     </div>
 
                     <div class="tryon-model-actions">
                       <el-button size="small" @click="cloneTryonModel(index)">复制</el-button>
                       <el-button size="small" type="danger" plain @click="removeTryonModel(index)">删除</el-button>
+                    </div>
+                  </div>
+                </el-collapse-item>
+              </el-collapse>
+            </div>
+          </template>
+          <!-- 试衣币充值套餐可视化编辑 -->
+          <template v-else-if="isTryonRechargePlansConfig(editForm)">
+            <div class="tryon-recharge-editor">
+              <div class="tryon-model-toolbar">
+                <el-button type="primary" plain size="small" @click="addRechargePlan">新增套餐</el-button>
+              </div>
+              <div v-if="rechargePlans.length === 0" class="tryon-model-empty">
+                暂无套餐，点击“新增套餐”开始配置
+              </div>
+              <el-collapse v-else>
+                <el-collapse-item v-for="(plan, index) in rechargePlans" :key="plan.__uid" :name="plan.__uid">
+                  <template #title>
+                    <div class="tryon-model-title">
+                      <span>{{ displayI18nText(plan.points) || ('套餐' + (index + 1)) }} {{ displayI18nText(plan.coinLabel) }}</span>
+                      <el-tag size="small" type="success">{{ displayI18nText(plan.currencySymbol) }}{{ displayI18nText(plan.price) }}{{ displayI18nText(plan.currencySuffix) }}</el-tag>
+                    </div>
+                  </template>
+                  <div class="tryon-model-panel">
+                    <div class="tryon-model-grid">
+                      <template v-for="lang in multilingualLangs" :key="`plan-${plan.__uid}-${lang.code}`">
+                        <div class="tryon-model-subtitle">{{ lang.label }}</div>
+                        <div class="tryon-model-field">
+                          <span class="tryon-model-label">点数</span>
+                          <el-input v-model="plan.points[lang.code]" placeholder="50" />
+                        </div>
+                        <div class="tryon-model-field">
+                          <span class="tryon-model-label">币名</span>
+                          <el-input v-model="plan.coinLabel[lang.code]" placeholder="Try-on Coins" />
+                        </div>
+                        <div class="tryon-model-field">
+                          <span class="tryon-model-label">货币符号</span>
+                          <el-input v-model="plan.currencySymbol[lang.code]" placeholder="CNY" />
+                        </div>
+                        <div class="tryon-model-field">
+                          <span class="tryon-model-label">价格</span>
+                          <el-input v-model="plan.price[lang.code]" placeholder="9.9" />
+                        </div>
+                        <div class="tryon-model-field full">
+                          <span class="tryon-model-label">单位/后缀</span>
+                          <el-input v-model="plan.currencySuffix[lang.code]" placeholder="" />
+                        </div>
+                      </template>
+                    </div>
+                    <div class="tryon-model-actions">
+                      <el-button size="small" @click="cloneRechargePlan(index)">复制</el-button>
+                      <el-button size="small" type="danger" plain @click="removeRechargePlan(index)">删除</el-button>
+                    </div>
+                  </div>
+                </el-collapse-item>
+              </el-collapse>
+            </div>
+          </template>
+          <!-- 支付方式配置可视化编辑 -->
+          <template v-else-if="isPaymentManualMethodsConfig(editForm)">
+            <div class="tryon-recharge-editor">
+              <div class="tryon-model-toolbar">
+                <el-button type="primary" plain size="small" @click="addPaymentMethod">新增方式</el-button>
+              </div>
+              <div v-if="paymentManualMethods.length === 0" class="tryon-model-empty">
+                暂无支付方式，点击“新增方式”开始配置
+              </div>
+              <el-collapse v-else>
+                <el-collapse-item v-for="(method, index) in paymentManualMethods" :key="method.__uid" :name="method.__uid">
+                  <template #title>
+                    <div class="tryon-model-title">
+                      <span>{{ displayI18nText(method.name, method.key || ('支付方式' + (index + 1))) }}</span>
+                      <el-tag size="small" :type="method.enabled ? 'success' : 'info'">{{ method.enabled ? '启用' : '关闭' }}</el-tag>
+                    </div>
+                  </template>
+                  <div class="tryon-model-panel">
+                    <div class="tryon-model-grid">
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">唯一键 key</span>
+                        <el-input v-model="method.key" placeholder="如 qrcode / contact / wechat" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">排序 sort</span>
+                        <el-input-number v-model="method.sort" :min="0" :step="1" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">是否启用</span>
+                        <el-switch v-model="method.enabled" active-text="开" inactive-text="关" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">是否人工渠道</span>
+                        <el-switch v-model="method.manual" active-text="是" inactive-text="否" />
+                      </div>
+                      <div class="tryon-model-field full">
+                        <span class="tryon-model-label">图片地址 image</span>
+                        <el-input v-model="method.image" placeholder="上传后的图片路径或URL" />
+                      </div>
+                      <div class="tryon-model-field full">
+                        <span class="tryon-model-label">外链地址 externalPath</span>
+                        <el-input v-model="method.externalPath" placeholder="外部图片地址(可选)" />
+                      </div>
+
+                      <div class="tryon-model-subtitle">名称多语言 name</div>
+                      <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`pay-name-${method.__uid}-${lang.code}`">
+                        <span class="tryon-model-label">{{ lang.label }}</span>
+                        <el-input v-model="method.name[lang.code]" :placeholder="`name.${lang.code}`" />
+                      </div>
+
+                      <div class="tryon-model-subtitle">复制信息多语言 copyText</div>
+                      <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`pay-copy-${method.__uid}-${lang.code}`">
+                        <span class="tryon-model-label">{{ lang.label }}</span>
+                        <el-input v-model="method.copyText[lang.code]" type="textarea" :rows="2" :placeholder="`copyText.${lang.code}`" />
+                      </div>
+                    </div>
+                    <div class="tryon-model-actions">
+                      <el-button size="small" @click="clonePaymentMethod(index)">复制</el-button>
+                      <el-button size="small" type="danger" plain @click="removePaymentMethod(index)">删除</el-button>
+                    </div>
+                  </div>
+                </el-collapse-item>
+              </el-collapse>
+            </div>
+          </template>
+          <!-- Uni期望支付方式可视化编辑（独立于 payment_manual_methods） -->
+          <template v-else-if="isPaymentUniPreferredMethodsConfig(editForm)">
+            <div class="tryon-recharge-editor">
+              <div class="tryon-model-toolbar">
+                <el-button type="primary" plain size="small" @click="addPaymentPreferredMethod">新增方式</el-button>
+              </div>
+              <div v-if="paymentPreferredMethods.length === 0" class="tryon-model-empty">
+                暂无期望支付方式，点击“新增方式”开始配置
+              </div>
+              <el-collapse v-else>
+                <el-collapse-item v-for="(method, index) in paymentPreferredMethods" :key="method.__uid" :name="method.__uid">
+                  <template #title>
+                    <div class="tryon-model-title">
+                      <span>{{ displayI18nText(method.name, method.key || ('期望方式' + (index + 1))) }}</span>
+                      <el-tag size="small" :type="method.enabled ? 'success' : 'info'">{{ method.enabled ? '启用' : '关闭' }}</el-tag>
+                    </div>
+                  </template>
+                  <div class="tryon-model-panel">
+                    <div class="tryon-model-grid">
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">唯一键 key</span>
+                        <el-input v-model="method.key" placeholder="如 wechat / alipay / bank_card_cn" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">排序 sort</span>
+                        <el-input-number v-model="method.sort" :min="0" :step="1" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">是否启用</span>
+                        <el-switch v-model="method.enabled" active-text="开" inactive-text="关" />
+                      </div>
+                      <div class="tryon-model-field full">
+                        <span class="tryon-model-label">图片地址 image（建议 Backblaze: Moffuu/cloth-on/up/...）</span>
+                        <el-input v-model="method.image" placeholder="如 cloth-on/up/wechat.png" />
+                      </div>
+                      <div class="tryon-model-field full">
+                        <span class="tryon-model-label">外链地址 externalPath（可选）</span>
+                        <el-input v-model="method.externalPath" placeholder="https://..." />
+                      </div>
+
+                      <div class="tryon-model-subtitle">名称多语言 name</div>
+                      <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`pref-name-${method.__uid}-${lang.code}`">
+                        <span class="tryon-model-label">{{ lang.label }}</span>
+                        <el-input v-model="method.name[lang.code]" :placeholder="`name.${lang.code}`" />
+                      </div>
+
+                      <div class="tryon-model-subtitle">复制信息多语言 copyText</div>
+                      <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`pref-copy-${method.__uid}-${lang.code}`">
+                        <span class="tryon-model-label">{{ lang.label }}</span>
+                        <el-input v-model="method.copyText[lang.code]" type="textarea" :rows="2" :placeholder="`copyText.${lang.code}`" />
+                      </div>
+                    </div>
+                    <div class="tryon-model-actions">
+                      <el-button size="small" @click="clonePaymentPreferredMethod(index)">复制</el-button>
+                      <el-button size="small" type="danger" plain @click="removePaymentPreferredMethod(index)">删除</el-button>
                     </div>
                   </div>
                 </el-collapse-item>
@@ -280,7 +582,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { getSysConfigList, updateSysConfig } from '@/api/client/sysConfig'
+import { getSysConfigList, updateSysConfig, getAliyunTryonQuotaEstimate } from '@/api/client/sysConfig'
 import { ElMessage } from 'element-plus'
 
 // 配置组定义
@@ -323,7 +625,10 @@ const isBooleanConfig = (row) => booleanKeys.includes(row.configKey)
 const colorKeys = ['announcement_text_color', 'payment_tip_text_color']
 const isColorConfig = (row) => colorKeys.includes(row.configKey)
 
-const isTryonModelsConfig = (row) => row?.configKey === 'tryon_models'
+const isTryonModelsConfig = (row) => ['tryon_models', 'shoe_models'].includes(row?.configKey)
+const isTryonRechargePlansConfig = (row) => row?.configKey === 'tryon_recharge_plans'
+const isPaymentManualMethodsConfig = (row) => row?.configKey === 'payment_manual_methods'
+const isPaymentUniPreferredMethodsConfig = (row) => row?.configKey === 'payment_uni_preferred_methods'
 
 // 密钥键列表
 const secretKeys = ['tryon_provider_token']
@@ -353,7 +658,7 @@ const numberKeys = [
   'login_fail_max', 'login_fail_wait_seconds', 'points_exchange_rate',
   'order_close_minutes', 'presale_home_count', 'announcement_speed',
   'invite_reward_points', 'payment_tip_text_size',
-  'tryon_guest_init_points', 'tryon_register_reward_points', 'tryon_cost_points'
+  'tryon_guest_init_points', 'tryon_register_reward_points', 'tryon_invite_register_reward_points', 'tryon_cost_points'
 ]
 const isNumberConfig = (row) => numberKeys.includes(row.configKey)
 
@@ -375,6 +680,49 @@ const editJsonValue = reactive({})
 const newJsonLang = ref('')
 const newJsonVal = ref('')
 const tryonModels = ref([])
+const rechargePlans = ref([])
+const paymentManualMethods = ref([])
+const paymentPreferredMethods = ref([])
+const tryonModelActivePanels = ref([])
+const aliyunQuotaState = reactive({})
+
+const multilingualLangs = [
+  { code: 'zh', label: '中文 zh' },
+  { code: 'en', label: '英文 en' },
+  { code: 'mn', label: '蒙文 mn' },
+  { code: 'zh-TW', label: '繁体 zh-TW' },
+  { code: 'th', label: '泰语 th' },
+  { code: 'hi', label: '印地语 hi' },
+  { code: 'id', label: '印尼语 id' },
+]
+const multilingualCodes = multilingualLangs.map(item => item.code)
+
+const buildMultilingualObject = (value, fallback = '') => {
+  const source = value && typeof value === 'object' && !Array.isArray(value)
+    ? value
+    : {}
+  const baseText = value && typeof value === 'object' && !Array.isArray(value)
+    ? ''
+    : (value === undefined || value === null ? fallback : String(value))
+
+  const fallbackText = String(
+    source.zh ?? source.en ?? source.mn ?? source['zh-TW'] ?? source.th ?? source.hi ?? source.id ?? baseText ?? fallback
+  )
+
+  return multilingualCodes.reduce((acc, code) => {
+    acc[code] = String(source[code] ?? fallbackText)
+    return acc
+  }, {})
+}
+
+const displayI18nText = (value, fallback = '') => {
+  const normalized = buildMultilingualObject(value, fallback)
+  for (const code of multilingualCodes) {
+    const text = String(normalized[code] || '').trim()
+    if (text) return text
+  }
+  return fallback
+}
 
 const createTryonModelUid = () => `tryon_model_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`
 
@@ -407,19 +755,414 @@ const toStringArray = (value, fallback = []) => {
   return [...fallback]
 }
 
-const normalizeI18nObject = (value) => {
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    return {
-      zh: String(value.zh || ''),
-      en: String(value.en || ''),
-      mn: String(value.mn || ''),
+const normalizeGender = (value, fallback = 'woman') => {
+  const text = String(value || '').trim().toLowerCase()
+  if (text === 'woman' || text === 'man') {
+    return text
+  }
+  return fallback
+}
+
+const isAliyunModelForQuota = (model = {}) => {
+  const key = String(model.key || '').trim().toLowerCase()
+  const provider = String(model.provider || '').trim().toLowerCase()
+  const modelName = String(model.model || '').trim().toLowerCase()
+  return provider.includes('aliyun') || provider.includes('dashscope') || key.includes('aliyun') || modelName.startsWith('aitryon')
+}
+
+const inferSupportsRefiner = (model = {}) => {
+  if (!isAliyunModelForQuota(model)) {
+    return false
+  }
+  const modelName = String(model.model || '').trim().toLowerCase()
+  const key = String(model.key || '').trim().toLowerCase()
+  return modelName === 'aitryon' || modelName === 'aitryon-plus' || key.includes('aliyun_aitryon') || key.includes('aliyun_aitryon_plus')
+}
+
+const quotaStateKey = (model = {}) => String(model.__uid || model.key || '').trim()
+
+const ensureQuotaState = (model = {}) => {
+  const key = quotaStateKey(model)
+  if (!key) return null
+  if (!aliyunQuotaState[key]) {
+    aliyunQuotaState[key] = {
+      loading: false,
+      data: null,
+      error: '',
     }
   }
-  return {
-    zh: '',
-    en: '',
-    mn: '',
+  return aliyunQuotaState[key]
+}
+
+const getAliyunQuotaItem = (model = {}) => {
+  const state = ensureQuotaState(model)
+  return state?.data || null
+}
+
+const getAliyunQuotaError = (model = {}) => {
+  const state = ensureQuotaState(model)
+  return state?.error || ''
+}
+
+const isAliyunQuotaLoading = (model = {}) => {
+  const state = ensureQuotaState(model)
+  return !!state?.loading
+}
+
+const formatQuotaRefreshTime = (value) => {
+  if (!value) return '未刷新'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return '刷新时间未知'
   }
+  return `刷新于 ${date.toLocaleString()}`
+}
+
+const refreshAliyunQuota = async (model = {}, force = false) => {
+  if (!isAliyunModelForQuota(model)) {
+    return
+  }
+
+  const state = ensureQuotaState(model)
+  if (!state) return
+
+  const modelKey = String(model.key || '').trim()
+  if (!modelKey) {
+    state.error = '请先填写模型 key 后再刷新额度估算'
+    return
+  }
+
+  if (!force && state.data) {
+    return
+  }
+
+  state.loading = true
+  state.error = ''
+  try {
+    const res = await getAliyunTryonQuotaEstimate({ modelKey })
+    if (res.code !== 0) {
+      state.error = res.msg || '获取额度估算失败'
+      state.data = null
+      return
+    }
+    const list = Array.isArray(res?.data?.list) ? res.data.list : []
+    const matched = list.find(item => String(item.modelKey || '').trim() === modelKey)
+    if (!matched) {
+      state.error = '未找到该模型额度数据'
+      state.data = null
+      return
+    }
+    state.data = matched
+  } catch (e) {
+    state.error = e?.message || '获取额度估算失败'
+    state.data = null
+  } finally {
+    state.loading = false
+  }
+}
+
+const handleTryonModelPanelChange = (panelNames) => {
+  const activePanels = Array.isArray(panelNames)
+    ? panelNames
+    : (panelNames ? [panelNames] : [])
+
+  activePanels.forEach((panelName) => {
+    const model = tryonModels.value.find(item => item.__uid === panelName)
+    if (model && isAliyunModelForQuota(model)) {
+      refreshAliyunQuota(model, true)
+    }
+  })
+}
+
+const normalizeI18nObject = (value) => {
+  return buildMultilingualObject(value, '')
+}
+
+const normalizeRechargeI18nObject = (value, fallback = '') => {
+  return buildMultilingualObject(value, fallback)
+}
+
+const createPaymentMethodUid = () => `payment_method_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`
+
+const defaultPaymentMethodNameByKey = (key = '') => {
+  const normalizedKey = String(key || '').trim().toLowerCase()
+  const defaults = {
+    qrcode: { zh: '二维码支付', en: 'QR Payment', mn: 'QR төлбөр' },
+    contact: { zh: '联系客服', en: 'Contact Support', mn: 'Хэрэглэгчийн дэмжлэг' },
+    wechat: { zh: '微信支付', en: 'WeChat Pay', mn: 'WeChat Pay' },
+    alipay: { zh: '支付宝', en: 'Alipay', mn: 'Alipay' },
+    bank_card_cn: { zh: '银行卡(国内)', en: 'Bank Card (CN)', mn: 'Банкны карт (CN)' },
+    bank_card_us: { zh: '银行卡(美国)', en: 'Bank Card (US)', mn: 'Банкны карт (US)' },
+    bank_card_mn: { zh: '银行卡(蒙古)', en: 'Bank Card (MN)', mn: 'Банкны карт (MN)' },
+    paypal: { zh: 'PayPal', en: 'PayPal', mn: 'PayPal' },
+  }
+  return normalizeRechargeI18nObject(defaults[normalizedKey] || {}, normalizedKey || 'Payment')
+}
+
+const createDefaultPaymentMethod = () => ({
+  __uid: createPaymentMethodUid(),
+  key: '',
+  sort: 99,
+  enabled: true,
+  manual: true,
+  image: '',
+  externalPath: '',
+  name: defaultPaymentMethodNameByKey(''),
+  copyText: normalizeRechargeI18nObject({}, ''),
+})
+
+const normalizePaymentMethod = (item = {}) => {
+  const key = String(item.key || '').trim().toLowerCase()
+  const normalizedName = defaultPaymentMethodNameByKey(key)
+  const sourceName = normalizeRechargeI18nObject(item.name, key)
+  const sourceCopyText = normalizeRechargeI18nObject(item.copyText, '')
+  return {
+    __uid: createPaymentMethodUid(),
+    key,
+    sort: toInt(item.sort, 99),
+    enabled: toBool(item.enabled, true),
+    manual: toBool(item.manual, key === 'qrcode' || key === 'contact'),
+    image: String(item.image || '').trim(),
+    externalPath: String(item.externalPath || '').trim(),
+    name: {
+      ...normalizedName,
+      ...sourceName,
+    },
+    copyText: sourceCopyText,
+  }
+}
+
+const parsePaymentMethodsValue = (rawValue) => {
+  try {
+    const parsed = JSON.parse(rawValue || '[]')
+    if (!Array.isArray(parsed)) return []
+    return parsed.map(item => normalizePaymentMethod(item))
+  } catch {
+    return []
+  }
+}
+
+const buildPaymentMethodsPayload = () => paymentManualMethods.value.map(item => ({
+  key: String(item.key || '').trim().toLowerCase(),
+  sort: toInt(item.sort, 99),
+  enabled: !!item.enabled,
+  manual: !!item.manual,
+  image: String(item.image || '').trim(),
+  externalPath: String(item.externalPath || '').trim(),
+  name: normalizeRechargeI18nObject(item.name, String(item.key || '').trim().toLowerCase()),
+  copyText: normalizeRechargeI18nObject(item.copyText, ''),
+}))
+
+const paymentMethodsCount = (rawValue) => parsePaymentMethodsValue(rawValue).length
+
+const addPaymentMethod = () => {
+  paymentManualMethods.value.push(createDefaultPaymentMethod())
+}
+
+const clonePaymentMethod = (index) => {
+  const method = paymentManualMethods.value[index]
+  if (!method) return
+  const cloned = normalizePaymentMethod(method)
+  if (cloned.key) {
+    cloned.key = `${cloned.key}_copy`
+  }
+  paymentManualMethods.value.splice(index + 1, 0, cloned)
+}
+
+const removePaymentMethod = (index) => {
+  paymentManualMethods.value.splice(index, 1)
+}
+
+const validatePaymentMethods = () => {
+  const keys = new Set()
+  for (let i = 0; i < paymentManualMethods.value.length; i++) {
+    const method = paymentManualMethods.value[i]
+    const key = String(method.key || '').trim().toLowerCase()
+    if (!key) {
+      ElMessage.warning(`第 ${i + 1} 个支付方式缺少 key`)
+      return false
+    }
+    if (keys.has(key)) {
+      ElMessage.warning(`支付方式 key 重复: ${key}`)
+      return false
+    }
+    keys.add(key)
+    const name = String(displayI18nText(method.name, '') || '').trim()
+    if (!name) {
+      ElMessage.warning(`第 ${i + 1} 个支付方式缺少名称`)
+      return false
+    }
+  }
+  return true
+}
+
+const createPaymentPreferredMethodUid = () => `payment_preferred_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`
+
+const createDefaultPaymentPreferredMethod = () => ({
+  __uid: createPaymentPreferredMethodUid(),
+  key: '',
+  sort: 99,
+  enabled: true,
+  image: '',
+  externalPath: '',
+  name: defaultPaymentMethodNameByKey(''),
+  copyText: normalizeRechargeI18nObject({}, ''),
+})
+
+const normalizePaymentPreferredMethod = (item = {}) => {
+  const key = String(item.key || '').trim().toLowerCase()
+  const normalizedName = defaultPaymentMethodNameByKey(key)
+  const sourceName = normalizeRechargeI18nObject(item.name, key)
+  const sourceCopyText = normalizeRechargeI18nObject(item.copyText, '')
+  return {
+    __uid: createPaymentPreferredMethodUid(),
+    key,
+    sort: toInt(item.sort, 99),
+    enabled: toBool(item.enabled, true),
+    image: String(item.image || '').trim(),
+    externalPath: String(item.externalPath || '').trim(),
+    name: {
+      ...normalizedName,
+      ...sourceName,
+    },
+    copyText: sourceCopyText,
+  }
+}
+
+const parsePaymentPreferredMethodsValue = (rawValue) => {
+  try {
+    const parsed = JSON.parse(rawValue || '[]')
+    if (!Array.isArray(parsed)) return []
+    return parsed.map(item => normalizePaymentPreferredMethod(item))
+  } catch {
+    return []
+  }
+}
+
+const buildPaymentPreferredMethodsPayload = () => paymentPreferredMethods.value.map(item => ({
+  key: String(item.key || '').trim().toLowerCase(),
+  sort: toInt(item.sort, 99),
+  enabled: !!item.enabled,
+  image: String(item.image || '').trim(),
+  externalPath: String(item.externalPath || '').trim(),
+  name: normalizeRechargeI18nObject(item.name, String(item.key || '').trim().toLowerCase()),
+  copyText: normalizeRechargeI18nObject(item.copyText, ''),
+}))
+
+const paymentPreferredMethodsCount = (rawValue) => parsePaymentPreferredMethodsValue(rawValue).length
+
+const addPaymentPreferredMethod = () => {
+  paymentPreferredMethods.value.push(createDefaultPaymentPreferredMethod())
+}
+
+const clonePaymentPreferredMethod = (index) => {
+  const method = paymentPreferredMethods.value[index]
+  if (!method) return
+  const cloned = normalizePaymentPreferredMethod(method)
+  if (cloned.key) {
+    cloned.key = `${cloned.key}_copy`
+  }
+  paymentPreferredMethods.value.splice(index + 1, 0, cloned)
+}
+
+const removePaymentPreferredMethod = (index) => {
+  paymentPreferredMethods.value.splice(index, 1)
+}
+
+const validatePaymentPreferredMethods = () => {
+  const keys = new Set()
+  for (let i = 0; i < paymentPreferredMethods.value.length; i++) {
+    const method = paymentPreferredMethods.value[i]
+    const key = String(method.key || '').trim().toLowerCase()
+    if (!key) {
+      ElMessage.warning(`第 ${i + 1} 个期望支付方式缺少 key`)
+      return false
+    }
+    if (key === 'qrcode' || key === 'contact') {
+      ElMessage.warning(`第 ${i + 1} 个期望支付方式不能使用 ${key}`)
+      return false
+    }
+    if (keys.has(key)) {
+      ElMessage.warning(`期望支付方式 key 重复: ${key}`)
+      return false
+    }
+    keys.add(key)
+    const name = String(displayI18nText(method.name, '') || '').trim()
+    if (!name) {
+      ElMessage.warning(`第 ${i + 1} 个期望支付方式缺少名称`)
+      return false
+    }
+  }
+  return true
+}
+
+const createRechargePlanUid = () => `tryon_recharge_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`
+
+const createDefaultRechargePlan = () => ({
+  __uid: createRechargePlanUid(),
+  points: normalizeRechargeI18nObject({ zh: '50', en: '50', mn: '50' }, '50'),
+  coinLabel: normalizeRechargeI18nObject({ zh: '试衣币', en: 'Try-on Coins', mn: 'Туршилтын зоос' }, 'Try-on Coins'),
+  currencySymbol: normalizeRechargeI18nObject({ zh: '￥', en: 'CNY ', mn: 'CNY ' }, 'CNY '),
+  price: normalizeRechargeI18nObject({ zh: '9.9', en: '9.9', mn: '9.9' }, '9.9'),
+  currencySuffix: normalizeRechargeI18nObject({ zh: '元', en: '', mn: '' }, ''),
+})
+
+const normalizeRechargePlan = (item = {}) => ({
+  __uid: createRechargePlanUid(),
+  points: normalizeRechargeI18nObject(item.points, '50'),
+  coinLabel: normalizeRechargeI18nObject(item.coinLabel || item.label, '试衣币'),
+  currencySymbol: normalizeRechargeI18nObject(item.currencySymbol, '￥'),
+  price: normalizeRechargeI18nObject(item.price, '9.9'),
+  currencySuffix: normalizeRechargeI18nObject(item.currencySuffix || item.suffix, '元'),
+})
+
+const parseRechargePlansValue = (rawValue) => {
+  try {
+    const parsed = JSON.parse(rawValue || '[]')
+    if (!Array.isArray(parsed)) return []
+    return parsed.map(item => normalizeRechargePlan(item))
+  } catch {
+    return []
+  }
+}
+
+const buildRechargePlansPayload = () => rechargePlans.value.map(item => ({
+  points: normalizeRechargeI18nObject(item.points, '0'),
+  coinLabel: normalizeRechargeI18nObject(item.coinLabel, ''),
+  currencySymbol: normalizeRechargeI18nObject(item.currencySymbol, ''),
+  price: normalizeRechargeI18nObject(item.price, '0'),
+  currencySuffix: normalizeRechargeI18nObject(item.currencySuffix, ''),
+}))
+
+const rechargePlansCount = (rawValue) => parseRechargePlansValue(rawValue).length
+
+const addRechargePlan = () => {
+  rechargePlans.value.push(createDefaultRechargePlan())
+}
+
+const cloneRechargePlan = (index) => {
+  const item = rechargePlans.value[index]
+  if (!item) return
+  rechargePlans.value.splice(index + 1, 0, normalizeRechargePlan(item))
+}
+
+const removeRechargePlan = (index) => {
+  rechargePlans.value.splice(index, 1)
+}
+
+const validateRechargePlans = () => {
+  for (let i = 0; i < rechargePlans.value.length; i++) {
+    const item = rechargePlans.value[i]
+    if (!String(displayI18nText(item.points, '')).trim()) {
+      ElMessage.warning(`第 ${i + 1} 个套餐缺少试衣币数量`)
+      return false
+    }
+    if (!String(displayI18nText(item.price, '')).trim()) {
+      ElMessage.warning(`第 ${i + 1} 个套餐缺少价格`)
+      return false
+    }
+  }
+  return true
 }
 
 const createDefaultTryonModel = () => ({
@@ -428,21 +1171,40 @@ const createDefaultTryonModel = () => ({
   enabled: true,
   scenes: ['clothes'],
   model: 'aitryon',
-  name: { zh: '', en: '', mn: '' },
-  desc: { zh: '', en: '', mn: '' },
+  name: buildMultilingualObject({}, ''),
+  desc: buildMultilingualObject({}, ''),
   cost: 1,
   provider: 'aliyun',
   mode: 'prod',
   url: '',
   taskQueryUrl: '',
   token: '',
+  apiName: '/tryon',
+  garmentDes: 'clothing item',
+  isChecked: true,
+  isCheckedCrop: false,
+  denoiseSteps: 30,
+  seed: 42,
   resolution: -1,
   restoreFace: true,
   clothesType: ['upper'],
+  supportsRefiner: false,
+  refinerModel: 'aitryon-refiner',
+  refinerGender: 'woman',
+  refinerUrl: '',
+  refinerTaskQueryUrl: '',
+  refinerToken: '',
+  freeQuotaTotal: 400,
+  refinerFreeQuotaTotal: 400,
+  refinerDesc: buildMultilingualObject({}, ''),
 })
 
 const normalizeTryonModel = (item = {}, index = 0) => {
   const defaultModel = createDefaultTryonModel()
+  const inferredSupportsRefiner = inferSupportsRefiner(item)
+  const defaultFreeQuota = isAliyunModelForQuota(item) ? 400 : 0
+  const normalizedFreeQuota = Math.max(0, toInt(item.freeQuotaTotal, defaultFreeQuota))
+  const normalizedRefinerFreeQuota = Math.max(0, toInt(item.refinerFreeQuotaTotal, inferredSupportsRefiner ? (normalizedFreeQuota || 400) : 0))
   return {
     __uid: createTryonModelUid(),
     key: String(item.key || item.modelKey || ''),
@@ -457,9 +1219,24 @@ const normalizeTryonModel = (item = {}, index = 0) => {
     url: String(item.url || item.providerUrl || ''),
     taskQueryUrl: String(item.taskQueryUrl || ''),
     token: String(item.token || item.providerToken || ''),
+    apiName: String(item.apiName || defaultModel.apiName),
+    garmentDes: String(item.garmentDes || defaultModel.garmentDes),
+    isChecked: toBool(item.isChecked, true),
+    isCheckedCrop: toBool(item.isCheckedCrop, false),
+    denoiseSteps: Math.max(1, toInt(item.denoiseSteps, 30)),
+    seed: toInt(item.seed, 42),
     resolution: toInt(item.resolution, -1),
     restoreFace: toBool(item.restoreFace, true),
     clothesType: toStringArray(item.clothesType, ['upper']),
+    supportsRefiner: toBool(item.supportsRefiner, inferredSupportsRefiner),
+    refinerModel: String(item.refinerModel || defaultModel.refinerModel),
+    refinerGender: normalizeGender(item.refinerGender, defaultModel.refinerGender),
+    refinerUrl: String(item.refinerUrl || ''),
+    refinerTaskQueryUrl: String(item.refinerTaskQueryUrl || ''),
+    refinerToken: String(item.refinerToken || ''),
+    freeQuotaTotal: normalizedFreeQuota,
+    refinerFreeQuotaTotal: normalizedRefinerFreeQuota,
+    refinerDesc: normalizeI18nObject(item.refinerDesc),
   }
 }
 
@@ -489,9 +1266,24 @@ const buildTryonModelsPayload = () => {
     url: String(item.url || '').trim(),
     taskQueryUrl: String(item.taskQueryUrl || '').trim(),
     token: String(item.token || '').trim(),
+    apiName: String(item.apiName || '').trim(),
+    garmentDes: String(item.garmentDes || '').trim(),
+    isChecked: !!item.isChecked,
+    isCheckedCrop: !!item.isCheckedCrop,
+    denoiseSteps: Math.max(1, toInt(item.denoiseSteps, 30)),
+    seed: toInt(item.seed, 42),
     resolution: toInt(item.resolution, -1),
     restoreFace: !!item.restoreFace,
     clothesType: toStringArray(item.clothesType, []),
+    supportsRefiner: !!item.supportsRefiner,
+    refinerModel: String(item.refinerModel || '').trim(),
+    refinerGender: normalizeGender(item.refinerGender, 'woman'),
+    refinerUrl: String(item.refinerUrl || '').trim(),
+    refinerTaskQueryUrl: String(item.refinerTaskQueryUrl || '').trim(),
+    refinerToken: String(item.refinerToken || '').trim(),
+    freeQuotaTotal: Math.max(0, toInt(item.freeQuotaTotal, 0)),
+    refinerFreeQuotaTotal: Math.max(0, toInt(item.refinerFreeQuotaTotal, 0)),
+    refinerDesc: normalizeI18nObject(item.refinerDesc),
   }))
 }
 
@@ -505,6 +1297,10 @@ const validateTryonModels = () => {
     }
     if (!Array.isArray(item.scenes) || item.scenes.length === 0) {
       ElMessage.warning(`第 ${modelIndex} 个模型至少要选择一个场景`)
+      return false
+    }
+    if (item.supportsRefiner && !String(item.refinerModel || '').trim()) {
+      ElMessage.warning(`第 ${modelIndex} 个模型已开启精修，但缺少 refinerModel`)
       return false
     }
   }
@@ -569,6 +1365,13 @@ const handleSizeChange = (val) => {
 const openEdit = (row) => {
   editForm.value = { ...row }
   tryonModels.value = []
+  rechargePlans.value = []
+  paymentManualMethods.value = []
+  paymentPreferredMethods.value = []
+  tryonModelActivePanels.value = []
+  Object.keys(aliyunQuotaState).forEach((key) => {
+    delete aliyunQuotaState[key]
+  })
   if (isBooleanConfig(row)) {
     editBoolValue.value = row.configValue === 'true'
   }
@@ -580,6 +1383,24 @@ const openEdit = (row) => {
     const rawValue = String(row.configValue || '').trim()
     if (rawValue && rawValue !== '[]' && tryonModels.value.length === 0) {
       ElMessage.warning('当前试衣模型配置格式异常，已按空列表打开，请确认后保存')
+    }
+  } else if (isTryonRechargePlansConfig(row)) {
+    rechargePlans.value = parseRechargePlansValue(row.configValue)
+    const rawValue = String(row.configValue || '').trim()
+    if (rawValue && rawValue !== '[]' && rechargePlans.value.length === 0) {
+      ElMessage.warning('当前充值套餐配置格式异常，已按空列表打开，请确认后保存')
+    }
+  } else if (isPaymentManualMethodsConfig(row)) {
+    paymentManualMethods.value = parsePaymentMethodsValue(row.configValue)
+    const rawValue = String(row.configValue || '').trim()
+    if (rawValue && rawValue !== '[]' && paymentManualMethods.value.length === 0) {
+      ElMessage.warning('当前支付方式配置格式异常，已按空列表打开，请确认后保存')
+    }
+  } else if (isPaymentUniPreferredMethodsConfig(row)) {
+    paymentPreferredMethods.value = parsePaymentPreferredMethodsValue(row.configValue)
+    const rawValue = String(row.configValue || '').trim()
+    if (rawValue && rawValue !== '[]' && paymentPreferredMethods.value.length === 0) {
+      ElMessage.warning('当前Uni期望支付方式配置格式异常，已按空列表打开，请确认后保存')
     }
   } else if (isJsonConfig(row)) {
     try {
@@ -626,6 +1447,21 @@ const handleSave = async () => {
       return
     }
     configValue = JSON.stringify(buildTryonModelsPayload())
+  } else if (isTryonRechargePlansConfig(editForm.value)) {
+    if (!validateRechargePlans()) {
+      return
+    }
+    configValue = JSON.stringify(buildRechargePlansPayload())
+  } else if (isPaymentManualMethodsConfig(editForm.value)) {
+    if (!validatePaymentMethods()) {
+      return
+    }
+    configValue = JSON.stringify(buildPaymentMethodsPayload())
+  } else if (isPaymentUniPreferredMethodsConfig(editForm.value)) {
+    if (!validatePaymentPreferredMethods()) {
+      return
+    }
+    configValue = JSON.stringify(buildPaymentPreferredMethodsPayload())
   } else if (isJsonConfig(editForm.value)) {
     configValue = JSON.stringify(editJsonValue)
   }
@@ -708,6 +1544,41 @@ onMounted(() => {
 
 .tryon-model-panel {
   padding: 6px 4px;
+}
+
+.tryon-model-quota {
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: #fafcff;
+}
+
+.tryon-model-quota-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.tryon-model-quota-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tryon-model-quota-tip {
+  margin-top: 6px;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.tryon-model-quota-error {
+  margin-top: 6px;
+  color: #f56c6c;
+  font-size: 12px;
 }
 
 .tryon-model-grid {

@@ -79,11 +79,49 @@ func (e *FileUploadAndDownloadService) GetFileRecordInfoList(info request.ExaAtt
 		db = db.Where("class_id = ?", info.ClassId)
 	}
 
+	if normalizedPosition := normalizeUploadPosition(info.Position); normalizedPosition != "" {
+		db = db.Where("position = ?", normalizedPosition)
+	}
+
 	err = db.Count(&total).Error
 	if err != nil {
 		return
 	}
 	err = db.Limit(limit).Offset(offset).Order("id desc").Find(&list).Error
+	if err != nil {
+		return
+	}
+
+	for i := range list {
+		item := &list[i]
+		changed := false
+		if strings.TrimSpace(item.ThumbnailURL) == "" {
+			item.ThumbnailURL = item.Url
+			changed = true
+		}
+		if strings.TrimSpace(item.Categories) == "" {
+			item.Categories = inferMediaCategory("", "", item.Url)
+			changed = true
+		}
+		if strings.TrimSpace(item.Position) == "" {
+			item.Position = inferUploadPosition("", "", item.Url)
+			changed = true
+		}
+		if item.Size < 0 {
+			item.Size = 0
+			changed = true
+		}
+		item.Keywords = strings.TrimSpace(item.Keywords)
+		if changed {
+			_ = global.GVA_DB.Model(&example.ExaFileUploadAndDownload{}).Where("id = ?", item.ID).Updates(map[string]interface{}{
+				"thumbnail_url": item.ThumbnailURL,
+				"categories":    item.Categories,
+				"position":      item.Position,
+				"keywords":      item.Keywords,
+				"size":          item.Size,
+			}).Error
+		}
+	}
 	return list, total, err
 }
 
@@ -93,19 +131,29 @@ func (e *FileUploadAndDownloadService) GetFileRecordInfoList(info request.ExaAtt
 //@param: header *multipart.FileHeader, noSave string
 //@return: file model.ExaFileUploadAndDownload, err error
 
-func (e *FileUploadAndDownloadService) UploadFile(header *multipart.FileHeader, noSave string, classId int, folder string) (file example.ExaFileUploadAndDownload, err error) {
+func (e *FileUploadAndDownloadService) UploadFile(header *multipart.FileHeader, noSave string, classId int, folder string, uploadType string, uploadPosition string) (file example.ExaFileUploadAndDownload, err error) {
 	oss := upload.NewOss()
 	filePath, key, uploadErr := upload.UploadFileToFolder(oss, header, folder)
 	if uploadErr != nil {
 		return file, uploadErr
 	}
+	mediaCategory := inferMediaCategory(uploadType, folder, filePath)
+	normalizedPosition := normalizeUploadPosition(uploadPosition)
+	if normalizedPosition == "" {
+		normalizedPosition = inferUploadPosition(uploadType, folder, filePath)
+	}
 	s := strings.Split(header.Filename, ".")
 	f := example.ExaFileUploadAndDownload{
-		Url:     filePath,
-		Name:    header.Filename,
-		ClassId: classId,
-		Tag:     s[len(s)-1],
-		Key:     key,
+		Url:          filePath,
+		ThumbnailURL: filePath,
+		Categories:   mediaCategory,
+		Position:     normalizedPosition,
+		Keywords:     "",
+		Size:         header.Size,
+		Name:         header.Filename,
+		ClassId:      classId,
+		Tag:          s[len(s)-1],
+		Key:          key,
 	}
 	if noSave == "0" {
 		// 检查是否已存在相同key的记录
@@ -126,5 +174,76 @@ func (e *FileUploadAndDownloadService) UploadFile(header *multipart.FileHeader, 
 //@return: error
 
 func (e *FileUploadAndDownloadService) ImportURL(file *[]example.ExaFileUploadAndDownload) error {
+	if file == nil {
+		return nil
+	}
+
+	for i := range *file {
+		item := &(*file)[i]
+		if strings.TrimSpace(item.ThumbnailURL) == "" {
+			item.ThumbnailURL = item.Url
+		}
+		if strings.TrimSpace(item.Categories) == "" {
+			item.Categories = inferMediaCategory("", "", item.Url)
+		}
+		if strings.TrimSpace(item.Position) == "" {
+			item.Position = inferUploadPosition("", "", item.Url)
+		}
+		if item.Keywords == "" {
+			item.Keywords = ""
+		}
+		if item.Size < 0 {
+			item.Size = 0
+		}
+	}
+
 	return global.GVA_DB.Create(&file).Error
+}
+
+func inferMediaCategory(uploadType string, folder string, filePath string) string {
+	parts := []string{uploadType, folder, filePath}
+	joined := strings.ToLower(strings.Join(parts, " "))
+
+	if strings.Contains(joined, "shoe") {
+		return "shoe"
+	}
+	if strings.Contains(joined, "person") || strings.Contains(joined, "model") {
+		return "person"
+	}
+	if strings.Contains(joined, "cloth") || strings.Contains(joined, "upper") || strings.Contains(joined, "lower") {
+		return "cloth"
+	}
+
+	return "cloth"
+}
+
+func normalizeUploadPosition(raw string) string {
+	value := strings.ToLower(strings.TrimSpace(raw))
+	switch value {
+	case "", "all":
+		return ""
+	case "tryon", "try-on", "fitting", "shoe", "shoeroom", "tryon_position":
+		return "tryon"
+	case "kefu", "cs", "chat", "workbench", "customer_service", "customer-service", "kefu_position":
+		return "kefu"
+	case "other":
+		return "other"
+	default:
+		return ""
+	}
+}
+
+func inferUploadPosition(uploadType string, folder string, filePath string) string {
+	parts := []string{uploadType, folder, filePath}
+	joined := strings.ToLower(strings.Join(parts, " "))
+
+	if strings.Contains(joined, "kefu") || strings.Contains(joined, "workbench") || strings.Contains(joined, "chat") || strings.Contains(joined, "/cs") || strings.Contains(joined, "cs/") {
+		return "kefu"
+	}
+
+	if strings.Contains(joined, "tryon") || strings.Contains(joined, "try-on") || strings.Contains(joined, "shoe") || strings.Contains(joined, "shoeroom") || strings.Contains(joined, "cloth-on") {
+		return "tryon"
+	}
+
+	return "other"
 }

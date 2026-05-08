@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"fmt"
+
 	sysModel "github.com/flipped-aurora/gin-vue-admin/server/model/system"
 	"github.com/flipped-aurora/gin-vue-admin/server/service/system"
 	"github.com/pkg/errors"
@@ -101,6 +102,7 @@ func (i *initDictDetail) InitializeData(ctx context.Context) (context.Context, e
 
 	dicts[6].SysDictionaryDetails = []sysModel.SysDictionaryDetail{
 		{Label: "待付款", Value: "0", Extend: "", Status: &True},
+		{Label: "待后台确认", Value: "8", Extend: "", Status: &True},
 		{Label: "待发货", Value: "1", Extend: "", Status: &True},
 		{Label: "待收货", Value: "2", Extend: "", Status: &True},
 		{Label: "已确认收货", Value: "3", Extend: "", Status: &True},

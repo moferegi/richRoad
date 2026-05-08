@@ -15,6 +15,10 @@ export const useLangStore = defineStore('lang', () => {
   const enabledLangs = ref([]) // 从后端加载的启用语言列表
   const loaded = ref(false)
 
+  const getEffectiveLocale = (lang) => {
+    return lang || locale.value || uni.getStorageSync('app-lang') || 'mn'
+  }
+
   // 初始化：从后端获取启用的语言和默认语言
   const initLangs = async () => {
     if (loaded.value) return
@@ -58,17 +62,37 @@ export const useLangStore = defineStore('lang', () => {
     updateTabBar(lang)
   }
 
-  const updateTabBar = (lang) => {
+  const updateTabBar = (lang, retry = 0) => {
+    const currentLang = getEffectiveLocale(lang)
     const tabs = [
       { index: 0, key: 'tryonRoom' },
       { index: 1, key: 'shoeRoom' },
       { index: 2, key: 'clothesPage' },
       { index: 3, key: 'tabMy' },
     ]
+
+    let finished = 0
+    let failed = 0
+    const tryNext = () => {
+      if (finished < tabs.length) return
+      if (failed > 0 && retry < 8) {
+        setTimeout(() => updateTabBar(currentLang, retry + 1), 120 * (retry + 1))
+      }
+    }
+
     tabs.forEach(item => {
       uni.setTabBarItem({
         index: item.index,
-        text: t(item.key, lang)
+        text: t(item.key, currentLang),
+        success: () => {
+          finished += 1
+          tryNext()
+        },
+        fail: () => {
+          failed += 1
+          finished += 1
+          tryNext()
+        }
       })
     })
   }

@@ -7,9 +7,9 @@
       <view class="nf-navbar-status"></view>
       <view class="nf-navbar-content">
         <view class="nf-navbar-back" @tap="goBack">
-          <uni-icons type="left" size="20" color="#fff"></uni-icons>
+          <uni-icons type="left" size="20" color="#0f172a"></uni-icons>
         </view>
-        <text class="nf-navbar-title">{{ $t('myPoints') }}</text>
+        <text class="nf-navbar-title">{{ pageTitle }}</text>
         <view style="width: 64rpx;"></view>
       </view>
     </view>
@@ -18,28 +18,30 @@
       <!-- 积分概览卡片 -->
       <view class="nf-points-hero">
         <view class="nf-points-hero-glow"></view>
-        <text class="nf-points-hero-label">{{ $t('availablePoints') }}</text>
+        <text class="nf-points-hero-label">{{ heroLabel }}</text>
         <text class="nf-points-hero-value">{{ userPoints }}</text>
-        <text class="nf-points-hero-tip">{{ $t('pointsDeductTip') }}</text>
+        <text class="nf-points-hero-tip">{{ heroTip }}</text>
       </view>
 
       <!-- 积分记录列表 -->
       <view class="nf-section-title">
         <view class="nf-section-line"></view>
-        <text>{{ $t('pointsDetail') }}</text>
+        <text>{{ detailTitle }}</text>
         <view class="nf-section-line"></view>
       </view>
 
       <view class="nf-empty" v-if="recordList.length === 0 && !loading">
         <view class="nf-empty-icon">💎</view>
-        <text class="nf-empty-text">{{ $t('noPointsRecord') }}</text>
+        <text class="nf-empty-text">{{ emptyText }}</text>
       </view>
 
       <view class="nf-record-list" v-else>
         <view class="nf-record-card" v-for="(item, index) in recordList" :key="index">
-          <view class="nf-record-icon">{{ item.changeType === 'increase' ? '⬆' : '⬇' }}</view>
+          <view class="nf-record-icon" :class="item.changeType === 'increase' ? 'increase' : 'decrease'">
+            {{ item.changeType === 'increase' ? '+' : '-' }}
+          </view>
           <view class="nf-record-info">
-            <text class="nf-record-reason">{{ translateReason(item.reason) }}</text>
+            <text class="nf-record-reason">{{ translateReason(item) }}</text>
             <text class="nf-record-time">{{ formatTime(item.CreatedAt) }}</text>
           </view>
           <text class="nf-record-amount" :class="item.changeType === 'increase' ? 'nf-add' : 'nf-sub'">
@@ -51,54 +53,123 @@
       <view class="nf-load-more" v-if="recordList.length > 0">
         <text class="nf-load-more-text" v-if="loading">...</text>
         <text class="nf-load-more-text" v-else-if="noMore">{{ $t('reachedBottom') }}</text>
-        <text class="nf-load-more-text" v-else @tap="loadMore">{{ $t('loadMore') }}</text>
+        <text class="nf-load-more-text" v-else-if="reachedBottom" @tap="loadMore">{{ $t('loadMore') }}</text>
       </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { onReachBottom } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onLoad, onReachBottom, onShow } from '@dcloudio/uni-app'
 import { getUserInfo } from '@/api/base.js'
 import { request } from '@/utils/request.js'
+import { localText, t as i18nT } from '@/utils/i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
+const mode = ref('point')
+const assetType = ref('point')
 
-// 后端 reason 中文 → i18n key 映射
-const reasonMap = {
-  '新用户注册奖励': 'reason_newUserReward',
-  '订单完成，获得奖励': 'reason_orderReward',
-  '下级用户首单完成奖励': 'reason_subUserReward',
-  '订单积分抵扣': 'reason_pointDeduct',
-  '订单取消，返还已使用积分': 'reason_orderCancelRefund',
-  '签到奖励': 'reason_signInReward',
-  '订单取消，扣除已获得积分': 'reason_orderCancelDeduct',
+const REASON_KEYS = [
+  'reason_newUserReward',
+  'reason_orderReward',
+  'reason_subUserReward',
+  'reason_pointDeduct',
+  'reason_orderCancelRefund',
+  'reason_signInReward',
+  'reason_orderCancelDeduct',
+  'reason_tryonTaskDeduct',
+  'reason_tryonTaskRefund',
+]
+
+const OPERATION_REASON_KEY_MAP = {
+  tryon_consume: 'reason_tryonTaskDeduct',
+  tryon_refund: 'reason_tryonTaskRefund',
 }
 
-const translateReason = (reason) => {
-  if (!reason) return $t.value('pointsChange')
-  const key = reasonMap[reason]
-  if (key) return $t.value(key)
-  return reason
+const REASON_ALIAS_LANGS = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id']
+
+const buildReasonAliasMap = () => {
+  const aliasMap = {}
+
+  REASON_KEYS.forEach((key) => {
+    aliasMap[key] = key
+
+    REASON_ALIAS_LANGS.forEach((lang) => {
+      const text = String(i18nT(key, lang) || '').trim()
+      if (!text) return
+      aliasMap[text] = key
+      aliasMap[text.replace(/\s+/g, '')] = key
+    })
+  })
+
+  return aliasMap
+}
+
+const reasonAliasMap = buildReasonAliasMap()
+
+const translateReason = (record) => {
+  const reason = record?.reason ?? record?.Reason
+  const operationType = String(record?.operationType ?? record?.OperationType ?? '').trim().toLowerCase()
+
+  if (reason && typeof reason === 'object') {
+    const text = localText(reason, langStore.locale)
+    if (text) return text
+  }
+
+  let rawReason = String(reason || '').trim()
+  if (!rawReason) return $t.value('pointsChange')
+
+  if ((rawReason.startsWith('{') || rawReason.startsWith('['))) {
+    try {
+      const parsed = JSON.parse(rawReason)
+      const text = localText(parsed, langStore.locale)
+      if (text) return text
+      rawReason = String(text || '').trim() || rawReason
+    } catch {
+      // ignore parse error
+    }
+  }
+
+  const normalizedReason = rawReason.replace(/\s+/g, '')
+  const reasonKey = reasonAliasMap[rawReason] || reasonAliasMap[normalizedReason]
+  if (reasonKey) return $t.value(reasonKey)
+
+  if (operationType && OPERATION_REASON_KEY_MAP[operationType]) {
+    return $t.value(OPERATION_REASON_KEY_MAP[operationType])
+  }
+
+  return rawReason
 }
 
 const userPoints = ref(0)
 const recordList = ref([])
 const loading = ref(false)
 const noMore = ref(false)
+const reachedBottom = ref(false)
 const page = ref(1)
 const pageSize = 10
+
+const isTryonMode = computed(() => mode.value === 'tryon' || assetType.value === 'tryon_point')
+const pageTitle = computed(() => isTryonMode.value ? $t.value('tryonPointRecord') : $t.value('myPoints'))
+const heroLabel = computed(() => isTryonMode.value ? $t.value('availableTryonCoins') : $t.value('availablePoints'))
+const heroTip = computed(() => isTryonMode.value ? $t.value('tryonCoinDeductTip') : $t.value('pointsDeductTip'))
+const detailTitle = computed(() => isTryonMode.value ? $t.value('tryonPointDetails') : $t.value('pointsDetail'))
+const emptyText = computed(() => isTryonMode.value ? $t.value('noTryonPointRecord') : $t.value('noPointsRecord'))
 
 const goBack = () => { uni.navigateBack() }
 
 const loadUserPoints = async () => {
   try {
     const res = await getUserInfo()
-    if (res.code === 0) userPoints.value = res.data.point || 0
-  } catch (e) { console.error('获取积分失败', e) }
+    if (res.code === 0) {
+      userPoints.value = isTryonMode.value
+        ? Number((res.data?.tryonPoint ?? 0) || 0)
+        : Number((res.data?.point ?? 0) || 0)
+    }
+  } catch (e) { console.error('Failed to load points', e) }
 }
 
 const loadRecords = async (isLoadMore = false) => {
@@ -108,7 +179,13 @@ const loadRecords = async (isLoadMore = false) => {
     const res = await request({
       url: '/cpr/getPointRecordList',
       method: 'get',
-      params: { page: page.value, pageSize, orderKey: 'id', desc: true }
+      params: {
+        page: page.value,
+        pageSize,
+        orderKey: 'id',
+        desc: true,
+        assetType: assetType.value,
+      }
     })
     if (res.code === 0 && res.data && res.data.list) {
       if (isLoadMore) {
@@ -120,14 +197,24 @@ const loadRecords = async (isLoadMore = false) => {
         noMore.value = true
       }
     }
-  } catch (e) { console.error('获取积分记录失败', e) }
+  } catch (e) { console.error('Failed to load point records', e) }
   loading.value = false
 }
 
 const loadMore = () => {
   if (noMore.value || loading.value) return
+  reachedBottom.value = false
   page.value++
   loadRecords(true)
+}
+
+const resetAndLoad = () => {
+  page.value = 1
+  noMore.value = false
+  reachedBottom.value = false
+  recordList.value = []
+  loadUserPoints()
+  loadRecords(false)
 }
 
 const formatTime = (t) => {
@@ -137,101 +224,249 @@ const formatTime = (t) => {
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-onMounted(() => {
-  loadUserPoints()
-  loadRecords()
+onLoad((options = {}) => {
+  const nextMode = String(options.mode || '').trim().toLowerCase()
+  const nextAssetType = String(options.assetType || '').trim().toLowerCase()
+  mode.value = nextMode === 'tryon' ? 'tryon' : 'point'
+  assetType.value = nextAssetType === 'tryon_point' ? 'tryon_point' : (mode.value === 'tryon' ? 'tryon_point' : 'point')
+  resetAndLoad()
+})
+
+onShow(() => {
+  if (recordList.value.length === 0) return
+  resetAndLoad()
 })
 
 onReachBottom(() => {
-  loadMore()
+  if (noMore.value || loading.value) return
+  reachedBottom.value = true
 })
 </script>
 
 <style lang="scss">
-page { background-color: #000; }
+page {
+  background: #f4f7fb;
+}
 
-.nf-integral { min-height: 100vh; background: #000; position: relative; }
+.nf-integral {
+  min-height: 100vh;
+  background: radial-gradient(120% 80% at 100% -10%, #dbeafe 0%, transparent 62%), #f4f7fb;
+  position: relative;
+}
 
 .nf-integral-bg {
-  position: fixed; top: 0; left: 0; right: 0; height: 600rpx; z-index: 0; pointer-events: none;
-  background: radial-gradient(ellipse at 50% 0%, rgba(229, 9, 20, 0.12) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 10%, rgba(229, 9, 20, 0.06) 0%, transparent 40%);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 620rpx;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 8% 10%, rgba(59, 130, 246, 0.12), transparent 50%),
+    radial-gradient(circle at 92% 20%, rgba(14, 165, 233, 0.1), transparent 46%);
 }
 
 .nf-navbar {
-  background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(24px);
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
-  padding: 0 28rpx 16rpx; position: sticky; top: 0; z-index: 99;
+  position: sticky;
+  top: 0;
+  z-index: 99;
+  padding: 0 24rpx 12rpx;
+  backdrop-filter: blur(16rpx);
+  background: rgba(244, 247, 251, 0.72);
+  border-bottom: 1rpx solid rgba(15, 23, 42, 0.06);
 }
-.nf-navbar-status { height: var(--status-bar-height, 0px); }
-.nf-navbar-content { display: flex; align-items: center; justify-content: space-between; height: 88rpx; }
+
+.nf-navbar-status {
+  height: var(--status-bar-height, 0px);
+}
+
+.nf-navbar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 88rpx;
+}
+
 .nf-navbar-back {
-  width: 64rpx; height: 64rpx; border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06); border: 1rpx solid rgba(255, 255, 255, 0.1);
-  display: flex; align-items: center; justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  border: 1rpx solid rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.nf-navbar-title { font-size: 34rpx; font-weight: 700; color: #fff; letter-spacing: 2rpx; }
 
-.nf-body { padding: 24rpx; position: relative; z-index: 1; }
+.nf-navbar-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #0f172a;
+}
 
-/* 积分概览 */
+.nf-body {
+  position: relative;
+  z-index: 1;
+  padding: 24rpx;
+}
+
 .nf-points-hero {
-  position: relative; text-align: center; padding: 60rpx 40rpx;
-  background: rgba(255, 255, 255, 0.04); border: 1rpx solid rgba(255, 255, 255, 0.06);
-  border-radius: 24rpx; margin-bottom: 40rpx; overflow: hidden;
+  position: relative;
+  text-align: center;
+  padding: 56rpx 36rpx;
+  margin-bottom: 30rpx;
+  border-radius: 22rpx;
+  border: 1rpx solid rgba(37, 99, 235, 0.14);
+  background: linear-gradient(135deg, rgba(219, 234, 254, 0.92), rgba(239, 246, 255, 0.98));
+  box-shadow: 0 16rpx 32rpx rgba(59, 130, 246, 0.12);
+  overflow: hidden;
 }
+
 .nf-points-hero-glow {
-  position: absolute; top: -50%; left: 50%; transform: translateX(-50%);
-  width: 300rpx; height: 300rpx; border-radius: 50%;
-  background: radial-gradient(circle, rgba(229, 9, 20, 0.20) 0%, transparent 70%);
+  position: absolute;
+  top: -30%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 360rpx;
+  height: 360rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.18) 0%, transparent 70%);
   pointer-events: none;
 }
-.nf-points-hero-label { display: block; font-size: 26rpx; color: rgba(255, 255, 255, 0.5); margin-bottom: 12rpx; }
+
+.nf-points-hero-label {
+  display: block;
+  margin-bottom: 10rpx;
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.64);
+}
+
 .nf-points-hero-value {
-  display: block; font-size: 80rpx; font-weight: 800; color: #fff;
-  letter-spacing: 4rpx; line-height: 1; margin-bottom: 16rpx;
+  display: block;
+  margin-bottom: 12rpx;
+  font-size: 80rpx;
+  line-height: 1;
+  letter-spacing: 2rpx;
+  font-weight: 800;
+  color: #0f172a;
 }
-.nf-points-hero-tip { display: block; font-size: 22rpx; color: rgba(255, 255, 255, 0.3); }
 
-/* 区块标题 */
+.nf-points-hero-tip {
+  display: block;
+  font-size: 22rpx;
+  color: rgba(15, 23, 42, 0.55);
+}
+
 .nf-section-title {
-  display: flex; align-items: center; justify-content: center;
-  gap: 20rpx; margin-bottom: 24rpx;
-  text { font-size: 26rpx; color: rgba(255, 255, 255, 0.5); }
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  margin-bottom: 22rpx;
+
+  text {
+    font-size: 24rpx;
+    color: rgba(15, 23, 42, 0.55);
+  }
 }
+
 .nf-section-line {
-  height: 1rpx; width: 80rpx;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  width: 72rpx;
+  height: 1rpx;
+  background: linear-gradient(90deg, transparent, rgba(15, 23, 42, 0.2), transparent);
 }
 
-/* 空状态 */
 .nf-empty {
-  display: flex; flex-direction: column; align-items: center; padding: 100rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 90rpx 0;
 }
-.nf-empty-icon { font-size: 100rpx; margin-bottom: 16rpx; opacity: 0.5; }
-.nf-empty-text { font-size: 26rpx; color: rgba(255, 255, 255, 0.3); }
 
-/* 记录列表 */
-.nf-record-list { }
+.nf-empty-icon {
+  font-size: 90rpx;
+  margin-bottom: 14rpx;
+}
+
+.nf-empty-text {
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.5);
+}
 
 .nf-record-card {
-  display: flex; align-items: center; gap: 20rpx;
-  padding: 24rpx 28rpx;
-  background: rgba(255, 255, 255, 0.04); border: 1rpx solid rgba(255, 255, 255, 0.06);
-  border-radius: 16rpx; margin-bottom: 12rpx;
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin-bottom: 12rpx;
+  padding: 22rpx 24rpx;
+  border-radius: 16rpx;
+  border: 1rpx solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 10rpx 24rpx rgba(15, 23, 42, 0.06);
 }
-.nf-record-icon {
-  width: 64rpx; height: 64rpx; border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06); display: flex; align-items: center; justify-content: center;
-  font-size: 28rpx; flex-shrink: 0;
-}
-.nf-record-info { flex: 1; }
-.nf-record-reason { display: block; font-size: 28rpx; color: #fff; font-weight: 500; margin-bottom: 4rpx; }
-.nf-record-time { display: block; font-size: 22rpx; color: rgba(255, 255, 255, 0.3); }
-.nf-record-amount { font-size: 32rpx; font-weight: 700; }
-.nf-add { color: #22c55e; }
-.nf-sub { color: #e50914; }
 
-.nf-load-more { text-align: center; padding: 24rpx 0 60rpx; }
-.nf-load-more-text { font-size: 24rpx; color: rgba(255, 255, 255, 0.3); }
+.nf-record-icon {
+  width: 62rpx;
+  height: 62rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.nf-record-icon.increase {
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.14);
+}
+
+.nf-record-icon.decrease {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.14);
+}
+
+.nf-record-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.nf-record-reason {
+  display: block;
+  margin-bottom: 4rpx;
+  font-size: 26rpx;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.nf-record-time {
+  display: block;
+  font-size: 22rpx;
+  color: rgba(15, 23, 42, 0.48);
+}
+
+.nf-record-amount {
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.nf-add {
+  color: #16a34a;
+}
+
+.nf-sub {
+  color: #dc2626;
+}
+
+.nf-load-more {
+  text-align: center;
+  padding: 22rpx 0 60rpx;
+}
+
+.nf-load-more-text {
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.5);
+}
 </style>

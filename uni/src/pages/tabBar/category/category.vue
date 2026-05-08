@@ -3,8 +3,6 @@
     <!-- 顶部搜索栏 -->
     <view class="search-header">
       <view class="search-box">
-<!--        <uni-icons type="search" size="18" color="#999"></uni-icons>-->
-<!--        <text class="search-placeholder">搜索商品</text>-->
       </view>
     </view>
 

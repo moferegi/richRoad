@@ -18,6 +18,7 @@ func initBizRouter(routers ...*gin.RouterGroup) {
 		clientRouter.InitAddressRouter(privateGroup, publicGroup)
 		clientRouter.InitCollectRouter(privateGroup, publicGroup)
 		clientRouter.InitPointRecordRouter(privateGroup, publicGroup)
+		clientRouter.InitTryonRechargeOrderRouter(privateGroup, publicGroup)
 		clientRouter.InitTryonTaskRouter(privateGroup, publicGroup)
 		clientRouter.InitTryonModelRouter(privateGroup, publicGroup)
 		clientRouter.InitVisitorRouter(privateGroup, publicGroup)

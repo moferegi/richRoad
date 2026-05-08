@@ -65,6 +65,18 @@
           <text class="menu-text">{{ $t('myOrders') }}</text>
           <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
         </view>
+        <view class="menu-item" @tap="goTryonPointRecord">
+          <text class="menu-text">{{ $t('tryonPointRecord') }}</text>
+          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
+        </view>
+        <view class="menu-item" @tap="goTryonRechargeRecord">
+          <text class="menu-text">{{ $t('tryonRechargeRecord') }}</text>
+          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
+        </view>
+        <view class="menu-item" @tap="goInvite">
+          <text class="menu-text">{{ $t('inviteFriends') }}</text>
+          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
+        </view>
         <view class="menu-item" @tap="goCollect">
           <text class="menu-text">{{ $t('myCollection') }}</text>
           <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
@@ -92,10 +104,10 @@
       <view class="popup-panel" @tap.stop>
         <view class="popup-title">{{ $t('rechargeTryonCoins') }}</view>
         <view class="popup-list">
-          <view class="popup-item" v-for="item in rechargePlans" :key="item.points" @tap="selectRecharge(item)">
+          <view class="popup-item" v-for="(item, index) in rechargePlans" :key="item.key || index" @tap="selectRecharge(item)">
             <view>
-              <text class="item-title">{{ item.points }} {{ $t('tryonCoins') }}</text>
-              <text class="item-sub">{{ cs }}{{ item.price }}</text>
+              <text class="item-title">{{ formatRechargePoints(item) }}{{ formatRechargeCoinLabel(item) }}</text>
+              <text class="item-sub">{{ formatRechargePrice(item) }}</text>
             </view>
             <uni-icons type="right" size="16" color="rgba(15,23,42,0.35)" />
           </view>
@@ -115,6 +127,9 @@ import { useUserStore } from '@/pinia/modules/user.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { getTryonRechargePlans } from '@/api/sysConfig.js'
+import { getPaymentConfig } from '@/api/sysConfig.js'
+import { createTryonRechargeOrder } from '@/api/tryonRechargeOrder.js'
+import { localText } from '@/utils/i18n.js'
 
 const userStore = useUserStore()
 const langStore = useLangStore()
@@ -125,26 +140,115 @@ const cs = computed(() => appConfigStore.currencySymbol || '¥')
 const showRecharge = ref(false)
 const showLangPicker = ref(false)
 const userInfo = ref({})
+const paymentMethods = ref([])
 
 const defaultRechargePlans = [
-  { points: 50, price: '9.9' },
-  { points: 180, price: '29.9' },
-  { points: 680, price: '99.9' },
+  { points: { zh: '50', en: '50', mn: '50' }, coinLabel: { zh: '试衣币', en: 'Try-on Coins', mn: 'Туршилтын зоос' }, currencySymbol: { zh: '￥', en: 'CNY ', mn: 'CNY ' }, price: { zh: '9.9', en: '9.9', mn: '9.9' }, currencySuffix: { zh: '元', en: '', mn: '' } },
+  { points: { zh: '180', en: '180', mn: '180' }, coinLabel: { zh: '试衣币', en: 'Try-on Coins', mn: 'Туршилтын зоос' }, currencySymbol: { zh: '￥', en: 'CNY ', mn: 'CNY ' }, price: { zh: '29.9', en: '29.9', mn: '29.9' }, currencySuffix: { zh: '元', en: '', mn: '' } },
+  { points: { zh: '680', en: '680', mn: '680' }, coinLabel: { zh: '试衣币', en: 'Try-on Coins', mn: 'Туршилтын зоос' }, currencySymbol: { zh: '￥', en: 'CNY ', mn: 'CNY ' }, price: { zh: '99.9', en: '99.9', mn: '99.9' }, currencySuffix: { zh: '元', en: '', mn: '' } },
 ]
 const rechargePlans = ref([...defaultRechargePlans])
+
+const toI18nValue = (value, fallback = '') => {
+  if (value && typeof value === 'object') return value
+  const text = value === undefined || value === null || value === '' ? fallback : String(value)
+  return { zh: text, en: text, mn: text }
+}
+
+const resolvePlanText = (value, fallback = '') => {
+  return localText(toI18nValue(value, fallback), langStore.locale) || fallback
+}
 
 const normalizeRechargePlans = (raw) => {
   if (!Array.isArray(raw)) return [...defaultRechargePlans]
   const list = raw.map((item) => {
-    const points = Number(item?.points || 0)
-    const price = String(item?.price ?? '').trim()
+    const pointsText = resolvePlanText(item?.points, '0')
+    const priceText = resolvePlanText(item?.price, '')
+    const points = Number(String(pointsText).replace(/[^0-9.]/g, '') || 0)
+    const price = String(priceText ?? '').trim()
     if (!points || !price) return null
     return {
-      points,
-      price,
+      key: `${points}_${price}`,
+      points: toI18nValue(item?.points, String(points)),
+      coinLabel: toI18nValue(item?.coinLabel || item?.label, $t.value('tryonCoins')),
+      currencySymbol: toI18nValue(item?.currencySymbol, cs.value),
+      price: toI18nValue(item?.price, price),
+      currencySuffix: toI18nValue(item?.currencySuffix || item?.suffix, ''),
+      numericPoints: points,
     }
   }).filter(Boolean)
   return list.length > 0 ? list : [...defaultRechargePlans]
+}
+
+const formatRechargePoints = (item) => resolvePlanText(item.points, String(item.numericPoints || ''))
+
+const formatRechargeCoinLabel = (item) => resolvePlanText(item.coinLabel, $t.value('tryonCoins'))
+
+const formatRechargePrice = (item) => {
+  const symbol = resolvePlanText(item.currencySymbol, cs.value)
+  const price = resolvePlanText(item.price, '')
+  const suffix = resolvePlanText(item.currencySuffix, '')
+  return `${symbol}${price}${suffix}`
+}
+
+const normalizePriceText = (value) => {
+  const text = String(value || '').trim()
+  const normalized = text.replace(/[^0-9.]/g, '')
+  if (!normalized) return ''
+  return normalized
+}
+
+const parseRechargePointsValue = (item) => {
+  const text = String(formatRechargePoints(item) || '').trim()
+  const normalized = text.replace(/[^0-9]/g, '')
+  return Number(normalized || 0)
+}
+
+const parseRechargePriceValue = (item) => {
+  const localizedPrice = resolvePlanText(item.price, '')
+  return normalizePriceText(localizedPrice)
+}
+
+const paymentMethodLabelMap = computed(() => ({
+  qrcode: $t.value('payByQrcode'),
+  contact: $t.value('payByContact'),
+  wechat: $t.value('payMethodWechat'),
+  alipay: $t.value('payMethodAlipay'),
+  bank_card_cn: $t.value('payMethodBankCn'),
+  bank_card_us: $t.value('payMethodBankUs'),
+  bank_card_mn: $t.value('payMethodBankMn'),
+  paypal: $t.value('payMethodPaypal'),
+}))
+
+const getPaymentMethodLabel = (payMethod, label) => {
+  return paymentMethodLabelMap.value[payMethod] || label || payMethod || $t.value('contactCustomerService')
+}
+
+const buildDefaultPaymentMethods = () => ([
+  { key: 'qrcode', label: getPaymentMethodLabel('qrcode') },
+  { key: 'contact', label: getPaymentMethodLabel('contact') },
+])
+
+const normalizePaymentMethods = (methods) => {
+  if (!Array.isArray(methods)) {
+    return []
+  }
+  return methods
+    .filter(item => item && typeof item.key === 'string' && item.key)
+    .map(item => ({
+      key: item.key,
+      label: getPaymentMethodLabel(item.key, item.label)
+    }))
+}
+
+const loadPaymentMethods = async () => {
+  try {
+    const res = await getPaymentConfig()
+    const methods = normalizePaymentMethods(res?.data?.methods)
+    paymentMethods.value = methods.length > 0 ? methods : buildDefaultPaymentMethods()
+  } catch (e) {
+    paymentMethods.value = buildDefaultPaymentMethods()
+  }
 }
 
 const loadRechargePlans = async () => {
@@ -224,16 +328,58 @@ const openRecharge = () => {
 
 const selectRecharge = (item) => {
   showRecharge.value = false
-  uni.showModal({
-    title: $t.value('rechargeNotice'),
-    content: $t.value('rechargeNoticeContent')
-      .replace('{points}', String(item.points))
-      .replace('{price}', String(item.price)),
-    confirmText: $t.value('kefuContact'),
-    cancelText: $t.value('cancel'),
-    success: (res) => {
-      if (!res.confirm) return
-      uni.navigateTo({ url: '/pages/kefu/index' })
+  const points = parseRechargePointsValue(item)
+  const price = parseRechargePriceValue(item)
+  if (!points || !price) {
+    uni.showToast({ title: $t.value('apiResponseInvalid'), icon: 'none' })
+    return
+  }
+
+  const methods = paymentMethods.value.length > 0 ? paymentMethods.value : buildDefaultPaymentMethods()
+  uni.showActionSheet({
+    itemList: methods.map(m => m.label),
+    success: async (sheetRes) => {
+      const selected = methods[sheetRes.tapIndex] || methods[0]
+      if (!selected?.key) {
+        uni.showToast({ title: $t.value('apiResponseInvalid'), icon: 'none' })
+        return
+      }
+
+      uni.showLoading({ title: $t.value('loading'), mask: true })
+      try {
+        const res = await createTryonRechargeOrder({
+          points,
+          price,
+          payMethod: selected.key,
+        })
+        if (res.code !== 0) {
+          uni.showToast({ title: res.msg || $t.value('orderCreateFail'), icon: 'none' })
+          return
+        }
+
+        const order = res?.data?.order || {}
+        const orderID = Number(order.ID || order.id || 0)
+        if (!orderID) {
+          uni.showToast({ title: $t.value('orderCreateFail'), icon: 'none' })
+          return
+        }
+        const orderNo = String(order.outTradeNo || order.OutTradeNo || orderID)
+
+        const amountInCent = Number(order.amount || order.Amount || 0)
+        const amount = amountInCent > 0 ? (amountInCent / 100).toFixed(2) : price
+        const encodedPayMethod = encodeURIComponent(String(selected.key || 'contact'))
+        const encodedPayMethodLabel = encodeURIComponent(String(selected.label || getPaymentMethodLabel(selected.key)))
+        const closeTimeRaw = String(order.closeTime || order.CloseTime || '').trim()
+        const closeTimePart = closeTimeRaw ? `&closeTime=${encodeURIComponent(closeTimeRaw)}` : ''
+
+        uni.navigateTo({
+          url: `/pages/pay/index?orderType=recharge&amount=${encodeURIComponent(amount)}&orderNo=${encodeURIComponent(orderNo)}&orderId=${orderID}&payMethod=${encodedPayMethod}&payMethodLabel=${encodedPayMethodLabel}&rechargePoints=${points}${closeTimePart}`,
+        })
+      } catch (e) {
+        uni.showToast({ title: e?.message || $t.value('orderCreateFail'), icon: 'none' })
+      } finally {
+        uni.hideLoading()
+      }
     },
   })
 }
@@ -270,6 +416,30 @@ const goOrder = () => {
   uni.navigateTo({ url: '/pages/order/order' })
 }
 
+const goTryonPointRecord = () => {
+  if (!isLogin.value) {
+    goLogin()
+    return
+  }
+  uni.navigateTo({ url: '/pages/integral/integral?assetType=tryon_point&mode=tryon' })
+}
+
+const goTryonRechargeRecord = () => {
+  if (!isLogin.value) {
+    goLogin()
+    return
+  }
+  uni.navigateTo({ url: '/pages/rechargeRecord/index' })
+}
+
+const goInvite = () => {
+  if (!isLogin.value) {
+    goLogin()
+    return
+  }
+  uni.navigateTo({ url: '/pages/invite/index' })
+}
+
 const goCollect = () => {
   uni.navigateTo({ url: '/pages/collect/collect' })
 }
@@ -304,6 +474,7 @@ onShow(() => {
   langStore.initLangs()
   appConfigStore.loadConfig()
   loadRechargePlans()
+  loadPaymentMethods()
   loadUserInfo()
 })
 </script>

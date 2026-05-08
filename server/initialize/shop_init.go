@@ -136,6 +136,7 @@ func initShopApis(db *gorm.DB) {
 		{ApiGroup: "客服管理", Method: "GET", Path: "/kefu/getKefuList", Description: "获取客服列表"},
 		// 浏览历史
 		{ApiGroup: "浏览历史", Method: "GET", Path: "/good/getGoodHistory", Description: "获取浏览历史"},
+		{ApiGroup: "浏览历史", Method: "DELETE", Path: "/good/clearGoodHistory", Description: "清空浏览历史"},
 		// 地址管理
 		{ApiGroup: "地址管理", Method: "POST", Path: "/address/createAddress", Description: "创建地址"},
 		{ApiGroup: "地址管理", Method: "DELETE", Path: "/address/deleteAddress", Description: "删除地址"},
@@ -299,6 +300,7 @@ func initShopCasbin(db *gorm.DB) {
 		{"/kefu/getKefuList", "GET"},
 		// 浏览历史
 		{"/good/getGoodHistory", "GET"},
+		{"/good/clearGoodHistory", "DELETE"},
 		// 地址
 		{"/address/createAddress", "POST"},
 		{"/address/deleteAddress", "DELETE"},
