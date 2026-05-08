@@ -40,6 +40,10 @@ description: "GVA 安全闸门检查流程。用于发布前或功能合并前�
 - 禁止把多语言对象直接 String(...) 渲染到页面
 - 系统配置文案（重点：试衣间 announcement_content）必须验证是否支持语言切换
 - 新功能上线前检查 layout/client/language（或项目实际 i18n 文件）是否补齐词条，避免缺词回退硬编码
+- 扫描并拦截 raw msg 直透模式：data.msg ||、res.msg ||、e?.message ||
+- 扫描并拦截后端 err.Error() 面向用户直接返回（尤其 client API）
+- 上传/支付/下单/客服聊天等高频链路错误提示必须统一走 resolveApiMessage
+- 提交前核对新增 key 在所有启用语种中齐全，不能只补部分语种
 
 ## 输出格式
 - 风险级别：严重 / 高 / 中
