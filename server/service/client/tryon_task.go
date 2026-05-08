@@ -51,6 +51,12 @@ const (
 	tryonOpRegisterReward = "tryon_register_reward"
 	tryonOpInviteReward   = "tryon_invite_register_reward"
 
+	tryonReasonTaskDeduct   = "reason_tryonTaskDeduct"
+	tryonReasonTaskRefund   = "reason_tryonTaskRefund"
+	tryonReasonGuestInit    = "reason_tryonGuestInit"
+	tryonReasonRegister     = "reason_tryonRegisterReward"
+	tryonReasonInviteReward = "reason_tryonInviteReward"
+
 	aliyunTryonSynthesisURL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis"
 	aliyunParsingProcessURL = "https://dashscope.aliyuncs.com/api/v1/services/vision/image-process/process"
 	aliyunTryonRefinerModel = "aitryon-refiner"
@@ -64,13 +70,13 @@ type TryonTaskService struct{}
 // DeleteTryonTask 删除单个试衣任务（管理端）
 func (s *TryonTaskService) DeleteTryonTask(id uint) error {
 	if id == 0 {
-		return errors.New("ID参数错误")
+		return errors.New("invalidID")
 	}
 
 	var task client.TryonTask
 	if err := global.GVA_DB.Where("id = ?", id).First(&task).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("试衣任务不存在")
+			return errors.New("tryonTaskNotFound")
 		}
 		return err
 	}
@@ -86,18 +92,18 @@ func (s *TryonTaskService) DeleteTryonTask(id uint) error {
 // DeleteMyTryonTaskByTaskNo 删除当前用户的试衣任务（客户端）
 func (s *TryonTaskService) DeleteMyTryonTaskByTaskNo(userID uint, taskNo string) error {
 	if userID == 0 {
-		return errors.New("用户未登录")
+		return errors.New("loginRequired")
 	}
 
 	taskNo = strings.TrimSpace(taskNo)
 	if taskNo == "" {
-		return errors.New("taskNo参数错误")
+		return errors.New("invalidTaskNo")
 	}
 
 	var task client.TryonTask
 	if err := global.GVA_DB.Where("user_id = ? AND task_no = ?", userID, taskNo).First(&task).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("试衣任务不存在")
+			return errors.New("tryonTaskNotFound")
 		}
 		return err
 	}
@@ -182,7 +188,7 @@ func extractLocalTryonFileKey(rawURL string) string {
 // DeleteTryonTaskByIds 批量删除试衣任务（管理端）
 func (s *TryonTaskService) DeleteTryonTaskByIds(ids []uint) error {
 	if len(ids) == 0 {
-		return errors.New("IDs参数错误")
+		return errors.New("invalidIDs")
 	}
 
 	var tasks []client.TryonTask
@@ -190,7 +196,7 @@ func (s *TryonTaskService) DeleteTryonTaskByIds(ids []uint) error {
 		return err
 	}
 	if len(tasks) == 0 {
-		return errors.New("试衣任务不存在")
+		return errors.New("tryonTaskNotFound")
 	}
 
 	if err := global.GVA_DB.Where("id IN ?", ids).Delete(&client.TryonTask{}).Error; err != nil {
@@ -207,6 +213,27 @@ type TryonTaskTrendItem struct {
 	Processing int64  `json:"processing"`
 	Success    int64  `json:"success"`
 	Failed     int64  `json:"failed"`
+}
+
+type TryonTaskModelStatsItem struct {
+	ModelKey            string `json:"modelKey"`
+	TaskCount           int64  `json:"taskCount"`
+	SuccessCount        int64  `json:"successCount"`
+	FailedCount         int64  `json:"failedCount"`
+	ProcessingCount     int64  `json:"processingCount"`
+	RefinerEnabledCount int64  `json:"refinerEnabledCount"`
+	TotalCostPoints     int64  `json:"totalCostPoints"`
+}
+
+type TryonTaskStatsData struct {
+	Total               int64                     `json:"total"`
+	Processing          int64                     `json:"processing"`
+	Success             int64                     `json:"success"`
+	Failed              int64                     `json:"failed"`
+	TotalCostPoints     int64                     `json:"totalCostPoints"`
+	RefinerEnabledCount int64                     `json:"refinerEnabledCount"`
+	ModelCallTotal      int64                     `json:"modelCallTotal"`
+	ModelStats          []TryonTaskModelStatsItem `json:"modelStats"`
 }
 
 type tryonModelConfig struct {
@@ -227,6 +254,7 @@ type tryonModelConfig struct {
 	FreeQuotaTotal        int      `json:"freeQuotaTotal"`
 	RefinerFreeQuotaTotal int      `json:"refinerFreeQuotaTotal"`
 	RefinerModel          string   `json:"refinerModel"`
+	RefinerExtraCost      int      `json:"refinerExtraCost"`
 	RefinerURL            string   `json:"refinerUrl"`
 	RefinerToken          string   `json:"refinerToken"`
 	RefinerTaskQueryURL   string   `json:"refinerTaskQueryUrl"`
@@ -326,6 +354,13 @@ func (m *tryonModelConfig) refinerModelValue() string {
 		return aliyunTryonRefinerModel
 	}
 	return strings.TrimSpace(m.RefinerModel)
+}
+
+func (m *tryonModelConfig) refinerExtraCostValue() int {
+	if m == nil || m.RefinerExtraCost <= 0 {
+		return 0
+	}
+	return m.RefinerExtraCost
 }
 
 func (m *tryonModelConfig) refinerEndpointURL(fallback string) string {
@@ -487,7 +522,7 @@ type dashscopeParsingResponse struct {
 // CreateTryonTask 创建并处理试衣任务：先扣币，模型失败时全额退币
 func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req clientReq.CreateTryonTaskReq) (task client.TryonTask, reused bool, err error) {
 	if userID == 0 {
-		return task, false, errors.New("用户未登录")
+		return task, false, errors.New("loginRequired")
 	}
 
 	requestID := strings.TrimSpace(req.RequestID)
@@ -505,9 +540,9 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 	}
 
 	sysConfigService := SysConfigService{}
-	costPoints := sysConfigService.GetConfigIntByKey("tryon_cost_points", 1)
-	if costPoints < 1 {
-		costPoints = 1
+	baseCostPoints := sysConfigService.GetConfigIntByKey("tryon_cost_points", 1)
+	if baseCostPoints < 1 {
+		baseCostPoints = 1
 	}
 
 	modelCfg, modelErr := s.resolveTryonModelConfig(req.SceneType, req.ModelKey)
@@ -515,7 +550,7 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 		return task, false, modelErr
 	}
 	if modelCfg != nil && modelCfg.Cost > 0 {
-		costPoints = modelCfg.Cost
+		baseCostPoints = modelCfg.Cost
 	}
 
 	providerName := "external"
@@ -528,6 +563,16 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 	}
 
 	enableRefiner := req.EnableRefiner && canEnableAliyunRefiner(req.SceneType, modelCfg)
+	extraCostPoints := 0
+	if enableRefiner {
+		extraCostPoints = modelCfg.refinerExtraCostValue()
+	}
+
+	costPoints := baseCostPoints + extraCostPoints
+	if costPoints < 1 {
+		costPoints = 1
+	}
+
 	refinerStatus := tryonRefinerStatusDisabled
 	if enableRefiner {
 		refinerStatus = tryonRefinerStatusPending
@@ -554,7 +599,7 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 		}
 
 		pointRecordService := PointRecordService{}
-		record := buildPointRecord(userID, client.AssetTypeTryonPoint, "decrease", costPoints, tryonOpConsume, "试衣任务扣费", "tryon_task:"+task.TaskNo)
+		record := buildPointRecord(userID, client.AssetTypeTryonPoint, "decrease", costPoints, tryonOpConsume, tryonReasonTaskDeduct, "tryon_task:"+task.TaskNo)
 		if pointErr := pointRecordService.CreatePointRecord(txCtx, record); pointErr != nil {
 			return pointErr
 		}
@@ -568,7 +613,7 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 		refundErr := s.markFailedAndRefund(ctx, &task, invokeErr.Error())
 		if refundErr != nil {
 			global.GVA_LOG.Error("试衣失败退币异常", zap.Error(refundErr), zap.Uint("taskID", task.ID))
-			return task, false, errors.New("试衣失败且退币异常，请联系管理员")
+			return task, false, errors.New("tryonRefundFailedContactAdmin")
 		}
 		_ = global.GVA_DB.Where("id = ?", task.ID).First(&task).Error
 		return task, false, invokeErr
@@ -595,7 +640,7 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 			return task, false, updateResult.Error
 		}
 		if updateResult.RowsAffected == 0 {
-			return task, false, errors.New("任务状态已变更，无法更新异步任务")
+			return task, false, errors.New("tryonTaskStatusConflictUpdateAsync")
 		}
 	case tryonTaskStatusSuccess:
 		if task.EnableRefiner {
@@ -604,7 +649,7 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 				refundErr := s.markFailedAndRefund(ctx, &task, refinerErr.Error())
 				if refundErr != nil {
 					global.GVA_LOG.Error("试衣精修失败退币异常", zap.Error(refundErr), zap.Uint("taskID", task.ID))
-					return task, false, errors.New("试衣精修失败且退币异常，请联系管理员")
+					return task, false, errors.New("tryonRefinerRefundFailedContactAdmin")
 				}
 				_ = global.GVA_DB.Where("id = ?", task.ID).First(&task).Error
 				return task, false, refinerErr
@@ -624,7 +669,7 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 					return task, false, updateResult.Error
 				}
 				if updateResult.RowsAffected == 0 {
-					return task, false, errors.New("任务状态已变更，无法更新精修任务")
+					return task, false, errors.New("tryonTaskStatusConflictUpdateRefiner")
 				}
 			case tryonTaskStatusSuccess:
 				storedResultImage := s.persistTryonResultImage(strings.TrimSpace(refinerResult.ResultImage), task.TaskNo)
@@ -644,28 +689,28 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 					return task, false, updateResult.Error
 				}
 				if updateResult.RowsAffected == 0 {
-					return task, false, errors.New("任务状态已变更，无法完成")
+					return task, false, errors.New("tryonTaskStatusConflictComplete")
 				}
 			case tryonTaskStatusFailed:
 				failReason := refinerResult.ErrorMessage
 				if strings.TrimSpace(failReason) == "" {
-					failReason = "图片精修处理失败"
+					failReason = "tryonRefinerProcessFail"
 				}
 				refundErr := s.markFailedAndRefund(ctx, &task, failReason)
 				if refundErr != nil {
 					global.GVA_LOG.Error("试衣精修失败退币异常", zap.Error(refundErr), zap.Uint("taskID", task.ID))
-					return task, false, errors.New("试衣精修失败且退币异常，请联系管理员")
+					return task, false, errors.New("tryonRefinerRefundFailedContactAdmin")
 				}
 				_ = global.GVA_DB.Where("id = ?", task.ID).First(&task).Error
 				return task, false, errors.New(failReason)
 			default:
-				refundErr := s.markFailedAndRefund(ctx, &task, "图片精修返回未知状态")
+				refundErr := s.markFailedAndRefund(ctx, &task, "tryonRefinerStatusUnknown")
 				if refundErr != nil {
 					global.GVA_LOG.Error("试衣精修失败退币异常", zap.Error(refundErr), zap.Uint("taskID", task.ID))
-					return task, false, errors.New("试衣精修失败且退币异常，请联系管理员")
+					return task, false, errors.New("tryonRefinerRefundFailedContactAdmin")
 				}
 				_ = global.GVA_DB.Where("id = ?", task.ID).First(&task).Error
-				return task, false, errors.New("图片精修返回未知状态")
+				return task, false, errors.New("tryonRefinerStatusUnknown")
 			}
 		} else {
 			storedResultImage := s.persistTryonResultImage(strings.TrimSpace(invokeResult.ResultImage), task.TaskNo)
@@ -685,29 +730,29 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 				return task, false, updateResult.Error
 			}
 			if updateResult.RowsAffected == 0 {
-				return task, false, errors.New("任务状态已变更，无法完成")
+				return task, false, errors.New("tryonTaskStatusConflictComplete")
 			}
 		}
 	case tryonTaskStatusFailed:
 		failReason := invokeResult.ErrorMessage
 		if strings.TrimSpace(failReason) == "" {
-			failReason = "试衣模型处理失败"
+			failReason = "tryonModelProcessFail"
 		}
 		refundErr := s.markFailedAndRefund(ctx, &task, failReason)
 		if refundErr != nil {
 			global.GVA_LOG.Error("试衣失败退币异常", zap.Error(refundErr), zap.Uint("taskID", task.ID))
-			return task, false, errors.New("试衣失败且退币异常，请联系管理员")
+			return task, false, errors.New("tryonRefundFailedContactAdmin")
 		}
 		_ = global.GVA_DB.Where("id = ?", task.ID).First(&task).Error
 		return task, false, errors.New(failReason)
 	default:
-		refundErr := s.markFailedAndRefund(ctx, &task, "试衣模型返回未知状态")
+		refundErr := s.markFailedAndRefund(ctx, &task, "tryonModelStatusUnknown")
 		if refundErr != nil {
 			global.GVA_LOG.Error("试衣失败退币异常", zap.Error(refundErr), zap.Uint("taskID", task.ID))
-			return task, false, errors.New("试衣失败且退币异常，请联系管理员")
+			return task, false, errors.New("tryonRefundFailedContactAdmin")
 		}
 		_ = global.GVA_DB.Where("id = ?", task.ID).First(&task).Error
-		return task, false, errors.New("试衣模型返回未知状态")
+		return task, false, errors.New("tryonModelStatusUnknown")
 	}
 
 	_ = global.GVA_DB.Where("id = ?", task.ID).First(&task).Error
@@ -812,18 +857,73 @@ func (s *TryonTaskService) GetTryonTaskList(info clientReq.TryonTaskSearch) (lis
 }
 
 // GetTryonTaskStats 获取管理端试衣任务统计（按筛选条件）
-func (s *TryonTaskService) GetTryonTaskStats(info clientReq.TryonTaskSearch) (total, processing, success, failed int64, err error) {
-	if err = s.applyTryonTaskFilters(global.GVA_DB.Model(&client.TryonTask{}), info, false).Count(&total).Error; err != nil {
-		return
+func (s *TryonTaskService) GetTryonTaskStats(info clientReq.TryonTaskSearch) (stats TryonTaskStatsData, err error) {
+	baseQuery := s.applyTryonTaskFilters(global.GVA_DB.Model(&client.TryonTask{}), info, false)
+
+	if err = baseQuery.Count(&stats.Total).Error; err != nil {
+		return stats, err
 	}
-	if err = s.applyTryonTaskFilters(global.GVA_DB.Model(&client.TryonTask{}), info, false).Where("status = ?", tryonTaskStatusProcessing).Count(&processing).Error; err != nil {
-		return
+	if err = s.applyTryonTaskFilters(global.GVA_DB.Model(&client.TryonTask{}), info, false).Where("status = ?", tryonTaskStatusProcessing).Count(&stats.Processing).Error; err != nil {
+		return stats, err
 	}
-	if err = s.applyTryonTaskFilters(global.GVA_DB.Model(&client.TryonTask{}), info, false).Where("status = ?", tryonTaskStatusSuccess).Count(&success).Error; err != nil {
-		return
+	if err = s.applyTryonTaskFilters(global.GVA_DB.Model(&client.TryonTask{}), info, false).Where("status = ?", tryonTaskStatusSuccess).Count(&stats.Success).Error; err != nil {
+		return stats, err
 	}
-	err = s.applyTryonTaskFilters(global.GVA_DB.Model(&client.TryonTask{}), info, false).Where("status = ?", tryonTaskStatusFailed).Count(&failed).Error
-	return
+	if err = s.applyTryonTaskFilters(global.GVA_DB.Model(&client.TryonTask{}), info, false).Where("status = ?", tryonTaskStatusFailed).Count(&stats.Failed).Error; err != nil {
+		return stats, err
+	}
+
+	type tryonTaskStatsSummaryRow struct {
+		TotalCostPoints     int64 `json:"totalCostPoints"`
+		RefinerEnabledCount int64 `json:"refinerEnabledCount"`
+	}
+	var summary tryonTaskStatsSummaryRow
+	if err = s.applyTryonTaskFilters(global.GVA_DB.Model(&client.TryonTask{}), info, false).
+		Select("COALESCE(SUM(cost_points), 0) as total_cost_points, COALESCE(SUM(CASE WHEN enable_refiner THEN 1 ELSE 0 END), 0) as refiner_enabled_count").
+		Scan(&summary).Error; err != nil {
+		return stats, err
+	}
+	stats.TotalCostPoints = summary.TotalCostPoints
+	stats.RefinerEnabledCount = summary.RefinerEnabledCount
+
+	type tryonTaskModelAggRow struct {
+		Provider            string `json:"provider"`
+		TaskCount           int64  `json:"taskCount"`
+		SuccessCount        int64  `json:"successCount"`
+		FailedCount         int64  `json:"failedCount"`
+		ProcessingCount     int64  `json:"processingCount"`
+		RefinerEnabledCount int64  `json:"refinerEnabledCount"`
+		TotalCostPoints     int64  `json:"totalCostPoints"`
+	}
+	var rows []tryonTaskModelAggRow
+	err = s.applyTryonTaskFilters(global.GVA_DB.Model(&client.TryonTask{}), info, false).
+		Select("provider, COUNT(*) as task_count, COALESCE(SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END), 0) as success_count, COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) as failed_count, COALESCE(SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END), 0) as processing_count, COALESCE(SUM(CASE WHEN enable_refiner THEN 1 ELSE 0 END), 0) as refiner_enabled_count, COALESCE(SUM(cost_points), 0) as total_cost_points").
+		Group("provider").
+		Order("task_count DESC").
+		Scan(&rows).Error
+	if err != nil {
+		return stats, err
+	}
+
+	stats.ModelStats = make([]TryonTaskModelStatsItem, 0, len(rows))
+	for _, row := range rows {
+		modelKey := strings.TrimSpace(row.Provider)
+		if modelKey == "" {
+			modelKey = "default"
+		}
+		stats.ModelStats = append(stats.ModelStats, TryonTaskModelStatsItem{
+			ModelKey:            modelKey,
+			TaskCount:           row.TaskCount,
+			SuccessCount:        row.SuccessCount,
+			FailedCount:         row.FailedCount,
+			ProcessingCount:     row.ProcessingCount,
+			RefinerEnabledCount: row.RefinerEnabledCount,
+			TotalCostPoints:     row.TotalCostPoints,
+		})
+		stats.ModelCallTotal += row.TaskCount
+	}
+
+	return stats, nil
 }
 
 // GetTryonTaskTrend 获取管理端试衣任务趋势（按天）
@@ -840,7 +940,7 @@ func (s *TryonTaskService) GetTryonTaskTrend(info clientReq.TryonTaskSearch) (li
 	var startTime, endTime time.Time
 	if info.StartCreatedAt != nil && info.EndCreatedAt != nil {
 		if info.EndCreatedAt.Before(*info.StartCreatedAt) {
-			return nil, errors.New("开始时间不能晚于结束时间")
+			return nil, errors.New("tryonTimeRangeInvalid")
 		}
 		startTime = *info.StartCreatedAt
 		endTime = *info.EndCreatedAt
@@ -853,7 +953,7 @@ func (s *TryonTaskService) GetTryonTaskTrend(info clientReq.TryonTaskSearch) (li
 	startDay := time.Date(startTime.Year(), startTime.Month(), startTime.Day(), 0, 0, 0, 0, startTime.Location())
 	endDay := time.Date(endTime.Year(), endTime.Month(), endTime.Day(), 0, 0, 0, 0, endTime.Location())
 	if endDay.Before(startDay) {
-		return nil, errors.New("开始时间不能晚于结束时间")
+		return nil, errors.New("tryonTimeRangeInvalid")
 	}
 
 	queryInfo := info
@@ -947,12 +1047,12 @@ func (s *TryonTaskService) markFailedAndRefund(ctx context.Context, task *client
 			return updateResult.Error
 		}
 		if updateResult.RowsAffected == 0 {
-			return errors.New("任务状态已变更，无法执行退币")
+			return errors.New("tryonTaskStatusConflictRefund")
 		}
 
 		pointRecordService := PointRecordService{}
 		txCtx := context.WithValue(ctx, "tx", tx)
-		record := buildPointRecord(task.UserID, client.AssetTypeTryonPoint, "increase", task.CostPoints, tryonOpRefund, "试衣任务失败退币", "tryon_task:"+task.TaskNo)
+		record := buildPointRecord(task.UserID, client.AssetTypeTryonPoint, "increase", task.CostPoints, tryonOpRefund, tryonReasonTaskRefund, "tryon_task:"+task.TaskNo)
 		if err := pointRecordService.CreatePointRecord(txCtx, record); err != nil {
 			return err
 		}
@@ -963,7 +1063,7 @@ func (s *TryonTaskService) markFailedAndRefund(ctx context.Context, task *client
 // GrantRegisterRewardPoints 发放注册奖励试衣币（幂等）
 func (s *TryonTaskService) GrantRegisterRewardPoints(ctx context.Context, userID uint) error {
 	if userID == 0 {
-		return errors.New("用户ID无效")
+		return errors.New("invalidUserID")
 	}
 
 	rewardPoints := s.getConfigIntAllowZero("tryon_register_reward_points", 8)
@@ -973,7 +1073,7 @@ func (s *TryonTaskService) GrantRegisterRewardPoints(ctx context.Context, userID
 
 	return global.GVA_DB.Transaction(func(tx *gorm.DB) error {
 		txCtx := context.WithValue(ctx, "tx", tx)
-		return s.grantPointsIfNotExists(txCtx, tx, userID, tryonOpRegisterReward, rewardPoints, "注册奖励试衣币", "register")
+		return s.grantPointsIfNotExists(txCtx, tx, userID, tryonOpRegisterReward, rewardPoints, tryonReasonRegister, "register")
 	})
 }
 
@@ -988,15 +1088,11 @@ func (s *TryonTaskService) GrantInviteRegisterRewardPoints(ctx context.Context, 
 		return nil
 	}
 
-	reason := "邀请下级注册奖励试衣币"
-	if strings.TrimSpace(invitedUsername) != "" {
-		reason = "邀请用户 " + strings.TrimSpace(invitedUsername) + " 注册奖励试衣币"
-	}
 	remark := fmt.Sprintf("invite_register:%d", invitedUserID)
 
 	return global.GVA_DB.Transaction(func(tx *gorm.DB) error {
 		txCtx := context.WithValue(ctx, "tx", tx)
-		return s.grantPointsIfNotExists(txCtx, tx, inviterID, tryonOpInviteReward, rewardPoints, reason, remark)
+		return s.grantPointsIfNotExists(txCtx, tx, inviterID, tryonOpInviteReward, rewardPoints, tryonReasonInviteReward, remark)
 	})
 }
 
@@ -1027,7 +1123,7 @@ func (s *TryonTaskService) loadTryonModelConfigList(sceneType string) ([]tryonMo
 func (s *TryonTaskService) resolveTryonModelConfig(sceneType string, modelKey string) (*tryonModelConfig, error) {
 	list, err := s.loadTryonModelConfigList(sceneType)
 	if err != nil {
-		return nil, errors.New("试衣模型配置格式错误")
+		return nil, errors.New("tryonModelConfigInvalid")
 	}
 	if len(list) == 0 {
 		return nil, nil
@@ -1053,7 +1149,7 @@ func (s *TryonTaskService) resolveTryonModelConfig(sceneType string, modelKey st
 	}
 
 	if modelKey != "" {
-		return nil, errors.New("所选模型不可用或未启用")
+		return nil, errors.New("tryonModelUnavailable")
 	}
 
 	return fallback, nil
@@ -1124,7 +1220,7 @@ func (s *TryonTaskService) invokeTryonProvider(req clientReq.CreateTryonTaskReq,
 	}
 
 	if strings.TrimSpace(providerURL) == "" {
-		return tryonInvokeResult{}, errors.New("试衣模型服务未配置")
+		return tryonInvokeResult{}, errors.New("tryonModelServiceNotConfigured")
 	}
 
 	headers := map[string]string{}
@@ -1151,7 +1247,7 @@ func (s *TryonTaskService) invokeTryonProvider(req clientReq.CreateTryonTaskReq,
 		return tryonInvokeResult{}, err
 	}
 	if resp == nil {
-		return tryonInvokeResult{}, errors.New("试衣模型返回为空")
+		return tryonInvokeResult{}, errors.New("tryonModelResponseEmpty")
 	}
 
 	resultImage := firstNonEmptyString(
@@ -1166,7 +1262,7 @@ func (s *TryonTaskService) invokeTryonProvider(req clientReq.CreateTryonTaskReq,
 		if strings.TrimSpace(resp.Msg) != "" {
 			return tryonInvokeResult{}, errors.New(strings.TrimSpace(resp.Msg))
 		}
-		return tryonInvokeResult{}, errors.New("试衣模型返回结果为空")
+		return tryonInvokeResult{}, errors.New("tryonModelResultEmpty")
 	}
 
 	return tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: resultImage}, nil
@@ -1174,10 +1270,10 @@ func (s *TryonTaskService) invokeTryonProvider(req clientReq.CreateTryonTaskReq,
 
 func (s *TryonTaskService) invokeGradioTryon(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig, providerToken string, providerURL string) (tryonInvokeResult, error) {
 	if strings.TrimSpace(req.SourceImage) == "" {
-		return tryonInvokeResult{}, errors.New("模特图不能为空")
+		return tryonInvokeResult{}, errors.New("modelImageRequired")
 	}
 	if strings.TrimSpace(req.TemplateImage) == "" {
-		return tryonInvokeResult{}, errors.New("服饰图不能为空")
+		return tryonInvokeResult{}, errors.New("clothesImageRequired")
 	}
 
 	callURL, rootURL, err := buildGradioCallURL(providerURL, modelCfg.gradioApiName())
@@ -1227,7 +1323,7 @@ func (s *TryonTaskService) invokeGradioTryon(req clientReq.CreateTryonTaskReq, m
 		return tryonInvokeResult{}, err
 	}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return tryonInvokeResult{}, fmt.Errorf("Gradio试衣请求失败，状态码: %d，响应: %s", response.StatusCode, strings.TrimSpace(string(responseBody)))
+		return tryonInvokeResult{}, errors.New("gradioTryonRequestFailed")
 	}
 
 	var createResp struct {
@@ -1236,7 +1332,7 @@ func (s *TryonTaskService) invokeGradioTryon(req clientReq.CreateTryonTaskReq, m
 		Error   string          `json:"error"`
 	}
 	if err := json.Unmarshal(responseBody, &createResp); err != nil {
-		return tryonInvokeResult{}, fmt.Errorf("Gradio试衣创建响应解析失败: %w", err)
+		return tryonInvokeResult{}, errors.New("gradioTryonCreateRespParseFail")
 	}
 	if strings.TrimSpace(createResp.Error) != "" {
 		return tryonInvokeResult{}, errors.New(strings.TrimSpace(createResp.Error))
@@ -1250,7 +1346,7 @@ func (s *TryonTaskService) invokeGradioTryon(req clientReq.CreateTryonTaskReq, m
 
 	eventID := strings.TrimSpace(createResp.EventID)
 	if eventID == "" {
-		return tryonInvokeResult{}, errors.New("Gradio试衣未返回event_id")
+		return tryonInvokeResult{}, errors.New("gradioEventIDMissing")
 	}
 
 	resultImage, err := s.waitGradioResult(client, callURL, rootURL, eventID, providerToken)
@@ -1258,7 +1354,7 @@ func (s *TryonTaskService) invokeGradioTryon(req clientReq.CreateTryonTaskReq, m
 		return tryonInvokeResult{}, err
 	}
 	if resultImage == "" {
-		return tryonInvokeResult{}, errors.New("Gradio试衣返回结果为空")
+		return tryonInvokeResult{}, errors.New("gradioResultEmpty")
 	}
 
 	return tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: resultImage, ProviderTaskID: eventID}, nil
@@ -1282,8 +1378,7 @@ func (s *TryonTaskService) waitGradioResult(client *http.Client, callURL string,
 	defer response.Body.Close()
 
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		responseBody, _ := io.ReadAll(response.Body)
-		return "", fmt.Errorf("Gradio试衣结果查询失败，状态码: %d，响应: %s", response.StatusCode, strings.TrimSpace(string(responseBody)))
+		return "", errors.New("gradioTryonQueryFailed")
 	}
 
 	scanner := bufio.NewScanner(response.Body)
@@ -1307,7 +1402,7 @@ func (s *TryonTaskService) waitGradioResult(client *http.Client, callURL string,
 			sawErrorEvent = true
 			if payload == "" || payload == "null" || payload == "{}" {
 				if strings.TrimSpace(lastError) == "" {
-					lastError = "Gradio返回error事件但未提供错误详情，常见原因：输入图片URL不可公网访问、链接过期或图片格式不支持"
+					lastError = "gradioTryonErrorWithoutDetails"
 				}
 				continue
 			}
@@ -1331,7 +1426,7 @@ func (s *TryonTaskService) waitGradioResult(client *http.Client, callURL string,
 		return "", errors.New(lastError)
 	}
 	if sawErrorEvent {
-		return "", errors.New("Gradio任务失败，但未返回可解析的错误详情")
+		return "", errors.New("gradioTryonErrorWithoutDetails")
 	}
 	return "", nil
 }
@@ -1348,12 +1443,12 @@ func isGradioTryonModel(providerName string, providerURL string, modelName strin
 func buildGradioCallURL(rawURL string, apiName string) (string, string, error) {
 	baseURL := normalizeGradioBaseURL(rawURL)
 	if baseURL == "" {
-		return "", "", errors.New("Gradio试衣模型地址未配置")
+		return "", "", errors.New("gradioModelURLNotConfigured")
 	}
 
 	parsed, err := url.Parse(baseURL)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return "", "", errors.New("Gradio试衣模型地址格式错误")
+		return "", "", errors.New("gradioModelURLInvalid")
 	}
 
 	apiPath := strings.Trim(strings.TrimSpace(apiName), "/")
@@ -1423,7 +1518,7 @@ func parseGradioErrorMessage(payload []byte) string {
 	}
 	msg := strings.TrimSpace(string(payload))
 	if msg == "" {
-		return "Gradio试衣任务失败"
+		return "gradioTryonTaskFailed"
 	}
 	return msg
 }
@@ -1497,7 +1592,7 @@ func formatGradioFileURL(value string, rootURL string) string {
 
 func (s *TryonTaskService) invokeAliyunTryonAsync(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig, providerToken string, providerURL string, modelName string) (tryonInvokeResult, error) {
 	if strings.TrimSpace(providerToken) == "" {
-		return tryonInvokeResult{}, errors.New("阿里试衣API Key未配置")
+		return tryonInvokeResult{}, errors.New("aliyunTryonApiKeyMissing")
 	}
 
 	createURL := strings.TrimSpace(providerURL)
@@ -1511,10 +1606,10 @@ func (s *TryonTaskService) invokeAliyunTryonAsync(req clientReq.CreateTryonTaskR
 	}
 
 	if strings.TrimSpace(req.SourceImage) == "" {
-		return tryonInvokeResult{}, errors.New("模特图不能为空")
+		return tryonInvokeResult{}, errors.New("modelImageRequired")
 	}
 	if strings.TrimSpace(req.TemplateImage) == "" {
-		return tryonInvokeResult{}, errors.New("服饰图不能为空")
+		return tryonInvokeResult{}, errors.New("clothesImageRequired")
 	}
 
 	body := map[string]interface{}{
@@ -1542,7 +1637,7 @@ func (s *TryonTaskService) invokeAliyunTryonAsync(req clientReq.CreateTryonTaskR
 		return tryonInvokeResult{}, err
 	}
 	if resp == nil {
-		return tryonInvokeResult{}, errors.New("阿里试衣返回为空")
+		return tryonInvokeResult{}, errors.New("aliyunTryonResponseEmpty")
 	}
 
 	if code := strings.TrimSpace(resp.Code); code != "" {
@@ -1551,7 +1646,7 @@ func (s *TryonTaskService) invokeAliyunTryonAsync(req clientReq.CreateTryonTaskR
 
 	taskID := strings.TrimSpace(resp.Output.TaskID)
 	if taskID == "" {
-		return tryonInvokeResult{}, errors.New("阿里试衣未返回task_id")
+		return tryonInvokeResult{}, errors.New("aliyunTryonTaskIDMissing")
 	}
 
 	status := normalizeProviderTaskStatus(resp.Output.TaskStatus)
@@ -1572,13 +1667,26 @@ func (s *TryonTaskService) invokeAliyunTryonAsync(req clientReq.CreateTryonTaskR
 
 func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTaskReq, coarseImageURL string, modelCfg *tryonModelConfig) (tryonInvokeResult, error) {
 	if strings.TrimSpace(coarseImageURL) == "" {
-		return tryonInvokeResult{}, errors.New("精修输入图不能为空")
+		return tryonInvokeResult{}, errors.New("refinerInputImageRequired")
 	}
 	if strings.TrimSpace(req.SourceImage) == "" {
-		return tryonInvokeResult{}, errors.New("模特图不能为空")
+		return tryonInvokeResult{}, errors.New("modelImageRequired")
 	}
 	if strings.TrimSpace(req.TemplateImage) == "" {
-		return tryonInvokeResult{}, errors.New("服饰图不能为空")
+		return tryonInvokeResult{}, errors.New("clothesImageRequired")
+	}
+
+	normalizedSource, normalizeErr := s.normalizeAliyunMediaURL(req.SourceImage)
+	if normalizeErr != nil {
+		return tryonInvokeResult{}, normalizeErr
+	}
+	normalizedTemplate, normalizeErr := s.normalizeAliyunMediaURL(req.TemplateImage)
+	if normalizeErr != nil {
+		return tryonInvokeResult{}, normalizeErr
+	}
+	normalizedCoarse, normalizeErr := s.normalizeAliyunMediaURL(coarseImageURL)
+	if normalizeErr != nil {
+		return tryonInvokeResult{}, normalizeErr
 	}
 
 	sysConfigService := SysConfigService{}
@@ -1588,15 +1696,27 @@ func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTas
 	refinerURL := modelCfg.refinerEndpointURL(providerURL)
 	refinerToken := modelCfg.refinerAuthToken(providerToken)
 	if strings.TrimSpace(refinerToken) == "" {
-		return tryonInvokeResult{}, errors.New("阿里图片精修API Key未配置")
+		return tryonInvokeResult{}, errors.New("aliyunRefinerApiKeyMissing")
 	}
+
+	refinerURLHost := urlHostname(refinerURL)
+	sourceHost := urlHostname(normalizedSource)
+	templateHost := urlHostname(normalizedTemplate)
+	coarseHost := urlHostname(normalizedCoarse)
+	global.GVA_LOG.Info("阿里精修调用诊断",
+		zap.String("sceneType", strings.TrimSpace(req.SceneType)),
+		zap.String("refinerURLHost", refinerURLHost),
+		zap.String("sourceHost", sourceHost),
+		zap.String("templateHost", templateHost),
+		zap.String("coarseHost", coarseHost),
+	)
 
 	body := map[string]interface{}{
 		"model": modelCfg.refinerModelValue(),
 		"input": map[string]interface{}{
-			"person_image_url": strings.TrimSpace(req.SourceImage),
-			"top_garment_url":  strings.TrimSpace(req.TemplateImage),
-			"coarse_image_url": strings.TrimSpace(coarseImageURL),
+			"person_image_url": strings.TrimSpace(normalizedSource),
+			"top_garment_url":  strings.TrimSpace(normalizedTemplate),
+			"coarse_image_url": strings.TrimSpace(normalizedCoarse),
 		},
 		"parameters": map[string]interface{}{
 			"gender": modelCfg.refinerGenderValue(),
@@ -1613,24 +1733,44 @@ func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTas
 		Body: body,
 	})
 	if err != nil {
+		global.GVA_LOG.Warn("阿里精修HTTP请求失败",
+			zap.String("refinerURLHost", refinerURLHost),
+			zap.Error(err),
+		)
 		return tryonInvokeResult{}, err
 	}
 	if resp == nil {
-		return tryonInvokeResult{}, errors.New("阿里图片精修返回为空")
+		global.GVA_LOG.Warn("阿里精修响应为空",
+			zap.String("refinerURLHost", refinerURLHost),
+		)
+		return tryonInvokeResult{}, errors.New("aliyunRefinerResponseEmpty")
 	}
 
 	if code := strings.TrimSpace(resp.Code); code != "" {
-		return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: formatAliyunModelError(resp.Message, code)}, nil
+		mappedErr := formatAliyunModelError(resp.Message, code)
+		global.GVA_LOG.Warn("阿里精修返回业务失败",
+			zap.String("refinerURLHost", refinerURLHost),
+			zap.String("aliyunCode", code),
+			zap.String("aliyunTaskStatus", strings.TrimSpace(resp.Output.TaskStatus)),
+			zap.String("mappedError", mappedErr),
+		)
+		return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: mappedErr}, nil
 	}
 
 	taskID := strings.TrimSpace(resp.Output.TaskID)
 	if taskID == "" {
-		return tryonInvokeResult{}, errors.New("阿里图片精修未返回task_id")
+		return tryonInvokeResult{}, errors.New("aliyunRefinerTaskIDMissing")
 	}
 
 	status := normalizeProviderTaskStatus(resp.Output.TaskStatus)
 	if status == tryonTaskStatusFailed {
-		return tryonInvokeResult{Status: tryonTaskStatusFailed, ProviderTaskID: taskID, ErrorMessage: formatAliyunModelError(resp.Message, resp.Code)}, nil
+		mappedErr := formatAliyunModelError(resp.Message, resp.Code)
+		global.GVA_LOG.Warn("阿里精修任务状态失败",
+			zap.String("refinerURLHost", refinerURLHost),
+			zap.String("aliyunTaskStatus", strings.TrimSpace(resp.Output.TaskStatus)),
+			zap.String("mappedError", mappedErr),
+		)
+		return tryonInvokeResult{Status: tryonTaskStatusFailed, ProviderTaskID: taskID, ErrorMessage: mappedErr}, nil
 	}
 	if status == tryonTaskStatusSuccess {
 		queryResult, queryErr := s.queryAliyunTryonTask(taskID, strings.TrimSpace(refinerToken), refinerURL, modelCfg.refinerTaskQueryURL())
@@ -1646,7 +1786,7 @@ func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTas
 
 func (s *TryonTaskService) invokeAliyunParsing(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig, providerToken string, providerURL string, modelName string) (tryonInvokeResult, error) {
 	if strings.TrimSpace(providerToken) == "" {
-		return tryonInvokeResult{}, errors.New("阿里图片分割API Key未配置")
+		return tryonInvokeResult{}, errors.New("aliyunParsingApiKeyMissing")
 	}
 
 	processURL := strings.TrimSpace(providerURL)
@@ -1686,7 +1826,7 @@ func (s *TryonTaskService) invokeAliyunParsing(req clientReq.CreateTryonTaskReq,
 		return tryonInvokeResult{}, err
 	}
 	if resp == nil {
-		return tryonInvokeResult{}, errors.New("阿里图片分割返回为空")
+		return tryonInvokeResult{}, errors.New("aliyunParsingResponseEmpty")
 	}
 
 	if code := strings.TrimSpace(resp.Code); code != "" {
@@ -1710,7 +1850,7 @@ func (s *TryonTaskService) invokeAliyunParsing(req clientReq.CreateTryonTaskReq,
 	}
 
 	if resultImage == "" {
-		return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: "图片分割未识别到可用服饰区域"}, nil
+		return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: "aliyunParsingNoUsableGarmentArea"}, nil
 	}
 
 	return tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: resultImage}, nil
@@ -1719,10 +1859,10 @@ func (s *TryonTaskService) invokeAliyunParsing(req clientReq.CreateTryonTaskReq,
 func (s *TryonTaskService) queryAliyunTryonTask(taskID string, providerToken string, createURL string, taskQueryURL string) (tryonInvokeResult, error) {
 	taskID = strings.TrimSpace(taskID)
 	if taskID == "" {
-		return tryonInvokeResult{}, errors.New("task_id不能为空")
+		return tryonInvokeResult{}, errors.New("aliyunTaskIDRequired")
 	}
 	if strings.TrimSpace(providerToken) == "" {
-		return tryonInvokeResult{}, errors.New("阿里试衣API Key未配置")
+		return tryonInvokeResult{}, errors.New("aliyunTryonApiKeyMissing")
 	}
 
 	queryURL := buildAliyunTaskQueryURL(createURL, taskID)
@@ -1742,7 +1882,7 @@ func (s *TryonTaskService) queryAliyunTryonTask(taskID string, providerToken str
 		return tryonInvokeResult{}, err
 	}
 	if resp == nil {
-		return tryonInvokeResult{}, errors.New("查询阿里试衣任务返回为空")
+		return tryonInvokeResult{}, errors.New("aliyunTaskQueryResponseEmpty")
 	}
 
 	if code := strings.TrimSpace(resp.Code); code != "" {
@@ -1754,7 +1894,7 @@ func (s *TryonTaskService) queryAliyunTryonTask(taskID string, providerToken str
 	case tryonTaskStatusSuccess:
 		resultImage := extractDashscopeImageURL(resp.Output.ImageURL)
 		if resultImage == "" {
-			return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: "试衣任务成功但未返回图片", ProviderTaskID: taskID}, nil
+			return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: "aliyunTaskSuccessNoImage", ProviderTaskID: taskID}, nil
 		}
 		return tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: resultImage, ProviderTaskID: taskID}, nil
 	case tryonTaskStatusFailed:
@@ -1766,7 +1906,7 @@ func (s *TryonTaskService) queryAliyunTryonTask(taskID string, providerToken str
 				resp.Output.Code,
 				resp.Message,
 				resp.Code,
-				"试衣任务失败",
+				"tryonTaskFailed",
 			),
 		}, nil
 	case tryonTaskStatusProcessing, tryonTaskStatusUnknown:
@@ -1779,21 +1919,27 @@ func (s *TryonTaskService) queryAliyunTryonTask(taskID string, providerToken str
 func formatAliyunModelError(values ...string) string {
 	msg := firstNonEmptyString(values...)
 	if msg == "" {
-		return "试衣任务失败"
+		return "tryonTaskFailed"
 	}
 
 	lowerMsg := strings.ToLower(msg)
 	if strings.Contains(lowerMsg, "unable to download the media resource") || strings.Contains(lowerMsg, "invalid image url") {
-		return "模型服务无法下载图片资源，请确认 sourceImage/templateImage 为公网可访问 URL（不要使用 localhost 或内网地址）"
+		return "modelCannotDownloadResource"
 	}
 	if strings.Contains(lowerMsg, "download ") && strings.Contains(lowerMsg, "refused") {
-		return "模型服务无法下载图片资源（URL被拒绝），请更换可直连的图片域名后重试"
+		return "modelDownloadRefused"
+	}
+	if strings.Contains(lowerMsg, "cf-mitigated") || strings.Contains(lowerMsg, "cloudflare") || strings.Contains(lowerMsg, "challenge") {
+		return "modelDownloadRefused"
 	}
 	if strings.Contains(lowerMsg, "invalidurl") {
-		return "图片地址无效或模型服务不可达，请更换可直连的图片域名后重试"
+		return "modelImageURLInvalidOrUnreachable"
 	}
-	if strings.Contains(lowerMsg, "data inspection") {
-		return "图片风控或资源检测失败，请更换图片后重试"
+	if strings.Contains(lowerMsg, "data inspection") || strings.Contains(lowerMsg, "datainspection") {
+		if strings.Contains(lowerMsg, "download") || strings.Contains(lowerMsg, "resource") || strings.Contains(lowerMsg, "url") || strings.Contains(lowerMsg, "refused") || strings.Contains(lowerMsg, "403") {
+			return "modelDownloadRefused"
+		}
+		return "modelImageRiskCheckFailed"
 	}
 	return msg
 }
@@ -1801,29 +1947,29 @@ func formatAliyunModelError(values ...string) string {
 func (s *TryonTaskService) normalizeAliyunMediaURL(rawURL string) (string, error) {
 	rawURL = strings.TrimSpace(rawURL)
 	if rawURL == "" {
-		return "", errors.New("图片地址不能为空")
+		return "", errors.New("mediaURLRequired")
 	}
 	if strings.HasPrefix(strings.ToLower(rawURL), "data:") {
-		return "", errors.New("图片地址不能是 data URI，请先上传并使用公网 URL")
+		return "", errors.New("mediaURLDataURINotAllowed")
 	}
 
 	publicBaseURL := s.getTryonMediaPublicBaseURL()
 
 	if !isAbsoluteHTTPURL(rawURL) {
 		if publicBaseURL == "" {
-			return "", errors.New("图片地址不是公网 URL，请在系统参数配置 tryon_media_public_base_url 后重试")
+			return "", errors.New("mediaURLPublicURLRequired")
 		}
 		return joinBaseURLAndResourcePath(publicBaseURL, rawURL)
 	}
 
 	parsed, err := url.Parse(rawURL)
 	if err != nil || parsed.Hostname() == "" {
-		return "", errors.New("图片地址格式错误")
+		return "", errors.New("mediaURLInvalid")
 	}
 
 	if isLoopbackOrPrivateHost(parsed.Hostname()) {
 		if publicBaseURL == "" {
-			return "", errors.New("当前图片地址为 localhost/内网地址，模型服务无法访问；请配置 tryon_media_public_base_url 为公网域名")
+			return "", errors.New("mediaURLPrivateHostNotAccessible")
 		}
 		resourcePath := strings.TrimSpace(parsed.Path)
 		if resourcePath == "" {
@@ -1908,12 +2054,12 @@ func joinBaseURLAndResourcePath(baseURL string, resourcePath string) (string, er
 	baseURL = strings.TrimSpace(baseURL)
 	resourcePath = strings.TrimSpace(resourcePath)
 	if baseURL == "" {
-		return "", errors.New("公网地址前缀不能为空")
+		return "", errors.New("publicBaseURLRequired")
 	}
 
 	parsedBaseURL, err := url.Parse(baseURL)
 	if err != nil || parsedBaseURL.Scheme == "" || parsedBaseURL.Hostname() == "" {
-		return "", errors.New("tryon_media_public_base_url 配置格式错误，请填写如 https://back.example.com")
+		return "", errors.New("publicBaseURLInvalid")
 	}
 
 	if strings.HasPrefix(strings.ToLower(resourcePath), "http://") || strings.HasPrefix(strings.ToLower(resourcePath), "https://") {
@@ -2139,7 +2285,7 @@ func (s *TryonTaskService) refreshTryonTaskStatus(ctx context.Context, task *cli
 				}
 				return global.GVA_DB.Where("id = ? AND user_id = ?", task.ID, task.UserID).First(task).Error
 			default:
-				if err = s.markFailedAndRefund(ctx, task, "图片精修返回未知状态"); err != nil {
+				if err = s.markFailedAndRefund(ctx, task, "tryonRefinerStatusUnknown"); err != nil {
 					return err
 				}
 				return global.GVA_DB.Where("id = ? AND user_id = ?", task.ID, task.UserID).First(task).Error
@@ -2201,7 +2347,7 @@ func (s *TryonTaskService) persistTryonResultImage(rawURL string, taskNo string)
 func (s *TryonTaskService) uploadTryonResultToUniGet(rawURL string, taskNo string) (string, error) {
 	rawURL = strings.TrimSpace(rawURL)
 	if rawURL == "" {
-		return "", errors.New("结果图片地址为空")
+		return "", errors.New("tryonResultURLRequired")
 	}
 
 	if strings.Contains(strings.ToLower(rawURL), "/"+tryonResultStoreFolder+"/") {
@@ -2235,7 +2381,7 @@ func (s *TryonTaskService) uploadTryonResultToUniGet(rawURL string, taskNo strin
 	defer resp.Body.Close()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return "", fmt.Errorf("下载结果图失败，状态码: %d", resp.StatusCode)
+		return "", errors.New("tryonResultDownloadFailed")
 	}
 
 	limitedReader := io.LimitReader(resp.Body, tryonResultMaxImageBytes+1)
@@ -2244,10 +2390,10 @@ func (s *TryonTaskService) uploadTryonResultToUniGet(rawURL string, taskNo strin
 		return "", err
 	}
 	if len(data) == 0 {
-		return "", errors.New("结果图片内容为空")
+		return "", errors.New("tryonResultContentEmpty")
 	}
 	if len(data) > tryonResultMaxImageBytes {
-		return "", fmt.Errorf("结果图片超过大小限制(%dMB)", tryonResultMaxImageBytes/1024/1024)
+		return "", errors.New("tryonResultTooLarge")
 	}
 
 	contentType := strings.TrimSpace(resp.Header.Get("Content-Type"))
@@ -2590,7 +2736,7 @@ func buildPointRecord(userID uint, assetType string, changeType string, points i
 func (s *TryonTaskService) ensureGuestInitPoints(ctx context.Context, userID uint) error {
 	tx, ok := ctx.Value("tx").(*gorm.DB)
 	if !ok || tx == nil {
-		return errors.New("试衣赠币事务上下文缺失")
+		return errors.New("tryonGuestInitTxMissing")
 	}
 
 	guestPoints := s.getConfigIntAllowZero("tryon_guest_init_points", 0)
@@ -2598,7 +2744,7 @@ func (s *TryonTaskService) ensureGuestInitPoints(ctx context.Context, userID uin
 		return nil
 	}
 
-	return s.grantPointsIfNotExists(ctx, tx, userID, tryonOpGuestInit, guestPoints, "游客首次试衣赠币", "guest_first_tryon")
+	return s.grantPointsIfNotExists(ctx, tx, userID, tryonOpGuestInit, guestPoints, tryonReasonGuestInit, "guest_first_tryon")
 }
 
 func (s *TryonTaskService) grantPointsIfNotExists(ctx context.Context, tx *gorm.DB, userID uint, operationType string, points int, reason string, remark string) error {
@@ -2606,7 +2752,7 @@ func (s *TryonTaskService) grantPointsIfNotExists(ctx context.Context, tx *gorm.
 	var user client.ClientUser
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", userID).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("用户不存在")
+			return errors.New("userNotExist")
 		}
 		return err
 	}

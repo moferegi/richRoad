@@ -75,6 +75,7 @@ func initNewModulesApis(db *gorm.DB) {
 		{ApiGroup: "试衣任务", Method: "GET", Path: "/tryonTask/getTryonTaskList", Description: "获取试衣任务列表(管理端)"},
 		{ApiGroup: "试衣任务", Method: "GET", Path: "/tryonTask/getTryonTaskStats", Description: "获取试衣任务统计(管理端)"},
 		{ApiGroup: "试衣任务", Method: "GET", Path: "/tryonTask/getTryonTaskTrend", Description: "获取试衣任务趋势(管理端)"},
+		{ApiGroup: "试衣币记录", Method: "GET", Path: "/cpr/getPointRecordStats", Description: "获取试衣币统计(管理端)"},
 		{ApiGroup: "客户端用户", Method: "POST", Path: "/clientUser/adjustTryonPoint", Description: "后台调整用户试衣币"},
 		// 试衣币充值订单
 		{ApiGroup: "试衣币充值订单", Method: "POST", Path: "/tryonRechargeOrder/createTryonRechargeOrder", Description: "创建试衣币充值订单"},
@@ -161,8 +162,9 @@ func initNewModulesMenus(db *gorm.DB) {
 			menuDef{"externalLinkDomain", "externalLinkDomain", "view/client/externalLinkDomain/externalLinkDomain.vue", "外部链接域名", "link", clientParent.ID, 15},
 			menuDef{"signInManage", "signInManage", "view/client/signIn/signIn.vue", "签到管理", "calendar", clientParent.ID, 16},
 			menuDef{"tryonTaskManage", "tryonTaskManage", "view/client/tryonTask/tryonTask.vue", "试衣任务", "camera", clientParent.ID, 17},
-			menuDef{"tryonPointRecord", "tryonPointRecord", "view/client/tryonPointRecord/tryonPointRecord.vue", "试衣币记录", "coin", clientParent.ID, 18},
-			menuDef{"tryonRechargeOrder", "tryonRechargeOrder", "view/client/tryonRechargeOrder/tryonRechargeOrder.vue", "试衣币充值订单", "wallet", clientParent.ID, 19},
+			menuDef{"tryonModelManage", "tryonModelManage", "view/client/tryonModel/tryonModel.vue", "我的模特管理", "avatar", clientParent.ID, 18},
+			menuDef{"tryonPointRecord", "tryonPointRecord", "view/client/tryonPointRecord/tryonPointRecord.vue", "试衣币记录", "coin", clientParent.ID, 19},
+			menuDef{"tryonRechargeOrder", "tryonRechargeOrder", "view/client/tryonRechargeOrder/tryonRechargeOrder.vue", "试衣币充值订单", "wallet", clientParent.ID, 20},
 		)
 	}
 
@@ -258,6 +260,7 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/tryonTask/getTryonTaskList", "GET"},
 		{"/tryonTask/getTryonTaskStats", "GET"},
 		{"/tryonTask/getTryonTaskTrend", "GET"},
+		{"/cpr/getPointRecordStats", "GET"},
 		{"/clientUser/adjustTryonPoint", "POST"},
 		// 试衣币充值订单
 		{"/tryonRechargeOrder/createTryonRechargeOrder", "POST"},

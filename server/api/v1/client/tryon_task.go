@@ -8,6 +8,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -29,17 +30,17 @@ func (api *TryonTaskApi) DeleteTryonTask(c *gin.Context) {
 	idStr := c.Query("ID")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil || id == 0 {
-		response.FailWithMessage("ID参数错误", c)
+		response.FailWithMessage(i18n.T(c, "invalidID"), c)
 		return
 	}
 
 	if err := tryonTaskService.DeleteTryonTask(uint(id)); err != nil {
 		global.GVA_LOG.Error("删除试衣任务失败!", zap.Error(err), zap.Uint64("taskID", id))
-		response.FailWithMessage("删除失败", c)
+		response.FailWithMessage(i18n.T(c, "deleteFail"), c)
 		return
 	}
 
-	response.OkWithMessage("删除成功", c)
+	response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
 }
 
 // DeleteTryonTaskByIds 批量删除试衣任务（管理端）
@@ -54,7 +55,7 @@ func (api *TryonTaskApi) DeleteTryonTask(c *gin.Context) {
 func (api *TryonTaskApi) DeleteTryonTaskByIds(c *gin.Context) {
 	idStrs := c.QueryArray("IDs[]")
 	if len(idStrs) == 0 {
-		response.FailWithMessage("IDs参数错误", c)
+		response.FailWithMessage(i18n.T(c, "invalidIDs"), c)
 		return
 	}
 
@@ -62,7 +63,7 @@ func (api *TryonTaskApi) DeleteTryonTaskByIds(c *gin.Context) {
 	for _, idStr := range idStrs {
 		id, err := strconv.ParseUint(idStr, 10, 64)
 		if err != nil || id == 0 {
-			response.FailWithMessage("IDs参数错误", c)
+			response.FailWithMessage(i18n.T(c, "invalidIDs"), c)
 			return
 		}
 		ids = append(ids, uint(id))
@@ -70,11 +71,11 @@ func (api *TryonTaskApi) DeleteTryonTaskByIds(c *gin.Context) {
 
 	if err := tryonTaskService.DeleteTryonTaskByIds(ids); err != nil {
 		global.GVA_LOG.Error("批量删除试衣任务失败!", zap.Error(err))
-		response.FailWithMessage("批量删除失败", c)
+		response.FailWithMessage(i18n.T(c, "batchDeleteFail"), c)
 		return
 	}
 
-	response.OkWithMessage("批量删除成功", c)
+	response.OkWithMessage(i18n.T(c, "batchDeleteSuccess"), c)
 }
 
 // DeleteMyTryonTask 删除我的试衣任务（客户端）
@@ -89,18 +90,18 @@ func (api *TryonTaskApi) DeleteTryonTaskByIds(c *gin.Context) {
 func (api *TryonTaskApi) DeleteMyTryonTask(c *gin.Context) {
 	taskNo := c.Query("taskNo")
 	if taskNo == "" {
-		response.FailWithMessage("taskNo参数错误", c)
+		response.FailWithMessage(i18n.T(c, "invalidTaskNo"), c)
 		return
 	}
 
 	userID := utils.GetUserID(c)
 	if err := tryonTaskService.DeleteMyTryonTaskByTaskNo(userID, taskNo); err != nil {
 		global.GVA_LOG.Error("删除我的试衣任务失败!", zap.Error(err), zap.Uint("userID", userID), zap.String("taskNo", taskNo))
-		response.FailWithMessage("删除失败", c)
+		response.FailWithMessage(i18n.T(c, "deleteFail"), c)
 		return
 	}
 
-	response.OkWithMessage("删除成功", c)
+	response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
 }
 
 // CreateTryonTask 创建试衣任务
@@ -115,7 +116,7 @@ func (api *TryonTaskApi) DeleteMyTryonTask(c *gin.Context) {
 func (api *TryonTaskApi) CreateTryonTask(c *gin.Context) {
 	var req clientReq.CreateTryonTaskReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
@@ -123,16 +124,16 @@ func (api *TryonTaskApi) CreateTryonTask(c *gin.Context) {
 	task, reused, err := tryonTaskService.CreateTryonTask(c.Request.Context(), userID, req)
 	if err != nil {
 		global.GVA_LOG.Error("创建试衣任务失败!", zap.Error(err), zap.Uint("userID", userID), zap.Uint("taskID", task.ID))
-		response.FailWithDetailed(gin.H{"task": task, "reused": reused}, err.Error(), c)
+		response.FailWithDetailed(gin.H{"task": task, "reused": reused}, i18n.T(c, err.Error()), c)
 		return
 	}
 
-	msg := "试衣任务处理完成"
+	msg := i18n.T(c, "tryonTaskDone")
 	if task.Status == "processing" {
-		msg = "试衣任务已提交，处理中"
+		msg = i18n.T(c, "tryonTaskProcessing")
 	}
 	if reused {
-		msg = "请求已受理，返回历史任务"
+		msg = i18n.T(c, "requestReusedHistory")
 	}
 	response.OkWithDetailed(gin.H{"task": task, "reused": reused}, msg, c)
 }
@@ -150,7 +151,7 @@ func (api *TryonTaskApi) FindTryonTask(c *gin.Context) {
 	idStr := c.Query("ID")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil || id == 0 {
-		response.FailWithMessage("ID参数错误", c)
+		response.FailWithMessage(i18n.T(c, "invalidID"), c)
 		return
 	}
 
@@ -158,7 +159,7 @@ func (api *TryonTaskApi) FindTryonTask(c *gin.Context) {
 	task, err := tryonTaskService.GetTryonTaskByID(c.Request.Context(), uint(id), userID)
 	if err != nil {
 		global.GVA_LOG.Error("查询试衣任务失败!", zap.Error(err), zap.Uint("userID", userID), zap.Uint64("taskID", id))
-		response.FailWithMessage("查询失败", c)
+		response.FailWithMessage(i18n.T(c, "queryFail"), c)
 		return
 	}
 
@@ -177,7 +178,7 @@ func (api *TryonTaskApi) FindTryonTask(c *gin.Context) {
 func (api *TryonTaskApi) GetMyTryonTaskList(c *gin.Context) {
 	var pageInfo clientReq.TryonTaskSearch
 	if err := c.ShouldBindQuery(&pageInfo); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
@@ -185,7 +186,7 @@ func (api *TryonTaskApi) GetMyTryonTaskList(c *gin.Context) {
 	list, total, err := tryonTaskService.GetMyTryonTaskList(userID, pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取试衣任务列表失败!", zap.Error(err), zap.Uint("userID", userID))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
 
@@ -194,7 +195,7 @@ func (api *TryonTaskApi) GetMyTryonTaskList(c *gin.Context) {
 		Total:    total,
 		Page:     pageInfo.Page,
 		PageSize: pageInfo.PageSize,
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }
 
 // GetTryonTaskList 获取试衣任务列表（管理端）
@@ -209,14 +210,14 @@ func (api *TryonTaskApi) GetMyTryonTaskList(c *gin.Context) {
 func (api *TryonTaskApi) GetTryonTaskList(c *gin.Context) {
 	var pageInfo clientReq.TryonTaskSearch
 	if err := c.ShouldBindQuery(&pageInfo); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
 	list, total, err := tryonTaskService.GetTryonTaskList(pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取试衣任务列表失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
 
@@ -225,7 +226,7 @@ func (api *TryonTaskApi) GetTryonTaskList(c *gin.Context) {
 		Total:    total,
 		Page:     pageInfo.Page,
 		PageSize: pageInfo.PageSize,
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }
 
 // GetTryonTaskStats 获取试衣任务统计（管理端）
@@ -235,28 +236,23 @@ func (api *TryonTaskApi) GetTryonTaskList(c *gin.Context) {
 // @accept application/json
 // @Produce application/json
 // @Param data query clientReq.TryonTaskSearch true "查询试衣任务统计"
-// @Success 200 {object} response.Response{data=map[string]int64,msg=string} "获取成功"
+// @Success 200 {object} response.Response{data=map[string]interface{},msg=string} "获取成功"
 // @Router /tryonTask/getTryonTaskStats [get]
 func (api *TryonTaskApi) GetTryonTaskStats(c *gin.Context) {
 	var search clientReq.TryonTaskSearch
 	if err := c.ShouldBindQuery(&search); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
-	total, processing, success, failed, err := tryonTaskService.GetTryonTaskStats(search)
+	stats, err := tryonTaskService.GetTryonTaskStats(search)
 	if err != nil {
 		global.GVA_LOG.Error("获取试衣任务统计失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
 
-	response.OkWithDetailed(gin.H{
-		"total":      total,
-		"processing": processing,
-		"success":    success,
-		"failed":     failed,
-	}, "获取成功", c)
+	response.OkWithDetailed(stats, i18n.T(c, "getSuccess"), c)
 }
 
 // GetTryonTaskTrend 获取试衣任务趋势（管理端）
@@ -271,16 +267,16 @@ func (api *TryonTaskApi) GetTryonTaskStats(c *gin.Context) {
 func (api *TryonTaskApi) GetTryonTaskTrend(c *gin.Context) {
 	var search clientReq.TryonTaskSearch
 	if err := c.ShouldBindQuery(&search); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
 	list, err := tryonTaskService.GetTryonTaskTrend(search)
 	if err != nil {
 		global.GVA_LOG.Error("获取试衣任务趋势失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
 
-	response.OkWithDetailed(gin.H{"list": list}, "获取成功", c)
+	response.OkWithDetailed(gin.H{"list": list}, i18n.T(c, "getSuccess"), c)
 }

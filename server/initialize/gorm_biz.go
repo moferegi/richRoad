@@ -2,7 +2,6 @@ package initialize
 
 import (
 	"errors"
-
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"

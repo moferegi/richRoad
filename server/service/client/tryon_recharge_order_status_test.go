@@ -108,7 +108,7 @@ func TestSubmitTryonRechargeOrderPayment_RejectsNonQRCodeOrder(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error for non-qrcode order, got nil")
 	}
-	if !strings.Contains(err.Error(), "仅扫码支付订单可提交付款确认") {
+	if !strings.Contains(err.Error(), "tryonRechargeOrderPayMethodNotQrcode") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 

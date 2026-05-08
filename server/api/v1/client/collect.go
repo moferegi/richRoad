@@ -30,7 +30,7 @@ func (collectApi *CollectApi) CreateCollect(c *gin.Context) {
 	var collect client.Collect
 	err := c.ShouldBindJSON(&collect)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	collect.UserID = utils.GetUserID(c)
@@ -92,7 +92,7 @@ func (collectApi *CollectApi) UpdateCollect(c *gin.Context) {
 	var collect client.Collect
 	err := c.ShouldBindJSON(&collect)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
@@ -137,7 +137,7 @@ func (collectApi *CollectApi) GetCollectList(c *gin.Context) {
 	var pageInfo clientReq.CollectSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	pageInfo.UserID = utils.GetUserID(c)

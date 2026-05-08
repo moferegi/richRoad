@@ -62,12 +62,12 @@ func (clientUserApi *ClientUserApi) Login(c *gin.Context) {
 	key := c.ClientIP()
 
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	err = utils.Verify(l, utils.LoginVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
@@ -92,7 +92,7 @@ func (clientUserApi *ClientUserApi) Login(c *gin.Context) {
 	if !oc || (l.CaptchaId != "" && l.Captcha != "" && store.Verify(l.CaptchaId, l.Captcha, true)) {
 		user, err := clientUserService.Login(&l)
 		if err != nil {
-			if err.Error() == "BANNED" {
+			if err.Error() == "BANNED" || err.Error() == "accountBanned" {
 				response.FailWithDetailed(gin.H{"banned": true}, i18n.T(c, "accountBanned"), c)
 				return
 			}
@@ -119,7 +119,7 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 	var register clientReq.CreateUser
 	err := c.ShouldBindJSON(&register)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
@@ -158,7 +158,7 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 
 	if err := clientUserService.CreateClientUser(&clientUser); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, err.Error()), c)
 		return
 	}
 
@@ -206,23 +206,23 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 // @Router /clientUser/adjustTryonPoint [post]
 func (clientUserApi *ClientUserApi) AdjustClientUserTryonPoint(c *gin.Context) {
 	if !isSysConfigAdmin(utils.GetUserAuthorityId(c)) {
-		response.FailWithMessage("无权限调整试衣币", c)
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
 		return
 	}
 
 	var req clientReq.AdjustTryonPointRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
 	if err := clientUserService.AdjustTryonPoint(c.Request.Context(), req, utils.GetUserID(c)); err != nil {
 		global.GVA_LOG.Error("调整试衣币失败!", zap.Error(err), zap.Uint("targetUserID", req.UserID))
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, err.Error()), c)
 		return
 	}
 
-	response.OkWithMessage("调整成功", c)
+	response.OkWithMessage(i18n.T(c, "adjustSuccess"), c)
 }
 
 // CreateClientUser 创建客户端用户
@@ -238,7 +238,7 @@ func (clientUserApi *ClientUserApi) CreateClientUser(c *gin.Context) {
 	var clientUser client.ClientUser
 	err := c.ShouldBindJSON(&clientUser)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	clientUser.CreatedBy = utils.GetUserID(c)
@@ -303,7 +303,7 @@ func (clientUserApi *ClientUserApi) UpdateClientUser(c *gin.Context) {
 	var clientUser client.ClientUser
 	err := c.ShouldBindJSON(&clientUser)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	clientUser.UpdatedBy = utils.GetUserID(c)
@@ -348,7 +348,7 @@ func (clientUserApi *ClientUserApi) GetClientUserList(c *gin.Context) {
 	var pageInfo clientReq.ClientUserSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	if list, total, err := clientUserService.GetClientUserInfoList(pageInfo); err != nil {
@@ -377,7 +377,7 @@ func (clientUserApi *ClientUserApi) SetClientUserInfo(c *gin.Context) {
 	var req clientReq.UpdateKV
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	key := req.Key
@@ -475,12 +475,12 @@ func interfaceToInt(v interface{}) (i int) {
 func (clientUserApi *ClientUserApi) GetSubordinates(c *gin.Context) {
 	userIDStr := c.Query("userID")
 	if userIDStr == "" {
-		response.FailWithMessage("用户ID不能为空", c)
+		response.FailWithMessage(i18n.T(c, "userIDRequired"), c)
 		return
 	}
 	userID, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil {
-		response.FailWithMessage("用户ID格式错误", c)
+		response.FailWithMessage(i18n.T(c, "invalidUserID"), c)
 		return
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -494,7 +494,7 @@ func (clientUserApi *ClientUserApi) GetSubordinates(c *gin.Context) {
 	list, total, err := clientUserService.GetSubordinates(uint(userID), page, pageSize)
 	if err != nil {
 		global.GVA_LOG.Error("获取下级失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -502,7 +502,7 @@ func (clientUserApi *ClientUserApi) GetSubordinates(c *gin.Context) {
 		Total:    total,
 		Page:     page,
 		PageSize: pageSize,
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }
 
 // GetMyInviteInfo 获取当前用户的邀请信息（uni-app端）
@@ -517,7 +517,7 @@ func (clientUserApi *ClientUserApi) GetMyInviteInfo(c *gin.Context) {
 	userID := utils.GetUserID(c)
 	user, err := clientUserService.GetClientUser(strconv.Itoa(int(userID)))
 	if err != nil {
-		response.FailWithMessage("获取用户信息失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
 	subordinateCount, _ := clientUserService.GetSubordinateCount(userID)
@@ -526,7 +526,7 @@ func (clientUserApi *ClientUserApi) GetMyInviteInfo(c *gin.Context) {
 		"subordinateCount": subordinateCount,
 		"point":            user.Point,
 		"tryonPoint":       user.TryonPoint,
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }
 
 // GetMySubordinates 获取当前用户的下级列表（uni-app端）
@@ -552,7 +552,7 @@ func (clientUserApi *ClientUserApi) GetMySubordinates(c *gin.Context) {
 	list, total, err := clientUserService.GetSubordinates(userID, page, pageSize)
 	if err != nil {
 		global.GVA_LOG.Error("获取下级失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -560,7 +560,7 @@ func (clientUserApi *ClientUserApi) GetMySubordinates(c *gin.Context) {
 		Total:    total,
 		Page:     page,
 		PageSize: pageSize,
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }
 
 // PhoneLogin 手机号+密码登录
@@ -574,7 +574,7 @@ func (clientUserApi *ClientUserApi) GetMySubordinates(c *gin.Context) {
 func (clientUserApi *ClientUserApi) PhoneLogin(c *gin.Context) {
 	var req clientReq.PhoneLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
@@ -616,7 +616,7 @@ func (clientUserApi *ClientUserApi) PhoneLogin(c *gin.Context) {
 func (clientUserApi *ClientUserApi) PhoneRegister(c *gin.Context) {
 	var req clientReq.PhoneRegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
@@ -653,7 +653,7 @@ func (clientUserApi *ClientUserApi) PhoneRegister(c *gin.Context) {
 	clientUser, err := clientUserService.RegisterByPhone(req.AreaCode, req.Phone, req.Password, req.InviteCode)
 	if err != nil {
 		global.GVA_LOG.Error("手机号注册失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, err.Error()), c)
 		return
 	}
 
@@ -699,7 +699,7 @@ func (clientUserApi *ClientUserApi) PhoneRegister(c *gin.Context) {
 func (clientUserApi *ClientUserApi) ChangePassword(c *gin.Context) {
 	var req clientReq.ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
@@ -712,7 +712,7 @@ func (clientUserApi *ClientUserApi) ChangePassword(c *gin.Context) {
 	userID := utils.GetUserID(c)
 	if err := clientUserService.ChangePassword(userID, req.OldPassword, req.NewPassword, req.Method); err != nil {
 		global.GVA_LOG.Error("修改密码失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, err.Error()), c)
 		return
 	}
 
@@ -731,7 +731,7 @@ func (clientUserApi *ClientUserApi) ChangePassword(c *gin.Context) {
 func (clientUserApi *ClientUserApi) SetPhoneVerified(c *gin.Context) {
 	var req clientReq.SetPhoneRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 

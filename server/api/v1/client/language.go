@@ -6,6 +6,7 @@ import (
 	clientReq "github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -27,14 +28,14 @@ func (api *LanguageApi) CreateLanguage(c *gin.Context) {
 	var info client.SysLanguage
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	if err := languageService.CreateSysLanguage(&info); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage("创建失败", c)
+		response.FailWithMessage(i18n.T(c, "createFail"), c)
 	} else {
-		response.OkWithMessage("创建成功", c)
+		response.OkWithMessage(i18n.T(c, "createSuccess"), c)
 	}
 }
 
@@ -51,9 +52,9 @@ func (api *LanguageApi) DeleteLanguage(c *gin.Context) {
 	ID := c.Query("ID")
 	if err := languageService.DeleteSysLanguage(ID); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败", c)
+		response.FailWithMessage(i18n.T(c, "deleteFail"), c)
 	} else {
-		response.OkWithMessage("删除成功", c)
+		response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
 	}
 }
 
@@ -70,14 +71,14 @@ func (api *LanguageApi) UpdateLanguage(c *gin.Context) {
 	var info client.SysLanguage
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	if err := languageService.UpdateSysLanguage(info); err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage("更新失败", c)
+		response.FailWithMessage(i18n.T(c, "updateFail"), c)
 	} else {
-		response.OkWithMessage("更新成功", c)
+		response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
 	}
 }
 
@@ -94,19 +95,19 @@ func (api *LanguageApi) GetLanguageList(c *gin.Context) {
 	var pageInfo clientReq.SysLanguageSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	if list, total, err := languageService.GetSysLanguageList(pageInfo); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 	} else {
 		response.OkWithDetailed(response.PageResult{
 			List:     list,
 			Total:    total,
 			Page:     pageInfo.Page,
 			PageSize: pageInfo.PageSize,
-		}, "获取成功", c)
+		}, i18n.T(c, "getSuccess"), c)
 	}
 }
 
@@ -120,8 +121,8 @@ func (api *LanguageApi) GetLanguageList(c *gin.Context) {
 func (api *LanguageApi) GetEnabledLanguages(c *gin.Context) {
 	if list, err := languageService.GetEnabledLanguages(); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 	} else {
-		response.OkWithDetailed(list, "获取成功", c)
+		response.OkWithDetailed(list, i18n.T(c, "getSuccess"), c)
 	}
 }

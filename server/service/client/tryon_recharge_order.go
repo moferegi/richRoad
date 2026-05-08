@@ -43,11 +43,11 @@ func normalizePayMethod(payMethod string) string {
 func parsePriceToCents(raw string) (int, error) {
 	text := sanitizeNumericText(raw, true)
 	if text == "" {
-		return 0, errors.New("充值金额格式不正确")
+		return 0, errors.New("tryonRechargeAmountFormatError")
 	}
 	value, err := strconv.ParseFloat(text, 64)
 	if err != nil || value < 0 {
-		return 0, errors.New("充值金额格式不正确")
+		return 0, errors.New("tryonRechargeAmountFormatError")
 	}
 	return int(math.Round(value * 100)), nil
 }
@@ -210,7 +210,7 @@ func (s *TryonRechargeOrderService) generateUniqueTryonRechargeOrderNo(tx *gorm.
 		}
 	}
 
-	return "", errors.New("订单号生成失败，请稍后重试")
+	return "", errors.New("tryonRechargeOrderNoGenFail")
 }
 
 func (s *TryonRechargeOrderService) findMatchedRechargePlan(tx *gorm.DB, points int, amountCents int) (map[string]interface{}, error) {
@@ -218,14 +218,14 @@ func (s *TryonRechargeOrderService) findMatchedRechargePlan(tx *gorm.DB, points 
 	err := tx.Where("config_key = ?", "tryon_recharge_plans").First(&config).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("充值套餐未配置")
+			return nil, errors.New("tryonRechargePlanNotConfigured")
 		}
 		return nil, err
 	}
 
 	var plans []map[string]interface{}
 	if unmarshalErr := json.Unmarshal([]byte(config.ConfigValue), &plans); unmarshalErr != nil {
-		return nil, errors.New("充值套餐配置格式错误")
+		return nil, errors.New("tryonRechargePlanConfigInvalid")
 	}
 
 	for _, plan := range plans {
@@ -235,23 +235,23 @@ func (s *TryonRechargeOrderService) findMatchedRechargePlan(tx *gorm.DB, points 
 			return plan, nil
 		}
 	}
-	return nil, errors.New("充值套餐已变更，请刷新页面后重试")
+	return nil, errors.New("tryonRechargePlanChanged")
 }
 
 // CreateTryonRechargeOrder 创建充值订单
 func (s *TryonRechargeOrderService) CreateTryonRechargeOrder(ctx context.Context, userID uint, req clientReq.CreateTryonRechargeOrderReq) (order client.TryonRechargeOrder, err error) {
 	if userID == 0 {
-		return order, errors.New("请先登录")
+		return order, errors.New("loginRequired")
 	}
 	if req.Points <= 0 {
-		return order, errors.New("充值点数必须大于0")
+		return order, errors.New("tryonRechargePointsMustPositive")
 	}
 	amountCents, parseErr := parsePriceToCents(req.Price)
 	if parseErr != nil {
 		return order, parseErr
 	}
 	if amountCents <= 0 {
-		return order, errors.New("充值金额必须大于0")
+		return order, errors.New("tryonRechargeAmountMustPositive")
 	}
 
 	payMethod := normalizePayMethod(req.PayMethod)
@@ -296,17 +296,17 @@ func (s *TryonRechargeOrderService) CreateTryonRechargeOrder(ctx context.Context
 // SubmitTryonRechargeOrderPayment 用户提交充值订单付款确认（仅扫码支付且待支付订单）
 func (s *TryonRechargeOrderService) SubmitTryonRechargeOrderPayment(userID uint, orderID uint) error {
 	if userID == 0 {
-		return errors.New("请先登录")
+		return errors.New("loginRequired")
 	}
 	if orderID == 0 {
-		return errors.New("订单参数错误")
+		return errors.New("invalidOrder")
 	}
 
 	return global.GVA_DB.Transaction(func(tx *gorm.DB) error {
 		var order client.TryonRechargeOrder
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND user_id = ?", orderID, userID).First(&order).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("订单不存在")
+				return errors.New("orderNotFound")
 			}
 			return err
 		}
@@ -315,10 +315,10 @@ func (s *TryonRechargeOrderService) SubmitTryonRechargeOrderPayment(userID uint,
 			return nil
 		}
 		if order.Status != tryonRechargeOrderStatusPending {
-			return errors.New("当前订单状态不支持提交付款确认")
+			return errors.New("tryonRechargeOrderStateInvalidForSubmitPayment")
 		}
 		if normalizePayMethod(order.PayMethod) != "qrcode" {
-			return errors.New("仅扫码支付订单可提交付款确认")
+			return errors.New("tryonRechargeOrderPayMethodNotQrcode")
 		}
 
 		return tx.Model(&client.TryonRechargeOrder{}).Where("id = ?", order.ID).Update("status", tryonRechargeOrderStatusReview).Error
@@ -328,11 +328,11 @@ func (s *TryonRechargeOrderService) SubmitTryonRechargeOrderPayment(userID uint,
 // UpdateTryonRechargeOrderPayMethod 更新待支付充值订单的支付方式
 func (s *TryonRechargeOrderService) UpdateTryonRechargeOrderPayMethod(userID uint, req clientReq.UpdateTryonRechargeOrderPayMethodReq) error {
 	if userID == 0 {
-		return errors.New("请先登录")
+		return errors.New("loginRequired")
 	}
 	payMethod := normalizePayMethod(req.PayMethod)
 	if payMethod == "" {
-		return errors.New("支付方式不能为空")
+		return errors.New("payMethodRequired")
 	}
 
 	result := global.GVA_DB.Model(&client.TryonRechargeOrder{}).
@@ -342,7 +342,7 @@ func (s *TryonRechargeOrderService) UpdateTryonRechargeOrderPayMethod(userID uin
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		return errors.New("订单不存在或当前状态不支持修改")
+		return errors.New("tryonRechargeOrderNotEditable")
 	}
 	return nil
 }
@@ -350,10 +350,10 @@ func (s *TryonRechargeOrderService) UpdateTryonRechargeOrderPayMethod(userID uin
 // CancelTryonRechargeOrder 取消充值订单
 func (s *TryonRechargeOrderService) CancelTryonRechargeOrder(userID uint, orderID uint) error {
 	if userID == 0 {
-		return errors.New("请先登录")
+		return errors.New("loginRequired")
 	}
 	if orderID == 0 {
-		return errors.New("订单参数错误")
+		return errors.New("invalidOrder")
 	}
 	now := time.Now()
 	result := global.GVA_DB.Model(&client.TryonRechargeOrder{}).
@@ -363,7 +363,7 @@ func (s *TryonRechargeOrderService) CancelTryonRechargeOrder(userID uint, orderI
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		return errors.New("订单不存在或当前状态不支持取消")
+		return errors.New("tryonRechargeOrderNotCancelable")
 	}
 	return nil
 }
@@ -371,7 +371,7 @@ func (s *TryonRechargeOrderService) CancelTryonRechargeOrder(userID uint, orderI
 // ConfirmTryonRechargeOrderPayment 确认充值订单支付（管理端）
 func (s *TryonRechargeOrderService) ConfirmTryonRechargeOrderPayment(ctx context.Context, orderID uint, remark string) error {
 	if orderID == 0 {
-		return errors.New("订单参数错误")
+		return errors.New("invalidOrder")
 	}
 
 	pointRecordService := PointRecordService{}
@@ -379,7 +379,7 @@ func (s *TryonRechargeOrderService) ConfirmTryonRechargeOrderPayment(ctx context
 		var order client.TryonRechargeOrder
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", orderID).First(&order).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("订单不存在")
+				return errors.New("orderNotFound")
 			}
 			return err
 		}
@@ -392,7 +392,7 @@ func (s *TryonRechargeOrderService) ConfirmTryonRechargeOrderPayment(ctx context
 		case tryonRechargeOrderStatusReview:
 			// continue
 		default:
-			return errors.New("当前订单状态不支持确认支付")
+			return errors.New("tryonRechargeOrderStateInvalidForConfirm")
 		}
 
 		now := time.Now()
@@ -419,11 +419,11 @@ func (s *TryonRechargeOrderService) ConfirmTryonRechargeOrderPayment(ctx context
 // GetTryonRechargeOrderByID 获取充值订单（管理端）
 func (s *TryonRechargeOrderService) GetTryonRechargeOrderByID(orderID uint) (order client.TryonRechargeOrder, err error) {
 	if orderID == 0 {
-		return order, errors.New("订单参数错误")
+		return order, errors.New("invalidOrder")
 	}
 	err = global.GVA_DB.Where("id = ?", orderID).First(&order).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return order, errors.New("订单不存在")
+		return order, errors.New("orderNotFound")
 	}
 	return order, err
 }
@@ -431,14 +431,14 @@ func (s *TryonRechargeOrderService) GetTryonRechargeOrderByID(orderID uint) (ord
 // GetMyTryonRechargeOrderByID 获取我的充值订单
 func (s *TryonRechargeOrderService) GetMyTryonRechargeOrderByID(userID uint, orderID uint) (order client.TryonRechargeOrder, err error) {
 	if userID == 0 {
-		return order, errors.New("请先登录")
+		return order, errors.New("loginRequired")
 	}
 	if orderID == 0 {
-		return order, errors.New("订单参数错误")
+		return order, errors.New("invalidOrder")
 	}
 	err = global.GVA_DB.Where("id = ? AND user_id = ?", orderID, userID).First(&order).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return order, errors.New("订单不存在")
+		return order, errors.New("orderNotFound")
 	}
 	return order, err
 }
@@ -482,7 +482,7 @@ func (s *TryonRechargeOrderService) GetTryonRechargeOrderList(search clientReq.T
 // GetMyTryonRechargeOrderList 获取我的充值订单列表
 func (s *TryonRechargeOrderService) GetMyTryonRechargeOrderList(userID uint, search clientReq.TryonRechargeOrderSearch) (list []client.TryonRechargeOrder, total int64, err error) {
 	if userID == 0 {
-		return list, 0, errors.New("请先登录")
+		return list, 0, errors.New("loginRequired")
 	}
 	search.UserID = userID
 	return s.GetTryonRechargeOrderList(search)

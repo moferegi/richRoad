@@ -5,6 +5,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -23,15 +24,15 @@ type ExternalLinkDomainApi struct{}
 func (a *ExternalLinkDomainApi) CreateExternalLinkDomain(c *gin.Context) {
 	var domain client.ExternalLinkDomain
 	if err := c.ShouldBindJSON(&domain); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	if err := extDomainService.CreateExternalLinkDomain(domain); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage("创建失败", c)
+		response.FailWithMessage(i18n.T(c, "createFail"), c)
 		return
 	}
-	response.OkWithMessage("创建成功", c)
+	response.OkWithMessage(i18n.T(c, "createSuccess"), c)
 }
 
 // DeleteExternalLinkDomain 删除外部链接域名
@@ -48,15 +49,15 @@ func (a *ExternalLinkDomainApi) DeleteExternalLinkDomain(c *gin.Context) {
 		ID uint `json:"id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	if err := extDomainService.DeleteExternalLinkDomain(req.ID); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败", c)
+		response.FailWithMessage(i18n.T(c, "deleteFail"), c)
 		return
 	}
-	response.OkWithMessage("删除成功", c)
+	response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
 }
 
 // UpdateExternalLinkDomain 更新外部链接域名
@@ -71,15 +72,15 @@ func (a *ExternalLinkDomainApi) DeleteExternalLinkDomain(c *gin.Context) {
 func (a *ExternalLinkDomainApi) UpdateExternalLinkDomain(c *gin.Context) {
 	var domain client.ExternalLinkDomain
 	if err := c.ShouldBindJSON(&domain); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	if err := extDomainService.UpdateExternalLinkDomain(domain); err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage("更新失败", c)
+		response.FailWithMessage(i18n.T(c, "updateFail"), c)
 		return
 	}
-	response.OkWithMessage("更新成功", c)
+	response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
 }
 
 // GetExternalLinkDomainList 分页获取外部链接域名列表
@@ -94,13 +95,13 @@ func (a *ExternalLinkDomainApi) UpdateExternalLinkDomain(c *gin.Context) {
 func (a *ExternalLinkDomainApi) GetExternalLinkDomainList(c *gin.Context) {
 	var pageInfo request.ExternalLinkDomainSearch
 	if err := c.ShouldBindQuery(&pageInfo); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	list, total, err := extDomainService.GetExternalLinkDomainList(pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -108,7 +109,7 @@ func (a *ExternalLinkDomainApi) GetExternalLinkDomainList(c *gin.Context) {
 		Total:    total,
 		Page:     pageInfo.Page,
 		PageSize: pageInfo.PageSize,
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }
 
 // SetDefaultDomain 设置默认域名
@@ -125,15 +126,15 @@ func (a *ExternalLinkDomainApi) SetDefaultDomain(c *gin.Context) {
 		ID uint `json:"id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	if err := extDomainService.SetDefaultDomain(req.ID); err != nil {
 		global.GVA_LOG.Error("设置失败!", zap.Error(err))
-		response.FailWithMessage("设置失败", c)
+		response.FailWithMessage(i18n.T(c, "setFail"), c)
 		return
 	}
-	response.OkWithMessage("设置成功", c)
+	response.OkWithMessage(i18n.T(c, "setSuccess"), c)
 }
 
 // GetDefaultDomain 获取默认域名（公开接口）
@@ -147,8 +148,8 @@ func (a *ExternalLinkDomainApi) GetDefaultDomain(c *gin.Context) {
 	domain, err := extDomainService.GetDefaultDomain()
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
-	response.OkWithDetailed(domain, "获取成功", c)
+	response.OkWithDetailed(domain, i18n.T(c, "getSuccess"), c)
 }

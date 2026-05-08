@@ -20,7 +20,7 @@ func (s *SignInService) DoSignIn(userID uint) (err error) {
 	var count int64
 	global.GVA_DB.Model(&client.SignIn{}).Where("user_id = ? AND sign_date = ?", userID, today).Count(&count)
 	if count > 0 {
-		return errors.New("今日已签到")
+		return errors.New("signInAlreadyToday")
 	}
 
 	signIn := client.SignIn{

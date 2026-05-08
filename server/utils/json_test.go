@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -16,38 +15,24 @@ func TestGetJSONKeys(t *testing.T) {
 }`
 	keys, err := GetJSONKeys(jsonStr)
 	if err != nil {
-		t.Errorf("GetJSONKeys failed" + err.Error())
-		return
+		t.Fatalf("GetJSONKeys failed: %v", err)
 	}
 	if len(keys) != 5 {
-		t.Errorf("GetJSONKeys failed" + err.Error())
-		return
+		t.Fatalf("GetJSONKeys length mismatch: got %d, want 5", len(keys))
 	}
 	if keys[0] != "Name" {
-		t.Errorf("GetJSONKeys failed" + err.Error())
-
-		return
+		t.Fatalf("GetJSONKeys index 0 mismatch: got %q, want %q", keys[0], "Name")
 	}
 	if keys[1] != "TableName" {
-		t.Errorf("GetJSONKeys failed" + err.Error())
-
-		return
+		t.Fatalf("GetJSONKeys index 1 mismatch: got %q, want %q", keys[1], "TableName")
 	}
 	if keys[2] != "TemplateID" {
-		t.Errorf("GetJSONKeys failed" + err.Error())
-
-		return
+		t.Fatalf("GetJSONKeys index 2 mismatch: got %q, want %q", keys[2], "TemplateID")
 	}
 	if keys[3] != "TemplateInfo" {
-		t.Errorf("GetJSONKeys failed" + err.Error())
-
-		return
+		t.Fatalf("GetJSONKeys index 3 mismatch: got %q, want %q", keys[3], "TemplateInfo")
 	}
 	if keys[4] != "Limit" {
-		t.Errorf("GetJSONKeys failed" + err.Error())
-
-		return
+		t.Fatalf("GetJSONKeys index 4 mismatch: got %q, want %q", keys[4], "Limit")
 	}
-
-	fmt.Println(keys)
 }

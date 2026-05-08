@@ -14,6 +14,26 @@ import (
 
 type PointRecordService struct{}
 
+type TryonPointModelStatsItem struct {
+	ModelKey            string `json:"modelKey"`
+	TaskCount           int64  `json:"taskCount"`
+	RefinerEnabledCount int64  `json:"refinerEnabledCount"`
+	TotalCostPoints     int64  `json:"totalCostPoints"`
+}
+
+type TryonPointStatsData struct {
+	RegisterRewardTotal int64                      `json:"registerRewardTotal"`
+	InviteRewardTotal   int64                      `json:"inviteRewardTotal"`
+	RechargeTotal       int64                      `json:"rechargeTotal"`
+	AdminIncreaseTotal  int64                      `json:"adminIncreaseTotal"`
+	AdminDecreaseTotal  int64                      `json:"adminDecreaseTotal"`
+	TotalGranted        int64                      `json:"totalGranted"`
+	TotalUsed           int64                      `json:"totalUsed"`
+	ModelCallTotal      int64                      `json:"modelCallTotal"`
+	ModelCostTotal      int64                      `json:"modelCostTotal"`
+	ModelStats          []TryonPointModelStatsItem `json:"modelStats"`
+}
+
 func normalizeAssetType(assetType *string) (string, error) {
 	if assetType == nil || strings.TrimSpace(*assetType) == "" {
 		return client.AssetTypePoint, nil
@@ -24,7 +44,7 @@ func normalizeAssetType(assetType *string) (string, error) {
 	case client.AssetTypePoint, client.AssetTypeTryonPoint:
 		return value, nil
 	default:
-		return "", errors.New("资产类型必须是 point 或 tryon_point")
+		return "", errors.New("assetTypeMustPointOrTryonPoint")
 	}
 }
 
@@ -33,7 +53,7 @@ func normalizeAssetType(assetType *string) (string, error) {
 func (cprService *PointRecordService) CreatePointRecord(ctx context.Context, cpr *client.PointRecord) (err error) {
 	// 参数验证
 	if cpr.UserId == nil || cpr.ChangeType == nil || cpr.PointChange == nil {
-		return errors.New("用户ID、增减类型和积分变化不能为空")
+		return errors.New("pointRecordRequiredFields")
 	}
 
 	// 根据增减类型调整积分变化值
@@ -49,7 +69,7 @@ func (cprService *PointRecordService) CreatePointRecord(ctx context.Context, cpr
 			actualPointChange = -actualPointChange // 确保减少时为负数
 		}
 	} else {
-		return errors.New("增减类型必须是 increase 或 decrease")
+		return errors.New("pointChangeTypeInvalid")
 	}
 
 	// 从context中获取事务，如果没有则使用全局DB创建新事务
@@ -89,7 +109,7 @@ func (cprService *PointRecordService) executePointRecordLogic(tx *gorm.DB, cpr *
 	var user client.ClientUser
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", *cpr.UserId).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("用户不存在")
+			return errors.New("userNotExist")
 		}
 		return err
 	}
@@ -97,16 +117,16 @@ func (cprService *PointRecordService) executePointRecordLogic(tx *gorm.DB, cpr *
 	// 2. 计算新的资产总数
 	currentBalance := 0
 	fieldName := "point"
-	insufficientMessage := "积分不足，无法扣除"
+	insufficientMessage := "pointInsufficient"
 	switch assetType {
 	case client.AssetTypePoint:
 		currentBalance = user.Point
 		fieldName = "point"
-		insufficientMessage = "积分不足，无法扣除"
+		insufficientMessage = "pointInsufficient"
 	case client.AssetTypeTryonPoint:
 		currentBalance = user.TryonPoint
 		fieldName = "tryon_point"
-		insufficientMessage = "试衣币不足，无法扣除"
+		insufficientMessage = "tryonPointInsufficient"
 	}
 
 	newPoints := currentBalance + actualPointChange
@@ -221,6 +241,8 @@ func (cprService *PointRecordService) GetPointRecordInfoList(ctx context.Context
 			OrderStr = OrderStr + " desc"
 		}
 		db = db.Order(OrderStr)
+	} else {
+		db = db.Order("created_at desc")
 	}
 
 	if limit != 0 {
@@ -230,6 +252,104 @@ func (cprService *PointRecordService) GetPointRecordInfoList(ctx context.Context
 	err = db.Find(&cprs).Error
 	return cprs, total, err
 }
+
+func (cprService *PointRecordService) GetTryonPointStats(ctx context.Context, info clientReq.TryonPointStatsSearch) (stats TryonPointStatsData, err error) {
+	_ = ctx
+
+	const (
+		tryonOpRecharge  = "tryon_recharge"
+		adminAdjustOpKey = "admin_adjust_tryon_point"
+	)
+
+	sumByChangeType := func(operationType string, changeType string) (int64, error) {
+		var total int64
+		err := cprService.applyTryonPointStatsFilters(global.GVA_DB.Model(&client.PointRecord{}), info).
+			Where("operation_type = ? AND change_type = ?", strings.TrimSpace(operationType), strings.TrimSpace(changeType)).
+			Select("COALESCE(SUM(ABS(point_change)), 0)").
+			Scan(&total).Error
+		return total, err
+	}
+
+	if stats.RegisterRewardTotal, err = sumByChangeType(tryonOpRegisterReward, "increase"); err != nil {
+		return stats, err
+	}
+	if stats.InviteRewardTotal, err = sumByChangeType(tryonOpInviteReward, "increase"); err != nil {
+		return stats, err
+	}
+	if stats.RechargeTotal, err = sumByChangeType(tryonOpRecharge, "increase"); err != nil {
+		return stats, err
+	}
+	if stats.AdminIncreaseTotal, err = sumByChangeType(adminAdjustOpKey, "increase"); err != nil {
+		return stats, err
+	}
+	if stats.AdminDecreaseTotal, err = sumByChangeType(adminAdjustOpKey, "decrease"); err != nil {
+		return stats, err
+	}
+	if stats.TotalUsed, err = sumByChangeType(tryonOpConsume, "decrease"); err != nil {
+		return stats, err
+	}
+
+	if err = cprService.applyTryonPointStatsFilters(global.GVA_DB.Model(&client.PointRecord{}), info).
+		Where("point_change > 0").
+		Select("COALESCE(SUM(point_change), 0)").
+		Scan(&stats.TotalGranted).Error; err != nil {
+		return stats, err
+	}
+
+	taskQuery := global.GVA_DB.Model(&client.TryonTask{})
+	if len(info.CreatedAtRange) == 2 {
+		taskQuery = taskQuery.Where("created_at BETWEEN ? AND ?", info.CreatedAtRange[0], info.CreatedAtRange[1])
+	}
+	if info.UserId != nil {
+		taskQuery = taskQuery.Where("user_id = ?", *info.UserId)
+	}
+
+	type modelAggRow struct {
+		Provider            string `json:"provider"`
+		TaskCount           int64  `json:"taskCount"`
+		RefinerEnabledCount int64  `json:"refinerEnabledCount"`
+		TotalCostPoints     int64  `json:"totalCostPoints"`
+	}
+	var rows []modelAggRow
+	err = taskQuery.
+		Select("provider, COUNT(*) as task_count, COALESCE(SUM(CASE WHEN enable_refiner THEN 1 ELSE 0 END), 0) as refiner_enabled_count, COALESCE(SUM(cost_points), 0) as total_cost_points").
+		Group("provider").
+		Order("task_count DESC").
+		Scan(&rows).Error
+	if err != nil {
+		return stats, err
+	}
+
+	stats.ModelStats = make([]TryonPointModelStatsItem, 0, len(rows))
+	for _, row := range rows {
+		modelKey := strings.TrimSpace(row.Provider)
+		if modelKey == "" {
+			modelKey = "default"
+		}
+		stats.ModelStats = append(stats.ModelStats, TryonPointModelStatsItem{
+			ModelKey:            modelKey,
+			TaskCount:           row.TaskCount,
+			RefinerEnabledCount: row.RefinerEnabledCount,
+			TotalCostPoints:     row.TotalCostPoints,
+		})
+		stats.ModelCallTotal += row.TaskCount
+		stats.ModelCostTotal += row.TotalCostPoints
+	}
+
+	return stats, nil
+}
+
+func (cprService *PointRecordService) applyTryonPointStatsFilters(db *gorm.DB, info clientReq.TryonPointStatsSearch) *gorm.DB {
+	db = db.Where("asset_type = ?", client.AssetTypeTryonPoint)
+	if len(info.CreatedAtRange) == 2 {
+		db = db.Where("created_at BETWEEN ? AND ?", info.CreatedAtRange[0], info.CreatedAtRange[1])
+	}
+	if info.UserId != nil {
+		db = db.Where("user_id = ?", *info.UserId)
+	}
+	return db
+}
+
 func (cprService *PointRecordService) GetPointRecordPublic(ctx context.Context) {
 	// 此方法为获取数据源定义的数据
 	// 请自行实现

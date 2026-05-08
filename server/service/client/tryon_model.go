@@ -16,12 +16,12 @@ type TryonModelService struct{}
 // CreateTryonModel 创建我的模特
 func (s *TryonModelService) CreateTryonModel(userID uint, req clientReq.CreateTryonModelReq) (model client.TryonModel, err error) {
 	if userID == 0 {
-		return model, errors.New("用户未登录")
+		return model, errors.New("loginRequired")
 	}
 
 	image := strings.TrimSpace(req.Image)
 	if image == "" {
-		return model, errors.New("模特图片不能为空")
+		return model, errors.New("modelImageRequired")
 	}
 
 	name := strings.TrimSpace(req.Name)
@@ -42,12 +42,12 @@ func (s *TryonModelService) CreateTryonModel(userID uint, req clientReq.CreateTr
 // UpdateTryonModel 重命名我的模特
 func (s *TryonModelService) UpdateTryonModel(userID uint, authorityID uint, req clientReq.UpdateTryonModelReq) error {
 	if req.ID == 0 {
-		return errors.New("ID参数错误")
+		return errors.New("invalidID")
 	}
 
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
-		return errors.New("模特名称不能为空")
+		return errors.New("tryonModelNameRequired")
 	}
 
 	db := global.GVA_DB.Model(&client.TryonModel{}).Where("id = ?", req.ID)
@@ -62,7 +62,7 @@ func (s *TryonModelService) UpdateTryonModel(userID uint, authorityID uint, req 
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		return errors.New("模特不存在或无权限")
+		return errors.New("tryonModelNotFoundOrNoPermission")
 	}
 
 	return nil
@@ -71,7 +71,7 @@ func (s *TryonModelService) UpdateTryonModel(userID uint, authorityID uint, req 
 // DeleteTryonModel 删除单个我的模特
 func (s *TryonModelService) DeleteTryonModel(userID uint, authorityID uint, id uint) error {
 	if id == 0 {
-		return errors.New("ID参数错误")
+		return errors.New("invalidID")
 	}
 
 	db := global.GVA_DB.Where("id = ?", id)
@@ -84,7 +84,7 @@ func (s *TryonModelService) DeleteTryonModel(userID uint, authorityID uint, id u
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		return errors.New("模特不存在或无权限")
+		return errors.New("tryonModelNotFoundOrNoPermission")
 	}
 
 	return nil
@@ -93,7 +93,7 @@ func (s *TryonModelService) DeleteTryonModel(userID uint, authorityID uint, id u
 // DeleteTryonModelByIds 批量删除我的模特
 func (s *TryonModelService) DeleteTryonModelByIds(userID uint, authorityID uint, ids []uint) error {
 	if len(ids) == 0 {
-		return errors.New("IDs参数错误")
+		return errors.New("invalidIDs")
 	}
 
 	db := global.GVA_DB.Where("id IN ?", ids)
@@ -106,7 +106,7 @@ func (s *TryonModelService) DeleteTryonModelByIds(userID uint, authorityID uint,
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		return errors.New("模特不存在或无权限")
+		return errors.New("tryonModelNotFoundOrNoPermission")
 	}
 
 	return nil
@@ -115,7 +115,7 @@ func (s *TryonModelService) DeleteTryonModelByIds(userID uint, authorityID uint,
 // GetMyTryonModelList 获取我的模特列表
 func (s *TryonModelService) GetMyTryonModelList(userID uint) (list []client.TryonModel, err error) {
 	if userID == 0 {
-		return list, errors.New("用户未登录")
+		return list, errors.New("loginRequired")
 	}
 
 	err = global.GVA_DB.Where("user_id = ?", userID).Order("id desc").Find(&list).Error

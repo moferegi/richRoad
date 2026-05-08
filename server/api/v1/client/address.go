@@ -30,7 +30,7 @@ func (addressApi *AddressApi) CreateAddress(c *gin.Context) {
 	var address client.Address
 	err := c.ShouldBindJSON(&address)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	authID := utils.GetUserAuthorityId(c)
@@ -105,7 +105,7 @@ func (addressApi *AddressApi) UpdateAddress(c *gin.Context) {
 	var address client.Address
 	err := c.ShouldBindJSON(&address)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
@@ -183,7 +183,7 @@ func (addressApi *AddressApi) GetAddressList(c *gin.Context) {
 	var pageInfo clientReq.AddressSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	authID := utils.GetUserAuthorityId(c)
@@ -233,5 +233,5 @@ func (addressApi *AddressApi) GetAddressPublic(c *gin.Context) {
 	// 示例为返回了一个固定的消息接口，一般本接口用于C端服务，需要自己实现业务逻辑
 	response.OkWithDetailed(gin.H{
 		"info": "不需要鉴权的用户地址接口信息",
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }

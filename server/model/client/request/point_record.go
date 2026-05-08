@@ -21,3 +21,8 @@ type PointRecordSearch struct {
 	Sort  string `json:"sort" form:"sort"`
 	Order string `json:"order" form:"order"`
 }
+
+type TryonPointStatsSearch struct {
+	CreatedAtRange []time.Time `json:"createdAtRange" form:"createdAtRange[]"`
+	UserId         *int        `json:"userId" form:"userId"`
+}

@@ -1,4 +1,4 @@
-package client
+﻿package client
 
 import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
@@ -28,7 +28,7 @@ func isPointRecordAdmin(authorityId uint) bool {
 // @Router /cpr/createPointRecord [post]
 func (cprApi *PointRecordApi) CreatePointRecord(c *gin.Context) {
 	if !isPointRecordAdmin(utils.GetUserAuthorityId(c)) {
-		response.FailWithMessage("无权限创建资产记录", c)
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
 		return
 	}
 
@@ -38,7 +38,7 @@ func (cprApi *PointRecordApi) CreatePointRecord(c *gin.Context) {
 	var cpr client.PointRecord
 	err := c.ShouldBindJSON(&cpr)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	err = cprService.CreatePointRecord(ctx, &cpr)
@@ -61,7 +61,7 @@ func (cprApi *PointRecordApi) CreatePointRecord(c *gin.Context) {
 // @Router /cpr/deletePointRecord [delete]
 func (cprApi *PointRecordApi) DeletePointRecord(c *gin.Context) {
 	if !isPointRecordAdmin(utils.GetUserAuthorityId(c)) {
-		response.FailWithMessage("无权限删除资产记录", c)
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
 		return
 	}
 
@@ -88,7 +88,7 @@ func (cprApi *PointRecordApi) DeletePointRecord(c *gin.Context) {
 // @Router /cpr/deletePointRecordByIds [delete]
 func (cprApi *PointRecordApi) DeletePointRecordByIds(c *gin.Context) {
 	if !isPointRecordAdmin(utils.GetUserAuthorityId(c)) {
-		response.FailWithMessage("无权限删除资产记录", c)
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
 		return
 	}
 
@@ -116,7 +116,7 @@ func (cprApi *PointRecordApi) DeletePointRecordByIds(c *gin.Context) {
 // @Router /cpr/updatePointRecord [put]
 func (cprApi *PointRecordApi) UpdatePointRecord(c *gin.Context) {
 	if !isPointRecordAdmin(utils.GetUserAuthorityId(c)) {
-		response.FailWithMessage("无权限更新资产记录", c)
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
 		return
 	}
 
@@ -126,7 +126,7 @@ func (cprApi *PointRecordApi) UpdatePointRecord(c *gin.Context) {
 	var cpr client.PointRecord
 	err := c.ShouldBindJSON(&cpr)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	err = cprService.UpdatePointRecord(ctx, cpr)
@@ -161,7 +161,7 @@ func (cprApi *PointRecordApi) FindPointRecord(c *gin.Context) {
 	if !isPointRecordAdmin(utils.GetUserAuthorityId(c)) {
 		uid := int(utils.GetUserID(c))
 		if recpr.UserId == nil || *recpr.UserId != uid {
-			response.FailWithMessage("无权限查看该资产记录", c)
+			response.FailWithMessage(i18n.T(c, "noPermission"), c)
 			return
 		}
 	}
@@ -184,7 +184,7 @@ func (cprApi *PointRecordApi) GetPointRecordList(c *gin.Context) {
 	var pageInfo clientReq.PointRecordSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	// 非管理员只能查看自己的积分记录
@@ -205,6 +205,40 @@ func (cprApi *PointRecordApi) GetPointRecordList(c *gin.Context) {
 		Page:     pageInfo.Page,
 		PageSize: pageInfo.PageSize,
 	}, i18n.T(c, "getSuccess"), c)
+}
+
+// GetPointRecordStats 获取试衣币统计（管理端）
+// @Tags PointRecord
+// @Summary 获取试衣币统计（管理端）
+// @Security ApiKeyAuth
+// @Accept application/json
+// @Produce application/json
+// @Param data query clientReq.TryonPointStatsSearch true "查询试衣币统计"
+// @Success 200 {object} response.Response{data=map[string]interface{},msg=string} "获取成功"
+// @Router /cpr/getPointRecordStats [get]
+func (cprApi *PointRecordApi) GetPointRecordStats(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var search clientReq.TryonPointStatsSearch
+	if err := c.ShouldBindQuery(&search); err != nil {
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		return
+	}
+
+	authID := utils.GetUserAuthorityId(c)
+	if authID != 888 {
+		uid := int(utils.GetUserID(c))
+		search.UserId = &uid
+	}
+
+	stats, err := cprService.GetTryonPointStats(ctx, search)
+	if err != nil {
+		global.GVA_LOG.Error("获取试衣币统计失败!", zap.Error(err))
+		response.FailWithMessage(i18n.TWithSuffix(c, "getFail", err.Error()), c)
+		return
+	}
+
+	response.OkWithDetailed(stats, i18n.T(c, "getSuccess"), c)
 }
 
 // GetPointRecordPublic 不需要鉴权的积分记录管理接口

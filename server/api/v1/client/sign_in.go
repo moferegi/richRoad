@@ -7,6 +7,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -27,13 +28,13 @@ func (api *SignInApi) DoSignIn(c *gin.Context) {
 	userID := utils.GetUserID(c)
 	if err := signInService.DoSignIn(userID); err != nil {
 		global.GVA_LOG.Error("签到失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, err.Error()), c)
 	} else {
 		// 触发签到奖励（积分+优惠券）
 		if err := marketingRewardService.TriggerReward(userID, "sign_in", "sign_in_reward", "签到奖励", 0); err != nil {
 			global.GVA_LOG.Error("签到奖励发放失败", zap.Error(err))
 		}
-		response.OkWithMessage("签到成功", c)
+		response.OkWithMessage(i18n.T(c, "signInSuccess"), c)
 	}
 }
 
@@ -52,7 +53,7 @@ func (api *SignInApi) GetSignInStatus(c *gin.Context) {
 	response.OkWithDetailed(gin.H{
 		"signed":         signed,
 		"continuousDays": continuousDays,
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }
 
 // GetSignInRecords 获取签到记录
@@ -71,14 +72,14 @@ func (api *SignInApi) GetSignInRecords(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "30"))
 	if records, total, err := signInService.GetSignInRecords(userID, page, pageSize); err != nil {
 		global.GVA_LOG.Error("获取签到记录失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 	} else {
 		response.OkWithDetailed(response.PageResult{
 			List:     records,
 			Total:    total,
 			Page:     page,
 			PageSize: pageSize,
-		}, "获取成功", c)
+		}, i18n.T(c, "getSuccess"), c)
 	}
 }
 
@@ -113,14 +114,14 @@ func (api *SignInApi) GetSignInList(c *gin.Context) {
 
 	if list, total, err := signInService.GetSignInList(page, pageSize, userId, username, startDate, endDate, orderKey, desc); err != nil {
 		global.GVA_LOG.Error("获取签到列表失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 	} else {
 		response.OkWithDetailed(response.PageResult{
 			List:     list,
 			Total:    total,
 			Page:     page,
 			PageSize: pageSize,
-		}, "获取成功", c)
+		}, i18n.T(c, "getSuccess"), c)
 	}
 }
 
@@ -137,13 +138,13 @@ func (api *SignInApi) DeleteSignIn(c *gin.Context) {
 	idStr := c.Query("ID")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil || id == 0 {
-		response.FailWithMessage("参数错误", c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	if err := signInService.DeleteSignIn(uint(id)); err != nil {
 		global.GVA_LOG.Error("删除签到记录失败!", zap.Error(err))
-		response.FailWithMessage("删除失败", c)
+		response.FailWithMessage(i18n.T(c, "deleteFail"), c)
 	} else {
-		response.OkWithMessage("删除成功", c)
+		response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
 	}
 }

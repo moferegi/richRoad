@@ -8,6 +8,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -28,7 +29,7 @@ var tryonModelService = service.ServiceGroupApp.ClientServiceGroup.TryonModelSer
 func (api *TryonModelApi) CreateTryonModel(c *gin.Context) {
 	var req clientReq.CreateTryonModelReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
@@ -36,11 +37,11 @@ func (api *TryonModelApi) CreateTryonModel(c *gin.Context) {
 	model, err := tryonModelService.CreateTryonModel(userID, req)
 	if err != nil {
 		global.GVA_LOG.Error("创建我的模特失败!", zap.Error(err), zap.Uint("userID", userID))
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, err.Error()), c)
 		return
 	}
 
-	response.OkWithDetailed(gin.H{"model": model}, "创建成功", c)
+	response.OkWithDetailed(gin.H{"model": model}, i18n.T(c, "createSuccess"), c)
 }
 
 // UpdateTryonModel 重命名我的模特
@@ -55,7 +56,7 @@ func (api *TryonModelApi) CreateTryonModel(c *gin.Context) {
 func (api *TryonModelApi) UpdateTryonModel(c *gin.Context) {
 	var req clientReq.UpdateTryonModelReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
@@ -64,11 +65,11 @@ func (api *TryonModelApi) UpdateTryonModel(c *gin.Context) {
 	err := tryonModelService.UpdateTryonModel(userID, authorityID, req)
 	if err != nil {
 		global.GVA_LOG.Error("更新我的模特失败!", zap.Error(err), zap.Uint("userID", userID), zap.Uint("ID", req.ID))
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, err.Error()), c)
 		return
 	}
 
-	response.OkWithMessage("更新成功", c)
+	response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
 }
 
 // DeleteTryonModel 删除我的模特
@@ -84,7 +85,7 @@ func (api *TryonModelApi) DeleteTryonModel(c *gin.Context) {
 	idStr := c.Query("ID")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil || id == 0 {
-		response.FailWithMessage("ID参数错误", c)
+		response.FailWithMessage(i18n.T(c, "invalidID"), c)
 		return
 	}
 
@@ -93,11 +94,11 @@ func (api *TryonModelApi) DeleteTryonModel(c *gin.Context) {
 	err = tryonModelService.DeleteTryonModel(userID, authorityID, uint(id))
 	if err != nil {
 		global.GVA_LOG.Error("删除我的模特失败!", zap.Error(err), zap.Uint("userID", userID), zap.Uint64("ID", id))
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, err.Error()), c)
 		return
 	}
 
-	response.OkWithMessage("删除成功", c)
+	response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
 }
 
 // DeleteTryonModelByIds 批量删除我的模特
@@ -112,7 +113,7 @@ func (api *TryonModelApi) DeleteTryonModel(c *gin.Context) {
 func (api *TryonModelApi) DeleteTryonModelByIds(c *gin.Context) {
 	idStrs := c.QueryArray("IDs[]")
 	if len(idStrs) == 0 {
-		response.FailWithMessage("IDs参数错误", c)
+		response.FailWithMessage(i18n.T(c, "invalidIDs"), c)
 		return
 	}
 
@@ -120,7 +121,7 @@ func (api *TryonModelApi) DeleteTryonModelByIds(c *gin.Context) {
 	for _, idStr := range idStrs {
 		id, err := strconv.ParseUint(idStr, 10, 64)
 		if err != nil || id == 0 {
-			response.FailWithMessage("IDs参数错误", c)
+			response.FailWithMessage(i18n.T(c, "invalidIDs"), c)
 			return
 		}
 		ids = append(ids, uint(id))
@@ -131,11 +132,11 @@ func (api *TryonModelApi) DeleteTryonModelByIds(c *gin.Context) {
 	err := tryonModelService.DeleteTryonModelByIds(userID, authorityID, ids)
 	if err != nil {
 		global.GVA_LOG.Error("批量删除我的模特失败!", zap.Error(err), zap.Uint("userID", userID))
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, err.Error()), c)
 		return
 	}
 
-	response.OkWithMessage("批量删除成功", c)
+	response.OkWithMessage(i18n.T(c, "batchDeleteSuccess"), c)
 }
 
 // GetMyTryonModelList 获取我的模特列表
@@ -151,11 +152,11 @@ func (api *TryonModelApi) GetMyTryonModelList(c *gin.Context) {
 	list, err := tryonModelService.GetMyTryonModelList(userID)
 	if err != nil {
 		global.GVA_LOG.Error("获取我的模特列表失败!", zap.Error(err), zap.Uint("userID", userID))
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, err.Error()), c)
 		return
 	}
 
-	response.OkWithDetailed(gin.H{"list": list}, "获取成功", c)
+	response.OkWithDetailed(gin.H{"list": list}, i18n.T(c, "getSuccess"), c)
 }
 
 // GetTryonModelList 获取模特列表（管理端）
@@ -170,7 +171,7 @@ func (api *TryonModelApi) GetMyTryonModelList(c *gin.Context) {
 func (api *TryonModelApi) GetTryonModelList(c *gin.Context) {
 	var pageInfo clientReq.TryonModelSearch
 	if err := c.ShouldBindQuery(&pageInfo); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
@@ -181,7 +182,7 @@ func (api *TryonModelApi) GetTryonModelList(c *gin.Context) {
 	list, total, err := tryonModelService.GetTryonModelList(pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取模特列表失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
 
@@ -190,5 +191,5 @@ func (api *TryonModelApi) GetTryonModelList(c *gin.Context) {
 		Total:    total,
 		Page:     pageInfo.Page,
 		PageSize: pageInfo.PageSize,
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }

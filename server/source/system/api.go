@@ -380,6 +380,7 @@ func (i *initApi) InitializeData(ctx context.Context) (context.Context, error) {
 		{ApiGroup: "积分记录管理", Method: "PUT", Path: "/cpr/updatePointRecord", Description: "更新积分记录管理"},
 		{ApiGroup: "积分记录管理", Method: "GET", Path: "/cpr/findPointRecord", Description: "根据ID获取积分记录管理"},
 		{ApiGroup: "积分记录管理", Method: "GET", Path: "/cpr/getPointRecordList", Description: "获取积分记录管理列表"},
+		{ApiGroup: "积分记录管理", Method: "GET", Path: "/cpr/getPointRecordStats", Description: "获取试衣币统计(管理端)"},
 		{ApiGroup: "积分记录管理", Method: "GET", Path: "/cpr/getPointRecordList", Description: "获取积分记录管理列表"},
 
 		{ApiGroup: "访客统计", Method: "GET", Path: "/visitor/getVisitorLogList", Description: "获取访客日志列表"},

@@ -7,6 +7,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -27,11 +28,11 @@ var visitorService = service.ServiceGroupApp.ClientServiceGroup.VisitorService
 func (visitorApi *VisitorApi) Heartbeat(c *gin.Context) {
 	var req clientReq.HeartbeatRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	if req.VisitorID == "" {
-		response.FailWithMessage("visitorId is required", c)
+		response.FailWithMessage(i18n.T(c, "visitorIDRequired"), c)
 		return
 	}
 
@@ -63,10 +64,10 @@ func (visitorApi *VisitorApi) Heartbeat(c *gin.Context) {
 
 	if err := visitorService.Heartbeat(log); err != nil {
 		global.GVA_LOG.Error("访客心跳上报失败!", zap.Error(err))
-		response.FailWithMessage("上报失败", c)
+		response.FailWithMessage(i18n.T(c, "fail"), c)
 		return
 	}
-	response.OkWithMessage("ok", c)
+	response.OkWithMessage(i18n.T(c, "ok"), c)
 }
 
 // GetVisitorLogList 获取访客日志列表
@@ -81,13 +82,13 @@ func (visitorApi *VisitorApi) Heartbeat(c *gin.Context) {
 func (visitorApi *VisitorApi) GetVisitorLogList(c *gin.Context) {
 	var pageInfo clientReq.VisitorLogSearch
 	if err := c.ShouldBindQuery(&pageInfo); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	list, total, err := visitorService.GetVisitorLogList(pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -95,7 +96,7 @@ func (visitorApi *VisitorApi) GetVisitorLogList(c *gin.Context) {
 		Total:    total,
 		Page:     pageInfo.Page,
 		PageSize: pageInfo.PageSize,
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }
 
 // GetVisitorSummaryList 获取访客汇总列表
@@ -110,13 +111,13 @@ func (visitorApi *VisitorApi) GetVisitorLogList(c *gin.Context) {
 func (visitorApi *VisitorApi) GetVisitorSummaryList(c *gin.Context) {
 	var pageInfo clientReq.VisitorSummarySearch
 	if err := c.ShouldBindQuery(&pageInfo); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	list, total, err := visitorService.GetVisitorSummaryList(pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -124,7 +125,7 @@ func (visitorApi *VisitorApi) GetVisitorSummaryList(c *gin.Context) {
 		Total:    total,
 		Page:     pageInfo.Page,
 		PageSize: pageInfo.PageSize,
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }
 
 // GetTodayStats 获取今日实时统计
@@ -139,10 +140,10 @@ func (visitorApi *VisitorApi) GetTodayStats(c *gin.Context) {
 	stats, err := visitorService.GetTodayStats()
 	if err != nil {
 		global.GVA_LOG.Error("获取今日统计失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
-	response.OkWithDetailed(stats, "获取成功", c)
+	response.OkWithDetailed(stats, i18n.T(c, "getSuccess"), c)
 }
 
 // GetKefuGuideStats 获取客服引导漏斗统计
@@ -157,17 +158,17 @@ func (visitorApi *VisitorApi) GetTodayStats(c *gin.Context) {
 func (visitorApi *VisitorApi) GetKefuGuideStats(c *gin.Context) {
 	var query clientReq.KefuGuideStatsSearch
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
 	stats, err := visitorService.GetKefuGuideStats(query)
 	if err != nil {
 		global.GVA_LOG.Error("获取客服引导统计失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
-	response.OkWithDetailed(stats, "获取成功", c)
+	response.OkWithDetailed(stats, i18n.T(c, "getSuccess"), c)
 }
 
 // AggregateDailySummary 手动触发日汇总聚合
@@ -182,13 +183,13 @@ func (visitorApi *VisitorApi) GetKefuGuideStats(c *gin.Context) {
 func (visitorApi *VisitorApi) AggregateDailySummary(c *gin.Context) {
 	date := c.Query("date")
 	if date == "" {
-		response.FailWithMessage("date is required", c)
+		response.FailWithMessage(i18n.T(c, "dateRequired"), c)
 		return
 	}
 	if err := visitorService.AggregateDailySummary(date); err != nil {
 		global.GVA_LOG.Error("聚合失败!", zap.Error(err))
-		response.FailWithMessage("聚合失败", c)
+		response.FailWithMessage(i18n.T(c, "fail"), c)
 		return
 	}
-	response.OkWithMessage("聚合成功", c)
+	response.OkWithMessage(i18n.T(c, "success"), c)
 }

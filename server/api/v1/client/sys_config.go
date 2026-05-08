@@ -11,6 +11,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -74,20 +75,20 @@ func isSysConfigAdmin(authorityId uint) bool {
 // @Router /sysConfig/getSysConfigList [get]
 func (s *SysConfigApi) GetSysConfigList(c *gin.Context) {
 	if !isSysConfigAdmin(utils.GetUserAuthorityId(c)) {
-		response.FailWithMessage("无权限查看系统参数列表", c)
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
 		return
 	}
 
 	var pageInfo request.SysConfigSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	list, total, err := sysConfigService.GetSysConfigList(pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -95,7 +96,7 @@ func (s *SysConfigApi) GetSysConfigList(c *gin.Context) {
 		Total:    total,
 		Page:     pageInfo.Page,
 		PageSize: pageInfo.PageSize,
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }
 
 // UpdateSysConfig 更新系统参数
@@ -110,7 +111,7 @@ func (s *SysConfigApi) GetSysConfigList(c *gin.Context) {
 func (s *SysConfigApi) UpdateSysConfig(c *gin.Context) {
 	authorityId := utils.GetUserAuthorityId(c)
 	if !isSysConfigAdmin(authorityId) {
-		response.FailWithMessage("无权限更新系统参数", c)
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
 		return
 	}
 
@@ -120,15 +121,15 @@ func (s *SysConfigApi) UpdateSysConfig(c *gin.Context) {
 		Remark      string `json:"remark"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 	if err := sysConfigService.UpdateSysConfig(req.ID, req.ConfigValue, req.Remark); err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage("更新失败", c)
+		response.FailWithMessage(i18n.T(c, "updateFail"), c)
 		return
 	}
-	response.OkWithMessage("更新成功", c)
+	response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
 }
 
 // GetSysConfigByGroup 按分组获取系统参数
@@ -143,16 +144,16 @@ func (s *SysConfigApi) UpdateSysConfig(c *gin.Context) {
 func (s *SysConfigApi) GetSysConfigByGroup(c *gin.Context) {
 	group := c.Query("configGroup")
 	if group == "" {
-		response.FailWithMessage("configGroup不能为空", c)
+		response.FailWithMessage(i18n.T(c, "configGroupRequired"), c)
 		return
 	}
 	list, err := sysConfigService.GetConfigByGroup(group)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
-	response.OkWithDetailed(list, "获取成功", c)
+	response.OkWithDetailed(list, i18n.T(c, "getSuccess"), c)
 }
 
 // GetSysConfigByKey 按key获取单条系统参数
@@ -167,20 +168,20 @@ func (s *SysConfigApi) GetSysConfigByGroup(c *gin.Context) {
 func (s *SysConfigApi) GetSysConfigByKey(c *gin.Context) {
 	key := c.Query("configKey")
 	if key == "" {
-		response.FailWithMessage("configKey不能为空", c)
+		response.FailWithMessage(i18n.T(c, "configKeyRequired"), c)
 		return
 	}
 	if !isPublicConfigKeyAllowed(key) {
-		response.FailWithMessage("该配置不对外开放", c)
+		response.FailWithMessage(i18n.T(c, "configNotPublic"), c)
 		return
 	}
 	val, err := sysConfigService.GetConfigByKey(key)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
-	response.OkWithDetailed(val, "获取成功", c)
+	response.OkWithDetailed(val, i18n.T(c, "getSuccess"), c)
 }
 
 // GetLoginConfig 获取登录相关配置（公开接口）
@@ -208,7 +209,7 @@ func (s *SysConfigApi) GetLoginConfig(c *gin.Context) {
 		"password_regex":          passwordRegex,
 		"username_regex_tip":      usernameRegexTip,
 		"password_regex_tip":      passwordRegexTip,
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }
 
 // GetTryonConfig 获取试衣配置（公开接口）
@@ -257,7 +258,7 @@ func (s *SysConfigApi) GetTryonConfig(c *gin.Context) {
 		"tryon_fail_refund_percent":           failRefundPercent,
 		"tryon_models":                        tryonModels,
 		"shoe_models":                         shoeModels,
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }
 
 // GetAliyunTryonQuotaEstimate 获取阿里试衣模型剩余额度估算（管理端）
@@ -271,20 +272,20 @@ func (s *SysConfigApi) GetTryonConfig(c *gin.Context) {
 // @Router /sysConfig/getAliyunTryonQuotaEstimate [get]
 func (s *SysConfigApi) GetAliyunTryonQuotaEstimate(c *gin.Context) {
 	if !isSysConfigAdmin(utils.GetUserAuthorityId(c)) {
-		response.FailWithMessage("无权限查看阿里模型额度", c)
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
 		return
 	}
 
 	var query request.AliyunTryonQuotaSearch
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
 
 	list, err := sysConfigService.GetAliyunTryonQuotaEstimate(query.ModelKey)
 	if err != nil {
 		global.GVA_LOG.Error("获取阿里模型额度估算失败", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
 
@@ -295,7 +296,7 @@ func (s *SysConfigApi) GetAliyunTryonQuotaEstimate(c *gin.Context) {
 			"officialApiAvailable": false,
 			"officialHint":         "阿里云百炼当前未提供可由 API-Key 直接查询免费额度余量的公开HTTP接口，请以控制台数据为准。",
 		},
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }
 
 // GetAnnouncementConfig 获取公告配置
@@ -309,10 +310,10 @@ func (s *SysConfigApi) GetAnnouncementConfig(c *gin.Context) {
 	result, err := sysConfigService.GetAnnouncementConfig()
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
-	response.OkWithDetailed(result, "获取成功", c)
+	response.OkWithDetailed(result, i18n.T(c, "getSuccess"), c)
 }
 
 func parseBoolConfig(raw string, defaultVal bool) bool {
@@ -617,7 +618,7 @@ func parseUniPreferredPayMethods(raw string) []gin.H {
 }
 
 func defaultTryonModelsConfig() string {
-	return `[{"key":"aliyun_aitryon","enabled":true,"scenes":["clothes","shoes"],"model":"aitryon","name":{"zh":"阿里AI试衣（基础）","en":"Aliyun AI Try-On (Basic)","mn":"Aliyun AI өмсгөл (Суурь)"},"desc":{"zh":"基础版试衣模型，速度更快，适合日常试衣。","en":"Basic try-on model with faster generation for everyday use.","mn":"Өдөр тутмын туршилтад тохирох, хурдан суурь загвар."},"cost":1,"provider":"aliyun","mode":"prod","url":"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis","taskQueryUrl":"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}","token":"","resolution":-1,"restoreFace":true},{"key":"aliyun_aitryon_plus","enabled":true,"scenes":["clothes","shoes"],"model":"aitryon-plus","name":{"zh":"阿里AI试衣（Plus）","en":"Aliyun AI Try-On (Plus)","mn":"Aliyun AI өмсгөл (Plus)"},"desc":{"zh":"Plus版细节更好，适合高质量试衣图。","en":"Higher quality rendering with better texture and logo details.","mn":"Нэхмэл, логог илүү сайн сэргээдэг өндөр чанарын загвар."},"cost":1,"provider":"aliyun","mode":"prod","url":"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis","taskQueryUrl":"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}","token":"","resolution":-1,"restoreFace":true},{"key":"yisol_idm_vton","enabled":true,"scenes":["clothes"],"model":"IDM-VTON","name":{"zh":"IDM-VTON 开源试衣","en":"IDM-VTON Open Try-On","mn":"IDM-VTON нээлттэй өмсгөл"},"desc":{"zh":"HuggingFace Space yisol/IDM-VTON，使用 Gradio /tryon 接口，支持自动蒙版与裁剪参数。","en":"HuggingFace Space yisol/IDM-VTON via Gradio /tryon API with auto-mask and crop options.","mn":"HuggingFace Space yisol/IDM-VTON Gradio /tryon API ашиглана."},"cost":1,"provider":"gradio","mode":"prod","url":"https://yisol-idm-vton.hf.space","apiName":"/tryon","garmentDes":"clothing item","isChecked":true,"isCheckedCrop":false,"denoiseSteps":30,"seed":42,"token":"","resolution":-1,"restoreFace":true},{"key":"aliyun_aitryon_parsing","enabled":false,"scenes":["takeoff"],"model":"aitryon-parsing-v1","name":{"zh":"阿里取衣分割","en":"Aliyun Takeoff Parsing","mn":"Aliyun хувцас салгах"},"desc":{"zh":"用于取衣区分割模特服饰并输出可用服饰图。","en":"Segments garment regions for takeoff area and outputs reusable garment images.","mn":"Загварын хувцсыг ялган авч, дахин ашиглах зургийг гаргана."},"cost":1,"provider":"aliyun","mode":"prod","url":"https://dashscope.aliyuncs.com/api/v1/services/vision/image-process/process","token":"","clothesType":["upper"]}]`
+	return `[{"key":"aliyun_aitryon","enabled":true,"scenes":["clothes","shoes"],"model":"aitryon","name":{"zh":"阿里AI试衣（基础）","en":"Aliyun AI Try-On (Basic)","mn":"Aliyun AI өмсгөл (Суурь)"},"desc":{"zh":"基础版试衣模型，速度更快，适合日常试衣。","en":"Basic try-on model with faster generation for everyday use.","mn":"Өдөр тутмын туршилтад тохирох, хурдан суурь загвар."},"cost":1,"provider":"aliyun","mode":"prod","url":"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis","taskQueryUrl":"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}","token":"","resolution":-1,"restoreFace":true,"supportsRefiner":true,"refinerModel":"aitryon-refiner","refinerGender":"woman","refinerExtraCost":1},{"key":"aliyun_aitryon_plus","enabled":true,"scenes":["clothes","shoes"],"model":"aitryon-plus","name":{"zh":"阿里AI试衣（Plus）","en":"Aliyun AI Try-On (Plus)","mn":"Aliyun AI өмсгөл (Plus)"},"desc":{"zh":"Plus版细节更好，适合高质量试衣图。","en":"Higher quality rendering with better texture and logo details.","mn":"Нэхмэл, логог илүү сайн сэргээдэг өндөр чанарын загвар."},"cost":1,"provider":"aliyun","mode":"prod","url":"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis","taskQueryUrl":"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}","token":"","resolution":-1,"restoreFace":true,"supportsRefiner":true,"refinerModel":"aitryon-refiner","refinerGender":"woman","refinerExtraCost":1},{"key":"yisol_idm_vton","enabled":true,"scenes":["clothes"],"model":"IDM-VTON","name":{"zh":"IDM-VTON 开源试衣","en":"IDM-VTON Open Try-On","mn":"IDM-VTON нээлттэй өмсгөл"},"desc":{"zh":"HuggingFace Space yisol/IDM-VTON，使用 Gradio /tryon 接口，支持自动蒙版与裁剪参数。","en":"HuggingFace Space yisol/IDM-VTON via Gradio /tryon API with auto-mask and crop options.","mn":"HuggingFace Space yisol/IDM-VTON Gradio /tryon API ашиглана."},"cost":1,"provider":"gradio","mode":"prod","url":"https://yisol-idm-vton.hf.space","apiName":"/tryon","garmentDes":"clothing item","isChecked":true,"isCheckedCrop":false,"denoiseSteps":30,"seed":42,"token":"","resolution":-1,"restoreFace":true},{"key":"aliyun_aitryon_parsing","enabled":false,"scenes":["takeoff"],"model":"aitryon-parsing-v1","name":{"zh":"阿里取衣分割","en":"Aliyun Takeoff Parsing","mn":"Aliyun хувцас салгах"},"desc":{"zh":"用于取衣区分割模特服饰并输出可用服饰图。","en":"Segments garment regions for takeoff area and outputs reusable garment images.","mn":"Загварын хувцсыг ялган авч, дахин ашиглах зургийг гаргана."},"cost":1,"provider":"aliyun","mode":"prod","url":"https://dashscope.aliyuncs.com/api/v1/services/vision/image-process/process","token":"","clothesType":["upper"]}]`
 }
 
 func defaultShoeModelsConfig() string {
@@ -763,7 +764,7 @@ func (s *SysConfigApi) GetPaymentConfig(c *gin.Context) {
 			"paypal":  paypalEnabled,
 		},
 		"methods": methods,
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }
 
 // GetUniPreferredPayConfig 获取uni联系客服页期望支付方式配置（公开接口）
@@ -782,5 +783,5 @@ func (s *SysConfigApi) GetUniPreferredPayConfig(c *gin.Context) {
 
 	response.OkWithDetailed(gin.H{
 		"methods": preferredMethods,
-	}, "获取成功", c)
+	}, i18n.T(c, "getSuccess"), c)
 }

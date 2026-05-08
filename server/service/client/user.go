@@ -22,13 +22,13 @@ type ClientUserService struct {
 func (clientUserService *ClientUserService) Login(loginInfo *clientReq.Login) (clientUser client.ClientUser, err error) {
 	err = global.GVA_DB.Where("username = ?", loginInfo.Username).First(&clientUser).Error
 	if err != nil {
-		return clientUser, errors.New("用户名或密码错误")
+		return clientUser, errors.New("loginFail")
 	}
 	if clientUser.Banned != nil && *clientUser.Banned {
-		return clientUser, errors.New("BANNED")
+		return clientUser, errors.New("accountBanned")
 	}
 	if !utils.BcryptCheck(loginInfo.Password, clientUser.Password) {
-		return clientUser, errors.New("用户名或密码错误")
+		return clientUser, errors.New("loginFail")
 	}
 	return
 }
@@ -38,7 +38,7 @@ func (clientUserService *ClientUserService) Login(loginInfo *clientReq.Login) (c
 func (clientUserService *ClientUserService) CreateClientUser(clientUser *client.ClientUser) (err error) {
 	ferr := global.GVA_DB.Where("username = ?", clientUser.Username).First(&client.ClientUser{}).Error
 	if ferr == nil {
-		return errors.New("用户名或手机号码已存在")
+		return errors.New("usernameOrPhoneExists")
 	}
 	if clientUser.Nickname == "" {
 		clientUser.Nickname = clientUser.Username
@@ -155,18 +155,18 @@ func (clientUserService *ClientUserService) SetClientUserInfo(key string, value 
 // AdjustTryonPoint 后台调整用户试衣币，统一写入试衣币流水
 func (clientUserService *ClientUserService) AdjustTryonPoint(ctx context.Context, req clientReq.AdjustTryonPointRequest, operatorID uint) error {
 	if req.UserID == 0 {
-		return errors.New("用户ID不能为空")
+		return errors.New("userIDRequired")
 	}
 	if req.Amount <= 0 {
-		return errors.New("调整数量必须大于0")
+		return errors.New("adjustAmountMustPositive")
 	}
 	changeType := strings.TrimSpace(req.ChangeType)
 	if changeType != "increase" && changeType != "decrease" {
-		return errors.New("调整类型必须是 increase 或 decrease")
+		return errors.New("pointChangeTypeInvalid")
 	}
 	reason := strings.TrimSpace(req.Reason)
 	if reason == "" {
-		return errors.New("调整原因不能为空")
+		return errors.New("adjustReasonRequired")
 	}
 
 	uid := int(req.UserID)
@@ -218,10 +218,10 @@ func (clientUserService *ClientUserService) GetSubordinateCount(userID uint) (in
 func (clientUserService *ClientUserService) LoginByPhone(areaCode, phone, password string) (clientUser client.ClientUser, err error) {
 	err = global.GVA_DB.Where("area_code = ? AND phone = ?", areaCode, phone).First(&clientUser).Error
 	if err != nil {
-		return clientUser, errors.New("手机号不存在或密码错误")
+		return clientUser, errors.New("phoneLoginFail")
 	}
 	if !utils.BcryptCheck(password, clientUser.Password) {
-		return clientUser, errors.New("手机号不存在或密码错误")
+		return clientUser, errors.New("phoneLoginFail")
 	}
 	return
 }
@@ -232,7 +232,7 @@ func (clientUserService *ClientUserService) RegisterByPhone(areaCode, phone, pas
 	var count int64
 	global.GVA_DB.Model(&client.ClientUser{}).Where("area_code = ? AND phone = ?", areaCode, phone).Count(&count)
 	if count > 0 {
-		return clientUser, errors.New("该手机号已注册")
+		return clientUser, errors.New("phoneAlreadyRegistered")
 	}
 
 	// 生成随机用户名(8位)
@@ -285,12 +285,12 @@ func (clientUserService *ClientUserService) ChangePassword(userID uint, oldPassw
 	var user client.ClientUser
 	err := global.GVA_DB.Where("id = ?", userID).First(&user).Error
 	if err != nil {
-		return errors.New("用户不存在")
+		return errors.New("userNotExist")
 	}
 
 	if method == "old_password" {
 		if !utils.BcryptCheck(oldPassword, user.Password) {
-			return errors.New("旧密码错误")
+			return errors.New("passwordError")
 		}
 	}
 
