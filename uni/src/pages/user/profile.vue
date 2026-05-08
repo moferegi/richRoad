@@ -277,6 +277,8 @@ const logout = () => {
   uni.showModal({
     title: $t.value('confirmLogout'),
     confirmColor: '#e50914',
+    cancelText: $t.value('cancel'),
+    confirmText: $t.value('confirm'),
     success: (res) => {
       if (res.confirm) {
         uni.removeStorageSync('x-token')

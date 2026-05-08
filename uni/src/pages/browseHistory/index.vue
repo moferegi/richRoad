@@ -18,7 +18,7 @@
       <view class="group" v-for="(group, gIdx) in groupedList" :key="gIdx">
         <view class="group-date">{{ group.date }}</view>
         <view class="card" v-for="(item, index) in group.items" :key="index" @tap="goDetail(item)">
-          <image
+          <LazyImage
             class="card-image"
             :src="item.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(item.imageUrl || item.picture || item.image || '')"
             mode="aspectFill"
@@ -59,10 +59,12 @@
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { clearGoodHistory, getGoodHistory } from '@/api/order'
+import { resolveApiMessage } from '@/utils/i18n.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { usePlayHistoryStore } from '@/pinia/modules/playHistory.js'
+import LazyImage from '@/components/lazy-image/lazy-image.vue'
 
 const PAGE_SIZE = 10
 
@@ -185,6 +187,8 @@ const clearAll = () => {
   uni.showModal({
     title: $t.value('confirmClearHistory'),
     confirmColor: '#dc2626',
+    cancelText: $t.value('cancel'),
+    confirmText: $t.value('confirm'),
     success: async (res) => {
       if (!res.confirm) return
 
@@ -194,7 +198,7 @@ const clearAll = () => {
         if (token) {
           const remoteRes = await clearGoodHistory()
           if (remoteRes?.code !== 0) {
-            uni.showToast({ title: remoteRes?.msg || $t.value('uploadFail'), icon: 'none' })
+            uni.showToast({ title: resolveApiMessage(remoteRes?.msg, 'operationFailed'), icon: 'none' })
             await loadHistory()
             return
           }

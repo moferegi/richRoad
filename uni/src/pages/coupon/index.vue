@@ -73,7 +73,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getAllClaimCoupon, claimCouponByUser } from '@/api/coupon'
-import { t, localText } from '@/utils/i18n'
+import { t, localText, resolveApiMessage } from '@/utils/i18n'
 import { getUrl } from '@/utils/url'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
@@ -128,7 +128,7 @@ const onClaim = async (item) => {
       uni.showToast({ title: t('couponClaimSuccess'), icon: 'success' })
       loadCoupons()
     } else {
-      uni.showToast({ title: res.msg || t('couponClaimFail'), icon: 'none' })
+      uni.showToast({ title: resolveApiMessage(res.msg, 'couponClaimFail'), icon: 'none' })
     }
   } catch (e) { uni.showToast({ title: t('couponClaimFail'), icon: 'none' }) }
 }

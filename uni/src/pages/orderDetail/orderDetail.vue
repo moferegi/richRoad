@@ -38,7 +38,7 @@
       <!-- 商品列表 -->
       <view class="nf-card nf-goods-card">
         <view class="nf-goods-item" v-for="(d, i) in data.detail" :key="i" @tap="goGoodsDetail(d)">
-          <image class="nf-goods-img" :src="d.sku?.externalPicturePath ? getExternalUrl(d.sku.externalPicturePath) : getUrl(d.sku?.picture)" mode="aspectFill"></image>
+          <LazyImage class="nf-goods-img" :src="d.sku?.externalPicturePath ? getExternalUrl(d.sku.externalPicturePath) : getUrl(d.sku?.picture)" mode="aspectFill"></LazyImage>
           <view class="nf-goods-info">
             <text class="nf-goods-name">{{ $lt(d?.sku?.name) || d?.sku?.name }}</text>
             <text class="nf-goods-desc">{{ $lt(d?.good?.description) || d?.good?.description }}</text>
@@ -189,6 +189,7 @@ import { getSysConfigByKey } from '@/api/sysConfig.js'
 import { getPaymentConfig } from '@/api/sysConfig.js'
 import { getUrl, getExternalUrl } from "@/utils/url.js"
 import RefundApplyPopup from '@/components/refund-apply-popup/refund-apply-popup.vue'
+import LazyImage from '@/components/lazy-image/lazy-image.vue'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 

@@ -2,7 +2,7 @@
   <view class="goods-list" ref="goodsListRef">
     <view class="goods-grid">
       <view v-for="(item, index) in props.goodsList" :key="index" class="goods-item" @tap="handleGoodsClick(item)">
-        <image :src="item.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(item.imageUrl)" class="goods-image" mode="aspectFill"></image>
+        <LazyImage :src="item.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(item.imageUrl)" class="goods-image" mode="aspectFill"></LazyImage>
         <view class="goods-info">
           <text class="goods-name">{{ $lt(item.title) }}</text>
           <view v-if="item.tags && item.tags.length > 0" class="merchant-tags">
@@ -56,6 +56,7 @@ import {getUrl, getExternalUrl} from "@/utils/url.js"
 import { onReachBottom } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
+import LazyImage from '@/components/lazy-image/lazy-image.vue'
 
 const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()

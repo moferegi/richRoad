@@ -201,6 +201,8 @@ const cancelRecord = (item) => {
   uni.showModal({
     title: $t.value('cancelOrderHint'),
     content: $t.value('cancelOrderConfirm'),
+    cancelText: $t.value('cancel'),
+    confirmText: $t.value('confirm'),
     success: async (res) => {
       if (!res.confirm) return
       const r = await cancelTryonRechargeOrder(id)

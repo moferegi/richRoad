@@ -2,7 +2,7 @@
   <view class="goods-list">
     <view class="goods-row"  v-if="props.goodsList.length">
       <view v-for="(item, index) in props.goodsList" :key="index" class="goods-item" @tap="handleGoodsClick(item)">
-        <image :src="item.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(item.imageUrl)" class="goods-image" mode="aspectFill"></image>
+        <LazyImage :src="item.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(item.imageUrl)" class="goods-image" mode="aspectFill"></LazyImage>
         <view class="goods-info">
           <text class="goods-name">{{ $lt(item.title) }}</text>
           <view class="price-container">
@@ -40,7 +40,7 @@
     </view>
     <view v-if="!props.goodsList.length" class="empty-state">
       <view class="empty-image-container">
-        <image class="empty-image-placeholder" src="./../../static/emptyStatus.jpg"></image>
+        <LazyImage class="empty-image-placeholder" src="./../../static/emptyStatus.jpg"></LazyImage>
       </view>
       <view class="empty-text">{{ $t('noOrderData') }}</view>
     </view>
@@ -52,6 +52,7 @@ import {ref, computed, onMounted, onUnmounted} from 'vue'
 import {getUrl, getExternalUrl} from "@/utils/url";
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
+import LazyImage from '@/components/lazy-image/lazy-image.vue'
 
 const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()

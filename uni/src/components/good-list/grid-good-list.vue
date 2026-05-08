@@ -3,7 +3,7 @@
         <view class="goods-list">
             <view class="goods-row">
                 <view class="goods-item" v-for="(item, index) in goodsList" :key="index">
-                    <image class="goods-image" :src="item.image" mode="aspectFill" />
+                    <LazyImage class="goods-image" :src="item.image" mode="aspectFill" />
                     <view class="goods-info">
                         <text class="goods-name">{{ item.name }}</text>
                         <view class="price-container">
@@ -37,6 +37,7 @@
 import { ref, computed } from 'vue'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import LazyImage from '@/components/lazy-image/lazy-image.vue'
 const appConfigStore = useAppConfigStore()
 const langStore = useLangStore()
 const cs = computed(() => appConfigStore.currencySymbol)

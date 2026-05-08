@@ -91,6 +91,7 @@
 	import { useLangStore } from '@/pinia/modules/lang.js'
 	import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 	import { placeOrderByCart } from '@/api/order.js'
+  import { resolveApiMessage } from '@/utils/i18n.js'
 	import { getUrl, getExternalUrl } from "@/utils/url.js"
 
 	const { $t, $lt } = useLangStore()
@@ -133,7 +134,7 @@
 			res = await addCart({ goodID: item.goodID, skuID: item.skuID, quantity: 1 })
 		}
 		uni.hideLoading()
-		if (res.code !== 0) { uni.showToast({ title: res.msg || $t('adjustFail'), icon: 'none' }); return }
+    if (res.code !== 0) { uni.showToast({ title: resolveApiMessage(res.msg, 'adjustFail'), icon: 'none' }); return }
 		item.quantity = e.value
 		if (e.value == 0) { cartList.value = cartList.value.filter(i => i.ID !== item.ID) }
 	}
@@ -143,6 +144,8 @@
 	const deleteItem = async (item) => {
 		uni.showModal({
 			title: '', content: $t('deleteConfirmCart'),
+      cancelText: $t('cancel'),
+      confirmText: $t('confirm'),
 			success: async (res) => {
 				if (res.confirm) {
 					uni.showLoading({ title: '', mask: true })
@@ -160,6 +163,8 @@
 	const clearAllCart = async () => {
 		uni.showModal({
 			title: '', content: $t('clearConfirmCart'),
+      cancelText: $t('cancel'),
+      confirmText: $t('confirm'),
 			success: async (res) => {
 				if (res.confirm) {
 					uni.showLoading({ title: '', mask: true })
@@ -182,7 +187,7 @@
 			cartList.value = cartList.value.filter(i => !orderedIDs.has(i.ID))
 			uni.navigateTo({ url: `/pages/orderInfo/orderInfo?orderID=${res.data.orderID}&type=cart` })
 		} else {
-			uni.showToast({ title: res.msg || $t('createOrderFail'), icon: 'none' })
+      uni.showToast({ title: resolveApiMessage(res.msg, 'createOrderFail'), icon: 'none' })
 		}
 	}
 </script>

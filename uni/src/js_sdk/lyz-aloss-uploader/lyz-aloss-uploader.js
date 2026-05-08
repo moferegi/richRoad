@@ -2,6 +2,7 @@
 import {env} from './config.js'
 import {Base64} from './base64.js'
 import {timeFormat} from './moment.js'
+import { t } from '@/utils/i18n.js'
 
 // const Base64 = require('./base64.js');
 import './hmac.js'
@@ -29,10 +30,9 @@ export const  uploadFile = (filePath, fix,successc, failc) => {
   // #endif
   fix = fix.replace('.','')
   if (!filePath || filePath.length < 9) {
-    wx.showModal({
-      title: '文件错误',
-      content: '请重试',
-      showCancel: false,
+    uni.showToast({
+      title: t('uploadFail'),
+      icon: 'none'
     })
     return;
   }

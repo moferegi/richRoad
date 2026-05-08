@@ -41,6 +41,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import { resolveApiMessage } from '@/utils/i18n.js'
 import { getUrl } from '@/utils/url.js'
 import { setSelectedTryonModel, uploadTryonImage } from '@/utils/tryon.js'
 import {
@@ -95,7 +96,7 @@ const addModel = () => {
       try {
         uploadedUrl = await uploadTryonImage(path, 'cloth-on/uni-model', 'person')
       } catch (e) {
-        uni.showToast({ title: e.message || $t.value('uploadFail'), icon: 'none' })
+        uni.showToast({ title: resolveApiMessage(e?.message, 'uploadFail'), icon: 'none' })
         return
       } finally {
         uni.hideLoading()
@@ -121,6 +122,8 @@ const renameModel = (item) => {
     editable: true,
     placeholderText: $t.value('modelNamePlaceholder'),
     content: item.name || '',
+    cancelText: $t.value('cancel'),
+    confirmText: $t.value('confirm'),
     success: async (res) => {
       if (!res.confirm) return
       const value = (res.content || '').trim()
@@ -144,6 +147,8 @@ const removeModel = (item) => {
   uni.showModal({
     title: $t.value('pendingOrderTitle'),
     content: $t.value('confirmDeleteModel'),
+    cancelText: $t.value('cancel'),
+    confirmText: $t.value('confirm'),
     success: async (res) => {
       if (!res.confirm) return
 

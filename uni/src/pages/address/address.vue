@@ -181,6 +181,8 @@ const debouncedLower = debounce(lower, 300)
 const delAddress = (item) => {
   uni.showModal({
     title: $t.value('confirmDeleteAddr'),
+    cancelText: $t.value('cancel'),
+    confirmText: $t.value('confirm'),
     success: async (res) => {
       if (res.confirm) {
         const del = await deleteAddress(item.ID)

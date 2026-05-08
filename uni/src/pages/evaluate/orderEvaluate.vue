@@ -87,6 +87,7 @@ import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { selfOrder, selfOrderComment } from '@/api/order.js'
 import { createComment } from '@/api/comment.js'
+import { resolveApiMessage } from '@/utils/i18n.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { baseUrl } from '@/utils/request.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
@@ -385,7 +386,7 @@ const uploadSingleImage = (tempFilePath, index, itemIndex) => {
 				try {
 					const data = JSON.parse(res.data)
 					if (data.code !== 0) {
-						reject(new Error(data.msg || $t.value('uploadFail')))
+						reject(new Error(resolveApiMessage(data.msg, 'uploadFail')))
 						return
 					}
 					resolve(data.data.file.url)
@@ -473,7 +474,7 @@ const submitEvaluations = async () => {
 				} catch (error) {
 					uni.hideLoading()
 					uni.showToast({
-						title: error.message || $t.value('uploadFail'),
+						title: resolveApiMessage(error?.message, 'uploadFail'),
 						icon: 'none',
 						duration: 2000
 					})

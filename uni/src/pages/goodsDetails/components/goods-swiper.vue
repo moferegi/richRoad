@@ -18,12 +18,12 @@
           controls
           object-fit="cover"></video>
       <!-- 图片类型 -->
-      <image
+        <LazyImage
           v-else
           mode="aspectFill"
           class="swiper-item-media"
           :src="item.src">
-      </image>
+        </LazyImage>
       <!-- 文字叠加层 -->
       <view v-if="item.text" class="swiper-text-overlay"
         :style="{ justifyContent: item.textPosition === 'top' ? 'flex-start' : item.textPosition === 'center' ? 'center' : 'flex-end' }">
@@ -38,6 +38,7 @@ import { ref, watch } from "vue"
 import { getUrl, getExternalUrl } from "@/utils/url.js"
 import { localText } from "@/utils/i18n.js"
 import { signURL } from "@/api/fileUpload.js"
+import LazyImage from '@/components/lazy-image/lazy-image.vue'
 
 const props = defineProps({
   list: {

@@ -44,7 +44,7 @@
       <view class="nf-card">
         <text class="nf-card-title">{{ $t('tryonSourceImage') }}</text>
         <view class="nf-upload-box" @tap="pickImage('source')">
-          <image v-if="sourcePreview" class="nf-upload-image" :src="sourcePreview" mode="aspectFill"></image>
+          <LazyImage v-if="sourcePreview" class="nf-upload-image" :src="sourcePreview" mode="aspectFill"></LazyImage>
           <view v-else class="nf-upload-empty">
             <uni-icons type="camera" size="24" color="rgba(255,255,255,0.65)"></uni-icons>
             <text class="nf-upload-text">{{ $t('tryonChooseSource') }}</text>
@@ -55,7 +55,7 @@
       <view class="nf-card">
         <text class="nf-card-title">{{ $t('tryonTemplateImage') }}</text>
         <view class="nf-upload-box" @tap="pickImage('template')">
-          <image v-if="templatePreview" class="nf-upload-image" :src="templatePreview" mode="aspectFill"></image>
+          <LazyImage v-if="templatePreview" class="nf-upload-image" :src="templatePreview" mode="aspectFill"></LazyImage>
           <view v-else class="nf-upload-empty">
             <uni-icons type="camera" size="24" color="rgba(255,255,255,0.65)"></uni-icons>
             <text class="nf-upload-text">{{ $t('tryonChooseTemplate') }}</text>
@@ -82,13 +82,13 @@
         </view>
         <view class="nf-result-images">
           <view class="nf-mini-image" v-if="currentTask.sourceImage" @tap="previewImage(currentTask.sourceImage)">
-            <image class="nf-mini-image-img" :src="getUrl(currentTask.sourceImage)" mode="aspectFill"></image>
+            <LazyImage class="nf-mini-image-img" :src="getUrl(currentTask.sourceImage)" mode="aspectFill"></LazyImage>
           </view>
           <view class="nf-mini-image" v-if="currentTask.templateImage" @tap="previewImage(currentTask.templateImage)">
-            <image class="nf-mini-image-img" :src="getUrl(currentTask.templateImage)" mode="aspectFill"></image>
+            <LazyImage class="nf-mini-image-img" :src="getUrl(currentTask.templateImage)" mode="aspectFill"></LazyImage>
           </view>
           <view class="nf-mini-image" v-if="currentTask.resultImage" @tap="previewImage(currentTask.resultImage)">
-            <image class="nf-mini-image-img" :src="getUrl(currentTask.resultImage)" mode="aspectFill"></image>
+            <LazyImage class="nf-mini-image-img" :src="getUrl(currentTask.resultImage)" mode="aspectFill"></LazyImage>
           </view>
         </view>
         <view class="nf-fail" v-if="currentTask.status === 'failed' && currentTask.errorMessage">
@@ -136,9 +136,11 @@ import { onShow, onHide, onUnload } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useUserStore } from '@/pinia/modules/user.js'
 import { baseUrl } from '@/utils/request.js'
+import { resolveApiMessage } from '@/utils/i18n.js'
 import { getUrl } from '@/utils/url.js'
 import { getTryonConfig } from '@/api/sysConfig.js'
 import { createTryonTask, findTryonTask, getMyTryonTaskList } from '@/api/tryonTask.js'
+import LazyImage from '@/components/lazy-image/lazy-image.vue'
 
 const langStore = useLangStore()
 const userStore = useUserStore()
@@ -311,7 +313,7 @@ const uploadSingleImage = (tempFilePath) => {
         try {
           const data = JSON.parse(res.data)
           if (data.code !== 0 || !data.data || !data.data.file || !data.data.file.url) {
-            reject(new Error(data.msg || $t.value('uploadFail')))
+            reject(new Error(resolveApiMessage(data.msg, 'uploadFail')))
             return
           }
           resolve(data.data.file.url)
@@ -319,7 +321,7 @@ const uploadSingleImage = (tempFilePath) => {
           reject(new Error($t.value('uploadFail')))
         }
       },
-      fail: (err) => reject(new Error(err.errMsg || $t.value('uploadFail')))
+      fail: (err) => reject(new Error(resolveApiMessage(err?.errMsg, 'uploadFail')))
     })
   })
 }
@@ -466,7 +468,7 @@ const submitTryon = async (options = {}) => {
       uni.showToast({ title: $t.value('tryonTaskReused'), icon: 'none' })
     }
   } catch (e) {
-    uni.showToast({ title: e.message || $t.value('operationFailed'), icon: 'none' })
+    uni.showToast({ title: resolveApiMessage(e?.message, 'operationFailed'), icon: 'none' })
   } finally {
     uni.hideLoading()
     isSubmitting.value = false

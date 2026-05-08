@@ -57,8 +57,8 @@
               <image class="friend-avatar" :src="item.avatar || defaultAvatar" mode="aspectFill" />
               <view class="friend-main">
                 <text class="friend-name">{{ item.nickname || item.username }}</text>
-                <text class="friend-time">{{ formatTime(item.CreatedAt || item.createdAt) }}</text>
               </view>
+              <text class="friend-time">{{ formatTime(item.CreatedAt || item.createdAt) }}</text>
             </view>
 
             <view v-if="hasMore" class="load-more-btn" @tap="loadMore">{{ $t('loadMore') }}</view>
@@ -451,9 +451,9 @@ page {
 
 .friend-time {
   display: block;
-  margin-top: 4rpx;
   font-size: 22rpx;
   color: rgba(15, 23, 42, 0.5);
+  white-space: nowrap;
 }
 
 .load-more-btn {

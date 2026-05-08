@@ -6,7 +6,7 @@
 
     <view class="shoe-body">
       <view class="shoe-left" @tap="openUploadDrawer('person')">
-        <image v-if="personPreview" class="shoe-preview" :src="personPreview" mode="aspectFit" />
+        <LazyImage v-if="personPreview" class="shoe-preview" :src="personPreview" mode="aspectFit" />
         <view v-if="personPreview && personSizeBytes > 0" class="preview-size-mask">{{ formatPreviewSize(personSizeBytes) }}</view>
         <view v-else class="upload-empty">
           <uni-icons type="camera" size="26" color="rgba(15,23,42,0.45)" />
@@ -15,7 +15,7 @@
       </view>
       <view class="shoe-right">
         <view class="slot" @tap="openUploadDrawer('shoe')">
-          <image v-if="shoePreview" class="slot-preview" :src="shoePreview" mode="aspectFit" />
+          <LazyImage v-if="shoePreview" class="slot-preview" :src="shoePreview" mode="aspectFit" />
           <view v-if="shoePreview && shoeSizeBytes > 0" class="preview-size-mask">{{ formatPreviewSize(shoeSizeBytes) }}</view>
           <text v-else class="slot-text">{{ $t('uploadShoeImage') }}</text>
         </view>
@@ -103,7 +103,7 @@
                 class="example-card"
                 @tap="applyRemoteExample(item)"
               >
-                <image class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.label }}</text>
               </view>
             </view>
@@ -121,7 +121,7 @@
                 class="example-card"
                 @tap="applyRemoteExample(item)"
               >
-                <image class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.label }}</text>
               </view>
             </view>
@@ -138,7 +138,7 @@
                 class="example-card"
                 @tap="applyMyModel(item)"
               >
-                <image class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.name || $t('unnamedModel') }}</text>
               </view>
             </view>
@@ -152,7 +152,7 @@
                 class="example-card"
                 @tap="applyRemoteExample(item)"
               >
-                <image class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.label }}</text>
               </view>
             </view>
@@ -173,7 +173,7 @@
                 class="example-card"
                 @tap="applyRemoteExample(item)"
               >
-                <image class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.label }}</text>
               </view>
             </view>
@@ -187,7 +187,7 @@
                 class="example-card"
                 @tap="applyRemoteExample(item)"
               >
-                <image class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.label }}</text>
               </view>
             </view>
@@ -220,7 +220,7 @@
         </view>
         <view class="crop-editor-stage-wrap">
           <view class="crop-editor-stage" :style="{ width: `${cropStageSize.width}px`, height: `${cropStageSize.height}px` }">
-            <image class="crop-editor-image" :src="cropSourcePath" mode="scaleToFill" />
+            <LazyImage class="crop-editor-image" :src="cropSourcePath" mode="scaleToFill" />
             <movable-area class="crop-editor-area" :style="{ width: `${cropStageSize.width}px`, height: `${cropStageSize.height}px` }">
               <movable-view
                 class="crop-editor-box"
@@ -251,7 +251,7 @@
         </view>
         <view class="crop-editor-actions">
           <view class="upload-drawer-btn ghost" @tap="cancelCropEditor">{{ $t('cancel') }}</view>
-          <view class="upload-drawer-btn" @tap="confirmCropEditor">{{ $t('doneText') }}</view>
+          <view class="upload-drawer-btn" :class="{ disabled: cropConfirming }" @tap="confirmCropEditor">{{ cropConfirming ? $t('loading') : $t('doneText') }}</view>
         </view>
       </view>
     </view>
@@ -272,7 +272,8 @@ import { useLangStore } from '@/pinia/modules/lang.js'
 import { getTryonConfig, getDefaultDomain } from '@/api/sysConfig.js'
 import { getMyTryonModelList } from '@/api/tryonTask.js'
 import { getUrl } from '@/utils/url.js'
-import { localText } from '@/utils/i18n.js'
+import { localText, resolveApiMessage } from '@/utils/i18n.js'
+import LazyImage from '@/components/lazy-image/lazy-image.vue'
 import {
   createTryonRequestId,
   saveTryonDraft,
@@ -315,6 +316,7 @@ const cropBoxSize = ref({ width: 1, height: 1 })
 const cropBoxPosition = ref({ x: 0, y: 0 })
 const cropRatio = ref({ width: 3, height: 4 })
 const activeCropEdge = ref('all')
+const cropConfirming = ref(false)
 let cropResolve = null
 
 const personPreview = computed(() => personRemote.value ? getUrl(personRemote.value) : personLocal.value)
@@ -681,13 +683,16 @@ const renderCanvasFromSource = async ({ filePath, srcX = 0, srcY = 0, srcWidth, 
 }
 
 const confirmCropEditor = async () => {
+  if (cropConfirming.value) return
+  cropConfirming.value = true
+
   try {
     const srcWidth = Number(cropSourceSize.value.width || 0)
     const srcHeight = Number(cropSourceSize.value.height || 0)
     const stageWidth = Number(cropStageSize.value.width || 0)
     const stageHeight = Number(cropStageSize.value.height || 0)
     if (!cropSourcePath.value || srcWidth <= 0 || srcHeight <= 0 || stageWidth <= 0 || stageHeight <= 0) {
-      finishCropEditor('')
+      uni.showToast({ title: $t.value('uploadFail'), icon: 'none' })
       return
     }
 
@@ -725,10 +730,16 @@ const confirmCropEditor = async () => {
       quality: 0.92,
     })
 
+    if (!croppedPath) {
+      uni.showToast({ title: $t.value('uploadFail'), icon: 'none' })
+      return
+    }
+
     finishCropEditor(croppedPath)
   } catch (error) {
     uni.showToast({ title: $t.value('uploadFail'), icon: 'none' })
-    finishCropEditor('')
+  } finally {
+    cropConfirming.value = false
   }
 }
 
@@ -1076,14 +1087,14 @@ const chooseAndUploadImage = async (target, mode = 'original') => {
       assignImageToTarget(target, remoteUrl, true, selected.sizeBytes)
       uni.showToast({ title: $t.value('uploadSuccess'), icon: 'none' })
     } catch (e) {
-      uni.showToast({ title: e.message || $t.value('uploadFail'), icon: 'none' })
+      uni.showToast({ title: resolveApiMessage(e?.message, 'uploadFail'), icon: 'none' })
     } finally {
       uni.hideLoading()
     }
   } catch (e) {
     const errMsg = String(e?.errMsg || '')
     if (!errMsg.includes('cancel')) {
-      uni.showToast({ title: e.message || $t.value('uploadFail'), icon: 'none' })
+      uni.showToast({ title: resolveApiMessage(e?.message, 'uploadFail'), icon: 'none' })
     }
   }
 }
@@ -1654,6 +1665,11 @@ page {
   font-size: 24rpx;
   color: #fff;
   background: linear-gradient(90deg, #2563eb, #0ea5e9);
+}
+
+.upload-drawer-btn.disabled {
+  opacity: 0.65;
+  pointer-events: none;
 }
 
 .upload-drawer-btn.ghost {

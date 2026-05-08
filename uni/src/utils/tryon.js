@@ -1,5 +1,5 @@
 import { baseUrl } from '@/utils/request.js'
-import { localText, t } from '@/utils/i18n.js'
+import { localText, resolveApiMessage, t } from '@/utils/i18n.js'
 
 const TRYON_DRAFT_KEY = 'tryon:draft:v1'
 const TRYON_HISTORY_KEY = 'tryon:history:v1'
@@ -143,12 +143,12 @@ export const uploadTryonImage = (tempFilePath, folder = '', uploadType = '', upl
             resolve(data.data.file.url)
             return
           }
-          reject(new Error(data.msg || getUploadFailMessage()))
+          reject(new Error(resolveApiMessage(data.msg, 'uploadFail')))
         } catch (e) {
           reject(new Error(getUploadFailMessage()))
         }
       },
-      fail: (err) => reject(new Error(err.errMsg || getUploadFailMessage())),
+      fail: (err) => reject(new Error(resolveApiMessage(err?.errMsg, 'uploadFail'))),
     })
   })
 }
@@ -235,6 +235,7 @@ export const parseTryonModels = (modelsRaw, sceneType, fallbackCost = 1, lang = 
       const rawDesc = item.descI18n || item.desc || item.descriptionI18n || item.description || ''
       const rawRefinerDesc = item.refinerDescI18n || item.refinerDesc || ''
       const supportsRefiner = toBool(item.supportsRefiner, inferSupportsRefiner(item))
+      const refinerExtraCost = Math.max(0, Number(item.refinerExtraCost || item.refinerExtraPoints || 0))
 
       return {
         key,
@@ -247,6 +248,7 @@ export const parseTryonModels = (modelsRaw, sceneType, fallbackCost = 1, lang = 
         url: item.url || item.providerUrl || '',
         token: item.token || item.providerToken || '',
         supportsRefiner,
+        refinerExtraCost,
         refinerModel: String(item.refinerModel || 'aitryon-refiner'),
         refinerGender: normalizeRefinerGender(item.refinerGender, 'woman'),
         refinerDesc: rawRefinerDesc,
@@ -264,6 +266,7 @@ export const parseTryonModels = (modelsRaw, sceneType, fallbackCost = 1, lang = 
     name: 'aitryon',
     cost: Number(fallbackCost || 1),
     supportsRefiner: true,
+    refinerExtraCost: 1,
     refinerModel: 'aitryon-refiner',
     refinerGender: 'woman',
     desc: {

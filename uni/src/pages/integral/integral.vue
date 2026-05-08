@@ -82,11 +82,17 @@ const REASON_KEYS = [
   'reason_orderCancelDeduct',
   'reason_tryonTaskDeduct',
   'reason_tryonTaskRefund',
+  'reason_tryonGuestInit',
+  'reason_tryonRegisterReward',
+  'reason_tryonInviteReward',
 ]
 
 const OPERATION_REASON_KEY_MAP = {
   tryon_consume: 'reason_tryonTaskDeduct',
   tryon_refund: 'reason_tryonTaskRefund',
+  tryon_guest_init: 'reason_tryonGuestInit',
+  tryon_register_reward: 'reason_tryonRegisterReward',
+  tryon_invite_register_reward: 'reason_tryonInviteReward',
 }
 
 const REASON_ALIAS_LANGS = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id']
@@ -182,8 +188,8 @@ const loadRecords = async (isLoadMore = false) => {
       params: {
         page: page.value,
         pageSize,
-        orderKey: 'id',
-        desc: true,
+        sort: 'created_at',
+        order: 'descending',
         assetType: assetType.value,
       }
     })

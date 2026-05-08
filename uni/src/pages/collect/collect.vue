@@ -32,7 +32,7 @@
           @tap="goTo(item)"
         >
           <view class="card-image-wrap">
-            <image class="card-image" :src="getUrl(item.imageUrl)" mode="aspectFill" />
+            <LazyImage class="card-image" :src="getUrl(item.imageUrl)" mode="aspectFill" />
             <view class="card-discount" v-if="item.discount && item.discount < 10">
               <text>{{ getDiscountText(item.discount) }}</text>
             </view>
@@ -87,6 +87,7 @@ import { useUserStore } from '@/pinia/modules/user'
 import { getUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
+import LazyImage from '@/components/lazy-image/lazy-image.vue'
 
 const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()

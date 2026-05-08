@@ -17,9 +17,9 @@
     </scroll-view>
 
     <scroll-view class="list-wrap" scroll-y @scrolltolower="onReachBottom">
-      <view class="card" v-for="item in filteredList" :key="item._key" @tap="preview(item)">
+      <view class="card" v-for="item in filteredList" :key="item._key" @tap="handleCardTap(item)">
         <view class="thumb-wrap">
-          <image class="thumb" :src="item.resultImage ? getUrl(item.resultImage) : getUrl(item.templateImage || item.sourceImage)" mode="aspectFill" />
+          <LazyImage class="thumb" :src="item.resultImage ? getUrl(item.resultImage) : getUrl(item.templateImage || item.sourceImage)" mode="aspectFit" />
         </view>
         <view class="card-main">
           <view class="line">
@@ -77,8 +77,8 @@
         <view class="preview-body" v-if="currentPreviewImages.length">
           <swiper class="preview-swiper" :current="previewCurrentIndex" @change="onPreviewSwiperChange">
             <swiper-item v-for="(img, idx) in currentPreviewImages" :key="`${img}_${idx}`">
-              <view class="preview-image-wrap">
-                <image class="preview-image" :src="getUrl(img)" mode="aspectFit" />
+              <view class="preview-image-wrap" @tap="previewCurrentImageByIndex(idx)">
+                <LazyImage class="preview-image" :src="getUrl(img)" mode="aspectFit" />
               </view>
             </swiper-item>
           </swiper>
@@ -90,7 +90,50 @@
         </view>
 
         <view class="preview-actions">
-          <view class="preview-action-btn" @tap="downloadCurrentImage">{{ $t('downloadAction') }}</view>
+          <text class="preview-save-tip">{{ $t('previewLongPressSaveHint') }}</text>
+          <view class="preview-actions-row">
+            <view class="preview-action-btn secondary" v-if="canComparePreview" @tap="openCompareFromPreview">{{ compareButtonText }}</view>
+            <view class="preview-action-btn" v-show="showDownloadAction" @tap="downloadCurrentImage">{{ $t('downloadAction') }}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="preview-mask" v-if="compareVisible" @tap="closeCompare">
+      <view class="preview-panel compare-panel" @tap.stop>
+        <view class="preview-head">
+          <text class="preview-title">{{ compareButtonText }}</text>
+          <view class="preview-close" @tap="closeCompare">
+            <uni-icons type="closeempty" size="20" color="#0f172a" />
+          </view>
+        </view>
+
+        <view class="compare-stage">
+          <LazyImage class="compare-image compare-image--zoom" :src="getUrl(compareOriginImage)" mode="aspectFill" />
+          <view class="compare-result-layer" :style="{ width: `${comparePercent}%` }">
+            <LazyImage class="compare-image compare-result-image compare-image--zoom" :src="getUrl(compareResultImage)" mode="aspectFill" :style="compareResultInnerStyle" />
+          </view>
+          <view class="compare-divider" :style="{ left: `${comparePercent}%` }"></view>
+        </view>
+
+        <view class="compare-slider-wrap">
+          <view class="compare-slider-label">
+            <text>{{ $t('previewOriginTab') }}</text>
+            <text>{{ $t('previewResultTab') }}</text>
+          </view>
+          <slider
+            class="compare-slider"
+            :value="comparePercent"
+            :min="0"
+            :max="100"
+            :step="1"
+            activeColor="#2563eb"
+            backgroundColor="rgba(15,23,42,0.12)"
+            block-color="#ffffff"
+            :block-size="20"
+            @changing="onCompareSliderChange"
+            @change="onCompareSliderChange"
+          />
         </view>
       </view>
     </view>
@@ -98,12 +141,14 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { getMyTryonTaskList, deleteMyTryonTask } from '@/api/tryonTask.js'
+import { resolveApiMessage } from '@/utils/i18n.js'
 import { getUrl } from '@/utils/url.js'
 import { getTryonLocalHistory, removeTryonLocalHistoryByTaskKey } from '@/utils/tryon.js'
+import LazyImage from '@/components/lazy-image/lazy-image.vue'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
@@ -127,6 +172,12 @@ const previewTab = ref('result')
 const previewResultImages = ref([])
 const previewOriginImages = ref([])
 const previewCurrentIndex = ref(0)
+const compareVisible = ref(false)
+const comparePercent = ref(50)
+const compareStageWidthPx = ref(0)
+const compareOriginImage = ref('')
+const compareResultImage = ref('')
+const showDownloadAction = ref(false)
 
 const getTaskKey = (item) => String(item?.taskNo || item?.requestID || '').trim()
 
@@ -150,6 +201,16 @@ const currentPreviewImages = computed(() => {
     return previewOriginImages.value
   }
   return previewResultImages.value
+})
+
+const canComparePreview = computed(() => previewOriginImages.value.length > 0 && previewResultImages.value.length > 0)
+const compareButtonText = computed(() => `${$t.value('previewOriginTab')} ⇄ ${$t.value('previewResultTab')}`)
+const compareResultInnerStyle = computed(() => {
+  const width = compareStageWidthPx.value > 0 ? `${compareStageWidthPx.value}px` : '100%'
+  return {
+    width,
+    height: '100%',
+  }
 })
 
 const showLoadMoreButton = computed(() => hasMoreHistory.value && reachedBottom.value)
@@ -377,11 +438,71 @@ const closePreview = () => {
   previewCurrentIndex.value = 0
   previewResultImages.value = []
   previewOriginImages.value = []
+  closeCompare()
+}
+
+const closeCompare = () => {
+  compareVisible.value = false
+  comparePercent.value = 50
+  compareOriginImage.value = ''
+  compareResultImage.value = ''
+}
+
+const onCompareSliderChange = (e) => {
+  comparePercent.value = Math.max(0, Math.min(100, Number(e?.detail?.value ?? 50)))
+}
+
+const measureCompareStage = () => {
+  nextTick(() => {
+    const query = uni.createSelectorQuery()
+    query.select('.compare-stage').boundingClientRect((rect) => {
+      compareStageWidthPx.value = Number(rect?.width || 0)
+    }).exec()
+  })
+}
+
+const openCompareFromPreview = () => {
+  if (!canComparePreview.value) {
+    uni.showToast({ title: $t.value('noImagePreview'), icon: 'none' })
+    return
+  }
+  compareOriginImage.value = previewOriginImages.value[0] || ''
+  compareResultImage.value = previewResultImages.value[0] || ''
+  comparePercent.value = 50
+  compareVisible.value = true
+  measureCompareStage()
+}
+
+const isProcessingTask = (item) => String(item?.status || '').trim().toLowerCase() === 'processing'
+
+const handleCardTap = (item) => {
+  if (isProcessingTask(item) && Number(item?.ID || 0) > 0) {
+    uni.navigateTo({ url: `/pages/tryon/generate?taskID=${Number(item.ID)}` })
+    return
+  }
+  preview(item)
 }
 
 const currentPreviewImage = () => {
   const list = currentPreviewImages.value
   return list[previewCurrentIndex.value] || ''
+}
+
+const previewCurrentImageByIndex = (index) => {
+  const list = currentPreviewImages.value
+    .map((item) => getUrl(item))
+    .filter(Boolean)
+
+  if (!list.length) {
+    uni.showToast({ title: $t.value('noImagePreview'), icon: 'none' })
+    return
+  }
+
+  const current = list[index] || list[previewCurrentIndex.value] || list[0]
+  uni.previewImage({
+    urls: list,
+    current,
+  })
 }
 
 const ensureAlbumPermission = async () => {
@@ -483,6 +604,8 @@ const removeHistory = (item) => {
   uni.showModal({
     title: $t.value('deleteHistoryConfirmTitle'),
     content: $t.value('deleteHistoryConfirmContent'),
+    cancelText: $t.value('cancel'),
+    confirmText: $t.value('confirm'),
     success: async (res) => {
       if (!res.confirm) return
 
@@ -490,7 +613,7 @@ const removeHistory = (item) => {
       if (token && item.taskNo) {
         const deleteRes = await deleteMyTryonTask({ taskNo: item.taskNo })
         if (deleteRes.code !== 0) {
-          uni.showToast({ title: deleteRes.msg || $t.value('operationFailed'), icon: 'none' })
+          uni.showToast({ title: resolveApiMessage(deleteRes.msg, 'operationFailed'), icon: 'none' })
           return
         }
       }
@@ -610,6 +733,7 @@ page {
   height: 156rpx;
   border-radius: 10rpx;
   overflow: hidden;
+  background: #f8fafc;
 }
 
 .thumb {
@@ -831,10 +955,25 @@ page {
 
 .preview-actions {
   padding: 10rpx 16rpx 18rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.preview-actions-row {
+  display: flex;
+  gap: 12rpx;
+}
+
+.preview-save-tip {
+  display: block;
+  text-align: center;
+  font-size: 22rpx;
+  color: rgba(15, 23, 42, 0.56);
 }
 
 .preview-action-btn {
-  width: 100%;
+  flex: 1;
   height: 66rpx;
   border-radius: 999rpx;
   display: flex;
@@ -843,5 +982,78 @@ page {
   color: #ffffff;
   font-size: 24rpx;
   background: linear-gradient(90deg, #2563eb, #0ea5e9);
+}
+
+.preview-action-btn.secondary {
+  color: #0f172a;
+  background: rgba(15, 23, 42, 0.06);
+  border: 1rpx solid rgba(15, 23, 42, 0.12);
+}
+
+.compare-panel {
+  max-width: 720rpx;
+}
+
+.compare-stage {
+  margin: 12rpx 16rpx 0;
+  height: 700rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+  position: relative;
+  background: #f8fafc;
+}
+
+.compare-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.compare-result-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  overflow: hidden;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.compare-result-image {
+  right: auto;
+  bottom: auto;
+}
+
+.compare-image--zoom {
+  transform: scale(1.18);
+  transform-origin: center center;
+}
+
+.compare-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 4rpx;
+  margin-left: -2rpx;
+  background: #ffffff;
+  box-shadow: 0 0 0 1rpx rgba(37, 99, 235, 0.35);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.compare-slider-wrap {
+  padding: 16rpx 20rpx 20rpx;
+}
+
+.compare-slider-label {
+  display: flex;
+  justify-content: space-between;
+  color: rgba(15, 23, 42, 0.6);
+  font-size: 20rpx;
+}
+
+.compare-slider {
+  margin-top: 6rpx;
 }
 </style>

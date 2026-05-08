@@ -129,7 +129,7 @@ import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { getTryonRechargePlans } from '@/api/sysConfig.js'
 import { getPaymentConfig } from '@/api/sysConfig.js'
 import { createTryonRechargeOrder } from '@/api/tryonRechargeOrder.js'
-import { localText } from '@/utils/i18n.js'
+import { localText, resolveApiMessage } from '@/utils/i18n.js'
 
 const userStore = useUserStore()
 const langStore = useLangStore()
@@ -353,7 +353,7 @@ const selectRecharge = (item) => {
           payMethod: selected.key,
         })
         if (res.code !== 0) {
-          uni.showToast({ title: res.msg || $t.value('orderCreateFail'), icon: 'none' })
+          uni.showToast({ title: resolveApiMessage(res.msg, 'orderCreateFail'), icon: 'none' })
           return
         }
 
@@ -376,7 +376,7 @@ const selectRecharge = (item) => {
           url: `/pages/pay/index?orderType=recharge&amount=${encodeURIComponent(amount)}&orderNo=${encodeURIComponent(orderNo)}&orderId=${orderID}&payMethod=${encodedPayMethod}&payMethodLabel=${encodedPayMethodLabel}&rechargePoints=${points}${closeTimePart}`,
         })
       } catch (e) {
-        uni.showToast({ title: e?.message || $t.value('orderCreateFail'), icon: 'none' })
+        uni.showToast({ title: resolveApiMessage(e?.message, 'orderCreateFail'), icon: 'none' })
       } finally {
         uni.hideLoading()
       }
@@ -461,6 +461,8 @@ const logoutDevice = () => {
   uni.showModal({
     title: $t.value('pendingOrderTitle'),
     content: $t.value('confirmLogoutDevice'),
+    cancelText: $t.value('cancel'),
+    confirmText: $t.value('confirm'),
     success: (res) => {
       if (!res.confirm) return
       userStore.loginOut()

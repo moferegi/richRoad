@@ -9,7 +9,7 @@
 
     <view class="room-body">
       <view class="room-left" @tap="openUploadDrawer('person')">
-        <image v-if="personPreview" class="room-preview" :src="personPreview" mode="aspectFit" />
+        <LazyImage v-if="personPreview" class="room-preview" :src="personPreview" mode="aspectFit" />
         <view v-if="personPreview && personSizeBytes > 0" class="preview-size-mask">{{ formatPreviewSize(personSizeBytes) }}</view>
         <view v-else class="room-upload-empty">
           <uni-icons type="camera" size="26" color="rgba(15,23,42,0.45)" />
@@ -18,12 +18,12 @@
       </view>
       <view class="room-right">
         <view class="cloth-slot" @tap="openUploadDrawer('upper')">
-          <image v-if="upperPreview" class="cloth-preview" :src="upperPreview" mode="aspectFit" />
+          <LazyImage v-if="upperPreview" class="cloth-preview" :src="upperPreview" mode="aspectFit" />
           <view v-if="upperPreview && upperSizeBytes > 0" class="preview-size-mask">{{ formatPreviewSize(upperSizeBytes) }}</view>
           <text v-else class="cloth-text">{{ $t('uploadUpperImage') }}</text>
         </view>
         <view class="cloth-slot" @tap="openUploadDrawer('lower')">
-          <image v-if="lowerPreview" class="cloth-preview" :src="lowerPreview" mode="aspectFit" />
+          <LazyImage v-if="lowerPreview" class="cloth-preview" :src="lowerPreview" mode="aspectFit" />
           <view v-if="lowerPreview && lowerSizeBytes > 0" class="preview-size-mask">{{ formatPreviewSize(lowerSizeBytes) }}</view>
           <text v-else class="cloth-text">{{ $t('uploadLowerImage') }}</text>
         </view>
@@ -38,7 +38,8 @@
       <view class="refiner-left">
         <text class="refiner-label">{{ $t('tryonRefinerLabel') }}</text>
         <text class="refiner-hint" v-if="currentModelSupportsRefiner">{{ $t('tryonRefinerHint') }}</text>
-        <text class="refiner-hint" v-else>{{ $t('tryonRefinerUnsupportedHint') }}</text>
+        <text class="refiner-extra-cost" v-if="currentModelSupportsRefiner">{{ $t('tryonRefinerExtraCostHint').replace('{cost}', String(currentRefinerExtraCost)) }}</text>
+        <text class="refiner-hint" v-if="!currentModelSupportsRefiner">{{ $t('tryonRefinerUnsupportedHint') }}</text>
       </view>
       <view class="refiner-right">
         <switch
@@ -57,7 +58,13 @@
         <text class="model-label">{{ $t('currentModelLabel') }}</text>
         <view class="model-info">
           <text class="model-value">{{ currentModel.name }}</text>
-          <text class="model-cost-hint">{{ $t('pointsCostEach').replace('{cost}', String(currentCost)) }}</text>
+          <text class="model-cost-hint">{{ $t('pointsCostEach').replace('{cost}', String(currentBaseCost)) }}</text>
+          <text
+            class="model-cost-total"
+            v-if="currentModelSupportsRefiner && refinerEnabled"
+          >
+            {{ $t('pointsCostEach').replace('{cost}', String(currentBaseCost)) }} + {{ $t('pointsCostEach').replace('{cost}', String(currentRefinerExtraCost)) }} = {{ $t('pointsCostEach').replace('{cost}', String(currentCost)) }}
+          </text>
           <text class="model-desc-hint" v-if="currentModelDesc">{{ currentModelDesc }}</text>
         </view>
       </view>
@@ -95,6 +102,12 @@
             <view>
               <text class="popup-item-name">{{ item.name }}</text>
               <text class="popup-item-cost">{{ $t('pointsCostEach').replace('{cost}', String(item.cost)) }}</text>
+              <text
+                class="popup-item-extra-cost"
+                v-if="item.supportsRefiner"
+              >
+                {{ $t('tryonRefinerExtraCostHint').replace('{cost}', String(item.refinerExtraCost)) }}
+              </text>
               <text class="popup-item-desc" v-if="item.descText">{{ item.descText }}</text>
             </view>
             <uni-icons type="checkmarkempty" size="20" color="#2563eb" v-if="item.key === selectedModelKey" />
@@ -150,7 +163,7 @@
                 class="example-card"
                 @tap="applyRemoteExample(item)"
               >
-                <image class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.label }}</text>
               </view>
             </view>
@@ -168,7 +181,7 @@
                 class="example-card"
                 @tap="applyRemoteExample(item)"
               >
-                <image class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.label }}</text>
               </view>
             </view>
@@ -185,7 +198,7 @@
                 class="example-card"
                 @tap="applyMyModel(item)"
               >
-                <image class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.name || $t('unnamedModel') }}</text>
               </view>
             </view>
@@ -200,7 +213,7 @@
                 class="example-card"
                 @tap="applyRemoteExample(item)"
               >
-                <image class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.label }}</text>
               </view>
             </view>
@@ -213,7 +226,7 @@
                 class="example-card"
                 @tap="applyRemoteExample(item)"
               >
-                <image class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.label }}</text>
               </view>
             </view>
@@ -234,7 +247,7 @@
                 class="example-card"
                 @tap="applyRemoteExample(item)"
               >
-                <image class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.label }}</text>
               </view>
             </view>
@@ -252,7 +265,7 @@
                 class="example-card"
                 @tap="applyRemoteExample(item)"
               >
-                <image class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.label }}</text>
               </view>
             </view>
@@ -268,7 +281,7 @@
                   class="example-card"
                   @tap="applyRemoteExample(item)"
                 >
-                  <image class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                  <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                   <text class="example-label">{{ item.label }}</text>
                 </view>
               </view>
@@ -302,7 +315,7 @@
         </view>
         <view class="crop-editor-stage-wrap">
           <view class="crop-editor-stage" :style="{ width: `${cropStageSize.width}px`, height: `${cropStageSize.height}px` }">
-            <image class="crop-editor-image" :src="cropSourcePath" mode="scaleToFill" />
+            <LazyImage class="crop-editor-image" :src="cropSourcePath" mode="scaleToFill" />
             <movable-area class="crop-editor-area" :style="{ width: `${cropStageSize.width}px`, height: `${cropStageSize.height}px` }">
               <movable-view
                 class="crop-editor-box"
@@ -333,7 +346,7 @@
         </view>
         <view class="crop-editor-actions">
           <view class="upload-drawer-btn ghost" @tap="cancelCropEditor">{{ $t('cancel') }}</view>
-          <view class="upload-drawer-btn" @tap="confirmCropEditor">{{ $t('doneText') }}</view>
+          <view class="upload-drawer-btn" :class="{ disabled: cropConfirming }" @tap="confirmCropEditor">{{ cropConfirming ? $t('loading') : $t('doneText') }}</view>
         </view>
       </view>
     </view>
@@ -356,7 +369,8 @@ import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { getTryonConfig, getDefaultDomain, getAnnouncementConfig } from '@/api/sysConfig.js'
 import { getMyTryonModelList } from '@/api/tryonTask.js'
 import { getUrl } from '@/utils/url.js'
-import { localText } from '@/utils/i18n.js'
+import { localText, resolveApiMessage } from '@/utils/i18n.js'
+import LazyImage from '@/components/lazy-image/lazy-image.vue'
 import {
   createTryonRequestId,
   saveTryonDraft,
@@ -413,6 +427,7 @@ const cropBoxSize = ref({ width: 1, height: 1 })
 const cropBoxPosition = ref({ x: 0, y: 0 })
 const cropRatio = ref({ width: 3, height: 4 })
 const activeCropEdge = ref('all')
+const cropConfirming = ref(false)
 let cropResolve = null
 
 const personPreview = computed(() => personRemote.value ? getUrl(personRemote.value) : personLocal.value)
@@ -448,9 +463,21 @@ const currentModel = computed(() => {
   return selected || modelList.value[0] || { key: 'aitryon', name: 'aitryon', cost: Number(tryonConfig.value.tryon_cost_points || 1), desc: {} }
 })
 
-const currentCost = computed(() => Number(currentModel.value.cost || 1))
+const currentBaseCost = computed(() => Number(currentModel.value.cost || 1))
 const currentModelDesc = computed(() => currentModel.value.descText || localText(currentModel.value.desc, langStore.locale) || '')
 const currentModelSupportsRefiner = computed(() => supportsRefinerByModel(currentModel.value))
+const currentRefinerExtraCost = computed(() => {
+  if (!currentModelSupportsRefiner.value) {
+    return 0
+  }
+  return Math.max(0, Number(currentModel.value.refinerExtraCost || 0))
+})
+const currentCost = computed(() => {
+  if (currentModelSupportsRefiner.value && refinerEnabled.value) {
+    return currentBaseCost.value + currentRefinerExtraCost.value
+  }
+  return currentBaseCost.value
+})
 const currentRefinerDesc = computed(() => {
   const modelDesc = currentModel.value?.refinerDescText || localText(currentModel.value?.refinerDesc, langStore.locale) || ''
   if (modelDesc) {
@@ -814,13 +841,16 @@ const renderCanvasFromSource = async ({ filePath, srcX = 0, srcY = 0, srcWidth, 
 }
 
 const confirmCropEditor = async () => {
+  if (cropConfirming.value) return
+  cropConfirming.value = true
+
   try {
     const srcWidth = Number(cropSourceSize.value.width || 0)
     const srcHeight = Number(cropSourceSize.value.height || 0)
     const stageWidth = Number(cropStageSize.value.width || 0)
     const stageHeight = Number(cropStageSize.value.height || 0)
     if (!cropSourcePath.value || srcWidth <= 0 || srcHeight <= 0 || stageWidth <= 0 || stageHeight <= 0) {
-      finishCropEditor('')
+      uni.showToast({ title: $t.value('uploadFail'), icon: 'none' })
       return
     }
 
@@ -858,10 +888,16 @@ const confirmCropEditor = async () => {
       quality: 0.92,
     })
 
+    if (!croppedPath) {
+      uni.showToast({ title: $t.value('uploadFail'), icon: 'none' })
+      return
+    }
+
     finishCropEditor(croppedPath)
   } catch (error) {
     uni.showToast({ title: $t.value('uploadFail'), icon: 'none' })
-    finishCropEditor('')
+  } finally {
+    cropConfirming.value = false
   }
 }
 
@@ -1322,14 +1358,14 @@ const chooseAndUploadImage = async (target, mode = 'original') => {
       assignImageToTarget(target, remoteUrl, true, selected.sizeBytes)
       uni.showToast({ title: $t.value('uploadSuccess'), icon: 'none' })
     } catch (e) {
-      uni.showToast({ title: e.message || $t.value('uploadFail'), icon: 'none' })
+      uni.showToast({ title: resolveApiMessage(e?.message, 'uploadFail'), icon: 'none' })
     } finally {
       uni.hideLoading()
     }
   } catch (e) {
     const errMsg = String(e?.errMsg || '')
     if (!errMsg.includes('cancel')) {
-      uni.showToast({ title: e.message || $t.value('uploadFail'), icon: 'none' })
+      uni.showToast({ title: resolveApiMessage(e?.message, 'uploadFail'), icon: 'none' })
     }
   }
 }
@@ -1477,6 +1513,8 @@ const goGenerate = () => {
     templateUploadFolder,
     modelKey: currentModel.value.key,
     modelName: currentModel.value.name,
+    baseModelCost: currentBaseCost.value,
+    refinerExtraCost: currentRefinerExtraCost.value,
     modelCost: currentCost.value,
     enableRefiner: currentModelSupportsRefiner.value && refinerEnabled.value,
     refinerModel: String(currentModel.value.refinerModel || 'aitryon-refiner'),
@@ -1687,6 +1725,11 @@ page {
   color: rgba(15, 23, 42, 0.58);
 }
 
+.refiner-extra-cost {
+  font-size: 20rpx;
+  color: rgba(37, 99, 235, 0.92);
+}
+
 .refiner-right {
   display: flex;
   align-items: center;
@@ -1748,6 +1791,13 @@ page {
   margin-top: 4rpx;
   font-size: 21rpx;
   color: rgba(37, 99, 235, 0.9);
+}
+
+.model-cost-total {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 20rpx;
+  color: #1d4ed8;
 }
 
 .model-desc-hint {
@@ -1928,6 +1978,13 @@ page {
   color: rgba(15, 23, 42, 0.56);
 }
 
+.popup-item-extra-cost {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 20rpx;
+  color: rgba(245, 158, 11, 0.95);
+}
+
 .upload-tabs {
   display: flex;
   gap: 12rpx;
@@ -2070,6 +2127,11 @@ page {
   font-size: 24rpx;
   color: #fff;
   background: linear-gradient(90deg, #2563eb, #0ea5e9);
+}
+
+.upload-drawer-btn.disabled {
+  opacity: 0.65;
+  pointer-events: none;
 }
 
 .upload-drawer-btn.ghost {

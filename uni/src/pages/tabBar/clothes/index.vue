@@ -31,9 +31,10 @@
     <scroll-view class="list-wrap" scroll-y @scrolltolower="onScrollToLower">
       <view class="grid">
         <view class="card" v-for="item in displayList" :key="item.ID || item.id || item.name">
-          <image class="card-image" :src="mainImage(item)" mode="aspectFill" />
+          <LazyImage class="card-image" :src="mainImage(item)" mode="aspectFill" />
           <view class="card-body">
             <text class="card-name">{{ goodName(item) || $t('unnamedGoods') }}</text>
+            <text class="card-desc" v-if="goodDesc(item)">{{ goodDesc(item) }}</text>
             <view class="tag-list">
               <text class="tag" v-for="(tag, idx) in extractTags(item)" :key="idx">{{ tag }}</text>
             </view>
@@ -63,6 +64,7 @@ import { localText, t as i18nT } from '@/utils/i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { usePlayHistoryStore } from '@/pinia/modules/playHistory.js'
 import { setSelectedClothes } from '@/utils/tryon.js'
+import LazyImage from '@/components/lazy-image/lazy-image.vue'
 
 const langStore = useLangStore()
 const playHistoryStore = usePlayHistoryStore()
@@ -158,6 +160,9 @@ const resolveLocaleText = (value) => {
 }
 
 const categoryName = (item) => {
+  if (Number(item?.ID || item?.id || 0) === 0) {
+    return $t('all')
+  }
   return resolveLocaleText(item?.title || item?.name || item?.label)
 }
 
@@ -195,6 +200,17 @@ const centerCategoryTab = (item) => {
 
 const goodName = (item) => {
   return resolveLocaleText(item?.nameI18n || item?.name || item?.titleI18n || item?.title)
+}
+
+const goodDesc = (item) => {
+  return resolveLocaleText(
+    item?.descriptionI18n ||
+    item?.description ||
+    item?.descI18n ||
+    item?.desc ||
+    item?.summaryI18n ||
+    item?.summary
+  )
 }
 
 const categoryText = (item) => {
@@ -299,7 +315,7 @@ const loadCategories = async () => {
     const allCategory = {
       ID: 0,
       id: 0,
-      title: $t('all'),
+      name: 'all',
     }
     categoryList.value = [allCategory, ...res.data]
     if (!categoryList.value.find(item => Number(item?.ID || item?.id || 0) === Number(activeCategoryID.value))) {
@@ -531,7 +547,20 @@ page {
   line-height: 34rpx;
 }
 
+.card-desc {
+  display: -webkit-box;
+  margin-top: 6rpx;
+  min-height: 58rpx;
+  line-height: 29rpx;
+  font-size: 21rpx;
+  color: rgba(15, 23, 42, 0.56);
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .tag-list {
+  margin-top: 8rpx;
   min-height: 42rpx;
 }
 

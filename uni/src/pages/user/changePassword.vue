@@ -47,7 +47,7 @@
 <script setup>
 import { reactive, ref, computed } from 'vue'
 import { getCaptcha, changePassword } from '@/api/base.js'
-import { t as i18nT } from '@/utils/i18n.js'
+import { resolveApiMessage, t as i18nT } from '@/utils/i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
@@ -137,7 +137,7 @@ const onSubmit = async () => {
     if (key) {
       uni.showToast({ title: $t.value(key), icon: 'none' })
     } else if (rawMsg) {
-      uni.showToast({ title: rawMsg, icon: 'none' })
+      uni.showToast({ title: resolveApiMessage(rawMsg, 'operationFailed'), icon: 'none' })
     }
     getCaptchaFunc()
   }

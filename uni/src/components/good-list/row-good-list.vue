@@ -2,7 +2,7 @@
     <z-paging ref="paging" v-model="goodsList" @query="queryList" auto-show-system-loading>
         <view class="goods-list">
             <view class="goods-item" v-for="(item, index) in goodsList" :key="index" @click="handleGoodsClick(item)">
-                <image class="goods-image" :src="item.image" mode="aspectFill" />
+                <LazyImage class="goods-image" :src="item.image" mode="aspectFill" />
                 <view class="goods-info">
                     <text class="goods-name">{{ item.name }}</text>
                     <view class="merchant-tags">
@@ -17,7 +17,7 @@
                     </view>
                     <view class="shop-info">
                         <view class="shop-left">
-                            <image class="shop-avatar" :src="item.shop.avatar" mode="aspectFill" />
+                            <LazyImage class="shop-avatar" :src="item.shop.avatar" mode="aspectFill" />
                             <text class="shop-name">{{ item.shop.name }}</text>
                         </view>
                         <view class="enter-shop" @click.stop="enterShop(item.shop)">{{ $t('goShopping') }}</view>
@@ -32,6 +32,7 @@
 import { ref, computed } from 'vue'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import LazyImage from '@/components/lazy-image/lazy-image.vue'
 const appConfigStore = useAppConfigStore()
 const langStore = useLangStore()
 const cs = computed(() => appConfigStore.currencySymbol)

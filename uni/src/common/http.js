@@ -6,7 +6,7 @@
  */
 import config from './config.js'
 import { login } from './login.js';
-import { t } from '@/utils/i18n.js'
+import { resolveApiMessage, t } from '@/utils/i18n.js'
 export default function http(opts, data = {}) {
 	let token = uni.getStorageSync('token') || '';
 	let requestUrl = ''
@@ -51,7 +51,7 @@ export default function http(opts, data = {}) {
 				if (res.code !== 200) {
 					reject(res)
 					uni.showToast({
-						title:res.msg || t('serverError'),
+						title: resolveApiMessage(res.msg, 'serverError'),
 						icon: 'none'
 					})
 					return;

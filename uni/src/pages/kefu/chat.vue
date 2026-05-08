@@ -168,6 +168,7 @@ import { ref, computed } from 'vue'
 import { onLoad, onPullDownRefresh, onUnload } from '@dcloudio/uni-app'
 import { getCsConfig, rateConversation, getMessageHistory } from '@/api/kefu.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { resolveApiMessage } from '@/utils/i18n.js'
 import { getUrl } from '@/utils/url.js'
 
 // -------- i18n --------
@@ -540,7 +541,7 @@ function uploadAndSendImage(tempFilePath) {
         if (data.code !== 0) {
           const idx = messages.value.findIndex(m => m.tempId === tempId)
           if (idx !== -1) messages.value[idx].status = 'failed'
-          uni.showToast({ title: data.msg || $t.value('uploadFail'), icon: 'none' })
+          uni.showToast({ title: resolveApiMessage(data.msg, 'uploadFail'), icon: 'none' })
           return
         }
         const imageUrl = data.data.file.url
@@ -572,7 +573,7 @@ function uploadAndSendImage(tempFilePath) {
     fail: (err) => {
       const idx = messages.value.findIndex(m => m.tempId === tempId)
       if (idx !== -1) messages.value[idx].status = 'failed'
-      uni.showToast({ title: err?.errMsg || $t.value('uploadFail'), icon: 'none' })
+      uni.showToast({ title: resolveApiMessage(err?.errMsg, 'uploadFail'), icon: 'none' })
     }
   })
 }

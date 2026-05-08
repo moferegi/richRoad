@@ -1,5 +1,5 @@
 import { myRouter }from  '@/utils/permission.js'
-import { t } from '@/utils/i18n.js'
+import { localText, t } from '@/utils/i18n.js'
 
 const BACKEND_ERROR_KEYS = [
     'captchaRateLimit',
@@ -35,6 +35,37 @@ const buildBackendErrorAliasMap = () => {
 }
 
 const backendErrorAliasMap = buildBackendErrorAliasMap()
+
+const normalizeBackendMessage = (value) => {
+    if (value === null || value === undefined) {
+        return ''
+    }
+
+    if (typeof value === 'object') {
+        return String(localText(value) || '').trim()
+    }
+
+    const rawMsg = String(value).trim()
+    if (!rawMsg) {
+        return ''
+    }
+
+    if (rawMsg.charAt(0) === '{') {
+        const localized = String(localText(rawMsg) || '').trim()
+        if (localized && localized !== rawMsg) {
+            return localized
+        }
+    }
+
+    const normalizedMsg = rawMsg.replace(/\s+/g, '')
+    const i18nKey = backendErrorAliasMap[rawMsg] || backendErrorAliasMap[normalizedMsg]
+    if (i18nKey) {
+        return t(i18nKey)
+    }
+
+    const translated = t(rawMsg)
+    return translated !== rawMsg ? translated : rawMsg
+}
 
 const hasOwn = Object.prototype.hasOwnProperty
 
@@ -106,7 +137,7 @@ export const request = ({url, data, header, method, params}) => {
                     uni.removeStorageSync('userInfo')
                     uni.showModal({
                         title: '',
-                        content: res.data.msg || 'Account banned',
+                        content: normalizeBackendMessage(res.data.msg) || t('operationFailed'),
                         showCancel: false,
                         confirmText: t('confirm'),
                         success: () => {
@@ -138,10 +169,7 @@ export const request = ({url, data, header, method, params}) => {
                 }
                 // 通用错误提示：排除上面已处理的特殊状态
                 if(payload.code != 0){
-                    const rawMsg = String(payload.msg || '').trim()
-                    const normalizedMsg = rawMsg.replace(/\s+/g, '')
-                    const i18nKey = backendErrorAliasMap[rawMsg] || backendErrorAliasMap[normalizedMsg]
-                    const msg = i18nKey ? t(i18nKey) : rawMsg
+                    const msg = normalizeBackendMessage(payload.msg)
                     if (msg) {
 						uni.showToast({
 							title: msg,

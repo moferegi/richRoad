@@ -56,7 +56,7 @@
         <scroll-view scroll-x class="nf-goods-scroll" :show-scrollbar="false"
           v-if="item.detail && item.detail.length > 1">
           <view class="nf-goods-row">
-            <image
+            <LazyImage
               v-for="(d, di) in item.detail" :key="di"
               :src="d.sku.externalPicturePath ? getExternalUrl(d.sku.externalPicturePath) : getUrl(d.sku.picture)"
               class="nf-goods-thumb"
@@ -67,7 +67,7 @@
 
         <!-- 单件商品 -->
         <view class="nf-goods-single" v-if="item.detail && item.detail.length === 1">
-          <image :src="item.detail[0].sku.externalPicturePath ? getExternalUrl(item.detail[0].sku.externalPicturePath) : getUrl(item.detail[0].sku.picture)" class="nf-goods-thumb-lg" mode="aspectFill" />
+          <LazyImage :src="item.detail[0].sku.externalPicturePath ? getExternalUrl(item.detail[0].sku.externalPicturePath) : getUrl(item.detail[0].sku.picture)" class="nf-goods-thumb-lg" mode="aspectFill" />
           <view class="nf-goods-single-info">
             <text class="nf-goods-single-name">{{ $lt(item.detail[0].sku.name) || item.detail[0].sku.name }}</text>
             <text class="nf-goods-single-desc">{{ $lt(item.detail[0].good?.description) || item.detail[0].sku.description }}</text>
@@ -149,6 +149,7 @@ import { updateOrderStatus, SelfOrderList } from "../../api/order"
 import { getSysConfigByKey } from '@/api/sysConfig.js'
 import { getUrl, getExternalUrl } from "@/utils/url.js"
 import RefundApplyPopup from '@/components/refund-apply-popup/refund-apply-popup.vue'
+import LazyImage from '@/components/lazy-image/lazy-image.vue'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 const langStore = useLangStore()

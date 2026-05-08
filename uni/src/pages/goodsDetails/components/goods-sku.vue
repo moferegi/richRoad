@@ -5,7 +5,7 @@
   <view class="nf-sku-popup" :class="{ show: skuShow }" @touchmove.stop.prevent>
     <!-- 顶部商品信息 -->
     <view class="nf-sku-header">
-      <image class="nf-sku-cover" :src="currentCover" mode="aspectFill"></image>
+      <LazyImage class="nf-sku-cover" :src="currentCover" mode="aspectFill"></LazyImage>
       <view class="nf-sku-info">
         <text class="nf-sku-price">{{ cs }}{{ currentPrice }}</text>
         <text class="nf-sku-stock">{{ $t('stock') }}: {{ currentStock }}</text>
@@ -64,6 +64,7 @@ import { addCart } from '@/api/cart.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
+import LazyImage from '@/components/lazy-image/lazy-image.vue'
 
 const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()

@@ -117,7 +117,7 @@
     <view class="nf-bottom-nav">
       <view class="nf-nav-icons">
         <view class="nf-nav-icon-item" @tap="goTo()">
-          <image class="nf-nav-icon-img" src="./../../static/images/tabBar/home.png"></image>
+          <LazyImage class="nf-nav-icon-img" src="./../../static/images/tabBar/home.png"></LazyImage>
           <text class="nf-nav-icon-text">{{ $t('home') }}</text>
         </view>
         <view class="nf-nav-icon-item" @tap="goToKefu">
@@ -125,11 +125,11 @@
           <text class="nf-nav-icon-text">{{ $t('customerService') }}</text>
         </view>
         <view class="nf-nav-icon-item" @tap="goTo('cart')">
-          <image class="nf-nav-icon-img" src="./../../static/images/tabBar/cart.png"></image>
+          <LazyImage class="nf-nav-icon-img" src="./../../static/images/tabBar/cart.png"></LazyImage>
           <text class="nf-nav-icon-text">{{ $t('cart') }}</text>
         </view>
         <view class="nf-nav-icon-item" @tap="addCollect">
-          <image class="nf-nav-icon-img" :src="!collectionFlag ? './../../static/collection.png' : './../../static/collect.png'"></image>
+          <LazyImage class="nf-nav-icon-img" :src="!collectionFlag ? './../../static/collection.png' : './../../static/collect.png'"></LazyImage>
           <text class="nf-nav-icon-text">{{ $t('collectText') }}</text>
         </view>
       </view>
@@ -194,6 +194,7 @@ import { getUrl } from '@/utils/url.js'
 import { localText } from '@/utils/i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
+import LazyImage from '@/components/lazy-image/lazy-image.vue'
 const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
 const playHistoryStore = usePlayHistoryStore()

@@ -64,7 +64,7 @@
           >{{ localText(qr.nameI18n) || qr.name }}</view>
         </view>
         <view class="nf-pay-qr-wrap">
-          <image
+          <LazyImage
             v-if="currentQrUrl"
             class="nf-pay-qr-img"
             :src="currentQrUrl"
@@ -92,7 +92,7 @@
               :class="{ active: selectedPreferredPayMethod === item.key }"
               @tap="selectPreferredPayMethod(item.key)"
             >
-              <image
+              <LazyImage
                 v-if="getPreferredPayMethodImage(item)"
                 class="nf-pay-preferred-item-img"
                 :src="getPreferredPayMethodImage(item)"
@@ -171,8 +171,9 @@ import { request } from '@/utils/request.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { getEnabledQrcodePayments } from '@/api/qrcodePayment.js'
 import { getPaymentConfig, getUniPreferredPayConfig } from '@/api/sysConfig.js'
-import { localText } from '@/utils/i18n'
+import { localText, resolveApiMessage } from '@/utils/i18n'
 import { selfOrder, updateOrder, updateOrderStatus } from '@/api/order.js'
+import LazyImage from '@/components/lazy-image/lazy-image.vue'
 import {
   selfTryonRechargeOrder,
   updateTryonRechargeOrderPayMethod,
@@ -385,7 +386,7 @@ const syncOrderPayMethod = async (payMethod) => {
     }
     await updateOrder({ ID: Number(orderId.value), payMethod })
   } catch (e) {
-    uni.showToast({ title: e?.message || $t.value('operationFailed'), icon: 'none' })
+    uni.showToast({ title: resolveApiMessage(e?.message, 'operationFailed'), icon: 'none' })
   }
 }
 
@@ -774,7 +775,7 @@ const confirmPaid = async () => {
       goToOrders()
     }, 1500)
   } catch (e) {
-    uni.showToast({ title: e?.message || $t.value('operationFailed'), icon: 'none' })
+    uni.showToast({ title: resolveApiMessage(e?.message, 'operationFailed'), icon: 'none' })
   } finally {
     uni.hideLoading()
   }

@@ -30,6 +30,7 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
+import { resolveApiMessage } from '@/utils/i18n.js'
 import { baseUrl } from '@/utils/request.js'
 import { applyRefund } from '@/api/order.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
@@ -119,7 +120,7 @@ const uploadSingleImage = (tempFilePath, index) => {
         try {
           const data = JSON.parse(res.data)
           if (data.code !== 0) {
-            reject(new Error(data.msg || $t.value('uploadFail')))
+            reject(new Error(resolveApiMessage(data.msg, 'uploadFail')))
             return
           }
           resolve(data.data.file.url)
@@ -210,7 +211,7 @@ const submitRefund = async () => {
   } catch (error) {
     uni.hideLoading()
     uni.showToast({
-      title: error.message || $t.value('submitFail'),
+      title: resolveApiMessage(error?.message, 'submitFail'),
       icon: 'none'
     })
   } finally {

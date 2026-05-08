@@ -81,6 +81,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getGoodList } from '@/api/homePage.js'
 import noPaginGridGoodList from '@/components/good-list/no-pagin-grid-good-list.vue'
+import { resolveApiMessage } from '@/utils/i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
@@ -194,7 +195,7 @@ const loadGoodsList = async (isRefresh = false) => {
       }
     } else {
       console.error('搜索API错误:', res)
-      uni.showToast({ title: res.msg || $t.value('searchNoResult'), icon: 'none' })
+      uni.showToast({ title: resolveApiMessage(res.msg, 'searchNoResult'), icon: 'none' })
       isBottom.value = true
     }
   } catch (error) {

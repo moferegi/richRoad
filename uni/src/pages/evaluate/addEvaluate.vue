@@ -107,6 +107,7 @@ import { createComment } from '@/api/comment'
 import { getSysConfigByKey } from '@/api/sysConfig.js'
 import { onLoad } from '@dcloudio/uni-app'
 import { baseUrl } from '@/utils/request.js'
+import { resolveApiMessage } from '@/utils/i18n.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
@@ -257,7 +258,7 @@ const submit = async () => {
         uploadedPics = await uploadAllImages()
       } catch (error) {
         uni.hideLoading()
-        uni.showToast({ title: error.message || $t.value('uploadFail'), icon: 'none' })
+        uni.showToast({ title: resolveApiMessage(error?.message, 'uploadFail'), icon: 'none' })
         return
       }
       uni.hideLoading()
@@ -277,7 +278,7 @@ const submit = async () => {
       uni.showToast({ title: $t.value('reviewSuccess'), icon: 'success' })
       setTimeout(() => uni.redirectTo({ url: '/pages/order/order' }), 500)
     } else {
-      uni.showToast({ title: res.msg || $t.value('reviewFail'), icon: 'none' })
+      uni.showToast({ title: resolveApiMessage(res.msg, 'reviewFail'), icon: 'none' })
     }
   } catch (error) {
     uni.hideLoading()
