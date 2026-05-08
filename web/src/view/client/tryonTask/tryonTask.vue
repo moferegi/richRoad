@@ -46,290 +46,238 @@
       </el-form>
     </div>
 
-    <div class="gva-search-box stats-wrap">
-      <el-row :gutter="16">
-        <el-col :xs="24" :sm="12" :md="6">
-          <el-card
-            class="stats-card stats-card-clickable"
-            :class="{ active: !searchInfo.status }"
-            shadow="hover"
-            v-loading="statsLoading"
-            @click="handleStatusCardClick('')"
-          >
-            <el-statistic title="任务总数" :value="stats.total" />
-          </el-card>
-        </el-col>
-        <el-col :xs="24" :sm="12" :md="6">
-          <el-card
-            class="stats-card stats-card-clickable"
-            :class="{ active: searchInfo.status === 'processing' }"
-            shadow="hover"
-            v-loading="statsLoading"
-            @click="handleStatusCardClick('processing')"
-          >
-            <el-statistic title="处理中" :value="stats.processing" />
-          </el-card>
-        </el-col>
-        <el-col :xs="24" :sm="12" :md="6">
-          <el-card
-            class="stats-card stats-card-clickable"
-            :class="{ active: searchInfo.status === 'success' }"
-            shadow="hover"
-            v-loading="statsLoading"
-            @click="handleStatusCardClick('success')"
-          >
-            <el-statistic title="成功" :value="stats.success" />
-          </el-card>
-        </el-col>
-        <el-col :xs="24" :sm="12" :md="6">
-          <el-card
-            class="stats-card stats-card-clickable"
-            :class="{ active: searchInfo.status === 'failed' }"
-            shadow="hover"
-            v-loading="statsLoading"
-            @click="handleStatusCardClick('failed')"
-          >
-            <el-statistic title="失败" :value="stats.failed" />
-          </el-card>
-        </el-col>
-      </el-row>
-    </div>
+    <el-tabs v-model="activeTab" class="panel-tabs" @tab-change="handleTabChange">
+      <el-tab-pane label="任务列表" name="list">
+        <div class="gva-table-box">
+          <div class="gva-btn-list">
+            <el-button type="primary" icon="download" :loading="exporting" @click="handleExportCsv">
+              导出CSV
+            </el-button>
+            <el-button
+              type="danger"
+              icon="delete"
+              :disabled="!multipleSelection.length"
+              @click="handleBatchDelete"
+            >
+              批量删除
+            </el-button>
+          </div>
 
-    <div class="gva-search-box trend-wrap" v-loading="chartLoading">
-      <div class="trend-header">
-        <span class="trend-title">任务趋势</span>
-        <el-radio-group v-model="chartDays" size="small" @change="fetchTrendData">
-          <el-radio-button :value="7">近7天</el-radio-button>
-          <el-radio-button :value="14">近14天</el-radio-button>
-          <el-radio-button :value="30">近30天</el-radio-button>
-        </el-radio-group>
-      </div>
-      <div ref="chartRef" class="trend-chart" />
-    </div>
+          <el-table
+            :data="tableData"
+            style="width: 100%"
+            tooltip-effect="dark"
+            row-key="ID"
+            :row-class-name="tableRowClassName"
+            @selection-change="handleSelectionChange"
+          >
+            <el-table-column type="selection" width="50" />
+            <el-table-column align="left" label="ID" prop="ID" width="80" />
+            <el-table-column align="left" label="用户ID" prop="userID" width="90" />
+            <el-table-column align="left" label="任务编号" min-width="220" show-overflow-tooltip>
+              <template #default="scope">
+                <div class="copy-cell">
+                  <span class="copy-text">{{ scope.row.taskNo || '-' }}</span>
+                  <el-button
+                    v-if="scope.row.taskNo"
+                    type="primary"
+                    link
+                    size="small"
+                    @click="copyText(scope.row.taskNo, '任务编号')"
+                  >
+                    复制
+                  </el-button>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column align="left" label="请求ID" min-width="220" show-overflow-tooltip>
+              <template #default="scope">
+                <div class="copy-cell">
+                  <span class="copy-text">{{ scope.row.requestID || '-' }}</span>
+                  <el-button
+                    v-if="scope.row.requestID"
+                    type="primary"
+                    link
+                    size="small"
+                    @click="copyText(scope.row.requestID, '请求ID')"
+                  >
+                    复制
+                  </el-button>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column align="left" label="场景" width="100">
+              <template #default="scope">
+                {{ sceneLabel(scope.row.sceneType) }}
+              </template>
+            </el-table-column>
+            <el-table-column align="left" label="状态" width="100">
+              <template #default="scope">
+                <el-tag :type="statusTagType(scope.row.status)">
+                  {{ statusLabel(scope.row.status) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column align="left" label="模型" min-width="140" show-overflow-tooltip>
+              <template #default="scope">
+                <span>{{ formatModelKey(scope.row.provider) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column align="left" label="精修" width="110">
+              <template #default="scope">
+                <el-tag size="small" :type="refinerTagType(scope.row)">{{ refinerLabel(scope.row) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column align="left" label="扣币" prop="costPoints" width="80" />
+            <el-table-column align="left" label="退币" prop="refundPoints" width="80" />
+            <el-table-column align="left" label="原图" width="90">
+              <template #default="scope">
+                <el-image
+                  v-if="scope.row.sourceImage"
+                  class="task-image"
+                  :src="getUrl(scope.row.sourceImage)"
+                  :preview-src-list="[getUrl(scope.row.sourceImage)]"
+                  preview-teleported
+                  fit="cover"
+                />
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
+            <el-table-column align="left" label="模板图" width="90">
+              <template #default="scope">
+                <el-image
+                  v-if="scope.row.templateImage"
+                  class="task-image"
+                  :src="getUrl(scope.row.templateImage)"
+                  :preview-src-list="[getUrl(scope.row.templateImage)]"
+                  preview-teleported
+                  fit="cover"
+                />
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
+            <el-table-column align="left" label="结果图" width="90">
+              <template #default="scope">
+                <el-image
+                  v-if="scope.row.resultImage"
+                  class="task-image"
+                  :src="getUrl(scope.row.resultImage)"
+                  :preview-src-list="[getUrl(scope.row.resultImage)]"
+                  preview-teleported
+                  fit="cover"
+                />
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
+            <el-table-column align="left" label="失败原因" min-width="200" show-overflow-tooltip>
+              <template #default="scope">
+                <span :class="{ 'error-message': scope.row.status === 'failed' && scope.row.errorMessage }">
+                  {{ scope.row.errorMessage || '-' }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column align="left" label="创建时间" width="170">
+              <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
+            </el-table-column>
+            <el-table-column align="left" label="完成时间" width="170">
+              <template #default="scope">{{ formatDate(scope.row.completedAt) || '-' }}</template>
+            </el-table-column>
+            <el-table-column align="left" label="操作" width="150" fixed="right">
+              <template #default="scope">
+                <el-button type="primary" link @click="openDetail(scope.row)">详情</el-button>
+                <el-button type="danger" link @click="handleDelete(scope.row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
 
-    <div class="gva-table-box">
-      <div class="gva-btn-list">
-        <el-button type="primary" icon="download" :loading="exporting" @click="handleExportCsv">
-          导出CSV
-        </el-button>
-        <el-button
-          type="danger"
-          icon="delete"
-          :disabled="!multipleSelection.length"
-          @click="handleBatchDelete"
-        >
-          批量删除
-        </el-button>
-      </div>
+          <div class="gva-pagination">
+            <el-pagination
+              layout="total, sizes, prev, pager, next, jumper"
+              :current-page="page"
+              :page-size="pageSize"
+              :page-sizes="[10, 30, 50, 100]"
+              :total="total"
+              @current-change="handleCurrentChange"
+              @size-change="handleSizeChange"
+            />
+          </div>
+        </div>
+      </el-tab-pane>
 
-      <el-table
-        :data="tableData"
-        style="width: 100%"
-        tooltip-effect="dark"
-        row-key="ID"
-        :row-class-name="tableRowClassName"
-        @selection-change="handleSelectionChange"
-      >
-        <el-table-column type="selection" width="50" />
-        <el-table-column align="left" label="ID" prop="ID" width="80" />
-        <el-table-column align="left" label="用户ID" prop="userID" width="90" />
-        <el-table-column align="left" label="任务编号" min-width="220" show-overflow-tooltip>
-          <template #default="scope">
-            <div class="copy-cell">
-              <span class="copy-text">{{ scope.row.taskNo || '-' }}</span>
-              <el-button
-                v-if="scope.row.taskNo"
-                type="primary"
-                link
-                size="small"
-                @click="copyText(scope.row.taskNo, '任务编号')"
-              >
-                复制
-              </el-button>
+      <el-tab-pane label="统计分析" name="stats">
+        <div class="gva-search-box stats-wrap" v-loading="statsLoading">
+          <el-row :gutter="16">
+            <el-col :xs="24" :sm="12" :md="4">
+              <el-card class="stats-card stats-card-clickable" :class="{ active: !searchInfo.status }" shadow="hover" @click="handleStatusCardClick('')">
+                <el-statistic title="任务总数" :value="stats.total" />
+              </el-card>
+            </el-col>
+            <el-col :xs="24" :sm="12" :md="4">
+              <el-card class="stats-card stats-card-clickable" :class="{ active: searchInfo.status === 'processing' }" shadow="hover" @click="handleStatusCardClick('processing')">
+                <el-statistic title="处理中" :value="stats.processing" />
+              </el-card>
+            </el-col>
+            <el-col :xs="24" :sm="12" :md="4">
+              <el-card class="stats-card stats-card-clickable" :class="{ active: searchInfo.status === 'success' }" shadow="hover" @click="handleStatusCardClick('success')">
+                <el-statistic title="成功" :value="stats.success" />
+              </el-card>
+            </el-col>
+            <el-col :xs="24" :sm="12" :md="4">
+              <el-card class="stats-card stats-card-clickable" :class="{ active: searchInfo.status === 'failed' }" shadow="hover" @click="handleStatusCardClick('failed')">
+                <el-statistic title="失败" :value="stats.failed" />
+              </el-card>
+            </el-col>
+            <el-col :xs="24" :sm="12" :md="4">
+              <el-card class="stats-card" shadow="hover">
+                <el-statistic title="精修任务数" :value="stats.refinerEnabledCount" />
+              </el-card>
+            </el-col>
+            <el-col :xs="24" :sm="12" :md="4">
+              <el-card class="stats-card" shadow="hover">
+                <el-statistic title="总扣币" :value="stats.totalCostPoints" />
+              </el-card>
+            </el-col>
+          </el-row>
+        </div>
+
+        <div class="chart-grid">
+          <div class="gva-search-box trend-wrap" v-loading="chartLoading">
+            <div class="trend-header">
+              <span class="trend-title">任务趋势</span>
+              <el-radio-group v-model="chartDays" size="small" @change="fetchTrendData">
+                <el-radio-button :value="7">近7天</el-radio-button>
+                <el-radio-button :value="14">近14天</el-radio-button>
+                <el-radio-button :value="30">近30天</el-radio-button>
+              </el-radio-group>
             </div>
-          </template>
-        </el-table-column>
-        <el-table-column align="left" label="请求ID" min-width="220" show-overflow-tooltip>
-          <template #default="scope">
-            <div class="copy-cell">
-              <span class="copy-text">{{ scope.row.requestID || '-' }}</span>
-              <el-button
-                v-if="scope.row.requestID"
-                type="primary"
-                link
-                size="small"
-                @click="copyText(scope.row.requestID, '请求ID')"
-              >
-                复制
-              </el-button>
+            <div ref="trendChartRef" class="trend-chart" />
+          </div>
+
+          <div class="gva-search-box trend-wrap" v-loading="statsLoading">
+            <div class="trend-header">
+              <span class="trend-title">模型调用占比</span>
+              <span class="trend-subtitle">总调用 {{ stats.modelCallTotal }}</span>
             </div>
-          </template>
-        </el-table-column>
-        <el-table-column align="left" label="场景" width="100">
-          <template #default="scope">
-            {{ sceneLabel(scope.row.sceneType) }}
-          </template>
-        </el-table-column>
-        <el-table-column align="left" label="状态" width="100">
-          <template #default="scope">
-            <el-tag :type="statusTagType(scope.row.status)">
-              {{ statusLabel(scope.row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column align="left" label="扣币" prop="costPoints" width="80" />
-        <el-table-column align="left" label="退币" prop="refundPoints" width="80" />
-        <el-table-column align="left" label="原图" width="90">
-          <template #default="scope">
-            <el-image
-              v-if="scope.row.sourceImage"
-              class="task-image"
-              :src="getUrl(scope.row.sourceImage)"
-              :preview-src-list="[getUrl(scope.row.sourceImage)]"
-              preview-teleported
-              fit="cover"
-            />
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-        <el-table-column align="left" label="模板图" width="90">
-          <template #default="scope">
-            <el-image
-              v-if="scope.row.templateImage"
-              class="task-image"
-              :src="getUrl(scope.row.templateImage)"
-              :preview-src-list="[getUrl(scope.row.templateImage)]"
-              preview-teleported
-              fit="cover"
-            />
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-        <el-table-column align="left" label="结果图" width="90">
-          <template #default="scope">
-            <el-image
-              v-if="scope.row.resultImage"
-              class="task-image"
-              :src="getUrl(scope.row.resultImage)"
-              :preview-src-list="[getUrl(scope.row.resultImage)]"
-              preview-teleported
-              fit="cover"
-            />
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-        <el-table-column align="left" label="失败原因" min-width="200" show-overflow-tooltip>
-          <template #default="scope">
-            <span :class="{ 'error-message': scope.row.status === 'failed' && scope.row.errorMessage }">
-              {{ scope.row.errorMessage || '-' }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column align="left" label="创建时间" width="170">
-          <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
-        </el-table-column>
-        <el-table-column align="left" label="完成时间" width="170">
-          <template #default="scope">{{ formatDate(scope.row.completedAt) || '-' }}</template>
-        </el-table-column>
-        <el-table-column align="left" label="操作" width="150" fixed="right">
-          <template #default="scope">
-            <el-button type="primary" link @click="openDetail(scope.row)">详情</el-button>
-            <el-button type="danger" link @click="handleDelete(scope.row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+            <div ref="modelChartRef" class="trend-chart" />
+          </div>
+        </div>
 
-      <div class="gva-pagination">
-        <el-pagination
-          layout="total, sizes, prev, pager, next, jumper"
-          :current-page="page"
-          :page-size="pageSize"
-          :page-sizes="[10, 30, 50, 100]"
-          :total="total"
-          @current-change="handleCurrentChange"
-          @size-change="handleSizeChange"
-        />
-      </div>
-    </div>
-
-    <div class="gva-search-box model-search-box">
-      <div class="model-title">我的模特管理</div>
-      <el-form :inline="true" :model="modelSearchInfo" @keyup.enter="onModelSubmit">
-        <el-form-item label="用户ID">
-          <el-input v-model.number="modelSearchInfo.userID" clearable placeholder="请输入用户ID" />
-        </el-form-item>
-        <el-form-item label="模特名称">
-          <el-input v-model="modelSearchInfo.name" clearable placeholder="请输入模特名称" />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" icon="search" @click="onModelSubmit">查询</el-button>
-          <el-button icon="refresh" @click="onModelReset">重置</el-button>
-        </el-form-item>
-      </el-form>
-    </div>
-
-    <div class="gva-table-box">
-      <div class="gva-btn-list">
-        <el-button
-          type="danger"
-          icon="delete"
-          :disabled="!modelMultipleSelection.length"
-          @click="handleModelBatchDelete"
-        >
-          批量删除模特
-        </el-button>
-      </div>
-
-      <el-table
-        :data="modelTableData"
-        style="width: 100%"
-        tooltip-effect="dark"
-        row-key="ID"
-        v-loading="modelLoading"
-        @selection-change="handleModelSelectionChange"
-      >
-        <el-table-column type="selection" width="50" />
-        <el-table-column align="left" label="ID" prop="ID" width="80" />
-        <el-table-column align="left" label="用户ID" prop="userID" width="90" />
-        <el-table-column align="left" label="模特名称" prop="name" min-width="200" show-overflow-tooltip />
-        <el-table-column align="left" label="模特图" width="90">
-          <template #default="scope">
-            <el-image
-              v-if="scope.row.image"
-              class="task-image"
-              :src="getUrl(scope.row.image)"
-              :preview-src-list="[getUrl(scope.row.image)]"
-              preview-teleported
-              fit="cover"
-            />
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-        <el-table-column align="left" label="创建时间" width="170">
-          <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
-        </el-table-column>
-        <el-table-column align="left" label="更新时间" width="170">
-          <template #default="scope">{{ formatDate(scope.row.UpdatedAt) }}</template>
-        </el-table-column>
-        <el-table-column align="left" label="操作" width="120" fixed="right">
-          <template #default="scope">
-            <el-button type="danger" link @click="handleModelDelete(scope.row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <div class="gva-pagination">
-        <el-pagination
-          layout="total, sizes, prev, pager, next, jumper"
-          :current-page="modelPage"
-          :page-size="modelPageSize"
-          :page-sizes="[10, 30, 50, 100]"
-          :total="modelTotal"
-          @current-change="handleModelCurrentChange"
-          @size-change="handleModelSizeChange"
-        />
-      </div>
-    </div>
+        <div class="gva-table-box model-stats-wrap">
+          <div class="model-stats-title">模型调用明细</div>
+          <el-table :data="stats.modelStats || []" row-key="modelKey" empty-text="暂无模型统计数据">
+            <el-table-column align="left" label="模型" prop="modelKey" min-width="180" show-overflow-tooltip>
+              <template #default="scope">{{ formatModelKey(scope.row.modelKey) }}</template>
+            </el-table-column>
+            <el-table-column align="left" label="调用次数" prop="taskCount" width="110" />
+            <el-table-column align="left" label="成功" prop="successCount" width="90" />
+            <el-table-column align="left" label="失败" prop="failedCount" width="90" />
+            <el-table-column align="left" label="处理中" prop="processingCount" width="90" />
+            <el-table-column align="left" label="精修次数" prop="refinerEnabledCount" width="100" />
+            <el-table-column align="left" label="总扣币" prop="totalCostPoints" width="110" />
+          </el-table>
+        </div>
+      </el-tab-pane>
+    </el-tabs>
 
     <el-drawer v-model="detailVisible" title="试衣任务详情" size="640px" destroy-on-close>
       <el-descriptions :column="1" border>
@@ -360,6 +308,10 @@
         <el-descriptions-item label="场景">{{ sceneLabel(detailRow.sceneType) }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="statusTagType(detailRow.status)">{{ statusLabel(detailRow.status) }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="模型">{{ formatModelKey(detailRow.provider) }}</el-descriptions-item>
+        <el-descriptions-item label="精修">
+          <el-tag size="small" :type="refinerTagType(detailRow)">{{ refinerLabel(detailRow) }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="扣币">{{ detailRow.costPoints ?? '-' }}</el-descriptions-item>
         <el-descriptions-item label="退币">{{ detailRow.refundPoints ?? '-' }}</el-descriptions-item>
@@ -405,7 +357,7 @@
 </template>
 
 <script setup>
-import { ref, onBeforeUnmount } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as echarts from 'echarts'
 import { useAppStore } from '@/pinia'
@@ -415,9 +367,6 @@ import {
   getTryonTaskTrend,
   deleteTryonTask,
   deleteTryonTaskByIds,
-  getTryonModelList,
-  deleteTryonModel,
-  deleteTryonModelByIds,
 } from '@/api/client/tryonTask'
 import { formatDate } from '@/utils/format'
 import { getUrl } from '@/utils/image'
@@ -428,6 +377,7 @@ defineOptions({
 
 const appStore = useAppStore()
 
+const activeTab = ref('list')
 const page = ref(1)
 const total = ref(0)
 const pageSize = ref(10)
@@ -442,17 +392,16 @@ const stats = ref({
   processing: 0,
   success: 0,
   failed: 0,
+  totalCostPoints: 0,
+  refinerEnabledCount: 0,
+  modelCallTotal: 0,
+  modelStats: [],
 })
 const chartDays = ref(7)
 const chartLoading = ref(false)
-const chartRef = ref(null)
+const trendChartRef = ref(null)
+const modelChartRef = ref(null)
 const chartData = ref([])
-const modelPage = ref(1)
-const modelTotal = ref(0)
-const modelPageSize = ref(10)
-const modelLoading = ref(false)
-const modelTableData = ref([])
-const modelMultipleSelection = ref([])
 const searchInfo = ref({
   startCreatedAt: undefined,
   endCreatedAt: undefined,
@@ -462,13 +411,10 @@ const searchInfo = ref({
   sceneType: '',
   status: ''
 })
-const modelSearchInfo = ref({
-  userID: undefined,
-  name: '',
-})
 
 const MAX_EXPORT_ROWS = 5000
-let chartInstance = null
+let trendChartInstance = null
+let modelChartInstance = null
 
 const statusLabel = (status) => {
   if (status === 'processing') return '处理中'
@@ -490,13 +436,39 @@ const sceneLabel = (sceneType) => {
   return sceneType || '-'
 }
 
+const formatModelKey = (modelKey) => {
+  const key = String(modelKey || '').trim()
+  return key || 'default'
+}
+
+const isAliyunProvider = (provider) => {
+  const value = String(provider || '').trim().toLowerCase()
+  if (!value) return false
+  return value.includes('aliyun') || value.includes('dashscope') || value.includes('aitryon')
+}
+
+const refinerLabel = (row) => {
+  if (!isAliyunProvider(row?.provider)) {
+    return '不支持'
+  }
+  return row?.enableRefiner ? '已开启' : '未开启'
+}
+
+const refinerTagType = (row) => {
+  if (!isAliyunProvider(row?.provider)) {
+    return 'info'
+  }
+  return row?.enableRefiner ? 'success' : 'warning'
+}
+
 const handleStatusCardClick = (status) => {
   if (searchInfo.value.status === status) {
     return
   }
   searchInfo.value.status = status
+  activeTab.value = 'list'
   page.value = 1
-  getTableData(true)
+  getTableData()
 }
 
 const copyText = async (text, label = '内容') => {
@@ -551,7 +523,7 @@ const handleDelete = async (row) => {
       if (tableData.value.length === 1 && page.value > 1) {
         page.value -= 1
       }
-      await getTableData(true)
+      await getTableData()
     }
   } catch (e) {
     // 用户取消删除时不做提示
@@ -574,7 +546,7 @@ const handleBatchDelete = async () => {
         page.value -= 1
       }
       multipleSelection.value = []
-      await getTableData(true)
+      await getTableData()
     }
   } catch (e) {
     // 用户取消删除时不做提示
@@ -595,6 +567,8 @@ const buildCsvContent = (list) => {
     '请求ID',
     '场景',
     '状态',
+    '模型',
+    '精修',
     '扣币',
     '退币',
     '原图',
@@ -612,6 +586,8 @@ const buildCsvContent = (list) => {
       item.requestID,
       sceneLabel(item.sceneType),
       statusLabel(item.status),
+      formatModelKey(item.provider),
+      refinerLabel(item),
       item.costPoints,
       item.refundPoints,
       item.sourceImage,
@@ -647,12 +623,6 @@ const getExportFileName = () => {
 const buildSearchParams = () => {
   return {
     ...searchInfo.value,
-  }
-}
-
-const buildModelSearchParams = () => {
-  return {
-    ...modelSearchInfo.value,
   }
 }
 
@@ -705,15 +675,71 @@ const getTrendChartOption = () => {
 }
 
 const renderTrendChart = () => {
-  if (!chartRef.value) {
+  if (!trendChartRef.value) {
     return
   }
-  if (chartInstance) {
-    chartInstance.dispose()
-    chartInstance = null
+  if (trendChartInstance) {
+    trendChartInstance.dispose()
+    trendChartInstance = null
   }
-  chartInstance = echarts.init(chartRef.value, appStore.isDark ? 'dark' : null)
-  chartInstance.setOption(getTrendChartOption())
+  trendChartInstance = echarts.init(trendChartRef.value, appStore.isDark ? 'dark' : null)
+  trendChartInstance.setOption(getTrendChartOption())
+}
+
+const getModelChartOption = () => {
+  const isDark = appStore.isDark
+  const textColor = isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)'
+  const list = Array.isArray(stats.value.modelStats) ? stats.value.modelStats : []
+  const pieData = list.map((item) => ({
+    name: formatModelKey(item.modelKey),
+    value: Number(item.taskCount || 0),
+  }))
+
+  return {
+    backgroundColor: 'transparent',
+    tooltip: { trigger: 'item' },
+    legend: {
+      orient: 'vertical',
+      right: 0,
+      top: 'middle',
+      textStyle: { color: textColor, fontSize: 12 },
+    },
+    series: [
+      {
+        name: '模型调用',
+        type: 'pie',
+        radius: ['42%', '68%'],
+        center: ['36%', '50%'],
+        avoidLabelOverlap: true,
+        itemStyle: {
+          borderRadius: 6,
+          borderColor: isDark ? '#1f2937' : '#fff',
+          borderWidth: 2,
+        },
+        label: { show: false },
+        emphasis: {
+          label: {
+            show: true,
+            formatter: '{b}\n{c}次',
+            fontSize: 12,
+          },
+        },
+        data: pieData,
+      },
+    ],
+  }
+}
+
+const renderModelChart = () => {
+  if (!modelChartRef.value) {
+    return
+  }
+  if (modelChartInstance) {
+    modelChartInstance.dispose()
+    modelChartInstance = null
+  }
+  modelChartInstance = echarts.init(modelChartRef.value, appStore.isDark ? 'dark' : null)
+  modelChartInstance.setOption(getModelChartOption())
 }
 
 const fetchTrendData = async () => {
@@ -727,6 +753,7 @@ const fetchTrendData = async () => {
     const res = await getTryonTaskTrend(params)
     if (res.code === 0) {
       chartData.value = res.data?.list || []
+      await nextTick()
       renderTrendChart()
     }
   } finally {
@@ -735,8 +762,11 @@ const fetchTrendData = async () => {
 }
 
 const handleResize = () => {
-  if (chartInstance) {
-    chartInstance.resize()
+  if (trendChartInstance) {
+    trendChartInstance.resize()
+  }
+  if (modelChartInstance) {
+    modelChartInstance.resize()
   }
 }
 
@@ -792,19 +822,30 @@ const getStatsData = async () => {
     }
     const res = await getTryonTaskStats(params)
     if (res.code === 0) {
+      const modelStats = Array.isArray(res.data?.modelStats) ? res.data.modelStats : []
       stats.value = {
         total: Number(res.data?.total || 0),
         processing: Number(res.data?.processing || 0),
         success: Number(res.data?.success || 0),
         failed: Number(res.data?.failed || 0),
+        totalCostPoints: Number(res.data?.totalCostPoints || 0),
+        refinerEnabledCount: Number(res.data?.refinerEnabledCount || 0),
+        modelCallTotal: Number(res.data?.modelCallTotal || 0),
+        modelStats,
       }
+      await nextTick()
+      renderModelChart()
     }
   } finally {
     statsLoading.value = false
   }
 }
 
-const getTableData = async (refreshStats = false) => {
+const refreshStatsTabData = async () => {
+  await Promise.all([getStatsData(), fetchTrendData()])
+}
+
+const getTableData = async () => {
   const params = {
     page: page.value,
     pageSize: pageSize.value,
@@ -817,34 +858,11 @@ const getTableData = async (refreshStats = false) => {
     page.value = res.data.page || page.value
     pageSize.value = res.data.pageSize || pageSize.value
   }
-  if (refreshStats) {
-    await Promise.all([getStatsData(), fetchTrendData()])
-  }
-}
-
-const getModelTableData = async () => {
-  modelLoading.value = true
-  try {
-    const params = {
-      page: modelPage.value,
-      pageSize: modelPageSize.value,
-      ...buildModelSearchParams(),
-    }
-    const res = await getTryonModelList(params)
-    if (res.code === 0) {
-      modelTableData.value = res.data?.list || []
-      modelTotal.value = res.data?.total || 0
-      modelPage.value = res.data?.page || modelPage.value
-      modelPageSize.value = res.data?.pageSize || modelPageSize.value
-    }
-  } finally {
-    modelLoading.value = false
-  }
 }
 
 const onSubmit = () => {
   page.value = 1
-  getTableData(true)
+  Promise.all([getTableData(), refreshStatsTabData()])
 }
 
 const onReset = () => {
@@ -859,7 +877,7 @@ const onReset = () => {
   }
   page.value = 1
   pageSize.value = 10
-  getTableData(true)
+  Promise.all([getTableData(), refreshStatsTabData()])
 }
 
 const handleCurrentChange = (val) => {
@@ -873,90 +891,41 @@ const handleSizeChange = (val) => {
   getTableData()
 }
 
-const onModelSubmit = () => {
-  modelPage.value = 1
-  getModelTableData()
-}
-
-const onModelReset = () => {
-  modelSearchInfo.value = {
-    userID: undefined,
-    name: '',
-  }
-  modelPage.value = 1
-  modelPageSize.value = 10
-  getModelTableData()
-}
-
-const handleModelCurrentChange = (val) => {
-  modelPage.value = val
-  getModelTableData()
-}
-
-const handleModelSizeChange = (val) => {
-  modelPageSize.value = val
-  modelPage.value = 1
-  getModelTableData()
-}
-
-const handleModelSelectionChange = (rows) => {
-  modelMultipleSelection.value = rows || []
-}
-
-const handleModelDelete = async (row) => {
-  try {
-    await ElMessageBox.confirm(`确定删除模特【${row.name || row.ID}】吗？`, '提示', { type: 'warning' })
-    const res = await deleteTryonModel({ ID: row.ID })
-    if (res.code === 0) {
-      ElMessage.success('删除成功')
-      if (modelTableData.value.length === 1 && modelPage.value > 1) {
-        modelPage.value -= 1
-      }
-      await getModelTableData()
-    }
-  } catch (e) {
-    // 用户取消删除时不做提示
+const handleTabChange = (tabName) => {
+  if (tabName === 'stats') {
+    refreshStatsTabData()
   }
 }
 
-const handleModelBatchDelete = async () => {
-  if (!modelMultipleSelection.value.length) {
-    ElMessage.warning('请先选择要删除的数据')
-    return
-  }
+watch(() => appStore.isDark, async () => {
+  await nextTick()
+  renderTrendChart()
+  renderModelChart()
+})
 
-  try {
-    await ElMessageBox.confirm(`确定批量删除选中的${modelMultipleSelection.value.length}个模特吗？`, '提示', { type: 'warning' })
-    const ids = modelMultipleSelection.value.map(item => item.ID).filter(Boolean)
-    const res = await deleteTryonModelByIds({ 'IDs[]': ids })
-    if (res.code === 0) {
-      ElMessage.success('批量删除成功')
-      if (ids.length >= modelTableData.value.length && modelPage.value > 1) {
-        modelPage.value -= 1
-      }
-      modelMultipleSelection.value = []
-      await getModelTableData()
-    }
-  } catch (e) {
-    // 用户取消删除时不做提示
-  }
-}
-
-window.addEventListener('resize', handleResize)
+onMounted(async () => {
+  window.addEventListener('resize', handleResize)
+  await Promise.all([getTableData(), refreshStatsTabData()])
+})
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
-  if (chartInstance) {
-    chartInstance.dispose()
-    chartInstance = null
+  if (trendChartInstance) {
+    trendChartInstance.dispose()
+    trendChartInstance = null
+  }
+  if (modelChartInstance) {
+    modelChartInstance.dispose()
+    modelChartInstance = null
   }
 })
-
-getTableData(true)
-getModelTableData()
 </script>
 
 <style scoped>
+.panel-tabs {
+  margin-bottom: 8px;
+}
+
 .stats-wrap {
   margin-bottom: 16px;
 }
@@ -978,11 +947,22 @@ getModelTableData()
   margin-bottom: 16px;
 }
 
-.model-search-box {
-  margin-top: 16px;
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
-.model-title {
+.trend-subtitle {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.model-stats-wrap {
+  margin-top: 8px;
+}
+
+.model-stats-title {
   margin-bottom: 12px;
   font-size: 14px;
   font-weight: 600;
@@ -1036,6 +1016,12 @@ getModelTableData()
 .error-message {
   color: var(--el-color-danger);
   font-weight: 500;
+}
+
+@media (max-width: 1280px) {
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 :deep(.el-table .tryon-row-non-processing > td.el-table__cell) {

@@ -304,6 +304,10 @@
                         <el-switch v-model="model.supportsRefiner" active-text="开" inactive-text="关" />
                       </div>
                       <div class="tryon-model-field">
+                        <span class="tryon-model-label">精修额外消耗 refinerExtraCost</span>
+                        <el-input-number v-model="model.refinerExtraCost" :min="0" :step="1" />
+                      </div>
+                      <div class="tryon-model-field">
                         <span class="tryon-model-label">精修模型 refinerModel</span>
                         <el-input v-model="model.refinerModel" placeholder="如 aitryon-refiner" />
                       </div>
@@ -1189,6 +1193,7 @@ const createDefaultTryonModel = () => ({
   restoreFace: true,
   clothesType: ['upper'],
   supportsRefiner: false,
+  refinerExtraCost: 1,
   refinerModel: 'aitryon-refiner',
   refinerGender: 'woman',
   refinerUrl: '',
@@ -1229,6 +1234,7 @@ const normalizeTryonModel = (item = {}, index = 0) => {
     restoreFace: toBool(item.restoreFace, true),
     clothesType: toStringArray(item.clothesType, ['upper']),
     supportsRefiner: toBool(item.supportsRefiner, inferredSupportsRefiner),
+    refinerExtraCost: Math.max(0, toInt(item.refinerExtraCost, inferredSupportsRefiner ? 1 : 0)),
     refinerModel: String(item.refinerModel || defaultModel.refinerModel),
     refinerGender: normalizeGender(item.refinerGender, defaultModel.refinerGender),
     refinerUrl: String(item.refinerUrl || ''),
@@ -1276,6 +1282,7 @@ const buildTryonModelsPayload = () => {
     restoreFace: !!item.restoreFace,
     clothesType: toStringArray(item.clothesType, []),
     supportsRefiner: !!item.supportsRefiner,
+    refinerExtraCost: Math.max(0, toInt(item.refinerExtraCost, 0)),
     refinerModel: String(item.refinerModel || '').trim(),
     refinerGender: normalizeGender(item.refinerGender, 'woman'),
     refinerUrl: String(item.refinerUrl || '').trim(),

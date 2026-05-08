@@ -96,6 +96,22 @@ export const getPointRecordList = (params) => {
 }
 
 // @Tags PointRecord
+// @Summary 获取试衣币统计（管理端）
+// @Security ApiKeyAuth
+// @Accept application/json
+// @Produce application/json
+// @Param data query clientReq.TryonPointStatsSearch true "查询试衣币统计"
+// @Success 200 {string} string "{\"success\":true,\"data\":{},\"msg\":\"获取成功\"}"
+// @Router /cpr/getPointRecordStats [get]
+export const getPointRecordStats = (params) => {
+  return service({
+    url: '/cpr/getPointRecordStats',
+    method: 'get',
+    params
+  })
+}
+
+// @Tags PointRecord
 // @Summary 不需要鉴权的积分记录管理接口
 // @Accept application/json
 // @Produce application/json
