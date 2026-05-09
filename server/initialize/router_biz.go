@@ -21,6 +21,7 @@ func initBizRouter(routers ...*gin.RouterGroup) {
 		clientRouter.InitTryonRechargeOrderRouter(privateGroup, publicGroup)
 		clientRouter.InitTryonTaskRouter(privateGroup, publicGroup)
 		clientRouter.InitTryonModelRouter(privateGroup, publicGroup)
+		clientRouter.InitTryonClothRouter(privateGroup, publicGroup)
 		clientRouter.InitVisitorRouter(privateGroup, publicGroup)
 		clientRouter.InitSysConfigRouter(privateGroup, publicGroup)
 		clientRouter.InitLanguageRouter(privateGroup, publicGroup)

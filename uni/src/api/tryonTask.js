@@ -28,6 +28,15 @@ export const findTryonTask = (params) => {
   })
 }
 
+// 对试衣任务执行智能美肤（每个任务仅一次）
+export const applyTryonBeautify = (data) => {
+  return request({
+    url: '/tryonTask/applyTryonBeautify',
+    method: 'post',
+    data,
+  })
+}
+
 // 获取我的试衣任务列表
 export const getMyTryonTaskList = (params) => {
   return request({
@@ -78,5 +87,41 @@ export const getMyTryonModelList = () => {
   return request({
     url: '/tryonModel/getMyTryonModelList',
     method: 'get',
+  })
+}
+
+// 创建我的衣橱
+export const createTryonCloth = (data) => {
+  return request({
+    url: '/tryonCloth/createTryonCloth',
+    method: 'post',
+    data,
+  })
+}
+
+// 更新我的衣橱（重命名/改分类）
+export const updateTryonCloth = (data) => {
+  return request({
+    url: '/tryonCloth/updateTryonCloth',
+    method: 'put',
+    data,
+  })
+}
+
+// 删除我的衣橱
+export const deleteTryonCloth = (params) => {
+  return request({
+    url: '/tryonCloth/deleteTryonCloth',
+    method: 'delete',
+    params,
+  })
+}
+
+// 获取我的衣橱列表
+export const getMyTryonClothList = (params) => {
+  return request({
+    url: '/tryonCloth/getMyTryonClothList',
+    method: 'get',
+    params,
   })
 }

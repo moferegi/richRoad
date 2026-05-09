@@ -1,37 +1,48 @@
 <template>
-  <view class="model-page">
+  <view class="cloth-page">
     <view class="nav">
       <view class="nav-btn" @tap="goBack">
         <uni-icons type="left" size="20" color="#0f172a" />
       </view>
-      <text class="nav-title">{{ $t('myModels') }}</text>
-      <view class="nav-btn" @tap="addModel">
+      <text class="nav-title">{{ $t('myCloset') }}</text>
+      <view class="nav-btn" @tap="addCloth">
         <uni-icons type="plusempty" size="22" color="#0f172a" />
       </view>
     </view>
 
-    <view class="tips">{{ $t('myModelTips') }}</view>
+    <view class="tips">{{ $t('myClosetTips') }}</view>
+
+    <view class="category-tabs">
+      <view
+        v-for="item in categoryOptions"
+        :key="item.key"
+        class="category-tab"
+        :class="{ active: activeCategory === item.key }"
+        @tap="activeCategory = item.key"
+      >
+        {{ $t(item.labelKey) }}
+      </view>
+    </view>
 
     <scroll-view class="list-wrap" scroll-y>
       <view class="grid">
-        <view class="card" v-for="item in modelList" :key="item.id">
+        <view class="card" v-for="item in filteredClothList" :key="item.id">
           <image class="card-image" :src="getUrl(item.url)" mode="aspectFill" @tap="preview(item)" />
           <view class="card-foot">
-            <text class="card-name">{{ item.name || $t('unnamedModel') }}</text>
-            <view class="card-actions">
-              <view class="mini-btn use" @tap.stop="useForRoom(item, 'tryon')">{{ $t('tryonRoom') }}</view>
-              <view class="mini-btn use" @tap.stop="useForRoom(item, 'shoe')">{{ $t('shoeRoom') }}</view>
+            <view class="name-row">
+              <text class="card-name">{{ item.name || categoryLabel(item.category) }}</text>
+              <text class="category-badge">{{ categoryLabel(item.category) }}</text>
             </view>
             <view class="card-actions card-actions-secondary">
-              <view class="mini-btn" @tap.stop="renameModel(item)">{{ $t('rename') }}</view>
-              <view class="mini-btn danger" @tap.stop="removeModel(item)">{{ $t('delete') }}</view>
+              <view class="mini-btn" @tap.stop="renameCloth(item)">{{ $t('rename') }}</view>
+              <view class="mini-btn danger" @tap.stop="removeCloth(item)">{{ $t('delete') }}</view>
             </view>
           </view>
         </view>
       </view>
 
-      <view class="empty" v-if="modelList.length === 0">
-        <text>{{ $t('myModelEmpty') }}</text>
+      <view class="empty" v-if="filteredClothList.length === 0">
+        <text>{{ $t('myClosetEmpty') }}</text>
       </view>
       <view style="height: 40rpx"></view>
     </scroll-view>
@@ -92,8 +103,8 @@
     </view>
 
     <canvas
-      canvas-id="myModelCropCanvas"
-      id="myModelCropCanvas"
+      canvas-id="myClothCropCanvas"
+      id="myClothCropCanvas"
       class="crop-canvas-hidden"
       :style="{ width: `${cropCanvasSize.width}px`, height: `${cropCanvasSize.height}px` }"
     ></canvas>
@@ -105,19 +116,22 @@ import { ref, computed, nextTick } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { resolveApiMessage } from '@/utils/i18n.js'
 import { getUrl } from '@/utils/url.js'
-import { setSelectedTryonModel, uploadTryonImage } from '@/utils/tryon.js'
+import { uploadTryonImage } from '@/utils/tryon.js'
 import {
-  createTryonModel,
-  updateTryonModel,
-  deleteTryonModel,
-  getMyTryonModelList,
+  createTryonCloth,
+  updateTryonCloth,
+  deleteTryonCloth,
+  getMyTryonClothList,
 } from '@/api/tryonTask.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
+
+const CATEGORY_KEYS = ['upper', 'lower', 'onepiece', 'shoes']
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 
-const modelList = ref([])
+const clothList = ref([])
+const activeCategory = ref('all')
 const cropCanvasSize = ref({ width: 1, height: 1 })
 const cropEditorVisible = ref(false)
 const cropSourcePath = ref('')
@@ -130,7 +144,7 @@ const activeCropEdge = ref('all')
 const cropConfirming = ref(false)
 let cropResolve = null
 
-const CROP_CANVAS_ID = 'myModelCropCanvas'
+const CROP_CANVAS_ID = 'myClothCropCanvas'
 const CROP_MIN_EDGE_SIZE = 48
 const cropRatioLabel = computed(() => `${cropRatio.value.width}:${cropRatio.value.height}`)
 const cropRatioOptions = [
@@ -141,13 +155,56 @@ const cropRatioOptions = [
   { key: '16:9', label: '16:9', width: 16, height: 9 },
 ]
 
-const isTempLocalPath = (value) => {
-  const text = String(value || '').trim().toLowerCase()
-  if (!text) return false
-  return text.startsWith('blob:') || text.startsWith('file:') || text.startsWith('wxfile:') || text.startsWith('content:')
+const categoryOptions = [
+  { key: 'all', labelKey: 'clothCategoryAll' },
+  { key: 'upper', labelKey: 'clothCategoryUpper' },
+  { key: 'lower', labelKey: 'clothCategoryLower' },
+  { key: 'onepiece', labelKey: 'clothCategoryOnepiece' },
+  { key: 'shoes', labelKey: 'clothCategoryShoes' },
+]
+
+const CATEGORY_LABEL_KEY_MAP = {
+  upper: 'clothCategoryUpper',
+  lower: 'clothCategoryLower',
+  onepiece: 'clothCategoryOnepiece',
+  shoes: 'clothCategoryShoes',
 }
 
+const ACTION_SHEET_RETRY_DELAY = 140
+
 const waitFrame = (delay = 30) => new Promise((resolve) => setTimeout(resolve, delay))
+
+const waitActionSheetStable = (delay = ACTION_SHEET_RETRY_DELAY) => new Promise((resolve) => setTimeout(resolve, delay))
+
+const openActionSheetWithRetry = async (itemList, maxRetry = 1) => {
+  for (let attempt = 0; attempt <= maxRetry; attempt++) {
+    const result = await new Promise((resolve) => {
+      uni.showActionSheet({
+        itemList,
+        success: (res) => resolve({ ok: true, tapIndex: Number(res?.tapIndex || 0) }),
+        fail: (err) => resolve({ ok: false, errMsg: String(err?.errMsg || '') }),
+      })
+    })
+
+    if (result.ok) {
+      return { status: 'ok', tapIndex: result.tapIndex }
+    }
+
+    const errMsg = String(result.errMsg || '').toLowerCase()
+    if (errMsg.includes('cancel')) {
+      return { status: 'cancel' }
+    }
+
+    if (attempt < maxRetry) {
+      await waitActionSheetStable()
+      continue
+    }
+
+    return { status: 'fail' }
+  }
+
+  return { status: 'fail' }
+}
 
 const chooseImageAsync = (sizeType = ['original']) => {
   return new Promise((resolve, reject) => {
@@ -564,43 +621,85 @@ const pickAndProcessImage = async (mode = 'original') => {
 }
 
 const chooseUploadMode = () => {
-  return new Promise((resolve) => {
-    uni.showActionSheet({
-      itemList: [
-        $t.value('uploadModeOriginal'),
-        $t.value('uploadModeCrop'),
-        $t.value('uploadModeCompress'),
-      ],
-      success: (res) => {
-        if (res.tapIndex === 0) resolve('original')
-        else if (res.tapIndex === 1) resolve('crop')
-        else resolve('compress')
-      },
-      fail: () => resolve(''),
-    })
+  return openActionSheetWithRetry([
+    $t.value('uploadModeOriginal'),
+    $t.value('uploadModeCrop'),
+    $t.value('uploadModeCompress'),
+  ]).then((res) => {
+    if (res.status === 'cancel') return ''
+    if (res.status === 'fail') {
+      uni.showToast({ title: $t.value('operationFailed'), icon: 'none' })
+      return ''
+    }
+
+    if (res.tapIndex === 0) return 'original'
+    if (res.tapIndex === 1) return 'crop'
+    return 'compress'
   })
 }
 
-const normalizeModelItem = (item) => {
+const normalizeCategory = (value) => {
+  const category = String(value || '').trim().toLowerCase()
+  return CATEGORY_KEYS.includes(category) ? category : ''
+}
+
+const categoryLabel = (category) => {
+  const key = CATEGORY_LABEL_KEY_MAP[normalizeCategory(category)]
+  return key ? $t.value(key) : '-'
+}
+
+const normalizeClothItem = (item) => {
   const id = item?.ID || item?.id || ''
+  const category = normalizeCategory(item?.category || item?.Category)
   return {
     id: String(id),
     name: item?.name || '',
+    category,
     url: item?.image || item?.url || '',
-    createdAt: item?.CreatedAt || item?.createdAt || '',
   }
 }
 
-const loadModels = async () => {
-  const res = await getMyTryonModelList()
+const filteredClothList = computed(() => {
+  if (activeCategory.value === 'all') {
+    return clothList.value
+  }
+  return clothList.value.filter(item => item.category === activeCategory.value)
+})
+
+const loadClothes = async () => {
+  const res = await getMyTryonClothList()
   if (res.code !== 0) {
     return
   }
   const list = Array.isArray(res?.data?.list) ? res.data.list : []
-  modelList.value = list.map(normalizeModelItem).filter(item => item.id)
+  clothList.value = list.map(normalizeClothItem).filter(item => item.id && item.category && item.url)
 }
 
-const addModel = async () => {
+const chooseCreateCategory = () => {
+  if (activeCategory.value !== 'all') {
+    return Promise.resolve(activeCategory.value)
+  }
+
+  return new Promise((resolve) => {
+    const createOptions = categoryOptions.filter(item => item.key !== 'all')
+    openActionSheetWithRetry(createOptions.map(item => $t.value(item.labelKey))).then((res) => {
+      if (res.status !== 'ok') {
+        resolve('')
+        return
+      }
+      resolve(createOptions[res.tapIndex]?.key || '')
+    })
+  })
+}
+
+const addCloth = async () => {
+  const category = await chooseCreateCategory()
+  if (!category) return
+
+  if (activeCategory.value === 'all') {
+    await waitActionSheetStable()
+  }
+
   const mode = await chooseUploadMode()
   if (!mode) return
 
@@ -611,7 +710,8 @@ const addModel = async () => {
     uni.showLoading({ title: $t.value('uploading'), mask: true })
     let uploadedUrl = ''
     try {
-      uploadedUrl = await uploadTryonImage(selected.uploadPath, 'cloth-on/uni-model', 'person')
+      const uploadType = category === 'shoes' ? 'shoe' : 'cloth'
+      uploadedUrl = await uploadTryonImage(selected.uploadPath, 'cloth-on/my-cloth', uploadType)
     } catch (e) {
       uni.showToast({ title: resolveApiMessage(e?.message, 'uploadFail'), icon: 'none' })
       return
@@ -619,15 +719,16 @@ const addModel = async () => {
       uni.hideLoading()
     }
 
-    const createRes = await createTryonModel({
-      name: `${$t.value('modelDefaultPrefix')}${modelList.value.length + 1}`,
+    const createRes = await createTryonCloth({
+      name: '',
+      category,
       image: uploadedUrl,
     })
     if (createRes.code !== 0) {
       return
     }
 
-    await loadModels()
+    await loadClothes()
     uni.showToast({ title: $t.value('createSuccess'), icon: 'none' })
   } catch (e) {
     const errMsg = String(e?.errMsg || '')
@@ -637,11 +738,11 @@ const addModel = async () => {
   }
 }
 
-const renameModel = (item) => {
+const renameCloth = (item) => {
   uni.showModal({
     title: $t.value('rename'),
     editable: true,
-    placeholderText: $t.value('modelNamePlaceholder'),
+    placeholderText: $t.value('myClosetNamePlaceholder'),
     content: item.name || '',
     cancelText: $t.value('cancel'),
     confirmText: $t.value('confirm'),
@@ -650,7 +751,7 @@ const renameModel = (item) => {
       const value = (res.content || '').trim()
       if (!value) return
 
-      const renameRes = await updateTryonModel({
+      const renameRes = await updateTryonCloth({
         ID: Number(item.id),
         name: value,
       })
@@ -664,21 +765,21 @@ const renameModel = (item) => {
   })
 }
 
-const removeModel = (item) => {
+const removeCloth = (item) => {
   uni.showModal({
     title: $t.value('pendingOrderTitle'),
-    content: $t.value('confirmDeleteModel'),
+    content: $t.value('confirmDeleteCloth'),
     cancelText: $t.value('cancel'),
     confirmText: $t.value('confirm'),
     success: async (res) => {
       if (!res.confirm) return
 
-      const deleteRes = await deleteTryonModel({ ID: Number(item.id) })
+      const deleteRes = await deleteTryonCloth({ ID: Number(item.id) })
       if (deleteRes.code !== 0) {
         return
       }
 
-      modelList.value = modelList.value.filter(v => v.id !== item.id)
+      clothList.value = clothList.value.filter(v => v.id !== item.id)
       uni.showToast({ title: $t.value('deleteSuccess'), icon: 'none' })
     },
   })
@@ -689,33 +790,12 @@ const preview = (item) => {
   uni.previewImage({ urls: [getUrl(item.url)] })
 }
 
-const useForRoom = (item, roomType) => {
-  if (!item?.url) {
-    uni.showToast({ title: $t.value('modelImageMissing'), icon: 'none' })
-    return
-  }
-
-  const value = String(item.url || '').trim()
-  const isRemote = !!value && !isTempLocalPath(value)
-  setSelectedTryonModel({
-    roomType,
-    modelID: String(item.id || ''),
-    modelName: item.name,
-    localPath: isRemote ? '' : value,
-    remoteUrl: isRemote ? getUrl(value) : '',
-  })
-
-  uni.switchTab({
-    url: roomType === 'shoe' ? '/pages/tabBar/shop/shop' : '/pages/tabBar/index',
-  })
-}
-
 const goBack = () => {
   uni.navigateBack({ delta: 1 })
 }
 
 onShow(() => {
-  loadModels()
+  loadClothes()
 })
 </script>
 
@@ -724,7 +804,7 @@ page {
   background: #f4f7fb;
 }
 
-.model-page {
+.cloth-page {
   min-height: 100vh;
   padding: calc(var(--status-bar-height, 0px) + 14rpx) 20rpx 20rpx;
   color: #0f172a;
@@ -758,8 +838,36 @@ page {
   color: rgba(15,23,42,0.62);
 }
 
+.category-tabs {
+  margin-bottom: 12rpx;
+  display: flex;
+  gap: 8rpx;
+  overflow-x: auto;
+}
+
+.category-tab {
+  flex-shrink: 0;
+  min-width: 120rpx;
+  height: 56rpx;
+  padding: 0 16rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(15,23,42,0.12);
+  background: rgba(255,255,255,0.8);
+  color: rgba(15,23,42,0.62);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+}
+
+.category-tab.active {
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
+  border: none;
+  color: #fff;
+}
+
 .list-wrap {
-  height: calc(100vh - var(--status-bar-height, 0px) - 120rpx);
+  height: calc(100vh - var(--status-bar-height, 0px) - 190rpx);
 }
 
 .grid {
@@ -785,8 +893,31 @@ page {
   padding: 10rpx;
 }
 
+.name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8rpx;
+}
+
 .card-name {
+  flex: 1;
+  min-width: 0;
   font-size: 22rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.category-badge {
+  flex-shrink: 0;
+  height: 40rpx;
+  line-height: 40rpx;
+  padding: 0 12rpx;
+  border-radius: 999rpx;
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  font-size: 20rpx;
 }
 
 .card-actions {
@@ -810,12 +941,6 @@ page {
   align-items: center;
   justify-content: center;
   font-size: 20rpx;
-}
-
-.mini-btn.use {
-  background: linear-gradient(90deg, #2563eb, #0ea5e9);
-  border: none;
-  color: #fff;
 }
 
 .mini-btn.danger {

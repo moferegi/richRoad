@@ -179,6 +179,23 @@
             </view>
           </view>
 
+          <view class="upload-section" v-if="isShoeDrawer && drawerTab === 'myShoe'">
+            <view v-if="myShoeList.length === 0" class="drawer-empty">
+              <text>{{ $t('myClosetEmpty') }}</text>
+            </view>
+            <view v-else class="example-grid two">
+              <view
+                v-for="item in myShoeList"
+                :key="item.id"
+                class="example-card"
+                @tap="applyMyShoe(item)"
+              >
+                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <text class="example-label">{{ item.name || $t('clothCategoryShoes') }}</text>
+              </view>
+            </view>
+          </view>
+
           <view class="upload-section" v-if="isShoeDrawer && drawerTab === 'recommended'">
             <view class="example-grid two">
               <view
@@ -270,7 +287,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { getTryonConfig, getDefaultDomain } from '@/api/sysConfig.js'
-import { getMyTryonModelList } from '@/api/tryonTask.js'
+import { getMyTryonModelList, getMyTryonClothList } from '@/api/tryonTask.js'
 import { getUrl } from '@/utils/url.js'
 import { localText, resolveApiMessage } from '@/utils/i18n.js'
 import LazyImage from '@/components/lazy-image/lazy-image.vue'
@@ -293,6 +310,7 @@ const drawerTab = ref('custom')
 const selectedModelKey = ref('')
 const modelList = ref([])
 const myModelList = ref([])
+const myShoeList = ref([])
 const defaultExternalDomain = ref('')
 const exampleImageFailIndex = ref({})
 const tryonConfig = ref({
@@ -984,6 +1002,7 @@ const drawerTabs = computed(() => {
   }
   return [
     { key: 'custom', labelKey: 'drawerTabCustomUpload' },
+    { key: 'myShoe', labelKey: 'drawerTabMyShoes' },
     { key: 'recommended', labelKey: 'drawerTabRecommended' },
   ]
 })
@@ -1038,6 +1057,18 @@ const normalizeMyModelItem = (item) => {
   }
 }
 
+const normalizeMyShoeItem = (item) => {
+  const id = item?.ID || item?.id || ''
+  const rawUrl = item?.image || item?.url || ''
+  const category = String(item?.category || item?.Category || '').trim().toLowerCase()
+  return {
+    id: String(id),
+    name: item?.name || '',
+    category,
+    url: getUrl(rawUrl),
+  }
+}
+
 const loadMyModelList = async () => {
   try {
     const res = await getMyTryonModelList()
@@ -1046,6 +1077,19 @@ const loadMyModelList = async () => {
     myModelList.value = list.map(normalizeMyModelItem).filter(item => item.id && item.url)
   } catch (e) {
     myModelList.value = []
+  }
+}
+
+const loadMyShoeList = async () => {
+  try {
+    const res = await getMyTryonClothList({ category: 'shoes' })
+    if (res.code !== 0) return
+    const list = Array.isArray(res?.data?.list) ? res.data.list : []
+    myShoeList.value = list
+      .map(normalizeMyShoeItem)
+      .filter(item => item.id && item.url && item.category === 'shoes')
+  } catch (e) {
+    myShoeList.value = []
   }
 }
 
@@ -1105,6 +1149,8 @@ const openUploadDrawer = (target) => {
   showUploadDrawer.value = true
   if (target === 'person') {
     loadMyModelList()
+  } else if (target === 'shoe') {
+    loadMyShoeList()
   }
 }
 
@@ -1137,6 +1183,13 @@ const applyRemoteExample = (item) => {
 const applyMyModel = (item) => {
   if (!item?.url) return
   assignImageToTarget('person', item.url, true)
+  showUploadDrawer.value = false
+  uni.showToast({ title: $t.value('autoFillApplied'), icon: 'none' })
+}
+
+const applyMyShoe = (item) => {
+  if (!item?.url) return
+  assignImageToTarget('shoe', item.url, true)
   showUploadDrawer.value = false
   uni.showToast({ title: $t.value('autoFillApplied'), icon: 'none' })
 }
@@ -1221,10 +1274,17 @@ watch([isPersonDrawer, drawerTab], ([isPerson, tab]) => {
   }
 })
 
+watch([isShoeDrawer, drawerTab], ([isShoe, tab]) => {
+  if (isShoe && tab === 'myShoe') {
+    loadMyShoeList()
+  }
+})
+
 onShow(() => {
   loadExampleDomain()
   loadConfig()
   loadMyModelList()
+  loadMyShoeList()
   applySelectedModel()
 })
 </script>

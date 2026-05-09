@@ -152,6 +152,9 @@
                       <el-tag size="small" :type="model.enabled ? 'success' : 'info'">
                         {{ model.enabled ? '启用' : '关闭' }}
                       </el-tag>
+                      <el-tag size="small" :type="model.modelUsage === 'beautify' ? 'warning' : 'primary'">
+                        {{ model.modelUsage === 'beautify' ? '美肤模型' : '试衣模型' }}
+                      </el-tag>
                     </div>
                   </template>
 
@@ -210,6 +213,13 @@
                       <div class="tryon-model-field">
                         <span class="tryon-model-label">模型类型 model</span>
                         <el-input v-model="model.model" placeholder="如 aitryon / aitryon-plus" />
+                      </div>
+                      <div class="tryon-model-field">
+                        <span class="tryon-model-label">用途 modelUsage</span>
+                        <el-select v-model="model.modelUsage" style="width: 100%">
+                          <el-option label="试衣模型 tryon" value="tryon" />
+                          <el-option label="智能美肤 beautify" value="beautify" />
+                        </el-select>
                       </div>
 
                       <div class="tryon-model-field">
@@ -298,6 +308,18 @@
                         </el-checkbox-group>
                       </div>
 
+                      <template v-if="model.modelUsage !== 'beautify'">
+                        <div class="tryon-model-subtitle">阿里取衣分割增强（仅 aitryon / aitryon-plus 生效）</div>
+                        <div class="tryon-model-field">
+                          <span class="tryon-model-label">仅上装自动分割 autoEnableAliyunParsingUpperOnly</span>
+                          <el-switch v-model="model.autoEnableAliyunParsingUpperOnly" active-text="开" inactive-text="关" />
+                        </div>
+                        <div class="tryon-model-field">
+                          <span class="tryon-model-label">仅下装自动分割 autoEnableAliyunParsingLowerOnly</span>
+                          <el-switch v-model="model.autoEnableAliyunParsingLowerOnly" active-text="开" inactive-text="关" />
+                        </div>
+                      </template>
+
                       <div class="tryon-model-subtitle">图片精修配置（阿里基础/Plus）</div>
                       <div class="tryon-model-field">
                         <span class="tryon-model-label">支持精修 supportsRefiner</span>
@@ -339,6 +361,50 @@
                         <el-input v-model="model.refinerToken" type="password" show-password placeholder="留空沿用模型 token / tryon_provider_token" />
                       </div>
 
+                      <template v-if="model.modelUsage === 'beautify'">
+                        <div class="tryon-model-subtitle">智能美肤配置（独立模型）</div>
+                        <div class="tryon-model-field">
+                          <span class="tryon-model-label">支持美肤 supportsBeautify</span>
+                          <el-switch v-model="model.supportsBeautify" active-text="开" inactive-text="关" disabled />
+                        </div>
+                        <div class="tryon-model-field">
+                          <span class="tryon-model-label">美肤额外消耗 beautifyExtraCost</span>
+                          <el-input-number v-model="model.beautifyExtraCost" :min="0" :step="1" />
+                        </div>
+                        <div class="tryon-model-field">
+                          <span class="tryon-model-label">美肤模型/动作 beautifyModel</span>
+                          <el-input v-model="model.beautifyModel" placeholder="如 custom_beautify / RetouchSkin" />
+                        </div>
+                        <div class="tryon-model-field">
+                          <span class="tryon-model-label">磨皮强度 beautifyRetouchDegree</span>
+                          <el-input-number v-model="model.beautifyRetouchDegree" :min="0" :max="100" :step="1" />
+                        </div>
+                        <div class="tryon-model-field">
+                          <span class="tryon-model-label">美白强度 beautifyWhiteningDegree</span>
+                          <el-input-number v-model="model.beautifyWhiteningDegree" :min="0" :max="100" :step="1" />
+                        </div>
+                        <div class="tryon-model-field full">
+                          <span class="tryon-model-label">美肤地址 beautifyUrl</span>
+                          <el-input v-model="model.beautifyUrl" placeholder="可配置任意 provider 地址；阿里可留空默认 facebody" />
+                        </div>
+                        <div class="tryon-model-field full">
+                          <span class="tryon-model-label">AccessKeyId beautifyAccessKeyId</span>
+                          <el-input v-model="model.beautifyAccessKeyId" placeholder="阿里模型可配置，其他 provider 可留空" />
+                        </div>
+                        <div class="tryon-model-field full">
+                          <span class="tryon-model-label">AccessKeySecret beautifyAccessKeySecret</span>
+                          <el-input v-model="model.beautifyAccessKeySecret" type="password" show-password placeholder="阿里模型可配置，其他 provider 可留空" />
+                        </div>
+                        <div class="tryon-model-field full">
+                          <span class="tryon-model-label">SecurityToken beautifySecurityToken</span>
+                          <el-input v-model="model.beautifySecurityToken" placeholder="STS 场景可配置" />
+                        </div>
+                        <div class="tryon-model-field full">
+                          <span class="tryon-model-label">AKSK 合并串 beautifyToken</span>
+                          <el-input v-model="model.beautifyToken" type="password" show-password placeholder="支持 ak:sk[:securityToken]" />
+                        </div>
+                      </template>
+
                       <div class="tryon-model-subtitle">名称多语言 name</div>
                       <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`name-${model.__uid}-${lang.code}`">
                         <span class="tryon-model-label">{{ lang.label }}</span>
@@ -356,6 +422,14 @@
                         <span class="tryon-model-label">{{ lang.label }}</span>
                         <el-input v-model="model.refinerDesc[lang.code]" type="textarea" :rows="2" :placeholder="`refinerDesc.${lang.code}`" />
                       </div>
+
+                      <template v-if="model.modelUsage === 'beautify'">
+                        <div class="tryon-model-subtitle">美肤说明多语言 beautifyDesc</div>
+                        <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`beautify-desc-${model.__uid}-${lang.code}`">
+                          <span class="tryon-model-label">{{ lang.label }}</span>
+                          <el-input v-model="model.beautifyDesc[lang.code]" type="textarea" :rows="2" :placeholder="`beautifyDesc.${lang.code}`" />
+                        </div>
+                      </template>
                     </div>
 
                     <div class="tryon-model-actions">
@@ -767,7 +841,17 @@ const normalizeGender = (value, fallback = 'woman') => {
   return fallback
 }
 
+const normalizeModelUsage = (value, fallback = 'tryon') => {
+  const text = String(value || fallback || '').trim().toLowerCase()
+  return text === 'beautify' ? 'beautify' : 'tryon'
+}
+
+const isBeautifyUsageModel = (model = {}) => normalizeModelUsage(model.modelUsage, 'tryon') === 'beautify'
+
 const isAliyunModelForQuota = (model = {}) => {
+  if (isBeautifyUsageModel(model)) {
+    return false
+  }
   const key = String(model.key || '').trim().toLowerCase()
   const provider = String(model.provider || '').trim().toLowerCase()
   const modelName = String(model.model || '').trim().toLowerCase()
@@ -775,6 +859,9 @@ const isAliyunModelForQuota = (model = {}) => {
 }
 
 const inferSupportsRefiner = (model = {}) => {
+  if (isBeautifyUsageModel(model)) {
+    return false
+  }
   if (!isAliyunModelForQuota(model)) {
     return false
   }
@@ -1172,6 +1259,8 @@ const validateRechargePlans = () => {
 const createDefaultTryonModel = () => ({
   __uid: createTryonModelUid(),
   key: '',
+  modelUsage: 'tryon',
+  beautifyModelKey: '',
   enabled: true,
   scenes: ['clothes'],
   model: 'aitryon',
@@ -1192,6 +1281,8 @@ const createDefaultTryonModel = () => ({
   resolution: -1,
   restoreFace: true,
   clothesType: ['upper'],
+  autoEnableAliyunParsingUpperOnly: true,
+  autoEnableAliyunParsingLowerOnly: true,
   supportsRefiner: false,
   refinerExtraCost: 1,
   refinerModel: 'aitryon-refiner',
@@ -1199,20 +1290,35 @@ const createDefaultTryonModel = () => ({
   refinerUrl: '',
   refinerTaskQueryUrl: '',
   refinerToken: '',
+  supportsBeautify: false,
+  beautifyExtraCost: 0,
+  beautifyModel: 'custom_beautify',
+  beautifyRetouchDegree: 70,
+  beautifyWhiteningDegree: 30,
+  beautifyUrl: '',
+  beautifyAccessKeyId: '',
+  beautifyAccessKeySecret: '',
+  beautifySecurityToken: '',
+  beautifyToken: '',
   freeQuotaTotal: 400,
   refinerFreeQuotaTotal: 400,
   refinerDesc: buildMultilingualObject({}, ''),
+  beautifyDesc: buildMultilingualObject({}, ''),
 })
 
 const normalizeTryonModel = (item = {}, index = 0) => {
   const defaultModel = createDefaultTryonModel()
-  const inferredSupportsRefiner = inferSupportsRefiner(item)
+  const modelUsage = normalizeModelUsage(item.modelUsage, defaultModel.modelUsage)
+  const inferredSupportsRefiner = modelUsage === 'beautify' ? false : inferSupportsRefiner(item)
+  const inferredAutoAliyunParsing = modelUsage === 'beautify' ? false : inferSupportsRefiner(item)
   const defaultFreeQuota = isAliyunModelForQuota(item) ? 400 : 0
   const normalizedFreeQuota = Math.max(0, toInt(item.freeQuotaTotal, defaultFreeQuota))
   const normalizedRefinerFreeQuota = Math.max(0, toInt(item.refinerFreeQuotaTotal, inferredSupportsRefiner ? (normalizedFreeQuota || 400) : 0))
   return {
     __uid: createTryonModelUid(),
     key: String(item.key || item.modelKey || ''),
+    modelUsage,
+    beautifyModelKey: '',
     enabled: toBool(item.enabled, true),
     scenes: toStringArray(item.scenes, [String(item.sceneType || '').trim() || 'clothes']),
     model: String(item.model || defaultModel.model),
@@ -1233,16 +1339,29 @@ const normalizeTryonModel = (item = {}, index = 0) => {
     resolution: toInt(item.resolution, -1),
     restoreFace: toBool(item.restoreFace, true),
     clothesType: toStringArray(item.clothesType, ['upper']),
-    supportsRefiner: toBool(item.supportsRefiner, inferredSupportsRefiner),
-    refinerExtraCost: Math.max(0, toInt(item.refinerExtraCost, inferredSupportsRefiner ? 1 : 0)),
+    autoEnableAliyunParsingUpperOnly: modelUsage === 'beautify' ? false : toBool(item.autoEnableAliyunParsingUpperOnly, inferredAutoAliyunParsing),
+    autoEnableAliyunParsingLowerOnly: modelUsage === 'beautify' ? false : toBool(item.autoEnableAliyunParsingLowerOnly, inferredAutoAliyunParsing),
+    supportsRefiner: modelUsage === 'beautify' ? false : toBool(item.supportsRefiner, inferredSupportsRefiner),
+    refinerExtraCost: modelUsage === 'beautify' ? 0 : Math.max(0, toInt(item.refinerExtraCost, inferredSupportsRefiner ? 1 : 0)),
     refinerModel: String(item.refinerModel || defaultModel.refinerModel),
     refinerGender: normalizeGender(item.refinerGender, defaultModel.refinerGender),
     refinerUrl: String(item.refinerUrl || ''),
     refinerTaskQueryUrl: String(item.refinerTaskQueryUrl || ''),
     refinerToken: String(item.refinerToken || ''),
+    supportsBeautify: modelUsage === 'beautify',
+    beautifyExtraCost: Math.max(0, toInt(item.beautifyExtraCost ?? item.beautifyExtraPoints, modelUsage === 'beautify' ? toInt(item.cost, 0) : 0)),
+    beautifyModel: String(modelUsage === 'beautify' ? (item.beautifyModel || item.model || defaultModel.beautifyModel) : ''),
+    beautifyRetouchDegree: Math.max(0, Math.min(100, toInt(item.beautifyRetouchDegree, defaultModel.beautifyRetouchDegree))),
+    beautifyWhiteningDegree: Math.max(0, Math.min(100, toInt(item.beautifyWhiteningDegree, defaultModel.beautifyWhiteningDegree))),
+    beautifyUrl: String(item.beautifyUrl || ''),
+    beautifyAccessKeyId: String(item.beautifyAccessKeyId || ''),
+    beautifyAccessKeySecret: String(item.beautifyAccessKeySecret || ''),
+    beautifySecurityToken: String(item.beautifySecurityToken || ''),
+    beautifyToken: String(item.beautifyToken || ''),
     freeQuotaTotal: normalizedFreeQuota,
     refinerFreeQuotaTotal: normalizedRefinerFreeQuota,
     refinerDesc: normalizeI18nObject(item.refinerDesc),
+    beautifyDesc: normalizeI18nObject(item.beautifyDesc),
   }
 }
 
@@ -1261,6 +1380,8 @@ const parseTryonModelsValue = (rawValue) => {
 const buildTryonModelsPayload = () => {
   return tryonModels.value.map((item) => ({
     key: String(item.key || '').trim(),
+    modelUsage: normalizeModelUsage(item.modelUsage, 'tryon'),
+    beautifyModelKey: '',
     enabled: !!item.enabled,
     scenes: toStringArray(item.scenes, ['clothes']),
     model: String(item.model || '').trim(),
@@ -1281,23 +1402,38 @@ const buildTryonModelsPayload = () => {
     resolution: toInt(item.resolution, -1),
     restoreFace: !!item.restoreFace,
     clothesType: toStringArray(item.clothesType, []),
-    supportsRefiner: !!item.supportsRefiner,
+    autoEnableAliyunParsingUpperOnly: normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? false : !!item.autoEnableAliyunParsingUpperOnly,
+    autoEnableAliyunParsingLowerOnly: normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? false : !!item.autoEnableAliyunParsingLowerOnly,
+    supportsRefiner: normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? false : !!item.supportsRefiner,
     refinerExtraCost: Math.max(0, toInt(item.refinerExtraCost, 0)),
     refinerModel: String(item.refinerModel || '').trim(),
     refinerGender: normalizeGender(item.refinerGender, 'woman'),
     refinerUrl: String(item.refinerUrl || '').trim(),
     refinerTaskQueryUrl: String(item.refinerTaskQueryUrl || '').trim(),
     refinerToken: String(item.refinerToken || '').trim(),
+    supportsBeautify: normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify',
+    beautifyExtraCost: Math.max(0, toInt(item.beautifyExtraCost, normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? toInt(item.cost, 0) : 0)),
+    beautifyModel: String(normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? (item.beautifyModel || item.model || '') : '').trim(),
+    beautifyRetouchDegree: Math.max(0, Math.min(100, toInt(item.beautifyRetouchDegree, 70))),
+    beautifyWhiteningDegree: Math.max(0, Math.min(100, toInt(item.beautifyWhiteningDegree, 30))),
+    beautifyUrl: String(normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? item.beautifyUrl : '').trim(),
+    beautifyAccessKeyId: String(normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? item.beautifyAccessKeyId : '').trim(),
+    beautifyAccessKeySecret: String(normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? item.beautifyAccessKeySecret : '').trim(),
+    beautifySecurityToken: String(normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? item.beautifySecurityToken : '').trim(),
+    beautifyToken: String(normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? item.beautifyToken : '').trim(),
     freeQuotaTotal: Math.max(0, toInt(item.freeQuotaTotal, 0)),
     refinerFreeQuotaTotal: Math.max(0, toInt(item.refinerFreeQuotaTotal, 0)),
     refinerDesc: normalizeI18nObject(item.refinerDesc),
+    beautifyDesc: normalizeI18nObject(item.beautifyDesc),
   }))
 }
 
 const validateTryonModels = () => {
+  let hasBeautifyModel = false
   for (let i = 0; i < tryonModels.value.length; i++) {
     const item = tryonModels.value[i]
     const modelIndex = i + 1
+    const modelUsage = normalizeModelUsage(item.modelUsage, 'tryon')
     if (!String(item.key || '').trim()) {
       ElMessage.warning(`第 ${modelIndex} 个模型缺少 key`)
       return false
@@ -1306,10 +1442,21 @@ const validateTryonModels = () => {
       ElMessage.warning(`第 ${modelIndex} 个模型至少要选择一个场景`)
       return false
     }
-    if (item.supportsRefiner && !String(item.refinerModel || '').trim()) {
+    if (modelUsage !== 'beautify' && item.supportsRefiner && !String(item.refinerModel || '').trim()) {
       ElMessage.warning(`第 ${modelIndex} 个模型已开启精修，但缺少 refinerModel`)
       return false
     }
+    if (modelUsage === 'beautify' && !String(item.beautifyModel || item.model || '').trim()) {
+      ElMessage.warning(`第 ${modelIndex} 个美肤模型缺少 beautifyModel/model`)
+      return false
+    }
+    if (modelUsage === 'beautify') {
+      hasBeautifyModel = true
+    }
+  }
+  if (!hasBeautifyModel) {
+    ElMessage.warning('请至少配置 1 个智能美肤模型（modelUsage=beautify）')
+    return false
   }
   return true
 }

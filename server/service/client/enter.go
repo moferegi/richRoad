@@ -8,6 +8,7 @@ type ServiceGroup struct {
 	TryonRechargeOrderService
 	TryonTaskService
 	TryonModelService
+	TryonClothService
 	VisitorService
 	SysConfigService
 	SysLanguageService

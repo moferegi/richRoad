@@ -138,6 +138,37 @@ func (api *TryonTaskApi) CreateTryonTask(c *gin.Context) {
 	response.OkWithDetailed(gin.H{"task": task, "reused": reused}, msg, c)
 }
 
+// ApplyTryonBeautify 对试衣结果执行智能美肤
+// @Tags TryonTask
+// @Summary 对试衣结果执行智能美肤（每个任务仅可执行一次）
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data body clientReq.ApplyTryonBeautifyReq true "智能美肤参数"
+// @Success 200 {object} response.Response{data=map[string]interface{},msg=string} "处理成功"
+// @Router /tryonTask/applyTryonBeautify [post]
+func (api *TryonTaskApi) ApplyTryonBeautify(c *gin.Context) {
+	var req clientReq.ApplyTryonBeautifyReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		return
+	}
+
+	userID := utils.GetUserID(c)
+	task, err := tryonTaskService.ApplyTryonBeautify(c.Request.Context(), userID, req)
+	if err != nil {
+		global.GVA_LOG.Error("执行智能美肤失败!", zap.Error(err), zap.Uint("userID", userID), zap.Uint("taskID", req.TaskID))
+		response.FailWithDetailed(gin.H{"task": task}, i18n.T(c, err.Error()), c)
+		return
+	}
+
+	msg := i18n.T(c, "tryonBeautifyDone")
+	if task.BeautifyStatus == "processing" {
+		msg = i18n.T(c, "tryonBeautifyProcessing")
+	}
+	response.OkWithDetailed(gin.H{"task": task}, msg, c)
+}
+
 // FindTryonTask 根据ID获取试衣任务
 // @Tags TryonTask
 // @Summary 根据ID获取试衣任务

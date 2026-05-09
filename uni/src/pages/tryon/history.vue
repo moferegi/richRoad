@@ -19,7 +19,7 @@
     <scroll-view class="list-wrap" scroll-y @scrolltolower="onReachBottom">
       <view class="card" v-for="item in filteredList" :key="item._key" @tap="handleCardTap(item)">
         <view class="thumb-wrap">
-          <LazyImage class="thumb" :src="item.resultImage ? getUrl(item.resultImage) : getUrl(item.templateImage || item.sourceImage)" mode="aspectFit" />
+          <LazyImage class="thumb" :src="thumbnailImage(item)" mode="aspectFit" />
         </view>
         <view class="card-main">
           <view class="line">
@@ -30,6 +30,7 @@
           <text class="time">{{ formatTime(item.CreatedAt || item.savedAt) }}</text>
           <text class="error" v-if="item.status === 'failed' && item.errorMessage">{{ item.errorMessage }}</text>
           <view class="card-actions">
+            <view class="mini-btn" @tap.stop="goBeautify(item)">{{ $t('tryonBeautifyAction') }}</view>
             <view class="mini-btn danger" @tap.stop="removeHistory(item)">{{ $t('delete') }}</view>
           </view>
         </view>
@@ -48,7 +49,7 @@
       <view style="height: 30rpx"></view>
     </scroll-view>
 
-    <view class="preview-mask" v-if="previewVisible" @tap="closePreview">
+    <view class="preview-mask" :class="{ 'preview-mask-passthrough': previewNativeOpening }" v-if="previewVisible" @tap="closePreview">
       <view class="preview-panel" @tap.stop>
         <view class="preview-head">
           <text class="preview-title">{{ $t('imagePreviewTitle') }}</text>
@@ -72,6 +73,13 @@
           >
             {{ $t('previewOriginTab') }}
           </view>
+          <view
+            class="preview-tab"
+            :class="{ active: previewTab === 'beautify', disabled: !previewBeautifyImages.length }"
+            @tap="switchPreviewTab('beautify')"
+          >
+            {{ $t('beautifyResultTab') }}
+          </view>
         </view>
 
         <view class="preview-body" v-if="currentPreviewImages.length">
@@ -93,33 +101,68 @@
           <text class="preview-save-tip">{{ $t('previewLongPressSaveHint') }}</text>
           <view class="preview-actions-row">
             <view class="preview-action-btn secondary" v-if="canComparePreview" @tap="openCompareFromPreview">{{ compareButtonText }}</view>
-            <view class="preview-action-btn" v-show="showDownloadAction" @tap="downloadCurrentImage">{{ $t('downloadAction') }}</view>
+            <view class="preview-action-btn" v-if="canDownloadPreview" @tap="downloadCurrentImage">{{ $t('downloadAction') }}</view>
           </view>
         </view>
       </view>
     </view>
 
+    <view class="h5-image-preview-mask" v-if="h5ImagePreviewVisible" @tap="closeH5ImagePreview">
+      <view class="h5-image-preview-head" @tap.stop>
+        <text class="h5-image-preview-index">{{ h5ImagePreviewCurrent + 1 }}/{{ h5ImagePreviewList.length }}</text>
+        <view class="h5-image-preview-actions">
+          <view class="h5-image-preview-save" @tap="downloadH5PreviewCurrentImage">{{ $t('downloadAction') }}</view>
+          <view class="h5-image-preview-close" @tap="closeH5ImagePreview">
+            <uni-icons type="closeempty" size="22" color="#ffffff" />
+          </view>
+        </view>
+      </view>
+      <swiper class="h5-image-preview-swiper" :current="h5ImagePreviewCurrent" @change="onH5ImagePreviewChange">
+        <swiper-item v-for="(img, idx) in h5ImagePreviewList" :key="`h5_preview_${idx}`">
+          <view class="h5-image-preview-wrap" @tap.stop @longpress.stop.prevent="downloadH5PreviewImage(img)">
+            <LazyImage class="h5-image-preview-img" :src="img" mode="aspectFit" />
+          </view>
+        </swiper-item>
+      </swiper>
+      <view class="h5-image-preview-tip" @tap.stop>{{ $t('previewLongPressSaveHint') }}</view>
+    </view>
+
     <view class="preview-mask" v-if="compareVisible" @tap="closeCompare">
       <view class="preview-panel compare-panel" @tap.stop>
         <view class="preview-head">
-          <text class="preview-title">{{ compareButtonText }}</text>
+          <text class="preview-title">{{ compareDialogTitle }}</text>
           <view class="preview-close" @tap="closeCompare">
             <uni-icons type="closeempty" size="20" color="#0f172a" />
           </view>
         </view>
 
-        <view class="compare-stage">
-          <LazyImage class="compare-image compare-image--zoom" :src="getUrl(compareOriginImage)" mode="aspectFill" />
+        <view class="compare-mode-row">
+          <view class="compare-mode-tab" :class="{ active: compareMode === 'tryon', disabled: !canCompareTryonPreview }" @tap="switchCompareMode('tryon')">
+            {{ $t('compareTryonTab') }}
+          </view>
+          <view class="compare-mode-tab" :class="{ active: compareMode === 'beautify', disabled: !canCompareBeautifyPreview }" @tap="switchCompareMode('beautify')">
+            {{ $t('compareBeautifyTab') }}
+          </view>
+        </view>
+
+        <view
+          class="compare-stage"
+          @touchstart.stop.prevent="onCompareStageTouchStart"
+          @touchmove.stop.prevent="onCompareStageTouchMove"
+          @touchend.stop="onCompareStageTouchEnd"
+          @touchcancel.stop="onCompareStageTouchEnd"
+        >
+          <LazyImage class="compare-image" :src="getUrl(compareOriginPreview)" mode="aspectFit" :style="compareImageStyle" />
           <view class="compare-result-layer" :style="{ width: `${comparePercent}%` }">
-            <LazyImage class="compare-image compare-result-image compare-image--zoom" :src="getUrl(compareResultImage)" mode="aspectFill" :style="compareResultInnerStyle" />
+            <LazyImage class="compare-image compare-result-image" :src="getUrl(compareResultPreview)" mode="aspectFit" :style="compareResultInnerStyle" />
           </view>
           <view class="compare-divider" :style="{ left: `${comparePercent}%` }"></view>
         </view>
 
         <view class="compare-slider-wrap">
           <view class="compare-slider-label">
-            <text>{{ $t('previewOriginTab') }}</text>
-            <text>{{ $t('previewResultTab') }}</text>
+            <text>{{ compareLeftLabel }}</text>
+            <text>{{ compareRightLabel }}</text>
           </view>
           <slider
             class="compare-slider"
@@ -133,6 +176,25 @@
             :block-size="20"
             @changing="onCompareSliderChange"
             @change="onCompareSliderChange"
+          />
+
+          <view class="compare-slider-label compare-slider-label--zoom">
+            <text>1x</text>
+            <text>{{ (compareZoomPercent / 100).toFixed(2) }}x</text>
+            <text class="compare-zoom-max" @tap="setCompareZoom(240)">MAX</text>
+          </view>
+          <slider
+            class="compare-slider compare-zoom-slider"
+            :value="compareZoomPercent"
+            :min="100"
+            :max="240"
+            :step="5"
+            activeColor="#0ea5e9"
+            backgroundColor="rgba(15,23,42,0.12)"
+            block-color="#ffffff"
+            :block-size="18"
+            @changing="onCompareZoomChange"
+            @change="onCompareZoomChange"
           />
         </view>
       </view>
@@ -171,13 +233,32 @@ const previewVisible = ref(false)
 const previewTab = ref('result')
 const previewResultImages = ref([])
 const previewOriginImages = ref([])
+const previewBeautifyImages = ref([])
 const previewCurrentIndex = ref(0)
 const compareVisible = ref(false)
+const compareMode = ref('tryon')
 const comparePercent = ref(50)
+const compareZoomPercent = ref(100)
 const compareStageWidthPx = ref(0)
-const compareOriginImage = ref('')
-const compareResultImage = ref('')
-const showDownloadAction = ref(false)
+const compareStageHeightPx = ref(0)
+const previewNativeOpening = ref(false)
+const h5ImagePreviewVisible = ref(false)
+const h5ImagePreviewList = ref([])
+const h5ImagePreviewCurrent = ref(0)
+const compareDragging = ref(false)
+const compareDragStartX = ref(0)
+const compareDragStartY = ref(0)
+const compareBaseOffsetX = ref(0)
+const compareBaseOffsetY = ref(0)
+const compareOffsetX = ref(0)
+const compareOffsetY = ref(0)
+const comparePinching = ref(false)
+const comparePinchStartDistance = ref(0)
+const comparePinchStartZoomPercent = ref(100)
+const comparePinchStartCenterX = ref(0)
+const comparePinchStartCenterY = ref(0)
+const comparePinchBaseOffsetX = ref(0)
+const comparePinchBaseOffsetY = ref(0)
 
 const getTaskKey = (item) => String(item?.taskNo || item?.requestID || '').trim()
 
@@ -200,16 +281,79 @@ const currentPreviewImages = computed(() => {
   if (previewTab.value === 'origin') {
     return previewOriginImages.value
   }
+  if (previewTab.value === 'beautify') {
+    return previewBeautifyImages.value
+  }
   return previewResultImages.value
 })
 
-const canComparePreview = computed(() => previewOriginImages.value.length > 0 && previewResultImages.value.length > 0)
-const compareButtonText = computed(() => `${$t.value('previewOriginTab')} ⇄ ${$t.value('previewResultTab')}`)
+const canCompareTryonPreview = computed(() => previewOriginImages.value.length > 0 && previewResultImages.value.length > 0)
+const canCompareBeautifyPreview = computed(() => previewResultImages.value.length > 0 && previewBeautifyImages.value.length > 0)
+const canComparePreview = computed(() => {
+  if (previewTab.value === 'beautify') {
+    return canCompareBeautifyPreview.value
+  }
+  return canCompareTryonPreview.value
+})
+const canDownloadPreview = computed(() => currentPreviewImages.value.length > 0)
+const compareButtonText = computed(() => {
+  if (previewTab.value === 'beautify') {
+    return $t.value('compareBeautifyButton')
+  }
+  return $t.value('compareImageButton')
+})
+const compareDialogTitle = computed(() => {
+  if (compareMode.value === 'beautify') {
+    return $t.value('compareBeautifyButton')
+  }
+  return $t.value('compareImageButton')
+})
+const compareOriginPreview = computed(() => {
+  if (compareMode.value === 'beautify') {
+    return previewResultImages.value[0] || ''
+  }
+  return previewOriginImages.value[0] || ''
+})
+const compareResultPreview = computed(() => {
+  if (compareMode.value === 'beautify') {
+    return previewBeautifyImages.value[0] || ''
+  }
+  return previewResultImages.value[0] || ''
+})
+const compareLeftLabel = computed(() => {
+  if (compareMode.value === 'beautify') {
+    return $t.value('tryonResultTab')
+  }
+  return $t.value('previewOriginTab')
+})
+const compareRightLabel = computed(() => {
+  if (compareMode.value === 'beautify') {
+    return $t.value('beautifyResultTab')
+  }
+  return $t.value('previewResultTab')
+})
+const compareZoomScale = computed(() => Math.max(1, Number(compareZoomPercent.value || 100) / 100))
+const comparePanRangeX = computed(() => {
+  const width = Number(compareStageWidthPx.value || 0)
+  if (width <= 0) return 0
+  return Math.max(0, ((compareZoomScale.value - 1) * width) / 2)
+})
+const comparePanRangeY = computed(() => {
+  const height = Number(compareStageHeightPx.value || 0)
+  if (height <= 0) return 0
+  return Math.max(0, ((compareZoomScale.value - 1) * height) / 2)
+})
+const compareImageStyle = computed(() => ({
+  transform: `translate3d(${compareOffsetX.value}px, ${compareOffsetY.value}px, 0) scale(${compareZoomScale.value})`,
+  transformOrigin: 'center center',
+}))
 const compareResultInnerStyle = computed(() => {
   const width = compareStageWidthPx.value > 0 ? `${compareStageWidthPx.value}px` : '100%'
   return {
     width,
     height: '100%',
+    transform: `translate3d(${compareOffsetX.value}px, ${compareOffsetY.value}px, 0) scale(${compareZoomScale.value})`,
+    transformOrigin: 'center center',
   }
 })
 
@@ -309,6 +453,28 @@ const uniqueImageList = (list) => {
     if (val) dedup.add(val)
   })
   return Array.from(dedup)
+}
+
+const thumbnailImage = (item) => {
+  const beautifyList = uniqueImageList(extractImageValues(item?.beautifyResult || item?.beautifyResultImage))
+  if (beautifyList.length) {
+    return getUrl(beautifyList[0])
+  }
+
+  const resultList = uniqueImageList(extractImageValues(item?.resultImage))
+  if (resultList.length) {
+    return getUrl(resultList[0])
+  }
+
+  const sourceList = uniqueImageList([
+    ...extractImageValues(item?.templateImage),
+    ...extractImageValues(item?.sourceImage),
+  ])
+  if (sourceList.length) {
+    return getUrl(sourceList[0])
+  }
+
+  return ''
 }
 
 const syncVisibleList = () => {
@@ -424,6 +590,10 @@ const loadMoreHistory = async () => {
 const switchPreviewTab = (tab) => {
   if (tab === 'result' && !previewResultImages.value.length) return
   if (tab === 'origin' && !previewOriginImages.value.length) return
+  if (tab === 'beautify' && !previewBeautifyImages.value.length) {
+    uni.showToast({ title: $t.value('tryonBeautifyEmptyHint'), icon: 'none' })
+    return
+  }
 
   previewTab.value = tab
   previewCurrentIndex.value = 0
@@ -434,22 +604,193 @@ const onPreviewSwiperChange = (e) => {
 }
 
 const closePreview = () => {
+  closeH5ImagePreview()
+  previewNativeOpening.value = false
   previewVisible.value = false
   previewCurrentIndex.value = 0
   previewResultImages.value = []
   previewOriginImages.value = []
+  previewBeautifyImages.value = []
   closeCompare()
 }
 
 const closeCompare = () => {
   compareVisible.value = false
   comparePercent.value = 50
-  compareOriginImage.value = ''
-  compareResultImage.value = ''
+  compareZoomPercent.value = 100
+  compareOffsetX.value = 0
+  compareOffsetY.value = 0
+  compareDragging.value = false
+  comparePinching.value = false
+  compareMode.value = 'tryon'
 }
 
 const onCompareSliderChange = (e) => {
   comparePercent.value = Math.max(0, Math.min(100, Number(e?.detail?.value ?? 50)))
+}
+
+const clampNumber = (value, min, max) => {
+  const numeric = Number(value || 0)
+  if (numeric < min) return min
+  if (numeric > max) return max
+  return numeric
+}
+
+const clampCompareOffset = (x, y) => {
+  compareOffsetX.value = clampNumber(x, -comparePanRangeX.value, comparePanRangeX.value)
+  compareOffsetY.value = clampNumber(y, -comparePanRangeY.value, comparePanRangeY.value)
+}
+
+const setCompareZoom = (value) => {
+  compareZoomPercent.value = Math.max(100, Math.min(240, Number(value || 100)))
+  if (compareZoomPercent.value <= 100) {
+    compareOffsetX.value = 0
+    compareOffsetY.value = 0
+    return
+  }
+  clampCompareOffset(compareOffsetX.value, compareOffsetY.value)
+}
+
+const onCompareZoomChange = (e) => {
+  setCompareZoom(e?.detail?.value)
+}
+
+const getTouchPoint = (event) => {
+  const touch = event?.touches?.[0] || event?.changedTouches?.[0]
+  if (!touch) return null
+  return {
+    x: Number(touch.clientX ?? touch.pageX ?? 0),
+    y: Number(touch.clientY ?? touch.pageY ?? 0),
+  }
+}
+
+const getTouchPoints = (event) => {
+  const touches = event?.touches || []
+  const points = []
+  const length = Math.min(2, touches.length || 0)
+  for (let i = 0; i < length; i += 1) {
+    const touch = touches[i]
+    points.push({
+      x: Number(touch?.clientX ?? touch?.pageX ?? 0),
+      y: Number(touch?.clientY ?? touch?.pageY ?? 0),
+    })
+  }
+  return points
+}
+
+const getTouchDistance = (p1, p2) => {
+  if (!p1 || !p2) return 0
+  return Math.hypot(p1.x - p2.x, p1.y - p2.y)
+}
+
+const getTouchCenter = (p1, p2) => {
+  if (!p1 || !p2) return null
+  return {
+    x: (p1.x + p2.x) / 2,
+    y: (p1.y + p2.y) / 2,
+  }
+}
+
+const startComparePinch = (event) => {
+  const points = getTouchPoints(event)
+  if (points.length < 2) return false
+
+  const distance = getTouchDistance(points[0], points[1])
+  if (!(distance > 0)) return false
+
+  const center = getTouchCenter(points[0], points[1])
+  if (!center) return false
+
+  comparePinching.value = true
+  compareDragging.value = false
+  comparePinchStartDistance.value = distance
+  comparePinchStartZoomPercent.value = compareZoomPercent.value
+  comparePinchStartCenterX.value = center.x
+  comparePinchStartCenterY.value = center.y
+  comparePinchBaseOffsetX.value = compareOffsetX.value
+  comparePinchBaseOffsetY.value = compareOffsetY.value
+  return true
+}
+
+const onCompareStageTouchStart = (event) => {
+  if (!compareVisible.value) return
+  if (startComparePinch(event)) return
+  if (comparePinching.value || compareZoomScale.value <= 1) return
+
+  const point = getTouchPoint(event)
+  if (!point) return
+
+  compareDragging.value = true
+  compareDragStartX.value = point.x
+  compareDragStartY.value = point.y
+  compareBaseOffsetX.value = compareOffsetX.value
+  compareBaseOffsetY.value = compareOffsetY.value
+}
+
+const onCompareStageTouchMove = (event) => {
+  if (!compareVisible.value) return
+
+  const points = getTouchPoints(event)
+  if (comparePinching.value && points.length >= 2) {
+    const distance = getTouchDistance(points[0], points[1])
+    if (!(distance > 0) || !(comparePinchStartDistance.value > 0)) return
+
+    const center = getTouchCenter(points[0], points[1])
+    const targetZoom = (comparePinchStartZoomPercent.value * distance) / comparePinchStartDistance.value
+    compareZoomPercent.value = Math.max(100, Math.min(240, targetZoom))
+
+    if (compareZoomPercent.value <= 100) {
+      compareOffsetX.value = 0
+      compareOffsetY.value = 0
+      return
+    }
+
+    if (center) {
+      const deltaX = center.x - comparePinchStartCenterX.value
+      const deltaY = center.y - comparePinchStartCenterY.value
+      clampCompareOffset(comparePinchBaseOffsetX.value + deltaX, comparePinchBaseOffsetY.value + deltaY)
+    }
+    return
+  }
+
+  if (points.length >= 2) {
+    startComparePinch(event)
+    return
+  }
+
+  if (!compareDragging.value || comparePinching.value || compareZoomScale.value <= 1) return
+
+  const point = getTouchPoint(event)
+  if (!point) return
+
+  const deltaX = point.x - compareDragStartX.value
+  const deltaY = point.y - compareDragStartY.value
+  clampCompareOffset(compareBaseOffsetX.value + deltaX, compareBaseOffsetY.value + deltaY)
+}
+
+const onCompareStageTouchEnd = (event) => {
+  const remainingTouches = Number(event?.touches?.length || 0)
+  if (remainingTouches >= 2) return
+
+  if (comparePinching.value && remainingTouches === 1) {
+    comparePinching.value = false
+    if (compareZoomScale.value > 1) {
+      const point = getTouchPoint(event)
+      if (point) {
+        compareDragging.value = true
+        compareDragStartX.value = point.x
+        compareDragStartY.value = point.y
+        compareBaseOffsetX.value = compareOffsetX.value
+        compareBaseOffsetY.value = compareOffsetY.value
+        return
+      }
+    }
+  }
+
+  if (remainingTouches === 0) {
+    comparePinching.value = false
+  }
+  compareDragging.value = false
 }
 
 const measureCompareStage = () => {
@@ -457,18 +798,53 @@ const measureCompareStage = () => {
     const query = uni.createSelectorQuery()
     query.select('.compare-stage').boundingClientRect((rect) => {
       compareStageWidthPx.value = Number(rect?.width || 0)
+      compareStageHeightPx.value = Number(rect?.height || 0)
     }).exec()
   })
 }
 
-const openCompareFromPreview = () => {
-  if (!canComparePreview.value) {
+const switchCompareMode = (mode) => {
+  if (mode === 'beautify') {
+    if (!canCompareBeautifyPreview.value) {
+      uni.showToast({ title: $t.value('tryonBeautifyCompareEmptyHint'), icon: 'none' })
+      return
+    }
+    compareMode.value = 'beautify'
+    return
+  }
+
+  if (!canCompareTryonPreview.value) {
     uni.showToast({ title: $t.value('noImagePreview'), icon: 'none' })
     return
   }
-  compareOriginImage.value = previewOriginImages.value[0] || ''
-  compareResultImage.value = previewResultImages.value[0] || ''
+  compareMode.value = 'tryon'
+}
+
+const openCompareFromPreview = () => {
+  let targetMode = previewTab.value === 'beautify' ? 'beautify' : 'tryon'
+  if (targetMode === 'beautify' && !canCompareBeautifyPreview.value) {
+    targetMode = 'tryon'
+  }
+  if (targetMode === 'tryon' && !canCompareTryonPreview.value) {
+    targetMode = 'beautify'
+  }
+
+  if (targetMode === 'beautify' && !canCompareBeautifyPreview.value) {
+    uni.showToast({ title: $t.value('tryonBeautifyCompareEmptyHint'), icon: 'none' })
+    return
+  }
+  if (targetMode === 'tryon' && !canCompareTryonPreview.value) {
+    uni.showToast({ title: $t.value('noImagePreview'), icon: 'none' })
+    return
+  }
+
+  compareMode.value = targetMode
   comparePercent.value = 50
+  compareZoomPercent.value = 100
+  compareOffsetX.value = 0
+  compareOffsetY.value = 0
+  compareDragging.value = false
+  comparePinching.value = false
   compareVisible.value = true
   measureCompareStage()
 }
@@ -483,9 +859,71 @@ const handleCardTap = (item) => {
   preview(item)
 }
 
+const hasBeautifyUsed = (item) => {
+  const status = String(item?.beautifyStatus || '').trim().toLowerCase()
+  if (status && status !== 'disabled') return true
+  if (String(item?.beautifyTaskNo || '').trim()) return true
+  if (String(item?.beautifyResult || '').trim()) return true
+  return false
+}
+
+const goBeautify = (item) => {
+  const taskID = Number(item?.ID || 0)
+  if (!taskID) {
+    uni.showToast({ title: $t.value('tryonTaskNotFound'), icon: 'none' })
+    return
+  }
+
+  const status = String(item?.status || '').trim().toLowerCase()
+  if (status !== 'success') {
+    uni.showToast({ title: $t.value('tryonTaskNotReadyForBeautify'), icon: 'none' })
+    return
+  }
+
+  if (hasBeautifyUsed(item)) {
+    uni.showToast({ title: $t.value('tryonBeautifyAlreadyUsedHint'), icon: 'none' })
+    return
+  }
+
+  uni.navigateTo({ url: `/pages/tryon/generate?taskID=${taskID}&autoBeautify=1` })
+}
+
 const currentPreviewImage = () => {
   const list = currentPreviewImages.value
   return list[previewCurrentIndex.value] || ''
+}
+
+const closeH5ImagePreview = () => {
+  h5ImagePreviewVisible.value = false
+  h5ImagePreviewCurrent.value = 0
+  h5ImagePreviewList.value = []
+}
+
+const downloadH5PreviewImage = (url) => {
+  const target = String(url || '').trim()
+  if (!target) {
+    uni.showToast({ title: $t.value('noImagePreview'), icon: 'none' })
+    return
+  }
+
+  const anchor = document.createElement('a')
+  anchor.href = target
+  anchor.target = '_blank'
+  anchor.rel = 'noopener'
+  anchor.download = `tryon-${Date.now()}`
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  uni.showToast({ title: $t.value('downloadStarted'), icon: 'none' })
+}
+
+const downloadH5PreviewCurrentImage = () => {
+  const target = h5ImagePreviewList.value[h5ImagePreviewCurrent.value] || ''
+  downloadH5PreviewImage(target)
+}
+
+const onH5ImagePreviewChange = (event) => {
+  h5ImagePreviewCurrent.value = Number(event?.detail?.current || 0)
 }
 
 const previewCurrentImageByIndex = (index) => {
@@ -499,9 +937,28 @@ const previewCurrentImageByIndex = (index) => {
   }
 
   const current = list[index] || list[previewCurrentIndex.value] || list[0]
+  if (previewNativeOpening.value) return
+
+  // #ifdef H5
+  h5ImagePreviewList.value = list
+  h5ImagePreviewCurrent.value = Math.max(0, list.findIndex(item => item === current))
+  h5ImagePreviewVisible.value = true
+  return
+  // #endif
+
+  previewNativeOpening.value = true
+
   uni.previewImage({
     urls: list,
     current,
+    // #ifdef H5
+    complete: () => {
+      previewNativeOpening.value = false
+    },
+    // #endif
+    fail: () => {
+      previewNativeOpening.value = false
+    },
   })
 }
 
@@ -627,20 +1084,28 @@ const removeHistory = (item) => {
 
 const preview = (item) => {
   const resultImages = uniqueImageList(extractImageValues(item.resultImage))
+  const beautifyImages = uniqueImageList(extractImageValues(item.beautifyResult || item.beautifyResultImage))
   const originImages = uniqueImageList([
     ...extractImageValues(item.sourceImage),
     ...extractImageValues(item.templateImage),
   ])
 
-  if (!resultImages.length && !originImages.length) {
+  if (!resultImages.length && !originImages.length && !beautifyImages.length) {
     uni.showToast({ title: $t.value('noImagePreview'), icon: 'none' })
     return
   }
 
   previewResultImages.value = resultImages
   previewOriginImages.value = originImages
-  previewTab.value = resultImages.length ? 'result' : 'origin'
+  previewBeautifyImages.value = beautifyImages
+  if (beautifyImages.length) {
+    previewTab.value = 'beautify'
+  } else {
+    previewTab.value = resultImages.length ? 'result' : 'origin'
+  }
   previewCurrentIndex.value = 0
+  compareMode.value = previewTab.value === 'beautify' ? 'beautify' : 'tryon'
+  previewNativeOpening.value = false
   previewVisible.value = true
 }
 
@@ -649,6 +1114,7 @@ const goBack = () => {
 }
 
 onShow(() => {
+  previewNativeOpening.value = false
   loadHistory(true)
 })
 </script>
@@ -731,9 +1197,13 @@ page {
 .thumb-wrap {
   width: 156rpx;
   height: 156rpx;
+  min-width: 156rpx;
   border-radius: 10rpx;
   overflow: hidden;
   background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .thumb {
@@ -793,21 +1263,24 @@ page {
   margin-top: 8rpx;
   display: flex;
   justify-content: flex-end;
+  gap: 10rpx;
 }
 
 .mini-btn {
   height: 42rpx;
   padding: 0 14rpx;
   border-radius: 999rpx;
-  border: 1rpx solid rgba(220, 38, 38, 0.25);
-  background: rgba(220, 38, 38, 0.1);
-  color: #b91c1c;
+  border: 1rpx solid rgba(37, 99, 235, 0.22);
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
   font-size: 20rpx;
   display: inline-flex;
   align-items: center;
 }
 
 .mini-btn.danger {
+  border-color: rgba(220, 38, 38, 0.25);
+  background: rgba(220, 38, 38, 0.1);
   color: #b91c1c;
 }
 
@@ -850,6 +1323,99 @@ page {
   align-items: center;
   justify-content: center;
   padding: 24rpx;
+}
+
+.preview-mask-passthrough {
+  pointer-events: none;
+  background: transparent;
+}
+
+.preview-mask-passthrough .preview-panel {
+  opacity: 0;
+}
+
+.h5-image-preview-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 2600;
+  background: rgba(0, 0, 0, 0.92);
+}
+
+.h5-image-preview-head {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--status-bar-height, 0px) + 12rpx);
+  z-index: 2;
+  height: 76rpx;
+  padding: 0 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.h5-image-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.h5-image-preview-save {
+  height: 48rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 20rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.h5-image-preview-index {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.h5-image-preview-close {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.h5-image-preview-swiper {
+  width: 100%;
+  height: 100%;
+}
+
+.h5-image-preview-wrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.h5-image-preview-img {
+  width: 100%;
+  height: 100%;
+}
+
+.h5-image-preview-tip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 36rpx;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 22rpx;
 }
 
 .preview-panel {
@@ -991,16 +1557,48 @@ page {
 }
 
 .compare-panel {
-  max-width: 720rpx;
+  width: calc(100vw - 32rpx);
+  max-width: 980rpx;
 }
 
 .compare-stage {
   margin: 12rpx 16rpx 0;
-  height: 700rpx;
+  height: 78vh;
+  min-height: 700rpx;
+  max-height: 1120rpx;
   border-radius: 12rpx;
   overflow: hidden;
   position: relative;
   background: #f8fafc;
+}
+
+.compare-mode-row {
+  margin: 12rpx 16rpx 0;
+  display: flex;
+  gap: 10rpx;
+}
+
+.compare-mode-tab {
+  flex: 1;
+  height: 56rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(15, 23, 42, 0.12);
+  color: rgba(15, 23, 42, 0.64);
+  background: rgba(15, 23, 42, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+}
+
+.compare-mode-tab.active {
+  color: #ffffff;
+  border-color: transparent;
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
+}
+
+.compare-mode-tab.disabled {
+  opacity: 0.5;
 }
 
 .compare-image {
@@ -1008,6 +1606,7 @@ page {
   inset: 0;
   width: 100%;
   height: 100%;
+  will-change: transform;
 }
 
 .compare-result-layer {
@@ -1023,11 +1622,6 @@ page {
 .compare-result-image {
   right: auto;
   bottom: auto;
-}
-
-.compare-image--zoom {
-  transform: scale(1.18);
-  transform-origin: center center;
 }
 
 .compare-divider {
@@ -1055,5 +1649,27 @@ page {
 
 .compare-slider {
   margin-top: 6rpx;
+}
+
+.compare-slider-label--zoom {
+  margin-top: 12rpx;
+  align-items: center;
+}
+
+.compare-zoom-max {
+  min-width: 72rpx;
+  height: 42rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(15, 23, 42, 0.16);
+  background: rgba(255, 255, 255, 0.95);
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+}
+
+.compare-zoom-slider {
+  margin-top: 4rpx;
 }
 </style>

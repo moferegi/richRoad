@@ -271,6 +271,23 @@
             </view>
           </view>
 
+          <view class="upload-section" v-if="isClothDrawer && drawerTab === 'myCloset'">
+            <view v-if="filteredMyClothList.length === 0" class="drawer-empty">
+              <text>{{ $t('myClosetEmpty') }}</text>
+            </view>
+            <view v-else class="example-grid three">
+              <view
+                v-for="item in filteredMyClothList"
+                :key="item.id"
+                class="example-card"
+                @tap="applyMyCloth(item)"
+              >
+                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <text class="example-label">{{ item.name || myClothDisplayName(item.category) }}</text>
+              </view>
+            </view>
+          </view>
+
           <view class="upload-section" v-if="isClothDrawer && drawerTab === 'recommended'">
             <view v-for="group in clothRecommendedGroups" :key="group.key" class="recommend-group">
               <text class="group-title">{{ group.title }}</text>
@@ -367,7 +384,7 @@ import AnnouncementMarquee from '@/components/announcement-marquee/announcement-
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { getTryonConfig, getDefaultDomain, getAnnouncementConfig } from '@/api/sysConfig.js'
-import { getMyTryonModelList } from '@/api/tryonTask.js'
+import { getMyTryonModelList, getMyTryonClothList } from '@/api/tryonTask.js'
 import { getUrl } from '@/utils/url.js'
 import { localText, resolveApiMessage } from '@/utils/i18n.js'
 import LazyImage from '@/components/lazy-image/lazy-image.vue'
@@ -378,6 +395,7 @@ import {
   clearSelectedClothes,
   getSelectedTryonModel,
   clearSelectedTryonModel,
+  parseTryonBeautifyModels,
   parseTryonModels,
   uploadTryonImage,
 } from '@/utils/tryon.js'
@@ -396,6 +414,7 @@ const drawerTab = ref('custom')
 const selectedModelKey = ref('')
 const modelList = ref([])
 const myModelList = ref([])
+const myClothList = ref([])
 const defaultExternalDomain = ref('')
 const exampleImageFailIndex = ref({})
 const announcementConfig = ref({
@@ -1207,6 +1226,24 @@ const clothRecommendedGroups = computed(() => {
   ]
 })
 
+const myClothDisplayName = (category) => {
+  if (category === 'upper') return $t.value('clothCategoryUpper')
+  if (category === 'lower') return $t.value('clothCategoryLower')
+  if (category === 'onepiece') return $t.value('clothCategoryOnepiece')
+  if (category === 'shoes') return $t.value('clothCategoryShoes')
+  return $t.value('myCloset')
+}
+
+const filteredMyClothList = computed(() => {
+  if (uploadTarget.value === 'upper') {
+    return myClothList.value.filter(item => item.category === 'upper' || item.category === 'onepiece')
+  }
+  if (uploadTarget.value === 'lower') {
+    return myClothList.value.filter(item => item.category === 'lower')
+  }
+  return []
+})
+
 const uploadSceneKey = computed(() => {
   return uploadTarget.value || 'person'
 })
@@ -1225,6 +1262,7 @@ const drawerTabs = computed(() => {
 
   return [
     { key: 'custom', labelKey: 'drawerTabCustomUpload' },
+    { key: 'myCloset', labelKey: 'drawerTabMyCloset' },
     { key: 'recommended', labelKey: 'drawerTabRecommended' },
   ]
 })
@@ -1261,6 +1299,41 @@ const rebuildModelList = () => {
   }
 }
 
+const resolveDraftBeautifyMeta = () => {
+  const beautifyModels = parseTryonBeautifyModels(
+    tryonConfig.value.tryon_models,
+    activeSceneType.value,
+    Number(tryonConfig.value.tryon_cost_points || 0),
+    langStore.locale
+  )
+
+  const selectedBeautifyModel = beautifyModels[0] || null
+
+  if (selectedBeautifyModel) {
+    return {
+      supportsBeautify: true,
+      beautifyModelKey: String(selectedBeautifyModel.key || ''),
+      beautifyModel: String(selectedBeautifyModel.beautifyModel || 'RetouchSkin'),
+      beautifyExtraCost: Math.max(0, Number(selectedBeautifyModel.beautifyExtraCost || 0)),
+      beautifyRetouchDegree: Number(selectedBeautifyModel.beautifyRetouchDegree || 70),
+      beautifyWhiteningDegree: Number(selectedBeautifyModel.beautifyWhiteningDegree || 30),
+      beautifyDesc: selectedBeautifyModel.beautifyDesc || '',
+      beautifyDescText: selectedBeautifyModel.beautifyDescText || '',
+    }
+  }
+
+  return {
+    supportsBeautify: false,
+    beautifyModelKey: '',
+    beautifyModel: 'custom_beautify',
+    beautifyExtraCost: 0,
+    beautifyRetouchDegree: 70,
+    beautifyWhiteningDegree: 30,
+    beautifyDesc: '',
+    beautifyDescText: '',
+  }
+}
+
 const assignImageToTarget = (target, value, isRemote = false, sizeBytes = 0) => {
   const localPath = isRemote ? '' : value
   const remotePath = isRemote ? value : ''
@@ -1291,6 +1364,18 @@ const normalizeMyModelItem = (item) => {
   }
 }
 
+const normalizeMyClothItem = (item) => {
+  const id = item?.ID || item?.id || ''
+  const rawUrl = item?.image || item?.url || ''
+  const category = String(item?.category || item?.Category || '').trim().toLowerCase()
+  return {
+    id: String(id),
+    name: item?.name || '',
+    category,
+    url: getUrl(rawUrl),
+  }
+}
+
 const loadMyModelList = async () => {
   try {
     const res = await getMyTryonModelList()
@@ -1299,6 +1384,19 @@ const loadMyModelList = async () => {
     myModelList.value = list.map(normalizeMyModelItem).filter(item => item.id && item.url)
   } catch (e) {
     myModelList.value = []
+  }
+}
+
+const loadMyClothList = async () => {
+  try {
+    const res = await getMyTryonClothList()
+    if (res.code !== 0) return
+    const list = Array.isArray(res?.data?.list) ? res.data.list : []
+    myClothList.value = list
+      .map(normalizeMyClothItem)
+      .filter(item => item.id && item.url && ['upper', 'lower', 'onepiece', 'shoes'].includes(item.category))
+  } catch (e) {
+    myClothList.value = []
   }
 }
 
@@ -1376,6 +1474,8 @@ const openUploadDrawer = (target) => {
   showUploadDrawer.value = true
   if (target === 'person') {
     loadMyModelList()
+  } else if (target === 'upper' || target === 'lower') {
+    loadMyClothList()
   }
 }
 
@@ -1408,6 +1508,13 @@ const applyRemoteExample = (item) => {
 const applyMyModel = (item) => {
   if (!item?.url) return
   assignImageToTarget('person', item.url, true)
+  showUploadDrawer.value = false
+  uni.showToast({ title: $t.value('autoFillApplied'), icon: 'none' })
+}
+
+const applyMyCloth = (item) => {
+  if (!item?.url || !uploadTarget.value) return
+  assignImageToTarget(uploadTarget.value, item.url, true)
   showUploadDrawer.value = false
   uni.showToast({ title: $t.value('autoFillApplied'), icon: 'none' })
 }
@@ -1490,8 +1597,22 @@ const goGenerate = () => {
     return
   }
 
-  let templateRemoteUrl = upperRemote.value || lowerRemote.value
-  let templateLocalPath = upperLocal.value || lowerLocal.value
+  const hasUpperTemplate = !!(upperRemote.value || upperLocal.value)
+  const hasLowerTemplate = !!(lowerRemote.value || lowerLocal.value)
+  let templatePart = ''
+  if (hasUpperTemplate && !hasLowerTemplate) {
+    templatePart = 'upper'
+  } else if (hasLowerTemplate && !hasUpperTemplate) {
+    templatePart = 'lower'
+  }
+
+  let templateRemoteUrl = templatePart === 'lower' ? lowerRemote.value : upperRemote.value
+  let templateLocalPath = templatePart === 'lower' ? lowerLocal.value : upperLocal.value
+
+  if (!templateRemoteUrl && !templateLocalPath) {
+    templateRemoteUrl = upperRemote.value || lowerRemote.value
+    templateLocalPath = upperLocal.value || lowerLocal.value
+  }
 
   if (!templateRemoteUrl && !templateLocalPath) {
     uni.showToast({ title: $t.value('uploadClothesFirst'), icon: 'none' })
@@ -1500,10 +1621,12 @@ const goGenerate = () => {
 
   const sourceUploadFolder = 'cloth-on/uni-up'
   const templateUploadFolder = 'cloth-on/uni-up'
+  const beautifyMeta = resolveDraftBeautifyMeta()
 
   saveTryonDraft({
     roomType: 'tryon',
     sceneType: 'clothes',
+    templatePart,
     operationType: 'tryon',
     sourceLocalPath: personLocal.value,
     sourceRemoteUrl: personRemote.value,
@@ -1518,6 +1641,14 @@ const goGenerate = () => {
     modelCost: currentCost.value,
     enableRefiner: currentModelSupportsRefiner.value && refinerEnabled.value,
     refinerModel: String(currentModel.value.refinerModel || 'aitryon-refiner'),
+    supportsBeautify: !!beautifyMeta.supportsBeautify,
+    beautifyModelKey: String(beautifyMeta.beautifyModelKey || ''),
+    beautifyModel: String(beautifyMeta.beautifyModel || 'RetouchSkin'),
+    beautifyExtraCost: Math.max(0, Number(beautifyMeta.beautifyExtraCost || 0)),
+    beautifyRetouchDegree: Number(beautifyMeta.beautifyRetouchDegree || 70),
+    beautifyWhiteningDegree: Number(beautifyMeta.beautifyWhiteningDegree || 30),
+    beautifyDesc: beautifyMeta.beautifyDesc || '',
+    beautifyDescText: beautifyMeta.beautifyDescText || '',
     requestID: createTryonRequestId(),
   })
 
@@ -1537,12 +1668,19 @@ watch([isPersonDrawer, drawerTab], ([isPerson, tab]) => {
   }
 })
 
+watch([isClothDrawer, drawerTab], ([isCloth, tab]) => {
+  if (isCloth && tab === 'myCloset') {
+    loadMyClothList()
+  }
+})
+
 onShow(() => {
   appConfigStore.loadConfig()
   loadExampleDomain()
   loadAnnouncement()
   loadConfig()
   loadMyModelList()
+  loadMyClothList()
   applySelectedModel()
   applySelectedClothes()
 })

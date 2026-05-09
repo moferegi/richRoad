@@ -15,6 +15,7 @@ func (s *TryonTaskRouter) InitTryonTaskRouter(Router *gin.RouterGroup, PublicRou
 	var tryonTaskApi = v1.ApiGroupApp.ClientApiGroup.TryonTaskApi
 	{
 		tryonTaskRouter.POST("createTryonTask", tryonTaskApi.CreateTryonTask)             // 创建试衣任务
+		tryonTaskRouter.POST("applyTryonBeautify", tryonTaskApi.ApplyTryonBeautify)       // 对试衣结果执行智能美肤
 		tryonTaskRouter.DELETE("deleteTryonTask", tryonTaskApi.DeleteTryonTask)           // 删除试衣任务(管理端)
 		tryonTaskRouter.DELETE("deleteTryonTaskByIds", tryonTaskApi.DeleteTryonTaskByIds) // 批量删除试衣任务(管理端)
 		tryonTaskRouter.DELETE("deleteMyTryonTask", tryonTaskApi.DeleteMyTryonTask)       // 删除我的试衣任务(客户端)

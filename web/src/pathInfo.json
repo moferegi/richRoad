@@ -11,6 +11,7 @@
   "/src/view/client/pointRecord/pointRecord.vue": "PointRecord",
   "/src/view/client/signIn/signIn.vue": "SignInManage",
   "/src/view/client/sysConfig/sysConfig.vue": "SysConfig",
+  "/src/view/client/tryonCloth/tryonCloth.vue": "TryonClothManage",
   "/src/view/client/tryonModel/tryonModel.vue": "TryonModelManage",
   "/src/view/client/tryonPointRecord/tryonPointRecord.vue": "TryonPointRecord",
   "/src/view/client/tryonRechargeOrder/tryonRechargeOrder.vue": "TryonRechargeOrder",

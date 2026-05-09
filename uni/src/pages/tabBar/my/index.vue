@@ -85,6 +85,10 @@
           <text class="menu-text">{{ $t('myModels') }}</text>
           <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
         </view>
+        <view class="menu-item" @tap="goMyCloth">
+          <text class="menu-text">{{ $t('myCloset') }}</text>
+          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
+        </view>
         <view class="menu-item" @tap="goUseRecord">
           <text class="menu-text">{{ $t('browseHistory') }}</text>
           <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
@@ -446,6 +450,10 @@ const goCollect = () => {
 
 const goMyModel = () => {
   uni.navigateTo({ url: '/pages/myModel/index' })
+}
+
+const goMyCloth = () => {
+  uni.navigateTo({ url: '/pages/myCloth/index' })
 }
 
 const goUseRecord = () => {

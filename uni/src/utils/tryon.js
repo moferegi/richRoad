@@ -175,7 +175,17 @@ const toBool = (value, fallback = false) => {
   return fallback
 }
 
+const normalizeModelUsage = (value) => {
+  const usage = String(value || '').trim().toLowerCase()
+  return usage === 'beautify' ? 'beautify' : 'tryon'
+}
+
+const isBeautifyModelUsage = (item = {}) => normalizeModelUsage(item?.modelUsage) === 'beautify'
+
+const isTryonModelUsage = (item = {}) => !isBeautifyModelUsage(item)
+
 const isAliyunTryonModel = (item = {}) => {
+  if (!isTryonModelUsage(item)) return false
   const provider = String(item.provider || '').trim().toLowerCase()
   const key = String(item.key || item.modelKey || '').trim().toLowerCase()
   const model = String(item.model || '').trim().toLowerCase()
@@ -189,6 +199,15 @@ const inferSupportsRefiner = (item = {}) => {
   const model = String(item.model || '').trim().toLowerCase()
   const key = String(item.key || item.modelKey || '').trim().toLowerCase()
   return model === 'aitryon' || model === 'aitryon-plus' || key.includes('aliyun_aitryon') || key.includes('aliyun_aitryon_plus')
+}
+
+const inferSupportsBeautify = (item = {}) => {
+  if (isBeautifyModelUsage(item)) return true
+  if (!isAliyunTryonModel(item)) return false
+  if (item.beautifyModel || item.beautifyUrl || item.beautifyToken || item.beautifyAccessKeyId) {
+    return true
+  }
+  return false
 }
 
 const normalizeRefinerGender = (value, fallback = 'woman') => {
@@ -210,52 +229,71 @@ const matchSceneType = (item, sceneType) => {
   return String(sceneTypeVal).trim().toLowerCase() === scene
 }
 
-export const parseTryonModels = (modelsRaw, sceneType, fallbackCost = 1, lang = '') => {
-  let list = []
+const parseTryonModelsRaw = (modelsRaw) => {
   if (Array.isArray(modelsRaw)) {
-    list = modelsRaw
-  } else if (typeof modelsRaw === 'string' && modelsRaw.trim()) {
+    return modelsRaw
+  }
+  if (typeof modelsRaw === 'string' && modelsRaw.trim()) {
     try {
       const parsed = JSON.parse(modelsRaw)
       if (Array.isArray(parsed)) {
-        list = parsed
+        return parsed
       }
     } catch (e) {
-      list = []
+      return []
     }
   }
+  return []
+}
+
+const normalizeTryonModelItem = (item = {}, index = 0, fallbackCost = 1, lang = '') => {
+  const key = String(item.key || item.modelKey || `model_${index + 1}`)
+  const rawName = item.nameI18n || item.name || item.titleI18n || item.title || key
+  const rawDesc = item.descI18n || item.desc || item.descriptionI18n || item.description || ''
+  const rawRefinerDesc = item.refinerDescI18n || item.refinerDesc || ''
+  const rawBeautifyDesc = item.beautifyDescI18n || item.beautifyDesc || ''
+  const supportsRefiner = toBool(item.supportsRefiner, inferSupportsRefiner(item))
+  const supportsBeautify = toBool(item.supportsBeautify, inferSupportsBeautify(item))
+  const refinerExtraCost = Math.max(0, Number(item.refinerExtraCost || item.refinerExtraPoints || 0))
+  const beautifyExtraCost = Math.max(0, Number(item.beautifyExtraCost || item.beautifyExtraPoints || 0))
+
+  return {
+    key,
+    modelUsage: 'tryon',
+    beautifyModelKey: String(item.beautifyModelKey || ''),
+    name: toLocalizedText(rawName, lang) || key,
+    cost: Number(item.cost || fallbackCost || 1),
+    desc: rawDesc,
+    descText: toLocalizedText(rawDesc, lang),
+    provider: item.provider || '',
+    mode: item.mode || '',
+    url: item.url || item.providerUrl || '',
+    token: item.token || item.providerToken || '',
+    supportsRefiner,
+    refinerExtraCost,
+    refinerModel: String(item.refinerModel || 'aitryon-refiner'),
+    refinerGender: normalizeRefinerGender(item.refinerGender, 'woman'),
+    refinerDesc: rawRefinerDesc,
+    refinerDescText: toLocalizedText(rawRefinerDesc, lang),
+    supportsBeautify,
+    beautifyModel: String(item.beautifyModel || 'RetouchSkin'),
+    beautifyExtraCost,
+    beautifyRetouchDegree: Number(item.beautifyRetouchDegree || 70),
+    beautifyWhiteningDegree: Number(item.beautifyWhiteningDegree || 30),
+    beautifyDesc: rawBeautifyDesc,
+    beautifyDescText: toLocalizedText(rawBeautifyDesc, lang),
+    freeQuotaTotal: Math.max(0, Number(item.freeQuotaTotal || 0)),
+  }
+}
+
+export const parseTryonModels = (modelsRaw, sceneType, fallbackCost = 1, lang = '') => {
+  const list = parseTryonModelsRaw(modelsRaw)
 
   const normalized = list
     .filter(item => item && typeof item === 'object')
+    .filter(item => isTryonModelUsage(item))
     .filter(item => isModelEnabled(item) && matchSceneType(item, sceneType))
-    .map((item, index) => {
-      const key = String(item.key || item.modelKey || `model_${index + 1}`)
-
-      const rawName = item.nameI18n || item.name || item.titleI18n || item.title || key
-      const rawDesc = item.descI18n || item.desc || item.descriptionI18n || item.description || ''
-      const rawRefinerDesc = item.refinerDescI18n || item.refinerDesc || ''
-      const supportsRefiner = toBool(item.supportsRefiner, inferSupportsRefiner(item))
-      const refinerExtraCost = Math.max(0, Number(item.refinerExtraCost || item.refinerExtraPoints || 0))
-
-      return {
-        key,
-        name: toLocalizedText(rawName, lang) || key,
-        cost: Number(item.cost || fallbackCost || 1),
-        desc: rawDesc,
-        descText: toLocalizedText(rawDesc, lang),
-        provider: item.provider || '',
-        mode: item.mode || '',
-        url: item.url || item.providerUrl || '',
-        token: item.token || item.providerToken || '',
-        supportsRefiner,
-        refinerExtraCost,
-        refinerModel: String(item.refinerModel || 'aitryon-refiner'),
-        refinerGender: normalizeRefinerGender(item.refinerGender, 'woman'),
-        refinerDesc: rawRefinerDesc,
-        refinerDescText: toLocalizedText(rawRefinerDesc, lang),
-        freeQuotaTotal: Math.max(0, Number(item.freeQuotaTotal || 0)),
-      }
-    })
+    .map((item, index) => normalizeTryonModelItem(item, index, fallbackCost, lang))
 
   if (normalized.length > 0) {
     return normalized
@@ -263,12 +301,19 @@ export const parseTryonModels = (modelsRaw, sceneType, fallbackCost = 1, lang = 
 
   return [{
     key: 'aitryon',
+    modelUsage: 'tryon',
+    beautifyModelKey: '',
     name: 'aitryon',
     cost: Number(fallbackCost || 1),
     supportsRefiner: true,
     refinerExtraCost: 1,
     refinerModel: 'aitryon-refiner',
     refinerGender: 'woman',
+    supportsBeautify: false,
+    beautifyModel: 'RetouchSkin',
+    beautifyExtraCost: 0,
+    beautifyRetouchDegree: 70,
+    beautifyWhiteningDegree: 30,
     desc: {
       en: 'Default AI try-on model for common try-on scenes',
       zh: 'Default AI try-on model for common try-on scenes',
@@ -279,4 +324,41 @@ export const parseTryonModels = (modelsRaw, sceneType, fallbackCost = 1, lang = 
       id: 'Default AI try-on model for common try-on scenes',
     },
   }]
+}
+
+const normalizeBeautifyModelItem = (item = {}, index = 0, fallbackCost = 0, lang = '') => {
+  const key = String(item.key || item.modelKey || `beautify_${index + 1}`)
+  const rawName = item.nameI18n || item.name || item.titleI18n || item.title || key
+  const rawDesc = item.beautifyDescI18n || item.beautifyDesc || item.descI18n || item.desc || ''
+  const beautifyModel = String(item.beautifyModel || item.model || 'RetouchSkin')
+  const beautifyExtraCost = Math.max(0, Number(item.beautifyExtraCost || item.beautifyExtraPoints || item.cost || fallbackCost || 0))
+
+  return {
+    key,
+    modelUsage: 'beautify',
+    name: toLocalizedText(rawName, lang) || key,
+    supportsBeautify: true,
+    beautifyModelKey: key,
+    beautifyModel,
+    beautifyExtraCost,
+    beautifyRetouchDegree: Number(item.beautifyRetouchDegree || 70),
+    beautifyWhiteningDegree: Number(item.beautifyWhiteningDegree || 30),
+    beautifyDesc: rawDesc,
+    beautifyDescText: toLocalizedText(rawDesc, lang),
+    provider: item.provider || '',
+    mode: item.mode || '',
+    url: item.beautifyUrl || item.url || item.providerUrl || '',
+    token: item.beautifyToken || item.token || item.providerToken || '',
+  }
+}
+
+export const parseTryonBeautifyModels = (modelsRaw, sceneType, fallbackCost = 0, lang = '') => {
+  const list = parseTryonModelsRaw(modelsRaw)
+  const normalizedList = list
+    .filter(item => item && typeof item === 'object')
+    .filter(item => isModelEnabled(item) && matchSceneType(item, sceneType))
+
+  return normalizedList
+    .filter(item => isBeautifyModelUsage(item))
+    .map((item, index) => normalizeBeautifyModelItem(item, index, fallbackCost, lang))
 }

@@ -10,6 +10,7 @@ type RouterGroup struct {
 	TryonRechargeOrderRouter
 	TryonTaskRouter
 	TryonModelRouter
+	TryonClothRouter
 	VisitorRouter
 	SysConfigRouter
 	LanguageRouter

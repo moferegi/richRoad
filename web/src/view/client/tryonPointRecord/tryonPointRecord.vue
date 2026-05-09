@@ -39,7 +39,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="操作类型" prop="operationType">
-          <el-input v-model="searchInfo.operationType" clearable placeholder="如 tryon_consume" />
+          <el-input v-model="searchInfo.operationType" clearable placeholder="如 tryon_consume / tryon_beautify_consume" />
         </el-form-item>
         <el-form-item label="原因" prop="reason">
           <el-input v-model="searchInfo.reason" clearable placeholder="搜索原因" />
@@ -112,6 +112,8 @@
             <el-card shadow="hover" class="stats-card"><div class="stats-label">已使用试衣币</div><div class="stats-value">{{ stats.totalUsed }}</div></el-card>
             <el-card shadow="hover" class="stats-card"><div class="stats-label">模型调用总次数</div><div class="stats-value">{{ stats.modelCallTotal }}</div></el-card>
             <el-card shadow="hover" class="stats-card"><div class="stats-label">模型总消耗试衣币</div><div class="stats-value">{{ stats.modelCostTotal }}</div></el-card>
+            <el-card shadow="hover" class="stats-card"><div class="stats-label">美肤使用次数</div><div class="stats-value">{{ stats.beautifyUsedTotal }}</div></el-card>
+            <el-card shadow="hover" class="stats-card"><div class="stats-label">美肤总消耗试衣币</div><div class="stats-value">{{ stats.beautifyCostTotal }}</div></el-card>
           </div>
 
           <div class="chart-grid">
@@ -137,7 +139,9 @@
               <el-table-column label="模型" prop="modelKey" min-width="180" />
               <el-table-column label="调用次数" prop="taskCount" width="130" />
               <el-table-column label="开启精修次数" prop="refinerEnabledCount" width="150" />
+              <el-table-column label="美肤使用次数" prop="beautifyUsedCount" width="150" />
               <el-table-column label="总消耗试衣币" prop="totalCostPoints" width="150" />
+              <el-table-column label="美肤消耗试衣币" prop="beautifyCostPoints" width="150" />
             </el-table>
           </el-card>
         </template>
@@ -173,8 +177,10 @@ const stats = ref({
   adminDecreaseTotal: 0,
   totalGranted: 0,
   totalUsed: 0,
+  beautifyUsedTotal: 0,
   modelCallTotal: 0,
   modelCostTotal: 0,
+  beautifyCostTotal: 0,
   modelStats: [],
 })
 const searchInfo = ref({ assetType: 'tryon_point', sort: 'created_at', order: 'descending' })
@@ -249,7 +255,9 @@ const getStatsData = async () => {
           modelKey: formatModelKey(item.modelKey),
           taskCount: Number(item.taskCount || 0),
           refinerEnabledCount: Number(item.refinerEnabledCount || 0),
+          beautifyUsedCount: Number(item.beautifyUsedCount || 0),
           totalCostPoints: Number(item.totalCostPoints || 0),
+          beautifyCostPoints: Number(item.beautifyCostPoints || 0),
         }))
         : []
       stats.value = {
@@ -260,8 +268,10 @@ const getStatsData = async () => {
         adminDecreaseTotal: Number(res.data?.adminDecreaseTotal || 0),
         totalGranted: Number(res.data?.totalGranted || 0),
         totalUsed: Number(res.data?.totalUsed || 0),
+        beautifyUsedTotal: Number(res.data?.beautifyUsedTotal || 0),
         modelCallTotal: Number(res.data?.modelCallTotal || 0),
         modelCostTotal: Number(res.data?.modelCostTotal || 0),
+        beautifyCostTotal: Number(res.data?.beautifyCostTotal || 0),
         modelStats,
       }
       await nextTick()

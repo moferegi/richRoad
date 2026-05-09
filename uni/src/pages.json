@@ -353,6 +353,16 @@
 			}
 		},
 		{
+			"path": "pages/myCloth/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#000",
+				"navigationBarTextStyle": "white",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
 			"path": "pages/cart/index",
 			"style": {
 				"navigationStyle": "custom",

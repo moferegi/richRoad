@@ -4,7 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha1"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -16,6 +19,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -45,21 +49,33 @@ const (
 	tryonRefinerStatusSuccess    = "success"
 	tryonRefinerStatusFailed     = "failed"
 
-	tryonOpConsume        = "tryon_consume"
-	tryonOpRefund         = "tryon_refund"
-	tryonOpGuestInit      = "tryon_guest_init"
-	tryonOpRegisterReward = "tryon_register_reward"
-	tryonOpInviteReward   = "tryon_invite_register_reward"
+	tryonBeautifyStatusDisabled   = "disabled"
+	tryonBeautifyStatusProcessing = "processing"
+	tryonBeautifyStatusSuccess    = "success"
+	tryonBeautifyStatusFailed     = "failed"
 
-	tryonReasonTaskDeduct   = "reason_tryonTaskDeduct"
-	tryonReasonTaskRefund   = "reason_tryonTaskRefund"
-	tryonReasonGuestInit    = "reason_tryonGuestInit"
-	tryonReasonRegister     = "reason_tryonRegisterReward"
-	tryonReasonInviteReward = "reason_tryonInviteReward"
+	tryonOpConsume         = "tryon_consume"
+	tryonOpRefund          = "tryon_refund"
+	tryonOpBeautifyConsume = "tryon_beautify_consume"
+	tryonOpBeautifyRefund  = "tryon_beautify_refund"
+	tryonOpGuestInit       = "tryon_guest_init"
+	tryonOpRegisterReward  = "tryon_register_reward"
+	tryonOpInviteReward    = "tryon_invite_register_reward"
+
+	tryonReasonTaskDeduct     = "reason_tryonTaskDeduct"
+	tryonReasonTaskRefund     = "reason_tryonTaskRefund"
+	tryonReasonBeautifyDeduct = "reason_tryonBeautifyDeduct"
+	tryonReasonBeautifyRefund = "reason_tryonBeautifyRefund"
+	tryonReasonGuestInit      = "reason_tryonGuestInit"
+	tryonReasonRegister       = "reason_tryonRegisterReward"
+	tryonReasonInviteReward   = "reason_tryonInviteReward"
 
 	aliyunTryonSynthesisURL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis"
 	aliyunParsingProcessURL = "https://dashscope.aliyuncs.com/api/v1/services/vision/image-process/process"
 	aliyunTryonRefinerModel = "aitryon-refiner"
+	aliyunRetouchSkinURL    = "https://facebody.cn-shanghai.aliyuncs.com/"
+	aliyunRetouchSkinAction = "RetouchSkin"
+	aliyunRetouchSkinVer    = "2019-12-30"
 
 	tryonResultStoreFolder   = "cloth-on/uni-get"
 	tryonResultMaxImageBytes = 25 * 1024 * 1024
@@ -237,37 +253,53 @@ type TryonTaskStatsData struct {
 }
 
 type tryonModelConfig struct {
-	Key                   string   `json:"key"`
-	Enabled               *bool    `json:"enabled"`
-	SupportsRefiner       *bool    `json:"supportsRefiner"`
-	SceneType             string   `json:"sceneType"`
-	Scenes                []string `json:"scenes"`
-	Model                 string   `json:"model"`
-	Cost                  int      `json:"cost"`
-	Provider              string   `json:"provider"`
-	Mode                  string   `json:"mode"`
-	URL                   string   `json:"url"`
-	Token                 string   `json:"token"`
-	ProviderURL           string   `json:"providerUrl"`
-	ProviderToken         string   `json:"providerToken"`
-	TaskQueryURL          string   `json:"taskQueryUrl"`
-	FreeQuotaTotal        int      `json:"freeQuotaTotal"`
-	RefinerFreeQuotaTotal int      `json:"refinerFreeQuotaTotal"`
-	RefinerModel          string   `json:"refinerModel"`
-	RefinerExtraCost      int      `json:"refinerExtraCost"`
-	RefinerURL            string   `json:"refinerUrl"`
-	RefinerToken          string   `json:"refinerToken"`
-	RefinerTaskQueryURL   string   `json:"refinerTaskQueryUrl"`
-	RefinerGender         string   `json:"refinerGender"`
-	ApiName               string   `json:"apiName"`
-	GarmentDes            string   `json:"garmentDes"`
-	IsChecked             *bool    `json:"isChecked"`
-	IsCheckedCrop         *bool    `json:"isCheckedCrop"`
-	DenoiseSteps          int      `json:"denoiseSteps"`
-	Seed                  int      `json:"seed"`
-	Resolution            int      `json:"resolution"`
-	RestoreFace           *bool    `json:"restoreFace"`
-	ClothesType           []string `json:"clothesType"`
+	Key                              string   `json:"key"`
+	ModelUsage                       string   `json:"modelUsage"`
+	BeautifyModelKey                 string   `json:"beautifyModelKey"`
+	Enabled                          *bool    `json:"enabled"`
+	SupportsRefiner                  *bool    `json:"supportsRefiner"`
+	SupportsBeautify                 *bool    `json:"supportsBeautify"`
+	SceneType                        string   `json:"sceneType"`
+	Scenes                           []string `json:"scenes"`
+	Model                            string   `json:"model"`
+	Cost                             int      `json:"cost"`
+	Provider                         string   `json:"provider"`
+	Mode                             string   `json:"mode"`
+	URL                              string   `json:"url"`
+	Token                            string   `json:"token"`
+	ProviderURL                      string   `json:"providerUrl"`
+	ProviderToken                    string   `json:"providerToken"`
+	TaskQueryURL                     string   `json:"taskQueryUrl"`
+	FreeQuotaTotal                   int      `json:"freeQuotaTotal"`
+	RefinerFreeQuotaTotal            int      `json:"refinerFreeQuotaTotal"`
+	RefinerModel                     string   `json:"refinerModel"`
+	RefinerExtraCost                 int      `json:"refinerExtraCost"`
+	RefinerExtraPoints               int      `json:"refinerExtraPoints"`
+	RefinerURL                       string   `json:"refinerUrl"`
+	RefinerToken                     string   `json:"refinerToken"`
+	RefinerTaskQueryURL              string   `json:"refinerTaskQueryUrl"`
+	BeautifyModel                    string   `json:"beautifyModel"`
+	BeautifyExtraCost                int      `json:"beautifyExtraCost"`
+	BeautifyExtraPoints              int      `json:"beautifyExtraPoints"`
+	BeautifyURL                      string   `json:"beautifyUrl"`
+	BeautifyToken                    string   `json:"beautifyToken"`
+	BeautifyAccessKeyID              string   `json:"beautifyAccessKeyId"`
+	BeautifyAccessKeySec             string   `json:"beautifyAccessKeySecret"`
+	BeautifySecurityToken            string   `json:"beautifySecurityToken"`
+	BeautifyRetouch                  float64  `json:"beautifyRetouchDegree"`
+	BeautifyWhitening                float64  `json:"beautifyWhiteningDegree"`
+	RefinerGender                    string   `json:"refinerGender"`
+	ApiName                          string   `json:"apiName"`
+	GarmentDes                       string   `json:"garmentDes"`
+	IsChecked                        *bool    `json:"isChecked"`
+	IsCheckedCrop                    *bool    `json:"isCheckedCrop"`
+	DenoiseSteps                     int      `json:"denoiseSteps"`
+	Seed                             int      `json:"seed"`
+	Resolution                       int      `json:"resolution"`
+	RestoreFace                      *bool    `json:"restoreFace"`
+	ClothesType                      []string `json:"clothesType"`
+	AutoEnableAliyunParsingUpperOnly *bool    `json:"autoEnableAliyunParsingUpperOnly"`
+	AutoEnableAliyunParsingLowerOnly *bool    `json:"autoEnableAliyunParsingLowerOnly"`
 }
 
 func (m *tryonModelConfig) isEnabled() bool {
@@ -278,6 +310,25 @@ func (m *tryonModelConfig) isEnabled() bool {
 		return true
 	}
 	return *m.Enabled
+}
+
+func (m *tryonModelConfig) usageValue() string {
+	if m == nil {
+		return "tryon"
+	}
+	usage := strings.ToLower(strings.TrimSpace(m.ModelUsage))
+	if usage == "beautify" {
+		return "beautify"
+	}
+	return "tryon"
+}
+
+func (m *tryonModelConfig) isTryonModelUsage() bool {
+	return m == nil || m.usageValue() == "tryon"
+}
+
+func (m *tryonModelConfig) isBeautifyModelUsage() bool {
+	return m != nil && m.usageValue() == "beautify"
 }
 
 func (m *tryonModelConfig) matchScene(sceneType string) bool {
@@ -336,6 +387,9 @@ func (m *tryonModelConfig) supportsRefinerValue() bool {
 	if m == nil {
 		return false
 	}
+	if m.isBeautifyModelUsage() {
+		return false
+	}
 	if m.SupportsRefiner != nil {
 		return *m.SupportsRefiner
 	}
@@ -357,10 +411,130 @@ func (m *tryonModelConfig) refinerModelValue() string {
 }
 
 func (m *tryonModelConfig) refinerExtraCostValue() int {
-	if m == nil || m.RefinerExtraCost <= 0 {
+	if m == nil {
 		return 0
 	}
-	return m.RefinerExtraCost
+	if m.RefinerExtraCost > 0 {
+		return m.RefinerExtraCost
+	}
+	if m.RefinerExtraPoints > 0 {
+		return m.RefinerExtraPoints
+	}
+	return 0
+}
+
+func (m *tryonModelConfig) supportsBeautifyValue() bool {
+	if m == nil {
+		return false
+	}
+	if m.isBeautifyModelUsage() {
+		return true
+	}
+	if m.SupportsBeautify != nil {
+		return *m.SupportsBeautify
+	}
+	if strings.TrimSpace(m.BeautifyModel) != "" || strings.TrimSpace(m.BeautifyURL) != "" || strings.TrimSpace(m.BeautifyToken) != "" {
+		return true
+	}
+	return false
+}
+
+func (m *tryonModelConfig) beautifyModelValue() string {
+	if m == nil {
+		return aliyunRetouchSkinAction
+	}
+	if strings.TrimSpace(m.BeautifyModel) != "" {
+		return strings.TrimSpace(m.BeautifyModel)
+	}
+	if m.isBeautifyModelUsage() && strings.TrimSpace(m.Model) != "" {
+		return strings.TrimSpace(m.Model)
+	}
+	return aliyunRetouchSkinAction
+}
+
+func (m *tryonModelConfig) beautifyExtraCostValue() int {
+	if m == nil {
+		return 0
+	}
+	if m.BeautifyExtraCost > 0 {
+		return m.BeautifyExtraCost
+	}
+	if m.BeautifyExtraPoints > 0 {
+		return m.BeautifyExtraPoints
+	}
+	if m.isBeautifyModelUsage() && m.Cost > 0 {
+		return m.Cost
+	}
+	return 0
+}
+
+func (m *tryonModelConfig) beautifyEndpointURL() string {
+	if m != nil && strings.TrimSpace(m.BeautifyURL) != "" {
+		return strings.TrimSpace(m.BeautifyURL)
+	}
+	if m != nil && m.isBeautifyModelUsage() {
+		if strings.TrimSpace(m.URL) != "" {
+			return strings.TrimSpace(m.URL)
+		}
+		if strings.TrimSpace(m.ProviderURL) != "" {
+			return strings.TrimSpace(m.ProviderURL)
+		}
+	}
+	return aliyunRetouchSkinURL
+}
+
+func (m *tryonModelConfig) beautifyAccessCredentials(fallbackToken string) (accessKeyID string, accessKeySecret string, securityToken string) {
+	if m != nil {
+		accessKeyID = strings.TrimSpace(m.BeautifyAccessKeyID)
+		accessKeySecret = strings.TrimSpace(m.BeautifyAccessKeySec)
+		securityToken = strings.TrimSpace(m.BeautifySecurityToken)
+		if accessKeyID != "" && accessKeySecret != "" {
+			return accessKeyID, accessKeySecret, securityToken
+		}
+		if id, sec, token, ok := parseAKSKFromToken(m.BeautifyToken); ok {
+			if id != "" && sec != "" {
+				return id, sec, firstNonEmptyString(token, securityToken)
+			}
+		}
+		if m.isBeautifyModelUsage() {
+			if id, sec, token, ok := parseAKSKFromToken(m.Token); ok {
+				if id != "" && sec != "" {
+					return id, sec, firstNonEmptyString(token, securityToken)
+				}
+			}
+			if id, sec, token, ok := parseAKSKFromToken(m.ProviderToken); ok {
+				if id != "" && sec != "" {
+					return id, sec, firstNonEmptyString(token, securityToken)
+				}
+			}
+		}
+	}
+
+	if id, sec, token, ok := parseAKSKFromToken(fallbackToken); ok {
+		return id, sec, token
+	}
+
+	return accessKeyID, accessKeySecret, securityToken
+}
+
+func (m *tryonModelConfig) beautifyRetouchDegreeValue(override float64) float64 {
+	if override > 0 {
+		return clampBeautifyDegree(override)
+	}
+	if m != nil && m.BeautifyRetouch > 0 {
+		return clampBeautifyDegree(m.BeautifyRetouch)
+	}
+	return 70
+}
+
+func (m *tryonModelConfig) beautifyWhiteningDegreeValue(override float64) float64 {
+	if override > 0 {
+		return clampBeautifyDegree(override)
+	}
+	if m != nil && m.BeautifyWhitening > 0 {
+		return clampBeautifyDegree(m.BeautifyWhitening)
+	}
+	return 30
 }
 
 func (m *tryonModelConfig) refinerEndpointURL(fallback string) string {
@@ -465,6 +639,20 @@ func (m *tryonModelConfig) gradioSeedValue() int {
 	return m.Seed
 }
 
+func (m *tryonModelConfig) autoEnableAliyunParsingUpperOnlyValue() bool {
+	if m == nil || m.AutoEnableAliyunParsingUpperOnly == nil {
+		return true
+	}
+	return *m.AutoEnableAliyunParsingUpperOnly
+}
+
+func (m *tryonModelConfig) autoEnableAliyunParsingLowerOnlyValue() bool {
+	if m == nil || m.AutoEnableAliyunParsingLowerOnly == nil {
+		return true
+	}
+	return *m.AutoEnableAliyunParsingLowerOnly
+}
+
 type tryonProviderResponse struct {
 	Code        int    `json:"code"`
 	Msg         string `json:"msg"`
@@ -500,11 +688,13 @@ type dashscopeTaskQueryResponse struct {
 	Message   string `json:"message"`
 	RequestID string `json:"request_id"`
 	Output    struct {
-		TaskID     string          `json:"task_id"`
-		TaskStatus string          `json:"task_status"`
-		ImageURL   json.RawMessage `json:"image_url"`
-		Code       string          `json:"code"`
-		Message    string          `json:"message"`
+		TaskID        string          `json:"task_id"`
+		TaskStatus    string          `json:"task_status"`
+		ImageURL      json.RawMessage `json:"image_url"`
+		ParsingImgURL []string        `json:"parsing_img_url"`
+		CropImgURL    []string        `json:"crop_img_url"`
+		Code          string          `json:"code"`
+		Message       string          `json:"message"`
 	} `json:"output"`
 }
 
@@ -517,6 +707,15 @@ type dashscopeParsingResponse struct {
 		ParsingImgURL []string `json:"parsing_img_url"`
 		CropImgURL    []string `json:"crop_img_url"`
 	} `json:"output"`
+}
+
+type aliyunRetouchSkinResponse struct {
+	Code      string `json:"Code"`
+	Message   string `json:"Message"`
+	RequestID string `json:"RequestId"`
+	Data      struct {
+		ImageURL string `json:"ImageURL"`
+	} `json:"Data"`
 }
 
 // CreateTryonTask 创建并处理试衣任务：先扣币，模型失败时全额退币
@@ -579,17 +778,18 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 	}
 
 	task = client.TryonTask{
-		UserID:        userID,
-		RequestID:     requestID,
-		TaskNo:        generateTryonTaskNo(),
-		SceneType:     req.SceneType,
-		Status:        tryonTaskStatusProcessing,
-		SourceImage:   req.SourceImage,
-		TemplateImage: req.TemplateImage,
-		Provider:      providerName,
-		EnableRefiner: enableRefiner,
-		RefinerStatus: refinerStatus,
-		CostPoints:    costPoints,
+		UserID:         userID,
+		RequestID:      requestID,
+		TaskNo:         generateTryonTaskNo(),
+		SceneType:      req.SceneType,
+		Status:         tryonTaskStatusProcessing,
+		SourceImage:    req.SourceImage,
+		TemplateImage:  req.TemplateImage,
+		Provider:       providerName,
+		EnableRefiner:  enableRefiner,
+		RefinerStatus:  refinerStatus,
+		BeautifyStatus: tryonBeautifyStatusDisabled,
+		CostPoints:     costPoints,
 	}
 
 	if err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
@@ -757,6 +957,137 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 
 	_ = global.GVA_DB.Where("id = ?", task.ID).First(&task).Error
 	return task, false, nil
+}
+
+// ApplyTryonBeautify 对试衣结果执行智能美肤（每个试衣任务仅可执行一次）
+func (s *TryonTaskService) ApplyTryonBeautify(ctx context.Context, userID uint, req clientReq.ApplyTryonBeautifyReq) (task client.TryonTask, err error) {
+	if userID == 0 {
+		return task, errors.New("loginRequired")
+	}
+	if req.TaskID == 0 {
+		return task, errors.New("invalidID")
+	}
+
+	var modelCfg *tryonModelConfig
+	beautifyCost := 0
+
+	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		if findErr := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND user_id = ?", req.TaskID, userID).
+			First(&task).Error; findErr != nil {
+			if errors.Is(findErr, gorm.ErrRecordNotFound) {
+				return errors.New("tryonTaskNotFound")
+			}
+			return findErr
+		}
+
+		if !strings.EqualFold(strings.TrimSpace(task.Status), tryonTaskStatusSuccess) || strings.TrimSpace(task.ResultImage) == "" {
+			return errors.New("tryonTaskNotReadyForBeautify")
+		}
+		if hasTryonBeautifyUsed(task) {
+			return errors.New("tryonBeautifyAlreadyUsed")
+		}
+
+		resolvedModelCfg, modelErr := s.resolveBeautifyModelConfig(task.SceneType, task.Provider, req.BeautifyModelKey)
+		if modelErr != nil {
+			return modelErr
+		}
+		if resolvedModelCfg == nil || !resolvedModelCfg.supportsBeautifyValue() {
+			return errors.New("tryonBeautifyUnsupported")
+		}
+
+		cfgCopy := *resolvedModelCfg
+		modelCfg = &cfgCopy
+
+		beautifyCost = modelCfg.beautifyExtraCostValue()
+		if beautifyCost < 0 {
+			beautifyCost = 0
+		}
+
+		beautifyTaskNo := strings.TrimSpace(task.BeautifyTaskNo)
+		if beautifyTaskNo == "" {
+			beautifyTaskNo = generateTryonBeautifyTaskNo()
+		}
+
+		updates := map[string]interface{}{
+			"beautify_status":  tryonBeautifyStatusProcessing,
+			"beautify_task_no": beautifyTaskNo,
+			"beautify_cost":    beautifyCost,
+			"beautify_refund":  0,
+			"beautify_error":   "",
+			"beautify_result":  "",
+			"beautify_at":      nil,
+		}
+		if updateErr := tx.Model(&client.TryonTask{}).
+			Where("id = ? AND user_id = ?", task.ID, task.UserID).
+			Updates(updates).Error; updateErr != nil {
+			return updateErr
+		}
+
+		if beautifyCost > 0 {
+			pointRecordService := PointRecordService{}
+			txCtx := context.WithValue(ctx, "tx", tx)
+			record := buildPointRecord(task.UserID, client.AssetTypeTryonPoint, "decrease", beautifyCost, tryonOpBeautifyConsume, tryonReasonBeautifyDeduct, "tryon_beautify:"+beautifyTaskNo)
+			if pointErr := pointRecordService.CreatePointRecord(txCtx, record); pointErr != nil {
+				return pointErr
+			}
+		}
+
+		task.BeautifyStatus = tryonBeautifyStatusProcessing
+		task.BeautifyTaskNo = beautifyTaskNo
+		task.BeautifyCost = beautifyCost
+		task.BeautifyRefund = 0
+		task.BeautifyError = ""
+		task.BeautifyResult = ""
+		task.BeautifyAt = nil
+		return nil
+	})
+	if err != nil {
+		return task, err
+	}
+
+	if modelCfg == nil {
+		return task, errors.New("tryonBeautifyUnsupported")
+	}
+
+	resultImage, invokeErr := s.invokeTryonBeautifyProvider(task.SceneType, task.ResultImage, modelCfg, req)
+	if invokeErr != nil {
+		refundErr := s.markTryonBeautifyFailedAndRefund(ctx, &task, beautifyCost, invokeErr.Error())
+		if refundErr != nil {
+			global.GVA_LOG.Error("智能美肤失败且退币异常", zap.Error(refundErr), zap.Uint("taskID", task.ID))
+			return task, errors.New("tryonBeautifyRefundFailedContactAdmin")
+		}
+		_ = global.GVA_DB.Where("id = ? AND user_id = ?", task.ID, userID).First(&task).Error
+		return task, invokeErr
+	}
+
+	storedResultImage := s.persistTryonResultImage(strings.TrimSpace(resultImage), task.TaskNo+"_beautify")
+	now := time.Now()
+	updateResult := global.GVA_DB.Model(&client.TryonTask{}).
+		Where("id = ? AND user_id = ? AND beautify_status = ?", task.ID, userID, tryonBeautifyStatusProcessing).
+		Updates(map[string]interface{}{
+			"beautify_status": tryonBeautifyStatusSuccess,
+			"beautify_result": storedResultImage,
+			"beautify_error":  "",
+			"beautify_at":     now,
+		})
+	if updateResult.Error != nil {
+		return task, updateResult.Error
+	}
+	if updateResult.RowsAffected == 0 {
+		if getErr := global.GVA_DB.Where("id = ? AND user_id = ?", task.ID, userID).First(&task).Error; getErr != nil {
+			return task, getErr
+		}
+		if strings.EqualFold(strings.TrimSpace(task.BeautifyStatus), tryonBeautifyStatusSuccess) {
+			return task, nil
+		}
+		return task, errors.New("tryonBeautifyStatusConflict")
+	}
+
+	if err = global.GVA_DB.Where("id = ? AND user_id = ?", task.ID, userID).First(&task).Error; err != nil {
+		return task, err
+	}
+	return task, nil
 }
 
 // GetTryonTaskByID 按ID获取当前用户的试衣任务
@@ -1060,6 +1391,59 @@ func (s *TryonTaskService) markFailedAndRefund(ctx context.Context, task *client
 	})
 }
 
+func hasTryonBeautifyUsed(task client.TryonTask) bool {
+	status := strings.ToLower(strings.TrimSpace(task.BeautifyStatus))
+	if status == "" || status == tryonBeautifyStatusDisabled {
+		return strings.TrimSpace(task.BeautifyTaskNo) != "" || strings.TrimSpace(task.BeautifyResult) != ""
+	}
+	return status == tryonBeautifyStatusProcessing || status == tryonBeautifyStatusSuccess || status == tryonBeautifyStatusFailed
+}
+
+func (s *TryonTaskService) markTryonBeautifyFailedAndRefund(ctx context.Context, task *client.TryonTask, costPoints int, failReason string) error {
+	return global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		now := time.Now()
+		failReason = truncateTryonError(failReason)
+
+		refundPoints := costPoints
+		if refundPoints < 0 {
+			refundPoints = 0
+		}
+
+		updateData := map[string]interface{}{
+			"beautify_status": tryonBeautifyStatusFailed,
+			"beautify_error":  failReason,
+			"beautify_refund": refundPoints,
+			"beautify_at":     now,
+		}
+
+		updateResult := tx.Model(&client.TryonTask{}).
+			Where("id = ? AND user_id = ? AND beautify_status = ?", task.ID, task.UserID, tryonBeautifyStatusProcessing).
+			Updates(updateData)
+		if updateResult.Error != nil {
+			return updateResult.Error
+		}
+		if updateResult.RowsAffected == 0 {
+			return errors.New("tryonBeautifyStatusConflict")
+		}
+
+		if refundPoints > 0 {
+			pointRecordService := PointRecordService{}
+			txCtx := context.WithValue(ctx, "tx", tx)
+			remark := "tryon_beautify:" + strings.TrimSpace(task.BeautifyTaskNo)
+			record := buildPointRecord(task.UserID, client.AssetTypeTryonPoint, "increase", refundPoints, tryonOpBeautifyRefund, tryonReasonBeautifyRefund, remark)
+			if err := pointRecordService.CreatePointRecord(txCtx, record); err != nil {
+				return err
+			}
+		}
+
+		task.BeautifyStatus = tryonBeautifyStatusFailed
+		task.BeautifyError = failReason
+		task.BeautifyRefund = refundPoints
+		task.BeautifyAt = &now
+		return nil
+	})
+}
+
 // GrantRegisterRewardPoints 发放注册奖励试衣币（幂等）
 func (s *TryonTaskService) GrantRegisterRewardPoints(ctx context.Context, userID uint) error {
 	if userID == 0 {
@@ -1137,6 +1521,9 @@ func (s *TryonTaskService) resolveTryonModelConfig(sceneType string, modelKey st
 		if !item.isEnabled() {
 			continue
 		}
+		if !item.isTryonModelUsage() {
+			continue
+		}
 		if !item.matchScene(sceneType) {
 			continue
 		}
@@ -1153,6 +1540,80 @@ func (s *TryonTaskService) resolveTryonModelConfig(sceneType string, modelKey st
 	}
 
 	return fallback, nil
+}
+
+func findEnabledBeautifyModelByKey(list []tryonModelConfig, sceneType string, modelKey string) *tryonModelConfig {
+	modelKey = strings.TrimSpace(modelKey)
+	if modelKey == "" {
+		return nil
+	}
+
+	for i := range list {
+		item := &list[i]
+		if !item.isEnabled() || !item.isBeautifyModelUsage() || !item.supportsBeautifyValue() {
+			continue
+		}
+		if !strings.EqualFold(strings.TrimSpace(item.Key), modelKey) {
+			continue
+		}
+		if item.matchScene(sceneType) {
+			return item
+		}
+	}
+
+	for i := range list {
+		item := &list[i]
+		if !item.isEnabled() || !item.isBeautifyModelUsage() || !item.supportsBeautifyValue() {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(item.Key), modelKey) {
+			return item
+		}
+	}
+
+	return nil
+}
+
+func (s *TryonTaskService) resolveBeautifyModelConfig(sceneType string, _ string, preferredBeautifyModelKey string) (*tryonModelConfig, error) {
+	list, err := s.loadTryonModelConfigList(sceneType)
+	if err != nil {
+		return nil, errors.New("tryonModelConfigInvalid")
+	}
+	if len(list) == 0 {
+		return nil, nil
+	}
+
+	var beautifyFallback *tryonModelConfig
+	var beautifyAnyScene *tryonModelConfig
+
+	for i := range list {
+		item := &list[i]
+		if !item.isEnabled() || !item.isBeautifyModelUsage() || !item.supportsBeautifyValue() {
+			continue
+		}
+		if item.matchScene(sceneType) {
+			if beautifyFallback == nil {
+				beautifyFallback = item
+			}
+			continue
+		}
+		if beautifyAnyScene == nil {
+			beautifyAnyScene = item
+		}
+	}
+
+	if preferred := findEnabledBeautifyModelByKey(list, sceneType, preferredBeautifyModelKey); preferred != nil {
+		return preferred, nil
+	}
+
+	if beautifyFallback != nil {
+		return beautifyFallback, nil
+	}
+	if beautifyAnyScene != nil {
+		return beautifyAnyScene, nil
+	}
+
+	return nil, nil
 }
 
 func (s *TryonTaskService) invokeTryonProvider(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig) (tryonInvokeResult, error) {
@@ -1191,6 +1652,7 @@ func (s *TryonTaskService) invokeTryonProvider(req clientReq.CreateTryonTaskReq,
 	isGradioTryon := isGradioTryonModel(providerName, providerURL, modelName)
 
 	resolvedReq := req
+	resolvedReq.TemplatePart = normalizeTryonTemplatePart(req.TemplatePart)
 	if isAliyunParsing || isAliyunTryon || isGradioTryon {
 		normalizedSource, normalizeErr := s.normalizeAliyunMediaURL(req.SourceImage)
 		if normalizeErr != nil {
@@ -1208,7 +1670,21 @@ func (s *TryonTaskService) invokeTryonProvider(req clientReq.CreateTryonTaskReq,
 	}
 
 	if isAliyunParsing {
-		return s.invokeAliyunParsing(resolvedReq, modelCfg, providerToken, providerURL, modelName)
+		return s.invokeAliyunParsing(resolvedReq, modelCfg, providerToken, providerURL, modelName, false)
+	}
+
+	if isAliyunTryon && shouldAutoAliyunParsingForSinglePart(resolvedReq.SceneType, modelCfg, modelName, resolvedReq.TemplatePart) {
+		parsedTemplate, parseErr := s.tryBuildAliyunParsedTemplate(resolvedReq, providerToken)
+		if parseErr != nil {
+			global.GVA_LOG.Warn("自动阿里取衣分割失败，回退原始模板图继续试衣",
+				zap.String("modelKey", strings.TrimSpace(modelCfg.Key)),
+				zap.String("modelName", strings.TrimSpace(modelName)),
+				zap.String("templatePart", strings.TrimSpace(resolvedReq.TemplatePart)),
+				zap.Error(parseErr),
+			)
+		} else if strings.TrimSpace(parsedTemplate) != "" {
+			resolvedReq.TemplateImage = strings.TrimSpace(parsedTemplate)
+		}
 	}
 
 	if isAliyunTryon {
@@ -1232,6 +1708,9 @@ func (s *TryonTaskService) invokeTryonProvider(req clientReq.CreateTryonTaskReq,
 		"sceneType":     resolvedReq.SceneType,
 		"sourceImage":   resolvedReq.SourceImage,
 		"templateImage": resolvedReq.TemplateImage,
+	}
+	if strings.TrimSpace(resolvedReq.TemplatePart) != "" {
+		body["templatePart"] = strings.TrimSpace(resolvedReq.TemplatePart)
 	}
 	if strings.TrimSpace(resolvedReq.ModelKey) != "" {
 		body["modelKey"] = strings.TrimSpace(resolvedReq.ModelKey)
@@ -1281,6 +1760,8 @@ func (s *TryonTaskService) invokeGradioTryon(req clientReq.CreateTryonTaskReq, m
 		return tryonInvokeResult{}, err
 	}
 
+	garmentDescription := resolveGradioGarmentDescription(modelCfg.garmentDescriptionValue(), req.TemplatePart)
+
 	body := map[string]interface{}{
 		"data": []interface{}{
 			map[string]interface{}{
@@ -1289,7 +1770,7 @@ func (s *TryonTaskService) invokeGradioTryon(req clientReq.CreateTryonTaskReq, m
 				"composite":  nil,
 			},
 			gradioFileData(req.TemplateImage),
-			modelCfg.garmentDescriptionValue(),
+			garmentDescription,
 			modelCfg.gradioIsCheckedValue(),
 			modelCfg.gradioIsCheckedCropValue(),
 			modelCfg.gradioDenoiseStepsValue(),
@@ -1590,6 +2071,270 @@ func formatGradioFileURL(value string, rootURL string) string {
 	return rootURL + "/file=" + value
 }
 
+func normalizeTryonTemplatePart(value string) string {
+	part := strings.ToLower(strings.TrimSpace(value))
+	if part == "upper" || part == "lower" {
+		return part
+	}
+	return ""
+}
+
+func resolveAliyunParsingClothesTypeForTemplatePart(templatePart string) []string {
+	part := normalizeTryonTemplatePart(templatePart)
+	if part == "upper" {
+		// For single upper-garment try-on assist, use lower mask extraction to keep lower body unchanged.
+		return []string{"lower"}
+	}
+	if part == "lower" {
+		// For single lower-garment try-on assist, use upper mask extraction to keep upper body unchanged.
+		return []string{"upper"}
+	}
+	return nil
+}
+
+func isAliyunParsingNoUsableGarmentAreaError(raw string) bool {
+	text := strings.ToLower(strings.TrimSpace(raw))
+	if text == "" {
+		return false
+	}
+	if strings.Contains(text, "aliyunparsingnousablegarmentarea") {
+		return true
+	}
+	if strings.Contains(text, "no usable garment area") {
+		return true
+	}
+	if strings.Contains(text, "no usable") && strings.Contains(text, "garment") {
+		return true
+	}
+	return false
+}
+
+func sameAliyunClothesType(a []string, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !strings.EqualFold(strings.TrimSpace(a[i]), strings.TrimSpace(b[i])) {
+			return false
+		}
+	}
+	return true
+}
+
+func shouldAutoAliyunParsingForSinglePart(sceneType string, modelCfg *tryonModelConfig, modelName string, templatePart string) bool {
+	if modelCfg == nil || !strings.EqualFold(strings.TrimSpace(sceneType), "clothes") {
+		return false
+	}
+
+	part := normalizeTryonTemplatePart(templatePart)
+	if part == "" {
+		return false
+	}
+
+	modelLower := strings.ToLower(strings.TrimSpace(modelName))
+	if modelLower != "aitryon" && modelLower != "aitryon-plus" {
+		return false
+	}
+
+	if part == "upper" {
+		return modelCfg.autoEnableAliyunParsingUpperOnlyValue()
+	}
+	if part == "lower" {
+		return modelCfg.autoEnableAliyunParsingLowerOnlyValue()
+	}
+
+	return false
+}
+
+func (s *TryonTaskService) resolveAliyunParsingAssistModelConfig(sceneType string) (*tryonModelConfig, error) {
+	list, err := s.loadTryonModelConfigList(sceneType)
+	if err != nil {
+		return nil, errors.New("tryonModelConfigInvalid")
+	}
+	if len(list) == 0 {
+		return nil, nil
+	}
+
+	var enabledSceneMatched *tryonModelConfig
+	var enabledFallback *tryonModelConfig
+	var configuredSceneMatched *tryonModelConfig
+	var configuredFallback *tryonModelConfig
+
+	for i := range list {
+		item := &list[i]
+		if !item.isTryonModelUsage() {
+			continue
+		}
+
+		// Use strict parsing model detection here. Passing sceneType=takeoff would
+		// make isAliyunParsingModel return true for all models, which can wrongly
+		// select normal try-on models (e.g. aitryon) for parsing assist.
+		itemModelName := resolveAliyunModelName(item, "")
+		if !isAliyunParsingModel(item.Provider, itemModelName, item.endpointURL(), "") {
+			continue
+		}
+
+		if item.isEnabled() {
+			if item.matchScene(sceneType) && enabledSceneMatched == nil {
+				enabledSceneMatched = item
+			}
+			if enabledFallback == nil {
+				enabledFallback = item
+			}
+		}
+
+		if item.matchScene(sceneType) && configuredSceneMatched == nil {
+			configuredSceneMatched = item
+		}
+		if configuredFallback == nil {
+			configuredFallback = item
+		}
+	}
+
+	if enabledSceneMatched != nil {
+		return enabledSceneMatched, nil
+	}
+	if enabledFallback != nil {
+		return enabledFallback, nil
+	}
+	if configuredSceneMatched != nil {
+		return configuredSceneMatched, nil
+	}
+	return configuredFallback, nil
+}
+
+func (s *TryonTaskService) tryBuildAliyunParsedTemplate(req clientReq.CreateTryonTaskReq, fallbackToken string) (string, error) {
+	part := normalizeTryonTemplatePart(req.TemplatePart)
+	if part == "" {
+		return "", nil
+	}
+
+	parsingCfg, err := s.resolveAliyunParsingAssistModelConfig(req.SceneType)
+	if err != nil {
+		return "", err
+	}
+	if parsingCfg == nil {
+		return "", errors.New("aliyunParsingModelUnavailable")
+	}
+
+	cfgCopy := *parsingCfg
+	parseClothesType := resolveAliyunParsingClothesTypeForTemplatePart(part)
+	if len(parseClothesType) == 0 {
+		parseClothesType = []string{part}
+	}
+
+	attemptClothesTypes := [][]string{parseClothesType}
+	fallbackClothesType := []string{part}
+	if !sameAliyunClothesType(parseClothesType, fallbackClothesType) {
+		attemptClothesTypes = append(attemptClothesTypes, fallbackClothesType)
+	}
+
+	parseReq := clientReq.CreateTryonTaskReq{
+		SceneType:   "takeoff",
+		SourceImage: strings.TrimSpace(req.TemplateImage),
+	}
+
+	parseProviderURL := strings.TrimSpace(cfgCopy.endpointURL())
+	if parseProviderURL == "" {
+		parseProviderURL = aliyunParsingProcessURL
+	}
+
+	parseProviderToken := strings.TrimSpace(cfgCopy.authToken())
+	if parseProviderToken == "" {
+		parseProviderToken = strings.TrimSpace(fallbackToken)
+	}
+
+	parseModelName := resolveAliyunModelName(&cfgCopy, "takeoff")
+	lastErr := errors.New("aliyunParsingNoUsableGarmentArea")
+
+	for i, clothesTypeAttempt := range attemptClothesTypes {
+		cfgCopy.ClothesType = clothesTypeAttempt
+		global.GVA_LOG.Info("自动阿里取衣分割参数",
+			zap.String("templatePart", part),
+			zap.Strings("clothesType", cfgCopy.ClothesType),
+			zap.String("modelKey", strings.TrimSpace(cfgCopy.Key)),
+			zap.Int("attempt", i+1),
+			zap.Int("attemptTotal", len(attemptClothesTypes)),
+		)
+
+		parseResult, parseErr := s.invokeAliyunParsing(parseReq, &cfgCopy, parseProviderToken, parseProviderURL, parseModelName, true)
+		if parseErr != nil {
+			return "", parseErr
+		}
+
+		if strings.EqualFold(strings.TrimSpace(parseResult.Status), tryonTaskStatusSuccess) && strings.TrimSpace(parseResult.ResultImage) != "" {
+			normalizedTemplate, normalizeErr := s.normalizeAliyunMediaURL(strings.TrimSpace(parseResult.ResultImage))
+			if normalizeErr != nil {
+				return "", normalizeErr
+			}
+			return strings.TrimSpace(normalizedTemplate), nil
+		}
+
+		errMsg := strings.TrimSpace(parseResult.ErrorMessage)
+		if errMsg == "" {
+			errMsg = "aliyunParsingNoUsableGarmentArea"
+		}
+		lastErr = errors.New(errMsg)
+
+		if i < len(attemptClothesTypes)-1 && isAliyunParsingNoUsableGarmentAreaError(errMsg) {
+			global.GVA_LOG.Warn("自动阿里取衣分割无可用区域，尝试备用clothesType",
+				zap.String("templatePart", part),
+				zap.String("modelKey", strings.TrimSpace(cfgCopy.Key)),
+				zap.Strings("failedClothesType", clothesTypeAttempt),
+				zap.String("error", errMsg),
+			)
+			continue
+		}
+
+		return "", lastErr
+	}
+
+	return "", lastErr
+}
+
+func resolveGradioGarmentDescription(configured string, templatePart string) string {
+	base := strings.TrimSpace(configured)
+	if base == "" {
+		base = "clothing item"
+	}
+
+	part := normalizeTryonTemplatePart(templatePart)
+	if part == "" {
+		return base
+	}
+
+	lowerBase := strings.ToLower(base)
+	if part == "lower" {
+		if lowerBase == "clothing item" || lowerBase == "upper garment" {
+			return "lower garment"
+		}
+		return base
+	}
+
+	if part == "upper" {
+		if lowerBase == "clothing item" || lowerBase == "lower garment" {
+			return "upper garment"
+		}
+	}
+
+	return base
+}
+
+func buildAliyunTryonInput(personImageURL string, templateImageURL string, templatePart string) map[string]interface{} {
+	input := map[string]interface{}{
+		"person_image_url": strings.TrimSpace(personImageURL),
+	}
+
+	part := normalizeTryonTemplatePart(templatePart)
+	if part == "lower" {
+		input["bottom_garment_url"] = strings.TrimSpace(templateImageURL)
+		return input
+	}
+
+	input["top_garment_url"] = strings.TrimSpace(templateImageURL)
+	return input
+}
+
 func (s *TryonTaskService) invokeAliyunTryonAsync(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig, providerToken string, providerURL string, modelName string) (tryonInvokeResult, error) {
 	if strings.TrimSpace(providerToken) == "" {
 		return tryonInvokeResult{}, errors.New("aliyunTryonApiKeyMissing")
@@ -1614,10 +2359,7 @@ func (s *TryonTaskService) invokeAliyunTryonAsync(req clientReq.CreateTryonTaskR
 
 	body := map[string]interface{}{
 		"model": resolvedModelName,
-		"input": map[string]interface{}{
-			"person_image_url": strings.TrimSpace(req.SourceImage),
-			"top_garment_url":  strings.TrimSpace(req.TemplateImage),
-		},
+		"input": buildAliyunTryonInput(req.SourceImage, req.TemplateImage, req.TemplatePart),
 		"parameters": map[string]interface{}{
 			"resolution":   modelCfg.resolutionValue(),
 			"restore_face": modelCfg.restoreFaceValue(),
@@ -1711,13 +2453,12 @@ func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTas
 		zap.String("coarseHost", coarseHost),
 	)
 
+	input := buildAliyunTryonInput(normalizedSource, normalizedTemplate, req.TemplatePart)
+	input["coarse_image_url"] = strings.TrimSpace(normalizedCoarse)
+
 	body := map[string]interface{}{
 		"model": modelCfg.refinerModelValue(),
-		"input": map[string]interface{}{
-			"person_image_url": strings.TrimSpace(normalizedSource),
-			"top_garment_url":  strings.TrimSpace(normalizedTemplate),
-			"coarse_image_url": strings.TrimSpace(normalizedCoarse),
-		},
+		"input": input,
 		"parameters": map[string]interface{}{
 			"gender": modelCfg.refinerGenderValue(),
 		},
@@ -1784,7 +2525,7 @@ func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTas
 	return tryonInvokeResult{Status: tryonTaskStatusProcessing, ProviderTaskID: taskID}, nil
 }
 
-func (s *TryonTaskService) invokeAliyunParsing(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig, providerToken string, providerURL string, modelName string) (tryonInvokeResult, error) {
+func (s *TryonTaskService) invokeAliyunParsing(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig, providerToken string, providerURL string, modelName string, preferParsingImage bool) (tryonInvokeResult, error) {
 	if strings.TrimSpace(providerToken) == "" {
 		return tryonInvokeResult{}, errors.New("aliyunParsingApiKeyMissing")
 	}
@@ -1823,6 +2564,120 @@ func (s *TryonTaskService) invokeAliyunParsing(req clientReq.CreateTryonTaskReq,
 		Body: body,
 	})
 	if err != nil {
+		if shouldFallbackToAliyunParsingAsync(err.Error()) {
+			global.GVA_LOG.Info("阿里取衣分割同步请求异常，自动切换异步",
+				zap.String("model", resolvedModelName),
+				zap.String("processURLHost", urlHostname(processURL)),
+				zap.Error(err),
+			)
+			return s.invokeAliyunParsingAsync(req, modelCfg, providerToken, processURL, resolvedModelName, clothesType, preferParsingImage)
+		}
+		return tryonInvokeResult{}, err
+	}
+	if resp == nil {
+		return tryonInvokeResult{}, errors.New("aliyunParsingResponseEmpty")
+	}
+
+	if code := strings.TrimSpace(resp.Code); code != "" {
+		mappedErr := formatAliyunModelError(resp.Message, code)
+		if shouldFallbackToAliyunParsingAsync(code, resp.Message, mappedErr) {
+			global.GVA_LOG.Info("阿里取衣分割同步调用受限，自动切换异步",
+				zap.String("model", resolvedModelName),
+				zap.String("processURLHost", urlHostname(processURL)),
+				zap.String("aliyunCode", code),
+				zap.String("aliyunMessage", strings.TrimSpace(resp.Message)),
+			)
+			return s.invokeAliyunParsingAsync(req, modelCfg, providerToken, processURL, resolvedModelName, clothesType, preferParsingImage)
+		}
+		return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: mappedErr}, nil
+	}
+
+	resultImage := ""
+	candidateGroups := [][]string{resp.Output.CropImgURL, resp.Output.ParsingImgURL}
+	if preferParsingImage {
+		candidateGroups = [][]string{resp.Output.ParsingImgURL, resp.Output.CropImgURL}
+	}
+
+	for _, group := range candidateGroups {
+		for _, item := range group {
+			resultImage = strings.TrimSpace(item)
+			if resultImage != "" {
+				break
+			}
+		}
+		if resultImage != "" {
+			break
+		}
+	}
+
+	if resultImage == "" {
+		return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: "aliyunParsingNoUsableGarmentArea"}, nil
+	}
+
+	return tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: resultImage}, nil
+}
+
+func shouldFallbackToAliyunParsingAsync(values ...string) bool {
+	for _, value := range values {
+		text := strings.ToLower(strings.TrimSpace(value))
+		if text == "" {
+			continue
+		}
+		if strings.Contains(text, "does not support synchronous calls") {
+			return true
+		}
+		if strings.Contains(text, "not support synchronous") {
+			return true
+		}
+		if strings.Contains(text, "synchronous calls are not supported") {
+			return true
+		}
+		if strings.Contains(text, "不支持同步") || strings.Contains(text, "仅支持异步") {
+			return true
+		}
+	}
+	return false
+}
+
+func pickAliyunParsingResultImage(preferParsingImage bool, parsingURLs []string, cropURLs []string, fallbackImageURL json.RawMessage) string {
+	candidateGroups := [][]string{cropURLs, parsingURLs}
+	if preferParsingImage {
+		candidateGroups = [][]string{parsingURLs, cropURLs}
+	}
+
+	for _, group := range candidateGroups {
+		for _, item := range group {
+			value := strings.TrimSpace(item)
+			if value != "" {
+				return value
+			}
+		}
+	}
+
+	return extractDashscopeImageURL(fallbackImageURL)
+}
+
+func (s *TryonTaskService) invokeAliyunParsingAsync(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig, providerToken string, processURL string, modelName string, clothesType []string, preferParsingImage bool) (tryonInvokeResult, error) {
+	body := map[string]interface{}{
+		"model": modelName,
+		"input": map[string]interface{}{
+			"image_url": strings.TrimSpace(req.SourceImage),
+		},
+		"parameters": map[string]interface{}{
+			"clothes_type": clothesType,
+		},
+	}
+
+	resp, err := external.HttpRequest[dashscopeTryonCreateResponse](external.RequestParams{
+		URL:    processURL,
+		Method: "POST",
+		Headers: map[string]string{
+			"Authorization":     "Bearer " + strings.TrimSpace(providerToken),
+			"X-DashScope-Async": "enable",
+		},
+		Body: body,
+	})
+	if err != nil {
 		return tryonInvokeResult{}, err
 	}
 	if resp == nil {
@@ -1833,27 +2688,282 @@ func (s *TryonTaskService) invokeAliyunParsing(req clientReq.CreateTryonTaskReq,
 		return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: formatAliyunModelError(resp.Message, code)}, nil
 	}
 
-	resultImage := ""
-	for _, item := range resp.Output.CropImgURL {
-		resultImage = strings.TrimSpace(item)
-		if resultImage != "" {
-			break
-		}
+	taskID := strings.TrimSpace(resp.Output.TaskID)
+	if taskID == "" {
+		return tryonInvokeResult{}, errors.New("aliyunTryonTaskIDMissing")
 	}
-	if resultImage == "" {
-		for _, item := range resp.Output.ParsingImgURL {
-			resultImage = strings.TrimSpace(item)
-			if resultImage != "" {
+
+	status := normalizeProviderTaskStatus(resp.Output.TaskStatus)
+	if status == tryonTaskStatusFailed {
+		return tryonInvokeResult{Status: tryonTaskStatusFailed, ProviderTaskID: taskID, ErrorMessage: formatAliyunModelError(resp.Message, resp.Code)}, nil
+	}
+
+	taskQueryURL := ""
+	if modelCfg != nil {
+		taskQueryURL = modelCfg.queryTaskURL()
+	}
+
+	const maxAttempts = 20
+	const interval = 1500 * time.Millisecond
+
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		result, queryErr := s.queryAliyunParsingTask(taskID, providerToken, processURL, taskQueryURL, preferParsingImage)
+		if queryErr != nil {
+			return tryonInvokeResult{}, queryErr
+		}
+		if result.Status == tryonTaskStatusProcessing || result.Status == tryonTaskStatusUnknown {
+			if attempt == maxAttempts-1 {
 				break
 			}
+			time.Sleep(interval)
+			continue
 		}
+		return result, nil
 	}
 
-	if resultImage == "" {
-		return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: "aliyunParsingNoUsableGarmentArea"}, nil
+	return tryonInvokeResult{Status: tryonTaskStatusFailed, ProviderTaskID: taskID, ErrorMessage: "tryonTaskFailed"}, nil
+}
+
+func (s *TryonTaskService) queryAliyunParsingTask(taskID string, providerToken string, createURL string, taskQueryURL string, preferParsingImage bool) (tryonInvokeResult, error) {
+	taskID = strings.TrimSpace(taskID)
+	if taskID == "" {
+		return tryonInvokeResult{}, errors.New("aliyunTaskIDRequired")
+	}
+	if strings.TrimSpace(providerToken) == "" {
+		return tryonInvokeResult{}, errors.New("aliyunParsingApiKeyMissing")
 	}
 
-	return tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: resultImage}, nil
+	queryURL := buildAliyunTaskQueryURL(createURL, taskID)
+	if strings.TrimSpace(taskQueryURL) != "" {
+		queryURL = formatTaskQueryURL(taskQueryURL, taskID)
+	}
+
+	resp, err := external.HttpRequest[dashscopeTaskQueryResponse](external.RequestParams{
+		URL:    queryURL,
+		Method: "GET",
+		Headers: map[string]string{
+			"Authorization": "Bearer " + strings.TrimSpace(providerToken),
+		},
+		Body: map[string]interface{}{},
+	})
+	if err != nil {
+		return tryonInvokeResult{}, err
+	}
+	if resp == nil {
+		return tryonInvokeResult{}, errors.New("aliyunTaskQueryResponseEmpty")
+	}
+
+	if code := strings.TrimSpace(resp.Code); code != "" {
+		return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: formatAliyunModelError(resp.Message, code), ProviderTaskID: taskID}, nil
+	}
+
+	status := normalizeProviderTaskStatus(resp.Output.TaskStatus)
+	switch status {
+	case tryonTaskStatusSuccess:
+		resultImage := pickAliyunParsingResultImage(preferParsingImage, resp.Output.ParsingImgURL, resp.Output.CropImgURL, resp.Output.ImageURL)
+		if strings.TrimSpace(resultImage) == "" {
+			return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: "aliyunTaskSuccessNoImage", ProviderTaskID: taskID}, nil
+		}
+		return tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: strings.TrimSpace(resultImage), ProviderTaskID: taskID}, nil
+	case tryonTaskStatusFailed:
+		return tryonInvokeResult{
+			Status:         tryonTaskStatusFailed,
+			ProviderTaskID: taskID,
+			ErrorMessage: formatAliyunModelError(
+				resp.Output.Message,
+				resp.Output.Code,
+				resp.Message,
+				resp.Code,
+				"tryonTaskFailed",
+			),
+		}, nil
+	case tryonTaskStatusProcessing, tryonTaskStatusUnknown:
+		return tryonInvokeResult{Status: tryonTaskStatusProcessing, ProviderTaskID: taskID}, nil
+	default:
+		return tryonInvokeResult{Status: tryonTaskStatusProcessing, ProviderTaskID: taskID}, nil
+	}
+}
+
+func (s *TryonTaskService) invokeTryonBeautifyProvider(sceneType string, resultImage string, modelCfg *tryonModelConfig, req clientReq.ApplyTryonBeautifyReq) (string, error) {
+	if modelCfg == nil || !modelCfg.isBeautifyModelUsage() {
+		return "", errors.New("tryonBeautifyUnsupported")
+	}
+
+	providerMode := strings.TrimSpace(modelCfg.Mode)
+	if providerMode == "" {
+		providerMode = "prod"
+	}
+	providerURL := strings.TrimSpace(modelCfg.endpointURL())
+	providerToken := strings.TrimSpace(modelCfg.authToken())
+
+	if strings.EqualFold(strings.TrimSpace(providerMode), "mock_success") {
+		return strings.TrimSpace(resultImage), nil
+	}
+
+	modelName := ""
+	providerName := ""
+	modelKey := ""
+	modelName = modelCfg.beautifyModelValue()
+	providerName = strings.TrimSpace(modelCfg.Provider)
+	modelKey = strings.TrimSpace(modelCfg.Key)
+
+	if isAliyunBeautifyModel(providerName, modelName, providerURL) {
+		return s.invokeAliyunRetouchSkin(resultImage, modelCfg, providerToken, req)
+	}
+
+	normalizedImage, normalizeErr := s.normalizeAliyunMediaURL(resultImage)
+	if normalizeErr != nil {
+		return "", normalizeErr
+	}
+
+	targetURL := strings.TrimSpace(providerURL)
+	if targetURL == "" {
+		targetURL = strings.TrimSpace(modelCfg.beautifyEndpointURL())
+	}
+	if strings.TrimSpace(targetURL) == "" {
+		return "", errors.New("tryonModelServiceNotConfigured")
+	}
+
+	headers := map[string]string{}
+	if strings.TrimSpace(providerToken) != "" {
+		headers["Authorization"] = "Bearer " + strings.TrimSpace(providerToken)
+	}
+
+	retouchDegree := modelCfg.beautifyRetouchDegreeValue(req.RetouchDegree)
+	whiteningDegree := modelCfg.beautifyWhiteningDegreeValue(req.WhiteningDegree)
+
+	body := map[string]interface{}{
+		"operationType":   "beautify",
+		"sceneType":       strings.TrimSpace(sceneType),
+		"imageUrl":        strings.TrimSpace(normalizedImage),
+		"sourceImage":     strings.TrimSpace(normalizedImage),
+		"resultImage":     strings.TrimSpace(normalizedImage),
+		"retouchDegree":   retouchDegree,
+		"whiteningDegree": whiteningDegree,
+	}
+	if strings.TrimSpace(modelName) != "" {
+		body["model"] = strings.TrimSpace(modelName)
+	}
+	if strings.TrimSpace(modelKey) != "" {
+		body["modelKey"] = strings.TrimSpace(modelKey)
+	}
+	if strings.TrimSpace(providerName) != "" {
+		body["provider"] = strings.TrimSpace(providerName)
+	}
+
+	resp, err := external.HttpRequest[tryonProviderResponse](external.RequestParams{
+		URL:     strings.TrimSpace(targetURL),
+		Method:  "POST",
+		Headers: headers,
+		Body:    body,
+	})
+	if err != nil {
+		return "", err
+	}
+	if resp == nil {
+		return "", errors.New("tryonModelResponseEmpty")
+	}
+
+	resultURL := firstNonEmptyString(
+		resp.ResultImage,
+		resp.ResultURL,
+		resp.Data.ResultImage,
+		resp.Data.ResultURL,
+		resp.Data.Image,
+		resp.Data.URL,
+	)
+	if strings.TrimSpace(resultURL) == "" {
+		if strings.TrimSpace(resp.Msg) != "" {
+			return "", errors.New(strings.TrimSpace(resp.Msg))
+		}
+		return "", errors.New("tryonBeautifyResultEmpty")
+	}
+
+	return strings.TrimSpace(resultURL), nil
+}
+
+func (s *TryonTaskService) invokeAliyunRetouchSkin(resultImage string, modelCfg *tryonModelConfig, fallbackToken string, req clientReq.ApplyTryonBeautifyReq) (string, error) {
+	normalizedImage, normalizeErr := s.normalizeAliyunMediaURL(resultImage)
+	if normalizeErr != nil {
+		return "", normalizeErr
+	}
+
+	endpointURL, endpointErr := normalizeAliyunOpenAPIEndpoint(modelCfg.beautifyEndpointURL())
+	if endpointErr != nil {
+		return "", endpointErr
+	}
+
+	accessKeyID, accessKeySecret, securityToken := modelCfg.beautifyAccessCredentials(fallbackToken)
+	if strings.TrimSpace(accessKeyID) == "" || strings.TrimSpace(accessKeySecret) == "" {
+		return "", errors.New("aliyunBeautifyAccessKeyMissing")
+	}
+
+	action := strings.TrimSpace(modelCfg.beautifyModelValue())
+	if action == "" {
+		action = aliyunRetouchSkinAction
+	}
+
+	retouchDegree := modelCfg.beautifyRetouchDegreeValue(req.RetouchDegree)
+	whiteningDegree := modelCfg.beautifyWhiteningDegreeValue(req.WhiteningDegree)
+
+	params := map[string]string{
+		"Action":           action,
+		"Version":          aliyunRetouchSkinVer,
+		"Format":           "JSON",
+		"AccessKeyId":      strings.TrimSpace(accessKeyID),
+		"SignatureMethod":  "HMAC-SHA1",
+		"Timestamp":        time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+		"SignatureVersion": "1.0",
+		"SignatureNonce":   generateAliyunSignatureNonce(),
+		"ImageURL":         strings.TrimSpace(normalizedImage),
+		"RetouchDegree":    formatBeautifyDegree(retouchDegree),
+		"WhiteningDegree":  formatBeautifyDegree(whiteningDegree),
+	}
+	if strings.TrimSpace(securityToken) != "" {
+		params["SecurityToken"] = strings.TrimSpace(securityToken)
+	}
+
+	signature := signAliyunRPCParams(params, strings.TrimSpace(accessKeySecret))
+	params["Signature"] = signature
+
+	body := encodeAliyunRPCParams(params)
+	httpReq, err := http.NewRequest(http.MethodPost, endpointURL, strings.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	httpReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	httpReq.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 45 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	responseBody, err := io.ReadAll(io.LimitReader(resp.Body, 2*1024*1024))
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return "", errors.New(formatAliyunModelError(string(responseBody), "tryonBeautifyRequestFailed"))
+	}
+
+	var apiResp aliyunRetouchSkinResponse
+	if err := json.Unmarshal(responseBody, &apiResp); err != nil {
+		return "", errors.New("tryonBeautifyResponseInvalid")
+	}
+
+	if strings.TrimSpace(apiResp.Code) != "" {
+		return "", errors.New(formatAliyunModelError(apiResp.Message, apiResp.Code))
+	}
+
+	resultURL := strings.TrimSpace(apiResp.Data.ImageURL)
+	if resultURL == "" {
+		return "", errors.New("tryonBeautifyResultEmpty")
+	}
+	return resultURL, nil
 }
 
 func (s *TryonTaskService) queryAliyunTryonTask(taskID string, providerToken string, createURL string, taskQueryURL string) (tryonInvokeResult, error) {
@@ -2552,6 +3662,28 @@ func isAliyunTryonModel(provider string, modelName string, providerURL string, s
 	return false
 }
 
+func isAliyunBeautifyModel(provider string, modelName string, providerURL string) bool {
+	modelLower := strings.ToLower(strings.TrimSpace(modelName))
+	if modelLower == strings.ToLower(aliyunRetouchSkinAction) {
+		return true
+	}
+
+	providerLower := strings.ToLower(strings.TrimSpace(provider))
+	if strings.Contains(providerLower, "aliyun") || strings.Contains(providerLower, "dashscope") || strings.Contains(providerLower, "facebody") {
+		return true
+	}
+
+	urlLower := strings.ToLower(strings.TrimSpace(providerURL))
+	if strings.Contains(urlLower, "facebody.aliyuncs.com") {
+		return true
+	}
+	if strings.Contains(urlLower, "aliyuncs.com") && strings.Contains(modelLower, "retouch") {
+		return true
+	}
+
+	return false
+}
+
 func isAliyunParsingModel(provider string, modelName string, providerURL string, sceneType string) bool {
 	if strings.EqualFold(strings.TrimSpace(sceneType), "takeoff") {
 		return true
@@ -2698,10 +3830,137 @@ func formatTaskQueryURL(taskQueryURL string, taskID string) string {
 	return u.String()
 }
 
+func normalizeAliyunOpenAPIEndpoint(rawURL string) (string, error) {
+	endpoint := strings.TrimSpace(rawURL)
+	if endpoint == "" {
+		endpoint = aliyunRetouchSkinURL
+	}
+	if !strings.Contains(endpoint, "://") {
+		endpoint = "https://" + endpoint
+	}
+
+	u, err := url.Parse(endpoint)
+	if err != nil || strings.TrimSpace(u.Scheme) == "" || strings.TrimSpace(u.Host) == "" {
+		return "", errors.New("tryonBeautifyEndpointInvalid")
+	}
+	u.RawQuery = ""
+	u.Fragment = ""
+	if strings.TrimSpace(u.Path) == "" {
+		u.Path = "/"
+	}
+	return u.String(), nil
+}
+
+func clampBeautifyDegree(value float64) float64 {
+	if value < 0 {
+		return 0
+	}
+	if value > 100 {
+		return 100
+	}
+	return value
+}
+
+func formatBeautifyDegree(value float64) string {
+	value = clampBeautifyDegree(value)
+	return strconv.FormatFloat(value, 'f', 1, 64)
+}
+
+func parseAKSKFromToken(raw string) (accessKeyID string, accessKeySecret string, securityToken string, ok bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", "", "", false
+	}
+
+	if strings.HasPrefix(raw, "{") {
+		var payload map[string]interface{}
+		if err := json.Unmarshal([]byte(raw), &payload); err == nil {
+			accessKeyID = firstNonEmptyString(
+				strings.TrimSpace(fmt.Sprint(payload["accessKeyId"])),
+				strings.TrimSpace(fmt.Sprint(payload["access_key_id"])),
+				strings.TrimSpace(fmt.Sprint(payload["ak"])),
+			)
+			accessKeySecret = firstNonEmptyString(
+				strings.TrimSpace(fmt.Sprint(payload["accessKeySecret"])),
+				strings.TrimSpace(fmt.Sprint(payload["access_key_secret"])),
+				strings.TrimSpace(fmt.Sprint(payload["sk"])),
+			)
+			securityToken = firstNonEmptyString(
+				strings.TrimSpace(fmt.Sprint(payload["securityToken"])),
+				strings.TrimSpace(fmt.Sprint(payload["security_token"])),
+				strings.TrimSpace(fmt.Sprint(payload["token"])),
+			)
+			if accessKeyID != "" && accessKeySecret != "" {
+				return accessKeyID, accessKeySecret, securityToken, true
+			}
+		}
+	}
+
+	for _, sep := range []string{"|", ":", ","} {
+		parts := strings.Split(raw, sep)
+		if len(parts) < 2 {
+			continue
+		}
+		accessKeyID = strings.TrimSpace(parts[0])
+		accessKeySecret = strings.TrimSpace(parts[1])
+		if len(parts) >= 3 {
+			securityToken = strings.TrimSpace(parts[2])
+		}
+		if accessKeyID != "" && accessKeySecret != "" {
+			return accessKeyID, accessKeySecret, securityToken, true
+		}
+	}
+
+	return "", "", "", false
+}
+
+func generateAliyunSignatureNonce() string {
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+func encodeAliyunRPCParams(params map[string]string) string {
+	keys := make([]string, 0, len(params))
+	for key := range params {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, aliyunPercentEncode(key)+"="+aliyunPercentEncode(params[key]))
+	}
+	return strings.Join(parts, "&")
+}
+
+func signAliyunRPCParams(params map[string]string, accessKeySecret string) string {
+	canonicalized := encodeAliyunRPCParams(params)
+	stringToSign := "POST&%2F&" + aliyunPercentEncode(canonicalized)
+
+	mac := hmac.New(sha1.New, []byte(accessKeySecret+"&"))
+	_, _ = mac.Write([]byte(stringToSign))
+	return base64.StdEncoding.EncodeToString(mac.Sum(nil))
+}
+
+func aliyunPercentEncode(value string) string {
+	encoded := url.QueryEscape(value)
+	encoded = strings.ReplaceAll(encoded, "+", "%20")
+	encoded = strings.ReplaceAll(encoded, "*", "%2A")
+	encoded = strings.ReplaceAll(encoded, "%7E", "~")
+	return encoded
+}
+
 func generateTryonTaskNo() string {
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)
 	return "TRYON_" + time.Now().Format("20060102150405") + "_" + hex.EncodeToString(b)
+}
+
+func generateTryonBeautifyTaskNo() string {
+	b := make([]byte, 4)
+	_, _ = rand.Read(b)
+	return "BEAUTIFY_" + time.Now().Format("20060102150405") + "_" + hex.EncodeToString(b)
 }
 
 func generateTryonRequestID() string {

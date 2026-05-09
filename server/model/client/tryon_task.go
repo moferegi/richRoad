@@ -22,6 +22,13 @@ type TryonTask struct {
 	EnableRefiner  bool       `json:"enableRefiner" form:"enableRefiner" gorm:"column:enable_refiner;default:false;comment:是否开启图片精修;"`
 	RefinerStatus  string     `json:"refinerStatus" form:"refinerStatus" gorm:"column:refiner_status;size:20;default:'';comment:精修状态(disabled/pending/processing/success/failed);"`
 	RefinerTaskID  string     `json:"refinerTaskID" form:"refinerTaskID" gorm:"column:refiner_task_id;size:128;index;comment:精修任务ID;"`
+	BeautifyStatus string     `json:"beautifyStatus" form:"beautifyStatus" gorm:"column:beautify_status;size:20;default:'';comment:美肤状态(disabled/processing/success/failed);"`
+	BeautifyTaskNo string     `json:"beautifyTaskNo" form:"beautifyTaskNo" gorm:"column:beautify_task_no;size:64;index;comment:美肤任务编号;"`
+	BeautifyResult string     `json:"beautifyResult" form:"beautifyResult" gorm:"column:beautify_result;type:text;comment:美肤结果图;"`
+	BeautifyCost   int        `json:"beautifyCost" form:"beautifyCost" gorm:"column:beautify_cost;default:0;comment:美肤扣除试衣币;"`
+	BeautifyRefund int        `json:"beautifyRefund" form:"beautifyRefund" gorm:"column:beautify_refund;default:0;comment:美肤退还试衣币;"`
+	BeautifyError  string     `json:"beautifyError" form:"beautifyError" gorm:"column:beautify_error;size:500;comment:美肤失败原因;"`
+	BeautifyAt     *time.Time `json:"beautifyAt" form:"beautifyAt" gorm:"column:beautify_at;comment:美肤完成时间;"`
 	CostPoints     int        `json:"costPoints" form:"costPoints" gorm:"column:cost_points;default:0;comment:扣除试衣币;"`
 	RefundPoints   int        `json:"refundPoints" form:"refundPoints" gorm:"column:refund_points;default:0;comment:退还试衣币;"`
 	ErrorMessage   string     `json:"errorMessage" form:"errorMessage" gorm:"column:error_message;size:500;comment:失败原因;"`

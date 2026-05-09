@@ -18,7 +18,9 @@ type TryonPointModelStatsItem struct {
 	ModelKey            string `json:"modelKey"`
 	TaskCount           int64  `json:"taskCount"`
 	RefinerEnabledCount int64  `json:"refinerEnabledCount"`
+	BeautifyUsedCount   int64  `json:"beautifyUsedCount"`
 	TotalCostPoints     int64  `json:"totalCostPoints"`
+	BeautifyCostPoints  int64  `json:"beautifyCostPoints"`
 }
 
 type TryonPointStatsData struct {
@@ -29,8 +31,10 @@ type TryonPointStatsData struct {
 	AdminDecreaseTotal  int64                      `json:"adminDecreaseTotal"`
 	TotalGranted        int64                      `json:"totalGranted"`
 	TotalUsed           int64                      `json:"totalUsed"`
+	BeautifyUsedTotal   int64                      `json:"beautifyUsedTotal"`
 	ModelCallTotal      int64                      `json:"modelCallTotal"`
 	ModelCostTotal      int64                      `json:"modelCostTotal"`
+	BeautifyCostTotal   int64                      `json:"beautifyCostTotal"`
 	ModelStats          []TryonPointModelStatsItem `json:"modelStats"`
 }
 
@@ -258,6 +262,7 @@ func (cprService *PointRecordService) GetTryonPointStats(ctx context.Context, in
 
 	const (
 		tryonOpRecharge  = "tryon_recharge"
+		tryonOpBeautify  = "tryon_beautify_consume"
 		adminAdjustOpKey = "admin_adjust_tryon_point"
 	)
 
@@ -288,6 +293,11 @@ func (cprService *PointRecordService) GetTryonPointStats(ctx context.Context, in
 	if stats.TotalUsed, err = sumByChangeType(tryonOpConsume, "decrease"); err != nil {
 		return stats, err
 	}
+	beautifyUsedCost, sumErr := sumByChangeType(tryonOpBeautify, "decrease")
+	if sumErr != nil {
+		return stats, sumErr
+	}
+	stats.TotalUsed += beautifyUsedCost
 
 	if err = cprService.applyTryonPointStatsFilters(global.GVA_DB.Model(&client.PointRecord{}), info).
 		Where("point_change > 0").
@@ -308,11 +318,13 @@ func (cprService *PointRecordService) GetTryonPointStats(ctx context.Context, in
 		Provider            string `json:"provider"`
 		TaskCount           int64  `json:"taskCount"`
 		RefinerEnabledCount int64  `json:"refinerEnabledCount"`
+		BeautifyUsedCount   int64  `json:"beautifyUsedCount"`
 		TotalCostPoints     int64  `json:"totalCostPoints"`
+		BeautifyCostPoints  int64  `json:"beautifyCostPoints"`
 	}
 	var rows []modelAggRow
 	err = taskQuery.
-		Select("provider, COUNT(*) as task_count, COALESCE(SUM(CASE WHEN enable_refiner THEN 1 ELSE 0 END), 0) as refiner_enabled_count, COALESCE(SUM(cost_points), 0) as total_cost_points").
+		Select("provider, COUNT(*) as task_count, COALESCE(SUM(CASE WHEN enable_refiner THEN 1 ELSE 0 END), 0) as refiner_enabled_count, COALESCE(SUM(CASE WHEN beautify_status <> '' AND beautify_status <> 'disabled' THEN 1 ELSE 0 END), 0) as beautify_used_count, COALESCE(SUM(cost_points), 0) as total_cost_points, COALESCE(SUM(beautify_cost), 0) as beautify_cost_points").
 		Group("provider").
 		Order("task_count DESC").
 		Scan(&rows).Error
@@ -330,10 +342,14 @@ func (cprService *PointRecordService) GetTryonPointStats(ctx context.Context, in
 			ModelKey:            modelKey,
 			TaskCount:           row.TaskCount,
 			RefinerEnabledCount: row.RefinerEnabledCount,
+			BeautifyUsedCount:   row.BeautifyUsedCount,
 			TotalCostPoints:     row.TotalCostPoints,
+			BeautifyCostPoints:  row.BeautifyCostPoints,
 		})
 		stats.ModelCallTotal += row.TaskCount
 		stats.ModelCostTotal += row.TotalCostPoints
+		stats.BeautifyUsedTotal += row.BeautifyUsedCount
+		stats.BeautifyCostTotal += row.BeautifyCostPoints
 	}
 
 	return stats, nil

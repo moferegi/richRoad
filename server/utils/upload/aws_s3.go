@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"mime/multipart"
+	"net/http"
 	"sort"
 	"strings"
 	"time"
@@ -20,6 +21,11 @@ import (
 
 type AwsS3 struct{}
 
+const (
+	awsS3UploadMaxRetries = 3
+	awsS3RetryBaseDelay   = 250 * time.Millisecond
+)
+
 //@author: [WqyJh](https://github.com/WqyJh)
 //@object: *AwsS3
 //@function: UploadFile
@@ -33,8 +39,8 @@ func (*AwsS3) UploadFile(file *multipart.FileHeader) (string, string, error) {
 
 // UploadFileToFolder 上传文件到指定文件夹
 func (*AwsS3) UploadFileToFolder(file *multipart.FileHeader, folder string) (string, string, error) {
-	session := newSession()
-	uploader := s3manager.NewUploader(session)
+	sess := newSession()
+	uploader := s3manager.NewUploader(sess)
 
 	fileKey := fmt.Sprintf("%d%s", time.Now().Unix(), file.Filename)
 	// 构建路径: PathPrefix/folder/fileKey
@@ -48,25 +54,85 @@ func (*AwsS3) UploadFileToFolder(file *multipart.FileHeader, folder string) (str
 	pathParts = append(pathParts, fileKey)
 
 	filename := strings.Join(pathParts, "/")
-	f, openError := file.Open()
-	if openError != nil {
-		global.GVA_LOG.Error("function file.Open() failed", zap.Any("err", openError.Error()))
-		return "", "", errors.New("function file.Open() failed, err:" + openError.Error())
-	}
-	defer f.Close()
 
-	_, err := uploader.Upload(&s3manager.UploadInput{
-		Bucket:      aws.String(global.GVA_CONFIG.AwsS3.Bucket),
-		Key:         aws.String(filename),
-		Body:        f,
-		ContentType: aws.String(file.Header.Get("Content-Type")),
-	})
-	if err != nil {
-		global.GVA_LOG.Error("function uploader.Upload() failed", zap.Any("err", err.Error()))
-		return "", "", err
+	contentType := strings.TrimSpace(file.Header.Get("Content-Type"))
+	if contentType == "" {
+		contentType = "application/octet-stream"
 	}
 
-	return global.GVA_CONFIG.AwsS3.BaseURL + "/" + filename, filename, nil
+	var lastErr error
+	for attempt := 1; attempt <= awsS3UploadMaxRetries; attempt++ {
+		f, openError := file.Open()
+		if openError != nil {
+			global.GVA_LOG.Error("function file.Open() failed", zap.Any("err", openError.Error()))
+			return "", "", errors.New("function file.Open() failed, err:" + openError.Error())
+		}
+
+		_, err := uploader.Upload(&s3manager.UploadInput{
+			Bucket:      aws.String(global.GVA_CONFIG.AwsS3.Bucket),
+			Key:         aws.String(filename),
+			Body:        f,
+			ContentType: aws.String(contentType),
+		})
+		_ = f.Close()
+
+		if err == nil {
+			return global.GVA_CONFIG.AwsS3.BaseURL + "/" + filename, filename, nil
+		}
+
+		lastErr = err
+		if attempt >= awsS3UploadMaxRetries || !shouldRetryAwsS3Upload(err) {
+			break
+		}
+
+		backoff := time.Duration(attempt) * awsS3RetryBaseDelay
+		global.GVA_LOG.Warn("aws s3 upload retry",
+			zap.Int("attempt", attempt),
+			zap.String("bucket", global.GVA_CONFIG.AwsS3.Bucket),
+			zap.String("key", filename),
+			zap.Duration("backoff", backoff),
+			zap.Error(err),
+		)
+		time.Sleep(backoff)
+	}
+
+	if lastErr == nil {
+		lastErr = errors.New("unknown s3 upload error")
+	}
+	global.GVA_LOG.Error("function uploader.Upload() failed", zap.Any("err", lastErr.Error()))
+	return "", "", lastErr
+}
+
+func shouldRetryAwsS3Upload(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := strings.ToLower(strings.TrimSpace(err.Error()))
+	if message == "" {
+		return false
+	}
+
+	transientHints := []string{
+		"eof",
+		"timeout",
+		"temporarily unavailable",
+		"connection reset",
+		"connection aborted",
+		"broken pipe",
+		"tls handshake timeout",
+		"request canceled",
+		"http2: server sent goaway",
+		"503",
+	}
+
+	for _, hint := range transientHints {
+		if strings.Contains(message, hint) {
+			return true
+		}
+	}
+
+	return false
 }
 
 //@author: [WqyJh](https://github.com/WqyJh)
@@ -155,11 +221,27 @@ func (*AwsS3) ListFolders() ([]string, error) {
 
 // newSession Create S3 session
 func newSession() *session.Session {
+	httpClient := &http.Client{
+		Timeout: 90 * time.Second,
+		Transport: &http.Transport{
+			Proxy:                 http.ProxyFromEnvironment,
+			ForceAttemptHTTP2:     false,
+			MaxIdleConns:          100,
+			MaxIdleConnsPerHost:   32,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			ResponseHeaderTimeout: 30 * time.Second,
+		},
+	}
+
 	sess, _ := session.NewSession(&aws.Config{
 		Region:           aws.String(global.GVA_CONFIG.AwsS3.Region),
 		Endpoint:         aws.String(global.GVA_CONFIG.AwsS3.Endpoint), //minio在这里设置地址,可以兼容
 		S3ForcePathStyle: aws.Bool(global.GVA_CONFIG.AwsS3.S3ForcePathStyle),
 		DisableSSL:       aws.Bool(global.GVA_CONFIG.AwsS3.DisableSSL),
+		MaxRetries:       aws.Int(2),
+		HTTPClient:       httpClient,
 		Credentials: credentials.NewStaticCredentials(
 			global.GVA_CONFIG.AwsS3.SecretID,
 			global.GVA_CONFIG.AwsS3.SecretKey,

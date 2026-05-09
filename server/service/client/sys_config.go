@@ -202,6 +202,9 @@ func isAliyunQuotaSupportedModel(item *tryonModelConfig) bool {
 	if item == nil {
 		return false
 	}
+	if !item.isTryonModelUsage() {
+		return false
+	}
 	provider := strings.ToLower(strings.TrimSpace(item.Provider))
 	if strings.Contains(provider, "aliyun") || strings.Contains(provider, "dashscope") {
 		return true

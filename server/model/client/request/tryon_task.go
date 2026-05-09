@@ -12,6 +12,7 @@ type CreateTryonTaskReq struct {
 	ModelKey      string `json:"modelKey" form:"modelKey"`
 	EnableRefiner bool   `json:"enableRefiner" form:"enableRefiner"`
 	SceneType     string `json:"sceneType" form:"sceneType" binding:"required,oneof=clothes shoes takeoff"`
+	TemplatePart  string `json:"templatePart" form:"templatePart" binding:"omitempty,oneof=upper lower"`
 	SourceImage   string `json:"sourceImage" form:"sourceImage" binding:"required"`
 	TemplateImage string `json:"templateImage" form:"templateImage" binding:"required"`
 }
@@ -32,4 +33,12 @@ type TryonTaskSearch struct {
 // DeleteMyTryonTaskReq 删除我的试衣任务请求
 type DeleteMyTryonTaskReq struct {
 	TaskNo string `json:"taskNo" form:"taskNo" binding:"required"`
+}
+
+// ApplyTryonBeautifyReq 试衣任务智能美肤请求
+type ApplyTryonBeautifyReq struct {
+	TaskID           uint    `json:"taskID" form:"taskID" binding:"required"`
+	BeautifyModelKey string  `json:"beautifyModelKey" form:"beautifyModelKey"`
+	RetouchDegree    float64 `json:"retouchDegree" form:"retouchDegree"`
+	WhiteningDegree  float64 `json:"whiteningDegree" form:"whiteningDegree"`
 }

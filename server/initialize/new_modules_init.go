@@ -94,6 +94,13 @@ func initNewModulesApis(db *gorm.DB) {
 		{ApiGroup: "我的模特", Method: "DELETE", Path: "/tryonModel/deleteTryonModelByIds", Description: "批量删除我的模特"},
 		{ApiGroup: "我的模特", Method: "GET", Path: "/tryonModel/getMyTryonModelList", Description: "获取我的模特列表"},
 		{ApiGroup: "我的模特", Method: "GET", Path: "/tryonModel/getTryonModelList", Description: "获取模特列表(管理端)"},
+		// 我的衣橱
+		{ApiGroup: "我的衣橱", Method: "POST", Path: "/tryonCloth/createTryonCloth", Description: "创建我的衣橱"},
+		{ApiGroup: "我的衣橱", Method: "PUT", Path: "/tryonCloth/updateTryonCloth", Description: "更新我的衣橱"},
+		{ApiGroup: "我的衣橱", Method: "DELETE", Path: "/tryonCloth/deleteTryonCloth", Description: "删除我的衣橱"},
+		{ApiGroup: "我的衣橱", Method: "DELETE", Path: "/tryonCloth/deleteTryonClothByIds", Description: "批量删除我的衣橱"},
+		{ApiGroup: "我的衣橱", Method: "GET", Path: "/tryonCloth/getMyTryonClothList", Description: "获取我的衣橱列表"},
+		{ApiGroup: "我的衣橱", Method: "GET", Path: "/tryonCloth/getTryonClothList", Description: "获取我的衣橱列表(管理端)"},
 		// 外部链接域名
 		{ApiGroup: "外部链接域名", Method: "POST", Path: "/extDomain/createExternalLinkDomain", Description: "创建外部链接域名"},
 		{ApiGroup: "外部链接域名", Method: "DELETE", Path: "/extDomain/deleteExternalLinkDomain", Description: "删除外部链接域名"},
@@ -163,8 +170,9 @@ func initNewModulesMenus(db *gorm.DB) {
 			menuDef{"signInManage", "signInManage", "view/client/signIn/signIn.vue", "签到管理", "calendar", clientParent.ID, 16},
 			menuDef{"tryonTaskManage", "tryonTaskManage", "view/client/tryonTask/tryonTask.vue", "试衣任务", "camera", clientParent.ID, 17},
 			menuDef{"tryonModelManage", "tryonModelManage", "view/client/tryonModel/tryonModel.vue", "我的模特管理", "avatar", clientParent.ID, 18},
-			menuDef{"tryonPointRecord", "tryonPointRecord", "view/client/tryonPointRecord/tryonPointRecord.vue", "试衣币记录", "coin", clientParent.ID, 19},
-			menuDef{"tryonRechargeOrder", "tryonRechargeOrder", "view/client/tryonRechargeOrder/tryonRechargeOrder.vue", "试衣币充值订单", "wallet", clientParent.ID, 20},
+			menuDef{"tryonClothManage", "tryonClothManage", "view/client/tryonCloth/tryonCloth.vue", "我的衣橱管理", "goods", clientParent.ID, 19},
+			menuDef{"tryonPointRecord", "tryonPointRecord", "view/client/tryonPointRecord/tryonPointRecord.vue", "试衣币记录", "coin", clientParent.ID, 20},
+			menuDef{"tryonRechargeOrder", "tryonRechargeOrder", "view/client/tryonRechargeOrder/tryonRechargeOrder.vue", "试衣币充值订单", "wallet", clientParent.ID, 21},
 		)
 	}
 
@@ -279,6 +287,13 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/tryonModel/deleteTryonModelByIds", "DELETE"},
 		{"/tryonModel/getMyTryonModelList", "GET"},
 		{"/tryonModel/getTryonModelList", "GET"},
+		// 我的衣橱
+		{"/tryonCloth/createTryonCloth", "POST"},
+		{"/tryonCloth/updateTryonCloth", "PUT"},
+		{"/tryonCloth/deleteTryonCloth", "DELETE"},
+		{"/tryonCloth/deleteTryonClothByIds", "DELETE"},
+		{"/tryonCloth/getMyTryonClothList", "GET"},
+		{"/tryonCloth/getTryonClothList", "GET"},
 		// 外部链接域名
 		{"/extDomain/createExternalLinkDomain", "POST"},
 		{"/extDomain/deleteExternalLinkDomain", "DELETE"},

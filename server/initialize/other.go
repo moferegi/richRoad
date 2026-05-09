@@ -107,7 +107,7 @@ func initDefaultSysConfigs() {
 		{ConfigKey: "tryon_invite_register_reward_points", ConfigValue: "0", ConfigName: "邀请注册奖励试衣币", ConfigGroup: "tryon", Remark: "邀请下级注册成功后奖励给邀请人的试衣币数量，0表示不赠送"},
 		{ConfigKey: "tryon_cost_points", ConfigValue: "1", ConfigName: "单次试衣消耗", ConfigGroup: "tryon", Remark: "每次发起试衣或试鞋消耗的试衣币数量"},
 		{ConfigKey: "tryon_fail_refund_percent", ConfigValue: "100", ConfigName: "试衣失败退币比例", ConfigGroup: "tryon", Remark: "试衣失败时退回试衣币百分比，默认100"},
-		{ConfigKey: "tryon_models", ConfigValue: "[{\"key\":\"aliyun_aitryon\",\"enabled\":true,\"scenes\":[\"clothes\",\"shoes\"],\"model\":\"aitryon\",\"name\":{\"zh\":\"阿里AI试衣（基础）\",\"en\":\"Aliyun AI Try-On (Basic)\",\"mn\":\"Aliyun AI өмсгөл (Суурь)\"},\"desc\":{\"zh\":\"基础版试衣模型，速度更快，适合日常试衣。\",\"en\":\"Basic try-on model with faster generation for everyday use.\",\"mn\":\"Өдөр тутмын туршилтад тохирох, хурдан суурь загвар.\"},\"cost\":1,\"provider\":\"aliyun\",\"mode\":\"prod\",\"url\":\"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis\",\"taskQueryUrl\":\"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}\",\"token\":\"\",\"resolution\":-1,\"restoreFace\":true,\"supportsRefiner\":true,\"refinerModel\":\"aitryon-refiner\",\"refinerGender\":\"woman\",\"refinerExtraCost\":1},{\"key\":\"aliyun_aitryon_plus\",\"enabled\":true,\"scenes\":[\"clothes\",\"shoes\"],\"model\":\"aitryon-plus\",\"name\":{\"zh\":\"阿里AI试衣（Plus）\",\"en\":\"Aliyun AI Try-On (Plus)\",\"mn\":\"Aliyun AI өмсгөл (Plus)\"},\"desc\":{\"zh\":\"Plus版细节更好，适合高质量试衣图。\",\"en\":\"Higher quality rendering with better texture and logo details.\",\"mn\":\"Нэхмэл, логог илүү сайн сэргээдэг өндөр чанарын загвар.\"},\"cost\":1,\"provider\":\"aliyun\",\"mode\":\"prod\",\"url\":\"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis\",\"taskQueryUrl\":\"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}\",\"token\":\"\",\"resolution\":-1,\"restoreFace\":true,\"supportsRefiner\":true,\"refinerModel\":\"aitryon-refiner\",\"refinerGender\":\"woman\",\"refinerExtraCost\":1},{\"key\":\"yisol_idm_vton\",\"enabled\":true,\"scenes\":[\"clothes\"],\"model\":\"IDM-VTON\",\"name\":{\"zh\":\"IDM-VTON 开源试衣\",\"en\":\"IDM-VTON Open Try-On\",\"mn\":\"IDM-VTON нээлттэй өмсгөл\"},\"desc\":{\"zh\":\"HuggingFace Space yisol/IDM-VTON，使用 Gradio /tryon 接口，支持自动蒙版与裁剪参数。\",\"en\":\"HuggingFace Space yisol/IDM-VTON via Gradio /tryon API with auto-mask and crop options.\",\"mn\":\"HuggingFace Space yisol/IDM-VTON Gradio /tryon API ашиглана.\"},\"cost\":1,\"provider\":\"gradio\",\"mode\":\"prod\",\"url\":\"https://yisol-idm-vton.hf.space\",\"apiName\":\"/tryon\",\"garmentDes\":\"clothing item\",\"isChecked\":true,\"isCheckedCrop\":false,\"denoiseSteps\":30,\"seed\":42,\"token\":\"\",\"resolution\":-1,\"restoreFace\":true},{\"key\":\"aliyun_aitryon_parsing\",\"enabled\":false,\"scenes\":[\"takeoff\"],\"model\":\"aitryon-parsing-v1\",\"name\":{\"zh\":\"阿里取衣分割\",\"en\":\"Aliyun Takeoff Parsing\",\"mn\":\"Aliyun хувцас салгах\"},\"desc\":{\"zh\":\"用于取衣区分割模特服饰并输出可用服饰图。\",\"en\":\"Segments garment regions for takeoff area and outputs reusable garment images.\",\"mn\":\"Загварын хувцсыг ялган авч, дахин ашиглах зургийг гаргана.\"},\"cost\":1,\"provider\":\"aliyun\",\"mode\":\"prod\",\"url\":\"https://dashscope.aliyuncs.com/api/v1/services/vision/image-process/process\",\"token\":\"\",\"clothesType\":[\"upper\"]}]", ConfigName: "试衣模型列表", ConfigGroup: "tryon", Remark: "JSON数组：可配置多模型及开关、多语言名称与说明、接口地址等"},
+		{ConfigKey: "tryon_models", ConfigValue: defaultTryonModelsSysConfigValue(), ConfigName: "试衣模型列表", ConfigGroup: "tryon", Remark: "JSON数组：可配置多模型及开关、多语言名称与说明、接口地址等"},
 		{ConfigKey: "shoe_models", ConfigValue: "[{\"key\":\"aliyun_shoes_and_boots\",\"enabled\":true,\"scenes\":[\"shoes\"],\"model\":\"shoes-and-boots\",\"name\":{\"zh\":\"阿里AI试鞋\",\"en\":\"Aliyun Shoes Try-On\",\"mn\":\"Aliyun гутлын туршилт\"},\"desc\":{\"zh\":\"适用于鞋靴类虚拟试穿。\",\"en\":\"Suitable for virtual try-on of shoes and boots.\",\"mn\":\"Гутал, түрийвчний виртуал туршилтад тохиромжтой.\"},\"cost\":1,\"provider\":\"aliyun\",\"mode\":\"prod\",\"url\":\"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis\",\"taskQueryUrl\":\"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}\",\"token\":\"\",\"resolution\":-1,\"restoreFace\":true}]", ConfigName: "试鞋模型列表", ConfigGroup: "tryon", Remark: "JSON数组：专用于试鞋场景的模型配置，支持多语言名称与说明、接口地址等"},
 		{ConfigKey: "tryon_recharge_plans", ConfigValue: "[{\"points\":{\"zh\":\"50\",\"en\":\"50\",\"mn\":\"50\"},\"coinLabel\":{\"zh\":\"试衣币\",\"en\":\"Try-on Coins\",\"mn\":\"Туршилтын зоос\"},\"currencySymbol\":{\"zh\":\"￥\",\"en\":\"CNY \"},\"price\":{\"zh\":\"9.9\",\"en\":\"9.9\",\"mn\":\"9.9\"},\"currencySuffix\":{\"zh\":\"元\",\"en\":\"\",\"mn\":\"\"}},{\"points\":{\"zh\":\"180\",\"en\":\"180\",\"mn\":\"180\"},\"coinLabel\":{\"zh\":\"试衣币\",\"en\":\"Try-on Coins\",\"mn\":\"Туршилтын зоос\"},\"currencySymbol\":{\"zh\":\"￥\",\"en\":\"CNY \"},\"price\":{\"zh\":\"29.9\",\"en\":\"29.9\",\"mn\":\"29.9\"},\"currencySuffix\":{\"zh\":\"元\",\"en\":\"\",\"mn\":\"\"}},{\"points\":{\"zh\":\"680\",\"en\":\"680\",\"mn\":\"680\"},\"coinLabel\":{\"zh\":\"试衣币\",\"en\":\"Try-on Coins\",\"mn\":\"Туршилтын зоос\"},\"currencySymbol\":{\"zh\":\"￥\",\"en\":\"CNY \"},\"price\":{\"zh\":\"99.9\",\"en\":\"99.9\",\"mn\":\"99.9\"},\"currencySuffix\":{\"zh\":\"元\",\"en\":\"\",\"mn\":\"\"}}]", ConfigName: "试衣币充值套餐", ConfigGroup: "tryon", Remark: "后台可视化维护：点数、币名、货币符号、价格和单位均支持多语言"},
 		{ConfigKey: "tryon_provider_mode", ConfigValue: "mock_success", ConfigName: "试衣模型模式", ConfigGroup: "tryon", Remark: "mock_success表示本地联调直接返回原图，prod表示调用真实模型"},
@@ -148,6 +148,117 @@ func initDefaultSysConfigs() {
 	}
 }
 
+func defaultTryonModelsSysConfigValue() string {
+	return `[
+	  {
+	    "key": "aliyun_aitryon",
+	    "modelUsage": "tryon",
+	    "enabled": true,
+	    "scenes": ["clothes", "shoes"],
+	    "model": "aitryon",
+	    "name": {"zh": "阿里AI试衣（基础）", "en": "Aliyun AI Try-On (Basic)", "mn": "Aliyun AI өмсгөл (Суурь)"},
+	    "desc": {"zh": "基础版试衣模型，速度更快，适合日常试衣。", "en": "Basic try-on model with faster generation for everyday use.", "mn": "Өдөр тутмын туршилтад тохирох, хурдан суурь загвар."},
+	    "cost": 1,
+	    "provider": "aliyun",
+	    "mode": "prod",
+	    "url": "https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis",
+	    "taskQueryUrl": "https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}",
+	    "token": "",
+	    "resolution": -1,
+	    "restoreFace": true,
+	    "supportsRefiner": true,
+	    "refinerModel": "aitryon-refiner",
+	    "refinerGender": "woman",
+	    "refinerExtraCost": 1,
+	    "autoEnableAliyunParsingUpperOnly": true,
+	    "autoEnableAliyunParsingLowerOnly": true,
+	    "supportsBeautify": false
+	  },
+	  {
+	    "key": "aliyun_aitryon_plus",
+	    "modelUsage": "tryon",
+	    "enabled": true,
+	    "scenes": ["clothes", "shoes"],
+	    "model": "aitryon-plus",
+	    "name": {"zh": "阿里AI试衣（Plus）", "en": "Aliyun AI Try-On (Plus)", "mn": "Aliyun AI өмсгөл (Plus)"},
+	    "desc": {"zh": "Plus版细节更好，适合高质量试衣图。", "en": "Higher quality rendering with better texture and logo details.", "mn": "Нэхмэл, логог илүү сайн сэргээдэг өндөр чанарын загвар."},
+	    "cost": 1,
+	    "provider": "aliyun",
+	    "mode": "prod",
+	    "url": "https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis",
+	    "taskQueryUrl": "https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}",
+	    "token": "",
+	    "resolution": -1,
+	    "restoreFace": true,
+	    "supportsRefiner": true,
+	    "refinerModel": "aitryon-refiner",
+	    "refinerGender": "woman",
+	    "refinerExtraCost": 1,
+	    "autoEnableAliyunParsingUpperOnly": true,
+	    "autoEnableAliyunParsingLowerOnly": true,
+	    "supportsBeautify": false
+	  },
+	  {
+	    "key": "yisol_idm_vton",
+	    "modelUsage": "tryon",
+	    "enabled": true,
+	    "scenes": ["clothes"],
+	    "model": "IDM-VTON",
+	    "name": {"zh": "IDM-VTON 开源试衣", "en": "IDM-VTON Open Try-On", "mn": "IDM-VTON нээлттэй өмсгөл"},
+	    "desc": {"zh": "HuggingFace Space yisol/IDM-VTON，使用 Gradio /tryon 接口，支持自动蒙版与裁剪参数。", "en": "HuggingFace Space yisol/IDM-VTON via Gradio /tryon API with auto-mask and crop options.", "mn": "HuggingFace Space yisol/IDM-VTON Gradio /tryon API ашиглана."},
+	    "cost": 1,
+	    "provider": "gradio",
+	    "mode": "prod",
+	    "url": "https://yisol-idm-vton.hf.space",
+	    "apiName": "/tryon",
+	    "garmentDes": "clothing item",
+	    "isChecked": true,
+	    "isCheckedCrop": false,
+	    "denoiseSteps": 30,
+	    "seed": 42,
+	    "token": "",
+	    "resolution": -1,
+	    "restoreFace": true,
+	    "supportsBeautify": false
+	  },
+	  {
+	    "key": "aliyun_aitryon_parsing",
+	    "modelUsage": "tryon",
+	    "enabled": false,
+	    "scenes": ["takeoff"],
+	    "model": "aitryon-parsing-v1",
+	    "name": {"zh": "阿里取衣分割", "en": "Aliyun Takeoff Parsing", "mn": "Aliyun хувцас салгах"},
+	    "desc": {"zh": "用于取衣区分割模特服饰并输出可用服饰图。", "en": "Segments garment regions for takeoff area and outputs reusable garment images.", "mn": "Загварын хувцсыг ялган авч, дахин ашиглах зургийг гаргана."},
+	    "cost": 1,
+	    "provider": "aliyun",
+	    "mode": "prod",
+	    "url": "https://dashscope.aliyuncs.com/api/v1/services/vision/image-process/process",
+	    "token": "",
+	    "clothesType": ["upper"],
+	    "supportsBeautify": false
+	  },
+	  {
+	    "key": "smart_beautify_default",
+	    "modelUsage": "beautify",
+	    "enabled": true,
+	    "scenes": ["clothes", "shoes", "takeoff"],
+	    "model": "custom_beautify",
+	    "beautifyModel": "custom_beautify",
+	    "name": {"zh": "智能美肤模型", "en": "Smart Beautify Model", "mn": "Ухаалаг арьс гоёжуулах загвар"},
+	    "beautifyDesc": {"zh": "仅用于生成页对试衣结果图进行二次美肤。", "en": "Used only on generate page to beautify try-on results.", "mn": "Зөвхөн туршилтын үр дүнгийн зургийг арьс сайжруулахад ашиглана."},
+	    "cost": 0,
+	    "beautifyExtraCost": 0,
+	    "provider": "custom",
+	    "mode": "prod",
+	    "url": "",
+	    "token": "",
+	    "supportsBeautify": true,
+	    "beautifyRetouchDegree": 70,
+	    "beautifyWhiteningDegree": 30
+	  }
+	]`
+}
+
 func appendIDMVTONTryonModelIfMissing() {
 	var cfg client.SysConfig
 	if err := global.GVA_DB.Where("config_key = ?", "tryon_models").First(&cfg).Error; err != nil {
@@ -160,43 +271,183 @@ func appendIDMVTONTryonModelIfMissing() {
 		return
 	}
 
-	for _, model := range models {
-		if strings.EqualFold(strings.TrimSpace(toString(model["key"])), "yisol_idm_vton") {
-			return
+	changed := false
+	hasIDM := false
+	hasBeautify := false
+	for i := range models {
+		model := models[i]
+		key := strings.ToLower(strings.TrimSpace(toString(model["key"])))
+		usage := strings.ToLower(strings.TrimSpace(toString(model["modelUsage"])))
+		if usage == "" {
+			usage = "tryon"
+		}
+
+		if key == "yisol_idm_vton" {
+			hasIDM = true
+		}
+
+		if usage == "beautify" {
+			hasBeautify = true
+			if !toBoolLoose(model["supportsBeautify"], true) {
+				model["supportsBeautify"] = true
+				changed = true
+			}
+			if strings.TrimSpace(toString(model["beautifyModel"])) == "" {
+				model["beautifyModel"] = "custom_beautify"
+				changed = true
+			}
+			if strings.TrimSpace(toString(model["model"])) == "" {
+				model["model"] = "custom_beautify"
+				changed = true
+			}
+			continue
+		}
+
+		if strings.TrimSpace(toString(model["beautifyModelKey"])) != "" {
+			model["beautifyModelKey"] = ""
+			changed = true
+		}
+		if toBoolLoose(model["supportsBeautify"], false) {
+			model["supportsBeautify"] = false
+			changed = true
+		}
+
+		if isAliyunAitryonSeriesLoose(model) {
+			if _, ok := model["autoEnableAliyunParsingUpperOnly"]; !ok {
+				model["autoEnableAliyunParsingUpperOnly"] = true
+				changed = true
+			}
+			if _, ok := model["autoEnableAliyunParsingLowerOnly"]; !ok {
+				model["autoEnableAliyunParsingLowerOnly"] = true
+				changed = true
+			}
 		}
 	}
 
-	models = append(models, map[string]interface{}{
-		"key":           "yisol_idm_vton",
-		"enabled":       true,
-		"scenes":        []string{"clothes"},
-		"model":         "IDM-VTON",
-		"name":          map[string]string{"zh": "IDM-VTON 开源试衣", "en": "IDM-VTON Open Try-On", "mn": "IDM-VTON нээлттэй өмсгөл"},
-		"desc":          map[string]string{"zh": "HuggingFace Space yisol/IDM-VTON，使用 Gradio /tryon 接口，支持自动蒙版与裁剪参数。", "en": "HuggingFace Space yisol/IDM-VTON via Gradio /tryon API with auto-mask and crop options.", "mn": "HuggingFace Space yisol/IDM-VTON Gradio /tryon API ашиглана."},
-		"cost":          1,
-		"provider":      "gradio",
-		"mode":          "prod",
-		"url":           "https://yisol-idm-vton.hf.space",
-		"apiName":       "/tryon",
-		"garmentDes":    "clothing item",
-		"isChecked":     true,
-		"isCheckedCrop": false,
-		"denoiseSteps":  30,
-		"seed":          42,
-		"token":         "",
-		"resolution":    -1,
-		"restoreFace":   true,
-	})
+	if !hasIDM {
+		models = append(models, map[string]interface{}{
+			"key":              "yisol_idm_vton",
+			"modelUsage":       "tryon",
+			"enabled":          true,
+			"scenes":           []string{"clothes"},
+			"model":            "IDM-VTON",
+			"name":             map[string]string{"zh": "IDM-VTON 开源试衣", "en": "IDM-VTON Open Try-On", "mn": "IDM-VTON нээлттэй өмсгөл"},
+			"desc":             map[string]string{"zh": "HuggingFace Space yisol/IDM-VTON，使用 Gradio /tryon 接口，支持自动蒙版与裁剪参数。", "en": "HuggingFace Space yisol/IDM-VTON via Gradio /tryon API with auto-mask and crop options.", "mn": "HuggingFace Space yisol/IDM-VTON Gradio /tryon API ашиглана."},
+			"cost":             1,
+			"provider":         "gradio",
+			"mode":             "prod",
+			"url":              "https://yisol-idm-vton.hf.space",
+			"apiName":          "/tryon",
+			"garmentDes":       "clothing item",
+			"isChecked":        true,
+			"isCheckedCrop":    false,
+			"denoiseSteps":     30,
+			"seed":             42,
+			"token":            "",
+			"resolution":       -1,
+			"restoreFace":      true,
+			"supportsBeautify": false,
+		})
+		changed = true
+	}
+
+	if !hasBeautify {
+		models = append(models, map[string]interface{}{
+			"key":                     "smart_beautify_default",
+			"modelUsage":              "beautify",
+			"enabled":                 true,
+			"scenes":                  []string{"clothes", "shoes", "takeoff"},
+			"model":                   "custom_beautify",
+			"beautifyModel":           "custom_beautify",
+			"name":                    map[string]string{"zh": "智能美肤模型", "en": "Smart Beautify Model", "mn": "Ухаалаг арьс гоёжуулах загвар"},
+			"beautifyDesc":            map[string]string{"zh": "仅用于生成页对试衣结果图进行二次美肤。", "en": "Used only on generate page to beautify try-on results.", "mn": "Зөвхөн туршилтын үр дүнгийн зургийг арьс сайжруулахад ашиглана."},
+			"cost":                    0,
+			"beautifyExtraCost":       0,
+			"provider":                "custom",
+			"mode":                    "prod",
+			"url":                     "",
+			"token":                   "",
+			"supportsBeautify":        true,
+			"beautifyRetouchDegree":   70,
+			"beautifyWhiteningDegree": 30,
+		})
+		changed = true
+	}
+
+	if !changed {
+		return
+	}
 
 	encoded, err := json.Marshal(models)
 	if err != nil {
-		global.GVA_LOG.Warn("试衣模型配置编码失败，跳过IDM-VTON自动追加", zap.Error(err))
+		global.GVA_LOG.Warn("试衣模型配置编码失败，跳过自动修复", zap.Error(err))
 		return
 	}
 
 	if err := global.GVA_DB.Model(&client.SysConfig{}).Where("id = ?", cfg.ID).Update("config_value", string(encoded)).Error; err != nil {
-		global.GVA_LOG.Warn("追加IDM-VTON试衣模型失败", zap.Error(err))
+		global.GVA_LOG.Warn("试衣模型配置自动修复失败", zap.Error(err))
 	}
+}
+
+func toBoolLoose(value interface{}, fallback bool) bool {
+	switch v := value.(type) {
+	case bool:
+		return v
+	case string:
+		text := strings.ToLower(strings.TrimSpace(v))
+		switch text {
+		case "1", "true", "yes", "on":
+			return true
+		case "0", "false", "no", "off":
+			return false
+		}
+	case float64:
+		return v != 0
+	case float32:
+		return v != 0
+	case int:
+		return v != 0
+	case int8:
+		return v != 0
+	case int16:
+		return v != 0
+	case int32:
+		return v != 0
+	case int64:
+		return v != 0
+	case uint:
+		return v != 0
+	case uint8:
+		return v != 0
+	case uint16:
+		return v != 0
+	case uint32:
+		return v != 0
+	case uint64:
+		return v != 0
+	}
+	return fallback
+}
+
+func isAliyunAitryonSeriesLoose(model map[string]interface{}) bool {
+	if model == nil {
+		return false
+	}
+	modelName := strings.ToLower(strings.TrimSpace(toString(model["model"])))
+	if modelName == "aitryon" || modelName == "aitryon-plus" {
+		return true
+	}
+
+	key := strings.ToLower(strings.TrimSpace(toString(model["key"])))
+	provider := strings.ToLower(strings.TrimSpace(toString(model["provider"])))
+	if strings.Contains(key, "aliyun_aitryon") {
+		return true
+	}
+	if (strings.Contains(provider, "aliyun") || strings.Contains(provider, "dashscope")) && strings.HasPrefix(modelName, "aitryon") {
+		return true
+	}
+
+	return false
 }
 
 func toString(value interface{}) string {

@@ -10,6 +10,7 @@ type ApiGroup struct {
 	TryonRechargeOrderApi
 	TryonTaskApi
 	TryonModelApi
+	TryonClothApi
 	VisitorApi
 	SysConfigApi
 	LanguageApi
