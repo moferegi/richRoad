@@ -18,9 +18,15 @@
         </view>
       </view>
       <view class="preview-col">
-        <text class="preview-label">{{ $t('tryonTemplateImage') }}</text>
-        <view class="preview-image-wrap" @tap="previewTemplate">
+        <text class="preview-label">{{ templatePrimaryLabel }}</text>
+        <view class="preview-image-wrap" @tap="previewTemplateUpper">
           <LazyImage class="preview-image" :src="templatePreview" mode="aspectFit" />
+        </view>
+      </view>
+      <view class="preview-col" v-if="showTemplateLowerPreview">
+        <text class="preview-label">{{ $t('uploadLowerImage') }}</text>
+        <view class="preview-image-wrap" @tap="previewTemplateLower">
+          <LazyImage class="preview-image" :src="templateLowerPreview" mode="aspectFit" />
         </view>
       </view>
     </view>
@@ -52,7 +58,8 @@
         </view>
         <text class="progress-text">{{ $t('tryonStatusProcessing') }} {{ progress }}%</text>
       </view>
-      <text class="error-msg" v-if="errorMessage">{{ errorMessage }}</text>
+      <text class="error-msg" v-if="taskStatus === 'failed' && errorMessage">{{ errorMessage }}</text>
+      <text class="status-note" v-if="taskNoticeText">{{ taskNoticeText }}</text>
       <view class="status-actions" v-if="showStatusActions">
         <view class="status-action-btn highlight" v-if="canCompare" @tap="openCompare">{{ compareActionText }}</view>
         <view class="status-action-btn" :class="{ disabled: !canUseBeautify || isBeautifyBusy }" @tap="handleBeautify">
@@ -169,7 +176,7 @@ import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { createTryonTask, findTryonTask, applyTryonBeautify } from '@/api/tryonTask.js'
 import { getTryonConfig } from '@/api/sysConfig.js'
-import { resolveApiMessage } from '@/utils/i18n.js'
+import { localText, resolveApiMessage } from '@/utils/i18n.js'
 import { getUrl } from '@/utils/url.js'
 import LazyImage from '@/components/lazy-image/lazy-image.vue'
 import {
@@ -188,6 +195,7 @@ const draft = ref({})
 const task = ref(null)
 const sourcePreview = ref('')
 const templatePreview = ref('')
+const templateLowerPreview = ref('')
 const resultPreview = ref('')
 const beautifyResultPreview = ref('')
 const resultTab = ref('tryon')
@@ -205,6 +213,12 @@ const resultImageLoading = ref(false)
 const resultImageRetryKey = ref(0)
 const beautifyLoading = ref(false)
 const modelMeta = ref({})
+const tryonRuntimeConfig = ref({
+  tryon_append_parsing_failed_tip: 'false',
+  tryon_parsing_failed_tip_text: '',
+  tryon_append_refiner_failed_tip: 'true',
+  tryon_refiner_failed_tip_text: '',
+})
 const beautifyPolling = ref(false)
 const autoBeautifyRequested = ref(false)
 const compareDragging = ref(false)
@@ -302,6 +316,32 @@ const beautifyButtonText = computed(() => {
   if (beautifyStatus.value === 'success') return $t.value('tryonBeautifyDone')
   if (beautifyStatus.value === 'failed') return $t.value('tryonBeautifyUsedHint')
   return $t.value('tryonBeautifyAction')
+})
+const appendRefinerFailedTip = computed(() => normalizeBool(tryonRuntimeConfig.value?.tryon_append_refiner_failed_tip, true))
+const appendParsingFailedTip = computed(() => normalizeBool(tryonRuntimeConfig.value?.tryon_append_parsing_failed_tip, false))
+const parsingFailedTipText = computed(() => {
+  const configured = localText(tryonRuntimeConfig.value?.tryon_parsing_failed_tip_text, langStore.locale)
+  return String(configured || '').trim()
+})
+const refinerFailedTipText = computed(() => {
+  const configured = localText(tryonRuntimeConfig.value?.tryon_refiner_failed_tip_text, langStore.locale)
+  const text = String(configured || '').trim()
+  if (text) return text
+  return '试衣成功，但精修失败，金币已退回'
+})
+const taskNoticeText = computed(() => {
+  if (taskStatus.value === 'failed') return ''
+  if (taskStatus.value !== 'success') return ''
+  const notices = []
+  const refinerStatus = String(task.value?.refinerStatus || '').trim().toLowerCase()
+  if (appendRefinerFailedTip.value && refinerStatus === 'failed' && refinerFailedTipText.value) {
+    notices.push(refinerFailedTipText.value)
+  }
+  const parsingStatus = String(task.value?.parsingStatus || '').trim().toLowerCase()
+  if (appendParsingFailedTip.value && parsingStatus === 'failed' && parsingFailedTipText.value) {
+    notices.push(parsingFailedTipText.value)
+  }
+  return notices.join('；')
 })
 const taskStatusText = computed(() => {
   if (taskStatus.value === 'success') return $t.value('tryonStatusSuccess')
@@ -409,6 +449,78 @@ const activeResultImageSrc = computed(() => {
   }
   return resultImageSrc.value
 })
+const showTemplateLowerPreview = computed(() => !!templateLowerPreview.value)
+const templatePrimaryLabel = computed(() => {
+  if (showTemplateLowerPreview.value) {
+    return $t.value('uploadUpperImage')
+  }
+  return $t.value('tryonTemplateImage')
+})
+
+const resolvePreviewUrl = (remoteUrl, localPath) => {
+  const remote = String(remoteUrl || '').trim()
+  if (remote) {
+    if (isTempLocalPath(remote)) {
+      return remote
+    }
+    return getUrl(remote)
+  }
+  return String(localPath || '').trim()
+}
+
+const resolveDraftTemplateSlots = (draftData = {}) => {
+  const templatePart = String(draftData?.templatePart || '').trim().toLowerCase()
+  const legacyRemote = String(draftData?.templateRemoteUrl || '').trim()
+  const legacyLocal = String(draftData?.templateLocalPath || '').trim()
+
+  const upperRemote = String(draftData?.templateUpperRemoteUrl || '').trim() || (templatePart !== 'lower' ? legacyRemote : '')
+  const upperLocal = String(draftData?.templateUpperLocalPath || '').trim() || (templatePart !== 'lower' ? legacyLocal : '')
+  const lowerRemote = String(draftData?.templateLowerRemoteUrl || '').trim() || (templatePart === 'lower' ? legacyRemote : '')
+  const lowerLocal = String(draftData?.templateLowerLocalPath || '').trim() || (templatePart === 'lower' ? legacyLocal : '')
+
+  return {
+    templatePart,
+    upperRemote,
+    upperLocal,
+    lowerRemote,
+    lowerLocal,
+  }
+}
+
+const applyTemplatePreviewsFromDraft = (draftData = {}) => {
+  const slots = resolveDraftTemplateSlots(draftData)
+  const upper = resolvePreviewUrl(slots.upperRemote, slots.upperLocal)
+  const lower = resolvePreviewUrl(slots.lowerRemote, slots.lowerLocal)
+
+  if (upper && lower) {
+    templatePreview.value = upper
+    templateLowerPreview.value = lower
+    return
+  }
+
+  if (slots.templatePart === 'lower' && lower) {
+    templatePreview.value = lower
+    templateLowerPreview.value = ''
+    return
+  }
+
+  templatePreview.value = upper || lower || resolvePreviewUrl(draftData?.templateRemoteUrl, draftData?.templateLocalPath)
+  templateLowerPreview.value = ''
+}
+
+const applyTemplatePreviewsFromTask = (taskData = {}, fallback = {}) => {
+  const primary = resolvePreviewUrl(taskData?.templateImage, '') || resolvePreviewUrl(fallback?.templateImage, '')
+  const lower = resolvePreviewUrl(taskData?.templateImageLower, '') || resolvePreviewUrl(fallback?.templateImageLower, '')
+
+  if (primary && lower) {
+    templatePreview.value = primary
+    templateLowerPreview.value = lower
+    return
+  }
+
+  templatePreview.value = primary || lower
+  templateLowerPreview.value = ''
+}
 
 const normalizeTask = (res) => {
   if (!res || !res.data) return null
@@ -469,6 +581,19 @@ const loadModelMetaByTask = async (taskData) => {
     })
   } catch {
     // ignore model meta resolve error
+  }
+}
+
+const loadTryonRuntimeConfig = async () => {
+  try {
+    const configRes = await getTryonConfig()
+    if (configRes.code !== 0 || !configRes.data) return
+    tryonRuntimeConfig.value = {
+      ...tryonRuntimeConfig.value,
+      ...configRes.data,
+    }
+  } catch {
+    // ignore runtime config load error
   }
 }
 
@@ -539,6 +664,10 @@ const finishTask = (latestTask, options = {}) => {
   task.value = latestTask
   isGenerating.value = false
   progress.value = 100
+  applyTemplatePreviewsFromTask(latestTask, {
+    templateImage: draft.value?.templateRemoteUrl,
+    templateImageLower: draft.value?.templateLowerRemoteUrl,
+  })
   if (latestTask?.resultImage) {
     prepareResultPreview(latestTask.resultImage)
   }
@@ -548,6 +677,8 @@ const finishTask = (latestTask, options = {}) => {
   }
   if (latestTask?.status === 'failed') {
     errorMessage.value = latestTask.errorMessage || $t.value('operationFailed')
+  } else {
+    errorMessage.value = ''
   }
   if (persistHistory) {
     appendTryonLocalHistory({
@@ -559,6 +690,7 @@ const finishTask = (latestTask, options = {}) => {
       status: latestTask?.status,
       sourceImage: latestTask?.sourceImage || draft.value.sourceRemoteUrl,
       templateImage: latestTask?.templateImage || draft.value.templateRemoteUrl,
+      templateImageLower: latestTask?.templateImageLower || draft.value.templateLowerRemoteUrl,
       resultImage: latestTask?.resultImage || '',
       beautifyStatus: latestTask?.beautifyStatus || '',
       beautifyTaskNo: latestTask?.beautifyTaskNo || '',
@@ -596,6 +728,10 @@ const startPolling = (taskID, options = {}) => {
         const latestTask = normalizeTask(res)
         if (latestTask) {
           task.value = latestTask
+          applyTemplatePreviewsFromTask(latestTask, {
+            templateImage: draft.value?.templateRemoteUrl,
+            templateImageLower: draft.value?.templateLowerRemoteUrl,
+          })
           if (latestTask.resultImage) {
             prepareResultPreview(latestTask.resultImage)
           }
@@ -672,7 +808,18 @@ const createTask = async () => {
     uni.showToast({ title: $t.value('tryonPickSourceFirst'), icon: 'none' })
     return
   }
-  if (!draft.value.templateLocalPath && !draft.value.templateRemoteUrl) {
+  const draftTemplateSlots = resolveDraftTemplateSlots(draft.value)
+  const expectDualTemplate = !!(
+    (draftTemplateSlots.upperRemote || draftTemplateSlots.upperLocal) &&
+    (draftTemplateSlots.lowerRemote || draftTemplateSlots.lowerLocal)
+  )
+  const hasAnyTemplateInput = !!(
+    draftTemplateSlots.upperRemote ||
+    draftTemplateSlots.upperLocal ||
+    draftTemplateSlots.lowerRemote ||
+    draftTemplateSlots.lowerLocal
+  )
+  if (!hasAnyTemplateInput) {
     uni.showToast({ title: $t.value('tryonPickTemplateFirst'), icon: 'none' })
     return
   }
@@ -685,12 +832,33 @@ const createTask = async () => {
       getDraftUploadFolder('source'),
       getDraftUploadType('source')
     )
-    const templateImage = await ensureRemoteImage(
-      draft.value.templateRemoteUrl,
-      draft.value.templateLocalPath,
+    const upperTemplateImage = await ensureRemoteImage(
+      draftTemplateSlots.upperRemote,
+      draftTemplateSlots.upperLocal,
       getDraftUploadFolder('template'),
       getDraftUploadType('template')
     )
+    const lowerTemplateImage = await ensureRemoteImage(
+      draftTemplateSlots.lowerRemote,
+      draftTemplateSlots.lowerLocal,
+      getDraftUploadFolder('template'),
+      getDraftUploadType('template')
+    )
+
+    if (expectDualTemplate && (!upperTemplateImage || !lowerTemplateImage)) {
+      throw new Error($t.value('tryonPickTemplateFirst'))
+    }
+
+    let normalizedTemplatePart = String(draftTemplateSlots.templatePart || '').trim().toLowerCase()
+    if (upperTemplateImage && lowerTemplateImage) {
+      normalizedTemplatePart = ''
+    }
+    const templateImage = normalizedTemplatePart === 'lower'
+      ? (lowerTemplateImage || upperTemplateImage)
+      : (upperTemplateImage || lowerTemplateImage)
+    const templateImageLower = normalizedTemplatePart === '' && upperTemplateImage && lowerTemplateImage
+      ? lowerTemplateImage
+      : ''
 
     if (!sourceImage) {
       throw new Error($t.value('tryonPickSourceFirst'))
@@ -702,11 +870,13 @@ const createTask = async () => {
     const res = await createTryonTask({
       requestID: draft.value.requestID,
       sceneType: draft.value.sceneType || 'clothes',
-      templatePart: String(draft.value.templatePart || '').trim(),
+      templatePart: normalizedTemplatePart,
       sourceImage,
       templateImage,
+      templateImageLower,
       modelKey: draft.value.modelKey || '',
       enableRefiner: !!draft.value.enableRefiner,
+      enableParsing: !!draft.value.enableParsing,
     })
 
     const taskData = normalizeTask(res)
@@ -717,7 +887,10 @@ const createTask = async () => {
 
     task.value = taskData
     sourcePreview.value = getUrl(taskData.sourceImage || sourceImage)
-    templatePreview.value = getUrl(taskData.templateImage || templateImage)
+    applyTemplatePreviewsFromTask(taskData, {
+      templateImage,
+      templateImageLower,
+    })
     if (!beautifySupported.value) {
       loadModelMetaByTask(taskData)
     }
@@ -757,12 +930,20 @@ const previewSource = () => {
   uni.previewImage({ urls: [sourcePreview.value] })
 }
 
-const previewTemplate = () => {
+const previewTemplateUpper = () => {
   if (!templatePreview.value) {
     uni.showToast({ title: $t.value('noImagePreview'), icon: 'none' })
     return
   }
   uni.previewImage({ urls: [templatePreview.value] })
+}
+
+const previewTemplateLower = () => {
+  if (!templateLowerPreview.value) {
+    uni.showToast({ title: $t.value('noImagePreview'), icon: 'none' })
+    return
+  }
+  uni.previewImage({ urls: [templateLowerPreview.value] })
 }
 
 const switchResultTab = (tab) => {
@@ -1133,7 +1314,10 @@ const initTaskFromHistory = async (taskID) => {
 
     task.value = taskData
     sourcePreview.value = getUrl(taskData.sourceImage || draft.value.sourceRemoteUrl || draft.value.sourceLocalPath || '')
-    templatePreview.value = getUrl(taskData.templateImage || draft.value.templateRemoteUrl || draft.value.templateLocalPath || '')
+    applyTemplatePreviewsFromTask(taskData, {
+      templateImage: draft.value.templateRemoteUrl,
+      templateImageLower: draft.value.templateLowerRemoteUrl,
+    })
     if (taskData.resultImage) {
       prepareResultPreview(taskData.resultImage)
     }
@@ -1248,8 +1432,9 @@ const goContinue = () => {
 onLoad(async (options) => {
   draft.value = getTryonDraft()
   applyModelMeta(draft.value || {})
+  await loadTryonRuntimeConfig()
   sourcePreview.value = draft.value.sourceRemoteUrl ? getUrl(draft.value.sourceRemoteUrl) : draft.value.sourceLocalPath
-  templatePreview.value = draft.value.templateRemoteUrl ? getUrl(draft.value.templateRemoteUrl) : draft.value.templateLocalPath
+  applyTemplatePreviewsFromDraft(draft.value || {})
   autoBeautifyRequested.value = String(options?.autoBeautify || options?.beautify || '').trim() === '1'
 
   const historyTaskID = Number(options?.taskID || 0)
@@ -1440,6 +1625,12 @@ page {
 .error-msg {
   margin-top: 10rpx;
   color: #ff9c9c;
+  font-size: 22rpx;
+}
+
+.status-note {
+  margin-top: 10rpx;
+  color: #0e7490;
   font-size: 22rpx;
 }
 

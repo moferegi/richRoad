@@ -128,6 +128,11 @@
                 <el-tag size="small" :type="refinerTagType(scope.row)">{{ refinerLabel(scope.row) }}</el-tag>
               </template>
             </el-table-column>
+            <el-table-column align="left" label="分割" width="120">
+              <template #default="scope">
+                <el-tag size="small" :type="parsingTagType(scope.row)">{{ parsingLabel(scope.row) }}</el-tag>
+              </template>
+            </el-table-column>
             <el-table-column align="left" label="扣币" prop="costPoints" width="80" />
             <el-table-column align="left" label="退币" prop="refundPoints" width="80" />
             <el-table-column align="left" label="原图" width="90">
@@ -234,6 +239,11 @@
             </el-col>
             <el-col :xs="24" :sm="12" :md="4">
               <el-card class="stats-card" shadow="hover">
+                <el-statistic title="分割次数" :value="stats.parsingEnabledCount" />
+              </el-card>
+            </el-col>
+            <el-col :xs="24" :sm="12" :md="4">
+              <el-card class="stats-card" shadow="hover">
                 <el-statistic title="总扣币" :value="stats.totalCostPoints" />
               </el-card>
             </el-col>
@@ -255,24 +265,39 @@
 
           <div class="gva-search-box trend-wrap" v-loading="statsLoading">
             <div class="trend-header">
-              <span class="trend-title">模型调用占比</span>
+              <span class="trend-title">模型成功调用与总扣币</span>
               <span class="trend-subtitle">总调用 {{ stats.modelCallTotal }}</span>
             </div>
-            <div ref="modelChartRef" class="trend-chart" />
+            <div ref="modelSuccessCostChartRef" class="trend-chart" />
+          </div>
+
+          <div class="gva-search-box trend-wrap" v-loading="statsLoading">
+            <div class="trend-header">
+              <span class="trend-title">每个模型总调用、成功与失败</span>
+              <span class="trend-subtitle">总调用 = 成功 + 失败</span>
+            </div>
+            <div ref="modelCallStateChartRef" class="trend-chart" />
           </div>
         </div>
 
         <div class="gva-table-box model-stats-wrap">
           <div class="model-stats-title">模型调用明细</div>
-          <el-table :data="stats.modelStats || []" row-key="modelKey" empty-text="暂无模型统计数据">
-            <el-table-column align="left" label="模型" prop="modelKey" min-width="180" show-overflow-tooltip>
-              <template #default="scope">{{ formatModelKey(scope.row.modelKey) }}</template>
+          <el-table :data="stats.modelStats || []" :row-key="(row) => `${row.modelUsage || 'tryon'}:${row.modelKey}`" empty-text="暂无模型统计数据">
+            <el-table-column align="left" label="模型" prop="modelKey" min-width="220" show-overflow-tooltip>
+              <template #default="scope">{{ formatModelDisplayName(scope.row.modelKey, scope.row.provider) }}</template>
             </el-table-column>
-            <el-table-column align="left" label="调用次数" prop="taskCount" width="110" />
+            <el-table-column align="left" label="用途" prop="modelUsage" width="110">
+              <template #default="scope">{{ formatModelUsage(scope.row.modelUsage) }}</template>
+            </el-table-column>
+            <el-table-column align="left" label="提供商" prop="provider" width="120">
+              <template #default="scope">{{ formatProvider(scope.row.provider) }}</template>
+            </el-table-column>
+            <el-table-column align="left" label="调用次数(成功+失败)" prop="callCount" width="140" />
             <el-table-column align="left" label="成功" prop="successCount" width="90" />
             <el-table-column align="left" label="失败" prop="failedCount" width="90" />
             <el-table-column align="left" label="处理中" prop="processingCount" width="90" />
             <el-table-column align="left" label="精修次数" prop="refinerEnabledCount" width="100" />
+            <el-table-column align="left" label="分割次数" prop="parsingCount" width="100" />
             <el-table-column align="left" label="总扣币" prop="totalCostPoints" width="110" />
           </el-table>
         </div>
@@ -312,6 +337,9 @@
         <el-descriptions-item label="模型">{{ formatModelKey(detailRow.provider) }}</el-descriptions-item>
         <el-descriptions-item label="精修">
           <el-tag size="small" :type="refinerTagType(detailRow)">{{ refinerLabel(detailRow) }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="分割">
+          <el-tag size="small" :type="parsingTagType(detailRow)">{{ parsingLabel(detailRow) }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="扣币">{{ detailRow.costPoints ?? '-' }}</el-descriptions-item>
         <el-descriptions-item label="退币">{{ detailRow.refundPoints ?? '-' }}</el-descriptions-item>
@@ -394,13 +422,15 @@ const stats = ref({
   failed: 0,
   totalCostPoints: 0,
   refinerEnabledCount: 0,
+  parsingEnabledCount: 0,
   modelCallTotal: 0,
   modelStats: [],
 })
 const chartDays = ref(7)
 const chartLoading = ref(false)
 const trendChartRef = ref(null)
-const modelChartRef = ref(null)
+const modelSuccessCostChartRef = ref(null)
+const modelCallStateChartRef = ref(null)
 const chartData = ref([])
 const searchInfo = ref({
   startCreatedAt: undefined,
@@ -414,7 +444,8 @@ const searchInfo = ref({
 
 const MAX_EXPORT_ROWS = 5000
 let trendChartInstance = null
-let modelChartInstance = null
+let modelSuccessCostChartInstance = null
+let modelCallStateChartInstance = null
 
 const statusLabel = (status) => {
   if (status === 'processing') return '处理中'
@@ -441,24 +472,84 @@ const formatModelKey = (modelKey) => {
   return key || 'default'
 }
 
-const isAliyunProvider = (provider) => {
-  const value = String(provider || '').trim().toLowerCase()
-  if (!value) return false
-  return value.includes('aliyun') || value.includes('dashscope') || value.includes('aitryon')
+const normalizeProvider = (provider) => String(provider || '').trim()
+
+const formatProvider = (provider) => {
+  const value = normalizeProvider(provider)
+  return value || '-'
+}
+
+const formatModelUsage = (usage) => {
+  const value = String(usage || '').trim().toLowerCase()
+  if (value === 'refiner') return '精修'
+  if (value === 'parsing') return '分割'
+  if (value === 'beautify') return '美肤'
+  return '试衣'
+}
+
+const formatModelDisplayName = (modelKey, provider) => {
+  const key = formatModelKey(modelKey)
+  const providerValue = normalizeProvider(provider)
+  return providerValue ? `${key} (${providerValue})` : key
 }
 
 const refinerLabel = (row) => {
-  if (!isAliyunProvider(row?.provider)) {
-    return '不支持'
+  if (!row?.enableRefiner) {
+    return '未启用'
   }
-  return row?.enableRefiner ? '已开启' : '未开启'
+  const status = String(row?.refinerStatus || '').trim().toLowerCase()
+  if (status === 'success') {
+    return '启用成功'
+  }
+  if (status === 'failed') {
+    return '启用但失败'
+  }
+  if (status === 'processing' || status === 'pending') {
+    return '启用中'
+  }
+  return '已开启'
 }
 
 const refinerTagType = (row) => {
-  if (!isAliyunProvider(row?.provider)) {
+  if (!row?.enableRefiner) {
     return 'info'
   }
-  return row?.enableRefiner ? 'success' : 'warning'
+  const status = String(row?.refinerStatus || '').trim().toLowerCase()
+  if (status === 'success') {
+    return 'success'
+  }
+  if (status === 'failed') {
+    return 'danger'
+  }
+  return 'warning'
+}
+
+const parsingLabel = (row) => {
+  if (!row?.enableParsing) {
+    return '未启用'
+  }
+  const status = String(row?.parsingStatus || '').trim().toLowerCase()
+  if (status === 'success') {
+    return '启用成功'
+  }
+  if (status === 'failed') {
+    return '启用失败'
+  }
+  return '启用未经过'
+}
+
+const parsingTagType = (row) => {
+  if (!row?.enableParsing) {
+    return 'info'
+  }
+  const status = String(row?.parsingStatus || '').trim().toLowerCase()
+  if (status === 'success') {
+    return 'success'
+  }
+  if (status === 'failed') {
+    return 'danger'
+  }
+  return 'warning'
 }
 
 const handleStatusCardClick = (status) => {
@@ -569,6 +660,7 @@ const buildCsvContent = (list) => {
     '状态',
     '模型',
     '精修',
+    '分割',
     '扣币',
     '退币',
     '原图',
@@ -588,6 +680,7 @@ const buildCsvContent = (list) => {
       statusLabel(item.status),
       formatModelKey(item.provider),
       refinerLabel(item),
+      parsingLabel(item),
       item.costPoints,
       item.refundPoints,
       item.sourceImage,
@@ -686,60 +779,159 @@ const renderTrendChart = () => {
   trendChartInstance.setOption(getTrendChartOption())
 }
 
-const getModelChartOption = () => {
-  const isDark = appStore.isDark
-  const textColor = isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)'
+const getModelAxisLabels = () => {
   const list = Array.isArray(stats.value.modelStats) ? stats.value.modelStats : []
-  const pieData = list.map((item) => ({
-    name: formatModelKey(item.modelKey),
-    value: Number(item.taskCount || 0),
-  }))
+  return list.map((item) => `${formatModelDisplayName(item.modelKey, item.provider)} [${formatModelUsage(item.modelUsage)}]`)
+}
+
+const getModelSuccessCostChartOption = () => {
+  const isDark = appStore.isDark
+  const textColor = isDark ? 'rgba(255,255,255,0.70)' : 'rgba(0,0,0,0.70)'
+  const subtextColor = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)'
+  const borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
+  const list = Array.isArray(stats.value.modelStats) ? stats.value.modelStats : []
+  const labels = getModelAxisLabels()
+  const successData = list.map(item => Number(item.successCount || 0))
+  const costData = list.map(item => Number(item.totalCostPoints || 0))
 
   return {
     backgroundColor: 'transparent',
-    tooltip: { trigger: 'item' },
+    tooltip: { trigger: 'axis' },
     legend: {
-      orient: 'vertical',
-      right: 0,
-      top: 'middle',
+      data: ['成功调用', '总扣币'],
+      top: 0,
       textStyle: { color: textColor, fontSize: 12 },
     },
-    series: [
+    grid: { left: 45, right: 45, top: 40, bottom: 20, containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: labels,
+      axisLabel: { color: subtextColor, fontSize: 11, interval: 0, rotate: labels.length > 5 ? 20 : 0 },
+      axisLine: { show: false },
+      axisTick: { show: false },
+    },
+    yAxis: [
       {
-        name: '模型调用',
-        type: 'pie',
-        radius: ['42%', '68%'],
-        center: ['36%', '50%'],
-        avoidLabelOverlap: true,
-        itemStyle: {
-          borderRadius: 6,
-          borderColor: isDark ? '#1f2937' : '#fff',
-          borderWidth: 2,
-        },
-        label: { show: false },
-        emphasis: {
-          label: {
-            show: true,
-            formatter: '{b}\n{c}次',
-            fontSize: 12,
-          },
-        },
-        data: pieData,
+        type: 'value',
+        name: '成功',
+        axisLabel: { color: subtextColor, fontSize: 11 },
+        axisLine: { show: false },
+        axisTick: { show: false },
+        splitLine: { lineStyle: { color: borderColor, type: 'dashed' } },
+      },
+      {
+        type: 'value',
+        name: '扣币',
+        axisLabel: { color: subtextColor, fontSize: 11 },
+        axisLine: { show: false },
+        axisTick: { show: false },
+        splitLine: { show: false },
       },
     ],
+    series: [
+      {
+        name: '成功调用',
+        type: 'bar',
+        data: successData,
+        barMaxWidth: 36,
+        itemStyle: { color: '#67C23A', borderRadius: [4, 4, 0, 0] },
+      },
+      {
+        name: '总扣币',
+        type: 'line',
+        yAxisIndex: 1,
+        smooth: 0.35,
+        data: costData,
+        lineStyle: { width: 2.5, color: '#409EFF' },
+        itemStyle: { color: '#409EFF' },
+      },
+    ],
+    animationDuration: 500,
   }
 }
 
-const renderModelChart = () => {
-  if (!modelChartRef.value) {
-    return
+const getModelCallStateChartOption = () => {
+  const isDark = appStore.isDark
+  const textColor = isDark ? 'rgba(255,255,255,0.70)' : 'rgba(0,0,0,0.70)'
+  const subtextColor = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)'
+  const borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
+  const list = Array.isArray(stats.value.modelStats) ? stats.value.modelStats : []
+  const labels = getModelAxisLabels()
+  const successData = list.map(item => Number(item.successCount || 0))
+  const failedData = list.map(item => Number(item.failedCount || 0))
+  const callData = list.map(item => Number(item.callCount || 0))
+
+  return {
+    backgroundColor: 'transparent',
+    tooltip: { trigger: 'axis' },
+    legend: {
+      data: ['成功', '失败', '总调用'],
+      top: 0,
+      textStyle: { color: textColor, fontSize: 12 },
+    },
+    grid: { left: 45, right: 20, top: 40, bottom: 20, containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: labels,
+      axisLabel: { color: subtextColor, fontSize: 11, interval: 0, rotate: labels.length > 5 ? 20 : 0 },
+      axisLine: { show: false },
+      axisTick: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { color: subtextColor, fontSize: 11 },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: borderColor, type: 'dashed' } },
+    },
+    series: [
+      {
+        name: '成功',
+        type: 'bar',
+        stack: 'call-status',
+        data: successData,
+        barMaxWidth: 32,
+        itemStyle: { color: '#67C23A' },
+      },
+      {
+        name: '失败',
+        type: 'bar',
+        stack: 'call-status',
+        data: failedData,
+        barMaxWidth: 32,
+        itemStyle: { color: '#F56C6C' },
+      },
+      {
+        name: '总调用',
+        type: 'line',
+        smooth: 0.3,
+        data: callData,
+        lineStyle: { width: 2.5, color: '#E6A23C' },
+        itemStyle: { color: '#E6A23C' },
+      },
+    ],
+    animationDuration: 500,
   }
-  if (modelChartInstance) {
-    modelChartInstance.dispose()
-    modelChartInstance = null
+}
+
+const renderModelCharts = () => {
+  if (modelSuccessCostChartRef.value) {
+    if (modelSuccessCostChartInstance) {
+      modelSuccessCostChartInstance.dispose()
+      modelSuccessCostChartInstance = null
+    }
+    modelSuccessCostChartInstance = echarts.init(modelSuccessCostChartRef.value, appStore.isDark ? 'dark' : null)
+    modelSuccessCostChartInstance.setOption(getModelSuccessCostChartOption())
   }
-  modelChartInstance = echarts.init(modelChartRef.value, appStore.isDark ? 'dark' : null)
-  modelChartInstance.setOption(getModelChartOption())
+
+  if (modelCallStateChartRef.value) {
+    if (modelCallStateChartInstance) {
+      modelCallStateChartInstance.dispose()
+      modelCallStateChartInstance = null
+    }
+    modelCallStateChartInstance = echarts.init(modelCallStateChartRef.value, appStore.isDark ? 'dark' : null)
+    modelCallStateChartInstance.setOption(getModelCallStateChartOption())
+  }
 }
 
 const fetchTrendData = async () => {
@@ -765,8 +957,11 @@ const handleResize = () => {
   if (trendChartInstance) {
     trendChartInstance.resize()
   }
-  if (modelChartInstance) {
-    modelChartInstance.resize()
+  if (modelSuccessCostChartInstance) {
+    modelSuccessCostChartInstance.resize()
+  }
+  if (modelCallStateChartInstance) {
+    modelCallStateChartInstance.resize()
   }
 }
 
@@ -822,7 +1017,28 @@ const getStatsData = async () => {
     }
     const res = await getTryonTaskStats(params)
     if (res.code === 0) {
-      const modelStats = Array.isArray(res.data?.modelStats) ? res.data.modelStats : []
+      const modelStats = Array.isArray(res.data?.modelStats)
+        ? res.data.modelStats.map(item => {
+          const successCount = Number(item.successCount || 0)
+          const failedCount = Number(item.failedCount || 0)
+          const callCount = successCount + failedCount
+          return {
+            ...item,
+            modelKey: formatModelKey(item.modelKey),
+            modelUsage: String(item.modelUsage || 'tryon').trim().toLowerCase(),
+            provider: normalizeProvider(item.provider),
+            callCount,
+            taskCount: callCount,
+            successCount,
+            failedCount,
+            processingCount: Number(item.processingCount || 0),
+            refinerEnabledCount: Number(item.refinerEnabledCount || 0),
+            parsingCount: Number(item.parsingCount || 0),
+            totalCostPoints: Number(item.totalCostPoints || 0),
+          }
+        })
+        : []
+      const modelCallTotal = modelStats.reduce((sum, item) => sum + Number(item.callCount || 0), 0)
       stats.value = {
         total: Number(res.data?.total || 0),
         processing: Number(res.data?.processing || 0),
@@ -830,11 +1046,12 @@ const getStatsData = async () => {
         failed: Number(res.data?.failed || 0),
         totalCostPoints: Number(res.data?.totalCostPoints || 0),
         refinerEnabledCount: Number(res.data?.refinerEnabledCount || 0),
-        modelCallTotal: Number(res.data?.modelCallTotal || 0),
+        parsingEnabledCount: Number(res.data?.parsingEnabledCount || 0),
+        modelCallTotal,
         modelStats,
       }
       await nextTick()
-      renderModelChart()
+      renderModelCharts()
     }
   } finally {
     statsLoading.value = false
@@ -900,7 +1117,7 @@ const handleTabChange = (tabName) => {
 watch(() => appStore.isDark, async () => {
   await nextTick()
   renderTrendChart()
-  renderModelChart()
+  renderModelCharts()
 })
 
 onMounted(async () => {
@@ -914,9 +1131,13 @@ onBeforeUnmount(() => {
     trendChartInstance.dispose()
     trendChartInstance = null
   }
-  if (modelChartInstance) {
-    modelChartInstance.dispose()
-    modelChartInstance = null
+  if (modelSuccessCostChartInstance) {
+    modelSuccessCostChartInstance.dispose()
+    modelSuccessCostChartInstance = null
+  }
+  if (modelCallStateChartInstance) {
+    modelCallStateChartInstance.dispose()
+    modelCallStateChartInstance = null
   }
 })
 </script>

@@ -17,7 +17,7 @@ func setupPointRecordTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("open sqlite db failed: %v", err)
 	}
 
-	if err := db.AutoMigrate(&clientModel.ClientUser{}, &clientModel.PointRecord{}); err != nil {
+	if err := db.AutoMigrate(&clientModel.ClientUser{}, &clientModel.PointRecord{}, &clientModel.TryonPointStatsEvent{}); err != nil {
 		t.Fatalf("auto migrate failed: %v", err)
 	}
 
@@ -96,5 +96,12 @@ func TestCreatePointRecord_RespectsOuterTransactionRollback(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("expected no point record persisted after rollback, got %d", count)
+	}
+
+	if err := db.Model(&clientModel.TryonPointStatsEvent{}).Count(&count).Error; err != nil {
+		t.Fatalf("count tryon point stats events failed: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no tryon point stats event persisted after rollback, got %d", count)
 	}
 }

@@ -23,6 +23,7 @@ func setupTryonRechargeOrderStatusTestDB(t *testing.T) *gorm.DB {
 	if err := db.AutoMigrate(
 		&clientModel.ClientUser{},
 		&clientModel.PointRecord{},
+		&clientModel.TryonPointStatsEvent{},
 		&clientModel.TryonRechargeOrder{},
 	); err != nil {
 		t.Fatalf("auto migrate failed: %v", err)

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/songzhibin97/gkit/cache/local_cache"
 
@@ -107,12 +108,12 @@ func initDefaultSysConfigs() {
 		{ConfigKey: "tryon_invite_register_reward_points", ConfigValue: "0", ConfigName: "邀请注册奖励试衣币", ConfigGroup: "tryon", Remark: "邀请下级注册成功后奖励给邀请人的试衣币数量，0表示不赠送"},
 		{ConfigKey: "tryon_cost_points", ConfigValue: "1", ConfigName: "单次试衣消耗", ConfigGroup: "tryon", Remark: "每次发起试衣或试鞋消耗的试衣币数量"},
 		{ConfigKey: "tryon_fail_refund_percent", ConfigValue: "100", ConfigName: "试衣失败退币比例", ConfigGroup: "tryon", Remark: "试衣失败时退回试衣币百分比，默认100"},
-		{ConfigKey: "tryon_models", ConfigValue: defaultTryonModelsSysConfigValue(), ConfigName: "试衣模型列表", ConfigGroup: "tryon", Remark: "JSON数组：可配置多模型及开关、多语言名称与说明、接口地址等"},
-		{ConfigKey: "shoe_models", ConfigValue: "[{\"key\":\"aliyun_shoes_and_boots\",\"enabled\":true,\"scenes\":[\"shoes\"],\"model\":\"shoes-and-boots\",\"name\":{\"zh\":\"阿里AI试鞋\",\"en\":\"Aliyun Shoes Try-On\",\"mn\":\"Aliyun гутлын туршилт\"},\"desc\":{\"zh\":\"适用于鞋靴类虚拟试穿。\",\"en\":\"Suitable for virtual try-on of shoes and boots.\",\"mn\":\"Гутал, түрийвчний виртуал туршилтад тохиромжтой.\"},\"cost\":1,\"provider\":\"aliyun\",\"mode\":\"prod\",\"url\":\"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis\",\"taskQueryUrl\":\"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}\",\"token\":\"\",\"resolution\":-1,\"restoreFace\":true}]", ConfigName: "试鞋模型列表", ConfigGroup: "tryon", Remark: "JSON数组：专用于试鞋场景的模型配置，支持多语言名称与说明、接口地址等"},
+		{ConfigKey: "tryon_append_parsing_failed_tip", ConfigValue: "false", ConfigName: "分割失败提示拼接开关", ConfigGroup: "tryon", Remark: "试衣成功但分割增强失败时，是否在客户端拼接分割失败提示(true/false)"},
+		{ConfigKey: "tryon_parsing_failed_tip_text", ConfigValue: "{\"zh\":\"试衣成功，但分割增强失败，相关金币已退回\",\"en\":\"Try-on succeeded, but parsing enhancement failed. Related coins have been refunded.\",\"mn\":\"Туршилт амжилттай боловч segmentation enhancement амжилтгүй боллоо. Холбогдох зоос буцаан олгогдлоо.\"}", ConfigName: "分割失败提示文本", ConfigGroup: "tryon", Remark: "试衣成功但分割增强失败时拼接的提示(JSON多语言)"},
+		{ConfigKey: "tryon_append_refiner_failed_tip", ConfigValue: "true", ConfigName: "精修失败提示拼接开关", ConfigGroup: "tryon", Remark: "试衣成功且精修失败时，是否在客户端拼接“金币已退回”提示(true/false)"},
+		{ConfigKey: "tryon_refiner_failed_tip_text", ConfigValue: "{\"zh\":\"试衣成功，但精修失败，金币已退回\",\"en\":\"Try-on succeeded, but refiner failed. Coins have been refunded.\",\"mn\":\"Туршилт амжилттай боловч нарийвчлал амжилтгүй боллоо. Зоос буцаан олгогдсон.\"}", ConfigName: "精修失败提示文本", ConfigGroup: "tryon", Remark: "试衣成功但精修失败时拼接的提示(JSON多语言)"},
+		{ConfigKey: "tryon_models", ConfigValue: defaultTryonModelsSysConfigValue(), ConfigName: "试衣模型列表", ConfigGroup: "tryon", Remark: "JSON数组：统一承载试衣/试鞋/取衣/美肤模型配置，按模型独立设置参数"},
 		{ConfigKey: "tryon_recharge_plans", ConfigValue: "[{\"points\":{\"zh\":\"50\",\"en\":\"50\",\"mn\":\"50\"},\"coinLabel\":{\"zh\":\"试衣币\",\"en\":\"Try-on Coins\",\"mn\":\"Туршилтын зоос\"},\"currencySymbol\":{\"zh\":\"￥\",\"en\":\"CNY \"},\"price\":{\"zh\":\"9.9\",\"en\":\"9.9\",\"mn\":\"9.9\"},\"currencySuffix\":{\"zh\":\"元\",\"en\":\"\",\"mn\":\"\"}},{\"points\":{\"zh\":\"180\",\"en\":\"180\",\"mn\":\"180\"},\"coinLabel\":{\"zh\":\"试衣币\",\"en\":\"Try-on Coins\",\"mn\":\"Туршилтын зоос\"},\"currencySymbol\":{\"zh\":\"￥\",\"en\":\"CNY \"},\"price\":{\"zh\":\"29.9\",\"en\":\"29.9\",\"mn\":\"29.9\"},\"currencySuffix\":{\"zh\":\"元\",\"en\":\"\",\"mn\":\"\"}},{\"points\":{\"zh\":\"680\",\"en\":\"680\",\"mn\":\"680\"},\"coinLabel\":{\"zh\":\"试衣币\",\"en\":\"Try-on Coins\",\"mn\":\"Туршилтын зоос\"},\"currencySymbol\":{\"zh\":\"￥\",\"en\":\"CNY \"},\"price\":{\"zh\":\"99.9\",\"en\":\"99.9\",\"mn\":\"99.9\"},\"currencySuffix\":{\"zh\":\"元\",\"en\":\"\",\"mn\":\"\"}}]", ConfigName: "试衣币充值套餐", ConfigGroup: "tryon", Remark: "后台可视化维护：点数、币名、货币符号、价格和单位均支持多语言"},
-		{ConfigKey: "tryon_provider_mode", ConfigValue: "mock_success", ConfigName: "试衣模型模式", ConfigGroup: "tryon", Remark: "mock_success表示本地联调直接返回原图，prod表示调用真实模型"},
-		{ConfigKey: "tryon_provider_url", ConfigValue: "", ConfigName: "试衣模型地址", ConfigGroup: "tryon", Remark: "真实模型推理服务地址(URL)"},
-		{ConfigKey: "tryon_provider_token", ConfigValue: "", ConfigName: "试衣模型令牌", ConfigGroup: "tryon", Remark: "调用真实模型服务的Bearer Token"},
 		{ConfigKey: "tryon_media_public_base_url", ConfigValue: "", ConfigName: "试衣图片公网前缀", ConfigGroup: "tryon", Remark: "当上传返回相对路径或localhost/内网URL时，自动拼接为公网地址，如https://back.example.com"},
 		// order 分组
 		{ConfigKey: "order_close_minutes", ConfigValue: "20", ConfigName: "订单自动关闭时间", ConfigGroup: "order", Remark: "未支付订单自动关闭的分钟数"},
@@ -135,7 +136,9 @@ func initDefaultSysConfigs() {
 			}
 		}
 	}
+	purgeDeprecatedTryonSysConfigs()
 	appendIDMVTONTryonModelIfMissing()
+	normalizeTryonModelsSysConfig()
 
 	// 为已存在的用户生成邀请码（如果缺失）
 	var users []client.ClientUser
@@ -145,6 +148,18 @@ func initDefaultSysConfigs() {
 		_, _ = rand.Read(b)
 		code := hex.EncodeToString(b)
 		global.GVA_DB.Model(&client.ClientUser{}).Where("id = ?", u.ID).Update("invite_code", code)
+	}
+}
+
+func purgeDeprecatedTryonSysConfigs() {
+	deprecatedKeys := []string{
+		"shoe_models",
+		"tryon_provider_mode",
+		"tryon_provider_url",
+		"tryon_provider_token",
+	}
+	if err := global.GVA_DB.Where("config_key IN ?", deprecatedKeys).Delete(&client.SysConfig{}).Error; err != nil {
+		global.GVA_LOG.Warn("清理试衣历史参数失败", zap.Error(err))
 	}
 }
 
@@ -166,13 +181,8 @@ func defaultTryonModelsSysConfigValue() string {
 	    "token": "",
 	    "resolution": -1,
 	    "restoreFace": true,
-	    "supportsRefiner": true,
-	    "refinerModel": "aitryon-refiner",
-	    "refinerGender": "woman",
-	    "refinerExtraCost": 1,
-	    "autoEnableAliyunParsingUpperOnly": true,
-	    "autoEnableAliyunParsingLowerOnly": true,
-	    "supportsBeautify": false
+	    "refinerModelKey": "aliyun_aitryon_refiner",
+	    "parsingModelKey": "aliyun_aitryon_parsing"
 	  },
 	  {
 	    "key": "aliyun_aitryon_plus",
@@ -190,13 +200,25 @@ func defaultTryonModelsSysConfigValue() string {
 	    "token": "",
 	    "resolution": -1,
 	    "restoreFace": true,
-	    "supportsRefiner": true,
-	    "refinerModel": "aitryon-refiner",
-	    "refinerGender": "woman",
+	    "refinerModelKey": "aliyun_aitryon_refiner",
+	    "parsingModelKey": "aliyun_aitryon_parsing"
+	  },
+	  {
+	    "key": "aliyun_aitryon_refiner",
+	    "modelUsage": "refiner",
+	    "enabled": true,
+	    "scenes": ["clothes", "shoes"],
+	    "model": "aitryon-refiner",
+	    "name": {"zh": "阿里图片精修", "en": "Aliyun Image Refiner", "mn": "Aliyun зураг нарийвчлал"},
+	    "desc": {"zh": "独立的图片精修模型，可被试衣模型按 key 引用。", "en": "Independent image refiner model that can be referenced by try-on models via key.", "mn": "Туршилтын загварууд key-ээр зааж ашиглах бие даасан нарийвчлалын загвар."},
+	    "cost": 1,
 	    "refinerExtraCost": 1,
-	    "autoEnableAliyunParsingUpperOnly": true,
-	    "autoEnableAliyunParsingLowerOnly": true,
-	    "supportsBeautify": false
+	    "provider": "aliyun",
+	    "mode": "prod",
+	    "url": "https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis",
+	    "taskQueryUrl": "https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}",
+	    "token": "",
+	    "refinerGender": "woman"
 	  },
 	  {
 	    "key": "yisol_idm_vton",
@@ -218,24 +240,23 @@ func defaultTryonModelsSysConfigValue() string {
 	    "seed": 42,
 	    "token": "",
 	    "resolution": -1,
-	    "restoreFace": true,
-	    "supportsBeautify": false
+	    "restoreFace": true
 	  },
 	  {
 	    "key": "aliyun_aitryon_parsing",
-	    "modelUsage": "tryon",
+	    "modelUsage": "parsing",
 	    "enabled": false,
 	    "scenes": ["takeoff"],
 	    "model": "aitryon-parsing-v1",
 	    "name": {"zh": "阿里取衣分割", "en": "Aliyun Takeoff Parsing", "mn": "Aliyun хувцас салгах"},
 	    "desc": {"zh": "用于取衣区分割模特服饰并输出可用服饰图。", "en": "Segments garment regions for takeoff area and outputs reusable garment images.", "mn": "Загварын хувцсыг ялган авч, дахин ашиглах зургийг гаргана."},
-	    "cost": 1,
+	    "cost": 0,
+	    "parsingExtraCost": 0,
 	    "provider": "aliyun",
 	    "mode": "prod",
 	    "url": "https://dashscope.aliyuncs.com/api/v1/services/vision/image-process/process",
 	    "token": "",
-	    "clothesType": ["upper"],
-	    "supportsBeautify": false
+	    "clothesType": ["upper"]
 	  },
 	  {
 	    "key": "smart_beautify_default",
@@ -252,7 +273,6 @@ func defaultTryonModelsSysConfigValue() string {
 	    "mode": "prod",
 	    "url": "",
 	    "token": "",
-	    "supportsBeautify": true,
 	    "beautifyRetouchDegree": 70,
 	    "beautifyWhiteningDegree": 30
 	  }
@@ -274,6 +294,8 @@ func appendIDMVTONTryonModelIfMissing() {
 	changed := false
 	hasIDM := false
 	hasBeautify := false
+	hasRefiner := false
+	hasParsing := false
 	for i := range models {
 		model := models[i]
 		key := strings.ToLower(strings.TrimSpace(toString(model["key"])))
@@ -285,13 +307,15 @@ func appendIDMVTONTryonModelIfMissing() {
 		if key == "yisol_idm_vton" {
 			hasIDM = true
 		}
+		if key == "aliyun_aitryon_refiner" || usage == "refiner" {
+			hasRefiner = true
+		}
+		if key == "aliyun_aitryon_parsing" || usage == "parsing" {
+			hasParsing = true
+		}
 
 		if usage == "beautify" {
 			hasBeautify = true
-			if !toBoolLoose(model["supportsBeautify"], true) {
-				model["supportsBeautify"] = true
-				changed = true
-			}
 			if strings.TrimSpace(toString(model["beautifyModel"])) == "" {
 				model["beautifyModel"] = "custom_beautify"
 				changed = true
@@ -303,50 +327,30 @@ func appendIDMVTONTryonModelIfMissing() {
 			continue
 		}
 
-		if strings.TrimSpace(toString(model["beautifyModelKey"])) != "" {
-			model["beautifyModelKey"] = ""
-			changed = true
-		}
-		if toBoolLoose(model["supportsBeautify"], false) {
-			model["supportsBeautify"] = false
-			changed = true
-		}
-
-		if isAliyunAitryonSeriesLoose(model) {
-			if _, ok := model["autoEnableAliyunParsingUpperOnly"]; !ok {
-				model["autoEnableAliyunParsingUpperOnly"] = true
-				changed = true
-			}
-			if _, ok := model["autoEnableAliyunParsingLowerOnly"]; !ok {
-				model["autoEnableAliyunParsingLowerOnly"] = true
-				changed = true
-			}
-		}
 	}
 
 	if !hasIDM {
 		models = append(models, map[string]interface{}{
-			"key":              "yisol_idm_vton",
-			"modelUsage":       "tryon",
-			"enabled":          true,
-			"scenes":           []string{"clothes"},
-			"model":            "IDM-VTON",
-			"name":             map[string]string{"zh": "IDM-VTON 开源试衣", "en": "IDM-VTON Open Try-On", "mn": "IDM-VTON нээлттэй өмсгөл"},
-			"desc":             map[string]string{"zh": "HuggingFace Space yisol/IDM-VTON，使用 Gradio /tryon 接口，支持自动蒙版与裁剪参数。", "en": "HuggingFace Space yisol/IDM-VTON via Gradio /tryon API with auto-mask and crop options.", "mn": "HuggingFace Space yisol/IDM-VTON Gradio /tryon API ашиглана."},
-			"cost":             1,
-			"provider":         "gradio",
-			"mode":             "prod",
-			"url":              "https://yisol-idm-vton.hf.space",
-			"apiName":          "/tryon",
-			"garmentDes":       "clothing item",
-			"isChecked":        true,
-			"isCheckedCrop":    false,
-			"denoiseSteps":     30,
-			"seed":             42,
-			"token":            "",
-			"resolution":       -1,
-			"restoreFace":      true,
-			"supportsBeautify": false,
+			"key":           "yisol_idm_vton",
+			"modelUsage":    "tryon",
+			"enabled":       true,
+			"scenes":        []string{"clothes"},
+			"model":         "IDM-VTON",
+			"name":          map[string]string{"zh": "IDM-VTON 开源试衣", "en": "IDM-VTON Open Try-On", "mn": "IDM-VTON нээлттэй өмсгөл"},
+			"desc":          map[string]string{"zh": "HuggingFace Space yisol/IDM-VTON，使用 Gradio /tryon 接口，支持自动蒙版与裁剪参数。", "en": "HuggingFace Space yisol/IDM-VTON via Gradio /tryon API with auto-mask and crop options.", "mn": "HuggingFace Space yisol/IDM-VTON Gradio /tryon API ашиглана."},
+			"cost":          1,
+			"provider":      "gradio",
+			"mode":          "prod",
+			"url":           "https://yisol-idm-vton.hf.space",
+			"apiName":       "/tryon",
+			"garmentDes":    "clothing item",
+			"isChecked":     true,
+			"isCheckedCrop": false,
+			"denoiseSteps":  30,
+			"seed":          42,
+			"token":         "",
+			"resolution":    -1,
+			"restoreFace":   true,
 		})
 		changed = true
 	}
@@ -367,9 +371,49 @@ func appendIDMVTONTryonModelIfMissing() {
 			"mode":                    "prod",
 			"url":                     "",
 			"token":                   "",
-			"supportsBeautify":        true,
 			"beautifyRetouchDegree":   70,
 			"beautifyWhiteningDegree": 30,
+		})
+		changed = true
+	}
+
+	if !hasRefiner {
+		models = append(models, map[string]interface{}{
+			"key":              "aliyun_aitryon_refiner",
+			"modelUsage":       "refiner",
+			"enabled":          true,
+			"scenes":           []string{"clothes", "shoes"},
+			"model":            "aitryon-refiner",
+			"name":             map[string]string{"zh": "阿里图片精修", "en": "Aliyun Image Refiner", "mn": "Aliyun зураг нарийвчлал"},
+			"desc":             map[string]string{"zh": "独立的图片精修模型，可被试衣模型按 key 引用。", "en": "Independent image refiner model referenced by try-on models.", "mn": "Туршилтын загваруудаас key-ээр дуудагдах бие даасан нарийвчлалын загвар."},
+			"cost":             1,
+			"refinerExtraCost": 1,
+			"provider":         "aliyun",
+			"mode":             "prod",
+			"url":              "https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis",
+			"taskQueryUrl":     "https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}",
+			"token":            "",
+			"refinerGender":    "woman",
+		})
+		changed = true
+	}
+
+	if !hasParsing {
+		models = append(models, map[string]interface{}{
+			"key":              "aliyun_aitryon_parsing",
+			"modelUsage":       "parsing",
+			"enabled":          false,
+			"scenes":           []string{"takeoff"},
+			"model":            "aitryon-parsing-v1",
+			"name":             map[string]string{"zh": "阿里取衣分割", "en": "Aliyun Takeoff Parsing", "mn": "Aliyun хувцас салгах"},
+			"desc":             map[string]string{"zh": "用于取衣区分割模特服饰并输出可用服饰图。", "en": "Segments garment regions for takeoff area and outputs reusable garment images.", "mn": "Загварын хувцсыг ялган авч, дахин ашиглах зургийг гаргана."},
+			"cost":             0,
+			"parsingExtraCost": 0,
+			"provider":         "aliyun",
+			"mode":             "prod",
+			"url":              "https://dashscope.aliyuncs.com/api/v1/services/vision/image-process/process",
+			"token":            "",
+			"clothesType":      []string{"upper"},
 		})
 		changed = true
 	}
@@ -387,6 +431,470 @@ func appendIDMVTONTryonModelIfMissing() {
 	if err := global.GVA_DB.Model(&client.SysConfig{}).Where("id = ?", cfg.ID).Update("config_value", string(encoded)).Error; err != nil {
 		global.GVA_LOG.Warn("试衣模型配置自动修复失败", zap.Error(err))
 	}
+}
+
+func normalizeTryonModelsSysConfig() {
+	startedAt := time.Now()
+
+	var cfg client.SysConfig
+	if err := global.GVA_DB.Where("config_key = ?", "tryon_models").First(&cfg).Error; err != nil {
+		return
+	}
+
+	models := make([]map[string]interface{}, 0)
+	if err := json.Unmarshal([]byte(cfg.ConfigValue), &models); err != nil {
+		global.GVA_LOG.Warn("试衣模型配置解析失败，跳过存量规范化", zap.Error(err))
+		return
+	}
+
+	normalizedModels := make([]map[string]interface{}, 0, len(models))
+	for i := range models {
+		normalizedModels = append(normalizedModels, normalizeTryonModelConfigItem(models[i], i))
+	}
+
+	currentEncoded, err := json.Marshal(models)
+	if err != nil {
+		global.GVA_LOG.Warn("试衣模型配置编码失败，跳过存量规范化", zap.Error(err))
+		return
+	}
+	normalizedEncoded, err := json.Marshal(normalizedModels)
+	if err != nil {
+		global.GVA_LOG.Warn("试衣模型配置规范化编码失败", zap.Error(err))
+		return
+	}
+
+	if string(currentEncoded) == string(normalizedEncoded) {
+		return
+	}
+
+	changedModelKeys := collectChangedTryonModelKeys(models, normalizedModels)
+	keysForLog := changedModelKeys
+	if len(keysForLog) > 30 {
+		keysForLog = append(append([]string{}, keysForLog[:30]...), fmt.Sprintf("...+%d", len(keysForLog)-30))
+	}
+
+	if err := global.GVA_DB.Model(&client.SysConfig{}).Where("id = ?", cfg.ID).Update("config_value", string(normalizedEncoded)).Error; err != nil {
+		global.GVA_LOG.Warn("试衣模型配置规范化失败", zap.Error(err))
+		return
+	}
+
+	nodeName := ""
+	if host, err := os.Hostname(); err == nil {
+		nodeName = strings.TrimSpace(host)
+	}
+
+	global.GVA_LOG.Info("试衣模型配置规范化完成",
+		zap.Uint("configID", cfg.ID),
+		zap.Int("modelCount", len(models)),
+		zap.Int("changedModelCount", len(changedModelKeys)),
+		zap.Strings("changedModelKeys", keysForLog),
+		zap.String("node", nodeName),
+		zap.Duration("duration", time.Since(startedAt)),
+	)
+}
+
+func collectChangedTryonModelKeys(original []map[string]interface{}, normalized []map[string]interface{}) []string {
+	maxLen := len(original)
+	if len(normalized) > maxLen {
+		maxLen = len(normalized)
+	}
+
+	changedKeys := make([]string, 0)
+	seen := make(map[string]struct{})
+
+	for i := 0; i < maxLen; i++ {
+		originalJSON := []byte("null")
+		normalizedJSON := []byte("null")
+
+		if i < len(original) {
+			if encoded, err := json.Marshal(original[i]); err == nil {
+				originalJSON = encoded
+			}
+		}
+		if i < len(normalized) {
+			if encoded, err := json.Marshal(normalized[i]); err == nil {
+				normalizedJSON = encoded
+			}
+		}
+
+		if string(originalJSON) == string(normalizedJSON) {
+			continue
+		}
+
+		modelKey := ""
+		if i < len(normalized) {
+			modelKey = toString(normalized[i]["key"])
+		}
+		if modelKey == "" && i < len(original) {
+			modelKey = toString(original[i]["key"])
+			if modelKey == "" {
+				modelKey = toString(original[i]["modelKey"])
+			}
+		}
+		if modelKey == "" {
+			modelKey = fmt.Sprintf("index_%d", i)
+		}
+
+		if _, ok := seen[modelKey]; ok {
+			continue
+		}
+		seen[modelKey] = struct{}{}
+		changedKeys = append(changedKeys, modelKey)
+	}
+
+	return changedKeys
+}
+
+func normalizeTryonModelConfigItem(model map[string]interface{}, index int) map[string]interface{} {
+	if model == nil {
+		model = map[string]interface{}{}
+	}
+
+	modelUsage := normalizeTryonModelUsage(
+		toString(model["modelUsage"]),
+		toString(model["key"]),
+		toString(model["model"]),
+		toBoolLoose(model["supportsBeautify"], false),
+	)
+	modelKey := toString(model["key"])
+	if modelKey == "" {
+		modelKey = toString(model["modelKey"])
+	}
+	if modelKey == "" {
+		if modelUsage == "beautify" {
+			modelKey = fmt.Sprintf("beautify_%d", index+1)
+		} else {
+			modelKey = fmt.Sprintf("model_%d", index+1)
+		}
+	}
+
+	nameValue := pickFirstValue(model, "name", "nameI18n", "title", "titleI18n")
+	if nameValue == nil {
+		nameValue = map[string]string{"zh": modelKey, "en": modelKey, "mn": modelKey}
+	}
+	descValue := pickFirstValue(model, "desc", "descI18n", "description", "descriptionI18n")
+	if descValue == nil {
+		descValue = map[string]string{}
+	}
+
+	scenes := toStringArrayLoose(model["scenes"])
+	if len(scenes) == 0 {
+		sceneType := toString(pickFirstValue(model, "sceneType", "scene", "roomType"))
+		if sceneType != "" {
+			scenes = []string{sceneType}
+		} else if modelUsage == "beautify" {
+			scenes = []string{"clothes", "shoes", "takeoff"}
+		} else {
+			scenes = []string{"clothes"}
+		}
+	}
+
+	baseModel := toString(model["model"])
+	if modelUsage == "beautify" && baseModel == "" {
+		baseModel = toString(model["beautifyModel"])
+	}
+	if modelUsage == "beautify" && baseModel == "" {
+		baseModel = "custom_beautify"
+	}
+
+	basePayload := map[string]interface{}{
+		"key":          modelKey,
+		"modelUsage":   modelUsage,
+		"enabled":      toBoolLoose(model["enabled"], true),
+		"scenes":       scenes,
+		"model":        baseModel,
+		"name":         nameValue,
+		"desc":         descValue,
+		"cost":         clampNonNegativeInt(toIntLoose(model["cost"], 1)),
+		"provider":     toString(model["provider"]),
+		"mode":         firstNonEmptyStringValue(toString(model["mode"]), "prod"),
+		"url":          firstNonEmptyStringValue(toString(model["url"]), toString(model["providerUrl"])),
+		"taskQueryUrl": toString(model["taskQueryUrl"]),
+		"token":        firstNonEmptyStringValue(toString(model["token"]), toString(model["providerToken"])),
+	}
+
+	providerLower := strings.ToLower(strings.TrimSpace(toString(model["provider"])))
+	autoParsingDefault := isAliyunAitryonSeriesLoose(model)
+
+	switch modelUsage {
+	case "tryon":
+		basePayload["cost"] = clampNonNegativeInt(toIntLoose(model["cost"], 1))
+		basePayload["resolution"] = toIntLoose(model["resolution"], -1)
+		basePayload["restoreFace"] = toBoolLoose(model["restoreFace"], true)
+		basePayload["freeQuotaTotal"] = clampNonNegativeInt(toIntLoose(model["freeQuotaTotal"], 0))
+
+		parsingModelKey := toString(model["parsingModelKey"])
+		if parsingModelKey == "" && autoParsingDefault {
+			parsingModelKey = "aliyun_aitryon_parsing"
+		}
+		basePayload["parsingModelKey"] = parsingModelKey
+
+		refinerModelKey := toString(model["refinerModelKey"])
+		if refinerModelKey == "" && toBoolLoose(model["supportsRefiner"], autoParsingDefault) {
+			refinerModelKey = "aliyun_aitryon_refiner"
+		}
+		basePayload["refinerModelKey"] = refinerModelKey
+
+		if strings.Contains(providerLower, "gradio") || strings.Contains(providerLower, "huggingface") || strings.Contains(providerLower, "hf") {
+			basePayload["apiName"] = firstNonEmptyStringValue(toString(model["apiName"]), "/tryon")
+			basePayload["garmentDes"] = firstNonEmptyStringValue(toString(model["garmentDes"]), "clothing item")
+			basePayload["isChecked"] = toBoolLoose(model["isChecked"], true)
+			basePayload["isCheckedCrop"] = toBoolLoose(model["isCheckedCrop"], false)
+			basePayload["denoiseSteps"] = clampPositiveInt(toIntLoose(model["denoiseSteps"], 30), 30)
+			basePayload["seed"] = toIntLoose(model["seed"], 42)
+		}
+		return basePayload
+
+	case "refiner":
+		refinerExtraCost := toIntLooseWithFallback(model, []string{"refinerExtraCost", "refinerExtraPoints", "cost"}, 1)
+		basePayload["cost"] = clampNonNegativeInt(toIntLoose(model["cost"], refinerExtraCost))
+		basePayload["refinerExtraCost"] = clampNonNegativeInt(refinerExtraCost)
+		basePayload["freeQuotaTotal"] = clampNonNegativeInt(toIntLooseWithFallback(model, []string{"freeQuotaTotal", "refinerFreeQuotaTotal"}, 0))
+		basePayload["refinerGender"] = normalizeRefinerGender(toString(model["refinerGender"]))
+
+		if strings.TrimSpace(toString(basePayload["url"])) == "" {
+			basePayload["url"] = toString(model["refinerUrl"])
+		}
+		if strings.TrimSpace(toString(basePayload["taskQueryUrl"])) == "" {
+			basePayload["taskQueryUrl"] = toString(model["refinerTaskQueryUrl"])
+		}
+		if strings.TrimSpace(toString(basePayload["token"])) == "" {
+			basePayload["token"] = toString(model["refinerToken"])
+		}
+		return basePayload
+
+	case "parsing":
+		parsingExtraCost := clampNonNegativeInt(toIntLooseWithFallback(model, []string{"parsingExtraCost", "parsingExtraPoints", "cost"}, 0))
+		basePayload["cost"] = clampNonNegativeInt(toIntLoose(model["cost"], parsingExtraCost))
+		basePayload["parsingExtraCost"] = parsingExtraCost
+		basePayload["freeQuotaTotal"] = clampNonNegativeInt(toIntLoose(model["freeQuotaTotal"], 0))
+		basePayload["clothesType"] = toStringArrayLooseWithDefault(model["clothesType"], []string{"upper"})
+		return basePayload
+
+	case "beautify":
+		beautifyExtraCost := toIntLooseWithFallback(model, []string{"beautifyExtraCost", "beautifyExtraPoints", "cost"}, 0)
+		basePayload["cost"] = clampNonNegativeInt(toIntLoose(model["cost"], 0))
+		basePayload["beautifyExtraCost"] = clampNonNegativeInt(beautifyExtraCost)
+		basePayload["beautifyModel"] = firstNonEmptyStringValue(toString(model["beautifyModel"]), baseModel)
+		basePayload["beautifyRetouchDegree"] = clampIntRange(toIntLoose(model["beautifyRetouchDegree"], 70), 0, 100)
+		basePayload["beautifyWhiteningDegree"] = clampIntRange(toIntLoose(model["beautifyWhiteningDegree"], 30), 0, 100)
+		basePayload["beautifyUrl"] = toString(model["beautifyUrl"])
+		basePayload["beautifyAccessKeyId"] = toString(model["beautifyAccessKeyId"])
+		basePayload["beautifyAccessKeySecret"] = toString(model["beautifyAccessKeySecret"])
+		basePayload["beautifySecurityToken"] = toString(model["beautifySecurityToken"])
+		basePayload["beautifyToken"] = toString(model["beautifyToken"])
+		basePayload["beautifyDesc"] = firstNonNilValue(model["beautifyDesc"], map[string]string{})
+		return basePayload
+	}
+
+	return basePayload
+}
+
+func normalizeTryonModelUsage(value string, key string, model string, supportsBeautify bool) string {
+	usage := strings.ToLower(strings.TrimSpace(value))
+	switch usage {
+	case "tryon", "refiner", "parsing", "beautify":
+		return usage
+	}
+
+	if supportsBeautify {
+		return "beautify"
+	}
+
+	hint := strings.ToLower(strings.TrimSpace(key)) + " " + strings.ToLower(strings.TrimSpace(model))
+	if strings.Contains(hint, "refiner") {
+		return "refiner"
+	}
+	if strings.Contains(hint, "parsing") || strings.Contains(hint, "takeoff") {
+		return "parsing"
+	}
+	return "tryon"
+}
+
+func toIntLoose(value interface{}, fallback int) int {
+	switch v := value.(type) {
+	case float64:
+		return int(v)
+	case float32:
+		return int(v)
+	case int:
+		return v
+	case int8:
+		return int(v)
+	case int16:
+		return int(v)
+	case int32:
+		return int(v)
+	case int64:
+		return int(v)
+	case uint:
+		return int(v)
+	case uint8:
+		return int(v)
+	case uint16:
+		return int(v)
+	case uint32:
+		return int(v)
+	case uint64:
+		return int(v)
+	case string:
+		text := strings.TrimSpace(v)
+		if text == "" {
+			return fallback
+		}
+		var parsed int
+		if _, err := fmt.Sscanf(text, "%d", &parsed); err == nil {
+			return parsed
+		}
+	}
+	return fallback
+}
+
+func toIntLooseWithFallback(model map[string]interface{}, keys []string, fallback int) int {
+	for _, key := range keys {
+		if model == nil {
+			break
+		}
+		value, ok := model[key]
+		if !ok || value == nil {
+			continue
+		}
+		if text, isString := value.(string); isString && strings.TrimSpace(text) == "" {
+			continue
+		}
+		return toIntLoose(value, fallback)
+	}
+	return fallback
+}
+
+func toStringArrayLoose(value interface{}) []string {
+	result := make([]string, 0)
+	appendValue := func(raw string) {
+		item := strings.TrimSpace(raw)
+		if item == "" {
+			return
+		}
+		for _, existing := range result {
+			if strings.EqualFold(existing, item) {
+				return
+			}
+		}
+		result = append(result, item)
+	}
+
+	switch v := value.(type) {
+	case []interface{}:
+		for _, item := range v {
+			appendValue(toString(item))
+		}
+	case []string:
+		for _, item := range v {
+			appendValue(item)
+		}
+	case string:
+		text := strings.TrimSpace(v)
+		if text == "" {
+			return result
+		}
+		if strings.HasPrefix(text, "[") {
+			parsed := make([]string, 0)
+			if err := json.Unmarshal([]byte(text), &parsed); err == nil {
+				for _, item := range parsed {
+					appendValue(item)
+				}
+				return result
+			}
+		}
+		for _, item := range strings.Split(text, ",") {
+			appendValue(item)
+		}
+	}
+
+	return result
+}
+
+func toStringArrayLooseWithDefault(value interface{}, fallback []string) []string {
+	items := toStringArrayLoose(value)
+	if len(items) > 0 {
+		return items
+	}
+	if len(fallback) == 0 {
+		return []string{}
+	}
+	cloned := make([]string, 0, len(fallback))
+	for _, item := range fallback {
+		item = strings.TrimSpace(item)
+		if item != "" {
+			cloned = append(cloned, item)
+		}
+	}
+	return cloned
+}
+
+func pickFirstValue(model map[string]interface{}, keys ...string) interface{} {
+	if model == nil {
+		return nil
+	}
+	for _, key := range keys {
+		value, ok := model[key]
+		if !ok || value == nil {
+			continue
+		}
+		if text, isString := value.(string); isString && strings.TrimSpace(text) == "" {
+			continue
+		}
+		return value
+	}
+	return nil
+}
+
+func firstNonNilValue(value interface{}, fallback interface{}) interface{} {
+	if value == nil {
+		return fallback
+	}
+	return value
+}
+
+func firstNonEmptyStringValue(values ...string) string {
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+func clampNonNegativeInt(value int) int {
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
+func clampPositiveInt(value int, fallback int) int {
+	if value <= 0 {
+		return fallback
+	}
+	return value
+}
+
+func clampIntRange(value int, minValue int, maxValue int) int {
+	if value < minValue {
+		return minValue
+	}
+	if value > maxValue {
+		return maxValue
+	}
+	return value
+}
+
+func normalizeRefinerGender(value string) string {
+	gender := strings.ToLower(strings.TrimSpace(value))
+	if gender == "man" || gender == "woman" {
+		return gender
+	}
+	return "woman"
 }
 
 func toBoolLoose(value interface{}, fallback bool) bool {

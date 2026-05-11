@@ -53,6 +53,24 @@
       </view>
     </view>
 
+    <view class="refiner-card" :class="{ disabled: !currentModelSupportsParsing }">
+      <view class="refiner-left">
+        <text class="refiner-label">{{ $t('tryonParsingLabel') }}</text>
+        <text class="refiner-hint" v-if="currentModelSupportsParsing">{{ $t('tryonParsingHint') }}</text>
+        <text class="refiner-extra-cost" v-if="currentModelSupportsParsing">{{ $t('tryonParsingExtraCostHint').replace('{cost}', String(currentParsingExtraCost)) }}</text>
+        <text class="refiner-hint" v-if="!currentModelSupportsParsing">{{ $t('tryonParsingUnsupportedHint') }}</text>
+      </view>
+      <view class="refiner-right">
+        <switch
+          class="refiner-switch"
+          :checked="parsingEnabled"
+          :disabled="!currentModelSupportsParsing"
+          color="#0ea5e9"
+          @change="onParsingSwitchChange"
+        />
+      </view>
+    </view>
+
     <view class="model-card">
       <view class="model-left" @tap="showModelPopup = true">
         <text class="model-label">{{ $t('currentModelLabel') }}</text>
@@ -61,9 +79,9 @@
           <text class="model-cost-hint">{{ $t('pointsCostEach').replace('{cost}', String(currentBaseCost)) }}</text>
           <text
             class="model-cost-total"
-            v-if="currentModelSupportsRefiner && refinerEnabled"
+            v-if="showModelCostBreakdown"
           >
-            {{ $t('pointsCostEach').replace('{cost}', String(currentBaseCost)) }} + {{ $t('pointsCostEach').replace('{cost}', String(currentRefinerExtraCost)) }} = {{ $t('pointsCostEach').replace('{cost}', String(currentCost)) }}
+            {{ currentCostFormulaText }}
           </text>
           <text class="model-desc-hint" v-if="currentModelDesc">{{ currentModelDesc }}</text>
         </view>
@@ -107,6 +125,12 @@
                 v-if="item.supportsRefiner"
               >
                 {{ $t('tryonRefinerExtraCostHint').replace('{cost}', String(item.refinerExtraCost)) }}
+              </text>
+              <text
+                class="popup-item-extra-cost"
+                v-if="item.parsingModelKey"
+              >
+                {{ $t('tryonParsingExtraCostHint').replace('{cost}', String(item.parsingExtraCost || 0)) }}
               </text>
               <text class="popup-item-desc" v-if="item.descText">{{ item.descText }}</text>
             </view>
@@ -409,6 +433,7 @@ const showModelPopup = ref(false)
 const showRefinerHelpPopup = ref(false)
 const showUploadDrawer = ref(false)
 const refinerEnabled = ref(false)
+const parsingEnabled = ref(false)
 const uploadTarget = ref('')
 const drawerTab = ref('custom')
 const selectedModelKey = ref('')
@@ -465,16 +490,29 @@ const parseBoolFlag = (value, fallback = false) => {
 }
 
 const supportsRefinerByModel = (model = {}) => {
+  const refinerModelKey = String(model?.refinerModelKey || '').trim()
+  if (refinerModelKey) {
+    return true
+  }
   const explicit = model?.supportsRefiner
   if (explicit !== undefined && explicit !== null && explicit !== '') {
     return parseBoolFlag(explicit, false)
   }
+  return false
+}
+
+const supportsParsingByModel = (model = {}) => {
+  const usage = String(model?.modelUsage || 'tryon').trim().toLowerCase()
+  if (usage && usage !== 'tryon') {
+    return false
+  }
+  const parsingModelKey = String(model?.parsingModelKey || '').trim()
+  if (parsingModelKey) {
+    return true
+  }
   const provider = String(model?.provider || '').trim().toLowerCase()
-  const key = String(model?.key || '').trim().toLowerCase()
   const modelName = String(model?.model || '').trim().toLowerCase()
-  const isAliyunModel = provider.includes('aliyun') || provider.includes('dashscope') || key.includes('aliyun')
-  const isTryonPrimary = modelName === 'aitryon' || modelName === 'aitryon-plus' || key.includes('aliyun_aitryon') || key.includes('aliyun_aitryon_plus')
-  return isAliyunModel && isTryonPrimary
+  return (provider.includes('aliyun') || provider.includes('dashscope')) && (modelName === 'aitryon' || modelName === 'aitryon-plus')
 }
 
 const currentModel = computed(() => {
@@ -485,17 +523,41 @@ const currentModel = computed(() => {
 const currentBaseCost = computed(() => Number(currentModel.value.cost || 1))
 const currentModelDesc = computed(() => currentModel.value.descText || localText(currentModel.value.desc, langStore.locale) || '')
 const currentModelSupportsRefiner = computed(() => supportsRefinerByModel(currentModel.value))
+const currentModelSupportsParsing = computed(() => supportsParsingByModel(currentModel.value))
 const currentRefinerExtraCost = computed(() => {
   if (!currentModelSupportsRefiner.value) {
     return 0
   }
   return Math.max(0, Number(currentModel.value.refinerExtraCost || 0))
 })
-const currentCost = computed(() => {
-  if (currentModelSupportsRefiner.value && refinerEnabled.value) {
-    return currentBaseCost.value + currentRefinerExtraCost.value
+const currentParsingExtraCost = computed(() => {
+  if (!currentModelSupportsParsing.value) {
+    return 0
   }
-  return currentBaseCost.value
+  return Math.max(0, Number(currentModel.value.parsingExtraCost || 0))
+})
+const currentCost = computed(() => {
+  let total = currentBaseCost.value
+  if (currentModelSupportsRefiner.value && refinerEnabled.value) {
+    total += currentRefinerExtraCost.value
+  }
+  if (currentModelSupportsParsing.value && parsingEnabled.value) {
+    total += currentParsingExtraCost.value
+  }
+  return total
+})
+const showModelCostBreakdown = computed(() => {
+  return (currentModelSupportsRefiner.value && refinerEnabled.value) || (currentModelSupportsParsing.value && parsingEnabled.value)
+})
+const currentCostFormulaText = computed(() => {
+  const parts = [$t.value('pointsCostEach').replace('{cost}', String(currentBaseCost.value))]
+  if (currentModelSupportsRefiner.value && refinerEnabled.value) {
+    parts.push($t.value('pointsCostEach').replace('{cost}', String(currentRefinerExtraCost.value)))
+  }
+  if (currentModelSupportsParsing.value && parsingEnabled.value) {
+    parts.push($t.value('pointsCostEach').replace('{cost}', String(currentParsingExtraCost.value)))
+  }
+  return `${parts.join(' + ')} = ${$t.value('pointsCostEach').replace('{cost}', String(currentCost.value))}`
 })
 const currentRefinerDesc = computed(() => {
   const modelDesc = currentModel.value?.refinerDescText || localText(currentModel.value?.refinerDesc, langStore.locale) || ''
@@ -1529,6 +1591,16 @@ const onRefinerSwitchChange = (event) => {
   refinerEnabled.value = enabled
 }
 
+const onParsingSwitchChange = (event) => {
+  const enabled = !!event?.detail?.value
+  if (!currentModelSupportsParsing.value) {
+    parsingEnabled.value = false
+    uni.showToast({ title: $t.value('tryonParsingUnsupportedHint'), icon: 'none' })
+    return
+  }
+  parsingEnabled.value = enabled
+}
+
 const openRefinerHelp = () => {
   showRefinerHelpPopup.value = true
 }
@@ -1538,6 +1610,9 @@ const selectModel = (key) => {
   const selected = modelList.value.find(v => v.key === key)
   if (!supportsRefinerByModel(selected)) {
     refinerEnabled.value = false
+  }
+  if (!supportsParsingByModel(selected)) {
+    parsingEnabled.value = false
   }
   showModelPopup.value = false
 }
@@ -1609,6 +1684,11 @@ const goGenerate = () => {
   let templateRemoteUrl = templatePart === 'lower' ? lowerRemote.value : upperRemote.value
   let templateLocalPath = templatePart === 'lower' ? lowerLocal.value : upperLocal.value
 
+  const templateUpperRemoteUrl = upperRemote.value
+  const templateUpperLocalPath = upperLocal.value
+  const templateLowerRemoteUrl = lowerRemote.value
+  const templateLowerLocalPath = lowerLocal.value
+
   if (!templateRemoteUrl && !templateLocalPath) {
     templateRemoteUrl = upperRemote.value || lowerRemote.value
     templateLocalPath = upperLocal.value || lowerLocal.value
@@ -1633,13 +1713,21 @@ const goGenerate = () => {
     sourceUploadFolder,
     templateLocalPath,
     templateRemoteUrl,
+    templateUpperLocalPath,
+    templateUpperRemoteUrl,
+    templateLowerLocalPath,
+    templateLowerRemoteUrl,
     templateUploadFolder,
     modelKey: currentModel.value.key,
     modelName: currentModel.value.name,
+    parsingModelKey: String(currentModel.value.parsingModelKey || ''),
+    parsingExtraCost: currentParsingExtraCost.value,
     baseModelCost: currentBaseCost.value,
     refinerExtraCost: currentRefinerExtraCost.value,
     modelCost: currentCost.value,
     enableRefiner: currentModelSupportsRefiner.value && refinerEnabled.value,
+    enableParsing: currentModelSupportsParsing.value && parsingEnabled.value,
+    refinerModelKey: String(currentModel.value.refinerModelKey || ''),
     refinerModel: String(currentModel.value.refinerModel || 'aitryon-refiner'),
     supportsBeautify: !!beautifyMeta.supportsBeautify,
     beautifyModelKey: String(beautifyMeta.beautifyModelKey || ''),

@@ -49,6 +49,11 @@ const (
 	tryonRefinerStatusSuccess    = "success"
 	tryonRefinerStatusFailed     = "failed"
 
+	tryonParsingStatusDisabled = "disabled"
+	tryonParsingStatusPending  = "pending"
+	tryonParsingStatusSuccess  = "success"
+	tryonParsingStatusFailed   = "failed"
+
 	tryonBeautifyStatusDisabled   = "disabled"
 	tryonBeautifyStatusProcessing = "processing"
 	tryonBeautifyStatusSuccess    = "success"
@@ -56,6 +61,10 @@ const (
 
 	tryonOpConsume         = "tryon_consume"
 	tryonOpRefund          = "tryon_refund"
+	tryonOpParsingConsume  = "tryon_parsing_consume"
+	tryonOpParsingRefund   = "tryon_parsing_refund"
+	tryonOpRefinerConsume  = "tryon_refiner_consume"
+	tryonOpRefinerRefund   = "tryon_refiner_refund"
 	tryonOpBeautifyConsume = "tryon_beautify_consume"
 	tryonOpBeautifyRefund  = "tryon_beautify_refund"
 	tryonOpGuestInit       = "tryon_guest_init"
@@ -140,6 +149,7 @@ func (s *TryonTaskService) cleanupLocalTryonMediaFiles(tasks []client.TryonTask)
 	for _, task := range tasks {
 		s.removeLocalTryonMediaFile(task.SourceImage)
 		s.removeLocalTryonMediaFile(task.TemplateImage)
+		s.removeLocalTryonMediaFile(task.TemplateImageLower)
 		s.removeLocalTryonMediaFile(task.ResultImage)
 	}
 }
@@ -233,11 +243,14 @@ type TryonTaskTrendItem struct {
 
 type TryonTaskModelStatsItem struct {
 	ModelKey            string `json:"modelKey"`
+	ModelUsage          string `json:"modelUsage"`
+	Provider            string `json:"provider"`
 	TaskCount           int64  `json:"taskCount"`
 	SuccessCount        int64  `json:"successCount"`
 	FailedCount         int64  `json:"failedCount"`
 	ProcessingCount     int64  `json:"processingCount"`
 	RefinerEnabledCount int64  `json:"refinerEnabledCount"`
+	ParsingCount        int64  `json:"parsingCount"`
 	TotalCostPoints     int64  `json:"totalCostPoints"`
 }
 
@@ -248,58 +261,61 @@ type TryonTaskStatsData struct {
 	Failed              int64                     `json:"failed"`
 	TotalCostPoints     int64                     `json:"totalCostPoints"`
 	RefinerEnabledCount int64                     `json:"refinerEnabledCount"`
+	ParsingEnabledCount int64                     `json:"parsingEnabledCount"`
 	ModelCallTotal      int64                     `json:"modelCallTotal"`
 	ModelStats          []TryonTaskModelStatsItem `json:"modelStats"`
 }
 
 type tryonModelConfig struct {
-	Key                              string   `json:"key"`
-	ModelUsage                       string   `json:"modelUsage"`
-	BeautifyModelKey                 string   `json:"beautifyModelKey"`
-	Enabled                          *bool    `json:"enabled"`
-	SupportsRefiner                  *bool    `json:"supportsRefiner"`
-	SupportsBeautify                 *bool    `json:"supportsBeautify"`
-	SceneType                        string   `json:"sceneType"`
-	Scenes                           []string `json:"scenes"`
-	Model                            string   `json:"model"`
-	Cost                             int      `json:"cost"`
-	Provider                         string   `json:"provider"`
-	Mode                             string   `json:"mode"`
-	URL                              string   `json:"url"`
-	Token                            string   `json:"token"`
-	ProviderURL                      string   `json:"providerUrl"`
-	ProviderToken                    string   `json:"providerToken"`
-	TaskQueryURL                     string   `json:"taskQueryUrl"`
-	FreeQuotaTotal                   int      `json:"freeQuotaTotal"`
-	RefinerFreeQuotaTotal            int      `json:"refinerFreeQuotaTotal"`
-	RefinerModel                     string   `json:"refinerModel"`
-	RefinerExtraCost                 int      `json:"refinerExtraCost"`
-	RefinerExtraPoints               int      `json:"refinerExtraPoints"`
-	RefinerURL                       string   `json:"refinerUrl"`
-	RefinerToken                     string   `json:"refinerToken"`
-	RefinerTaskQueryURL              string   `json:"refinerTaskQueryUrl"`
-	BeautifyModel                    string   `json:"beautifyModel"`
-	BeautifyExtraCost                int      `json:"beautifyExtraCost"`
-	BeautifyExtraPoints              int      `json:"beautifyExtraPoints"`
-	BeautifyURL                      string   `json:"beautifyUrl"`
-	BeautifyToken                    string   `json:"beautifyToken"`
-	BeautifyAccessKeyID              string   `json:"beautifyAccessKeyId"`
-	BeautifyAccessKeySec             string   `json:"beautifyAccessKeySecret"`
-	BeautifySecurityToken            string   `json:"beautifySecurityToken"`
-	BeautifyRetouch                  float64  `json:"beautifyRetouchDegree"`
-	BeautifyWhitening                float64  `json:"beautifyWhiteningDegree"`
-	RefinerGender                    string   `json:"refinerGender"`
-	ApiName                          string   `json:"apiName"`
-	GarmentDes                       string   `json:"garmentDes"`
-	IsChecked                        *bool    `json:"isChecked"`
-	IsCheckedCrop                    *bool    `json:"isCheckedCrop"`
-	DenoiseSteps                     int      `json:"denoiseSteps"`
-	Seed                             int      `json:"seed"`
-	Resolution                       int      `json:"resolution"`
-	RestoreFace                      *bool    `json:"restoreFace"`
-	ClothesType                      []string `json:"clothesType"`
-	AutoEnableAliyunParsingUpperOnly *bool    `json:"autoEnableAliyunParsingUpperOnly"`
-	AutoEnableAliyunParsingLowerOnly *bool    `json:"autoEnableAliyunParsingLowerOnly"`
+	Key                   string   `json:"key"`
+	ModelUsage            string   `json:"modelUsage"`
+	BeautifyModelKey      string   `json:"beautifyModelKey"`
+	ParsingModelKey       string   `json:"parsingModelKey"`
+	Enabled               *bool    `json:"enabled"`
+	SupportsRefiner       *bool    `json:"supportsRefiner"`
+	SupportsBeautify      *bool    `json:"supportsBeautify"`
+	SceneType             string   `json:"sceneType"`
+	Scenes                []string `json:"scenes"`
+	Model                 string   `json:"model"`
+	Cost                  int      `json:"cost"`
+	Provider              string   `json:"provider"`
+	Mode                  string   `json:"mode"`
+	URL                   string   `json:"url"`
+	Token                 string   `json:"token"`
+	ProviderURL           string   `json:"providerUrl"`
+	ProviderToken         string   `json:"providerToken"`
+	TaskQueryURL          string   `json:"taskQueryUrl"`
+	FreeQuotaTotal        int      `json:"freeQuotaTotal"`
+	RefinerFreeQuotaTotal int      `json:"refinerFreeQuotaTotal"`
+	RefinerModel          string   `json:"refinerModel"`
+	RefinerModelKey       string   `json:"refinerModelKey"`
+	RefinerExtraCost      int      `json:"refinerExtraCost"`
+	RefinerExtraPoints    int      `json:"refinerExtraPoints"`
+	ParsingExtraCost      int      `json:"parsingExtraCost"`
+	ParsingExtraPoints    int      `json:"parsingExtraPoints"`
+	RefinerURL            string   `json:"refinerUrl"`
+	RefinerToken          string   `json:"refinerToken"`
+	RefinerTaskQueryURL   string   `json:"refinerTaskQueryUrl"`
+	BeautifyModel         string   `json:"beautifyModel"`
+	BeautifyExtraCost     int      `json:"beautifyExtraCost"`
+	BeautifyExtraPoints   int      `json:"beautifyExtraPoints"`
+	BeautifyURL           string   `json:"beautifyUrl"`
+	BeautifyToken         string   `json:"beautifyToken"`
+	BeautifyAccessKeyID   string   `json:"beautifyAccessKeyId"`
+	BeautifyAccessKeySec  string   `json:"beautifyAccessKeySecret"`
+	BeautifySecurityToken string   `json:"beautifySecurityToken"`
+	BeautifyRetouch       float64  `json:"beautifyRetouchDegree"`
+	BeautifyWhitening     float64  `json:"beautifyWhiteningDegree"`
+	RefinerGender         string   `json:"refinerGender"`
+	ApiName               string   `json:"apiName"`
+	GarmentDes            string   `json:"garmentDes"`
+	IsChecked             *bool    `json:"isChecked"`
+	IsCheckedCrop         *bool    `json:"isCheckedCrop"`
+	DenoiseSteps          int      `json:"denoiseSteps"`
+	Seed                  int      `json:"seed"`
+	Resolution            int      `json:"resolution"`
+	RestoreFace           *bool    `json:"restoreFace"`
+	ClothesType           []string `json:"clothesType"`
 }
 
 func (m *tryonModelConfig) isEnabled() bool {
@@ -317,9 +333,24 @@ func (m *tryonModelConfig) usageValue() string {
 		return "tryon"
 	}
 	usage := strings.ToLower(strings.TrimSpace(m.ModelUsage))
-	if usage == "beautify" {
+	switch usage {
+	case "tryon", "beautify", "refiner", "parsing":
+		return usage
+	}
+
+	if m.SupportsBeautify != nil && *m.SupportsBeautify {
 		return "beautify"
 	}
+
+	modelName := resolveAliyunModelName(m, "")
+	if isAliyunParsingModel(m.Provider, modelName, m.endpointURL(), "") {
+		return "parsing"
+	}
+
+	if strings.Contains(strings.ToLower(strings.TrimSpace(m.Key)), "refiner") {
+		return "refiner"
+	}
+
 	return "tryon"
 }
 
@@ -329,6 +360,21 @@ func (m *tryonModelConfig) isTryonModelUsage() bool {
 
 func (m *tryonModelConfig) isBeautifyModelUsage() bool {
 	return m != nil && m.usageValue() == "beautify"
+}
+
+func (m *tryonModelConfig) isRefinerModelUsage() bool {
+	return m != nil && m.usageValue() == "refiner"
+}
+
+func (m *tryonModelConfig) isParsingModelUsage() bool {
+	if m == nil {
+		return false
+	}
+	if m.usageValue() == "parsing" {
+		return true
+	}
+	modelName := resolveAliyunModelName(m, "")
+	return isAliyunParsingModel(m.Provider, modelName, m.endpointURL(), "")
 }
 
 func (m *tryonModelConfig) matchScene(sceneType string) bool {
@@ -387,11 +433,14 @@ func (m *tryonModelConfig) supportsRefinerValue() bool {
 	if m == nil {
 		return false
 	}
-	if m.isBeautifyModelUsage() {
+	if !m.isTryonModelUsage() {
 		return false
 	}
 	if m.SupportsRefiner != nil {
 		return *m.SupportsRefiner
+	}
+	if strings.TrimSpace(m.RefinerModelKey) != "" {
+		return true
 	}
 
 	modelLower := strings.ToLower(strings.TrimSpace(m.Model))
@@ -404,7 +453,22 @@ func (m *tryonModelConfig) supportsRefinerValue() bool {
 }
 
 func (m *tryonModelConfig) refinerModelValue() string {
-	if m == nil || strings.TrimSpace(m.RefinerModel) == "" {
+	if m == nil {
+		return aliyunTryonRefinerModel
+	}
+	if strings.TrimSpace(m.RefinerModel) != "" {
+		return strings.TrimSpace(m.RefinerModel)
+	}
+	if m.isRefinerModelUsage() && strings.TrimSpace(m.Model) != "" {
+		return strings.TrimSpace(m.Model)
+	}
+	if m.isTryonModelUsage() && strings.TrimSpace(m.Model) == "aitryon-refiner" {
+		return strings.TrimSpace(m.Model)
+	}
+	if m.isRefinerModelUsage() && strings.TrimSpace(m.Model) == "" {
+		return aliyunTryonRefinerModel
+	}
+	if strings.TrimSpace(m.RefinerModel) == "" {
 		return aliyunTryonRefinerModel
 	}
 	return strings.TrimSpace(m.RefinerModel)
@@ -419,6 +483,19 @@ func (m *tryonModelConfig) refinerExtraCostValue() int {
 	}
 	if m.RefinerExtraPoints > 0 {
 		return m.RefinerExtraPoints
+	}
+	return 0
+}
+
+func (m *tryonModelConfig) parsingCostValue() int {
+	if m == nil {
+		return 0
+	}
+	if m.ParsingExtraCost > 0 {
+		return m.ParsingExtraCost
+	}
+	if m.ParsingExtraPoints > 0 {
+		return m.ParsingExtraPoints
 	}
 	return 0
 }
@@ -538,6 +615,14 @@ func (m *tryonModelConfig) beautifyWhiteningDegreeValue(override float64) float6
 }
 
 func (m *tryonModelConfig) refinerEndpointURL(fallback string) string {
+	if m != nil && m.isRefinerModelUsage() {
+		if strings.TrimSpace(m.URL) != "" {
+			return strings.TrimSpace(m.URL)
+		}
+		if strings.TrimSpace(m.ProviderURL) != "" {
+			return strings.TrimSpace(m.ProviderURL)
+		}
+	}
 	if m != nil && strings.TrimSpace(m.RefinerURL) != "" {
 		return strings.TrimSpace(m.RefinerURL)
 	}
@@ -549,6 +634,14 @@ func (m *tryonModelConfig) refinerEndpointURL(fallback string) string {
 }
 
 func (m *tryonModelConfig) refinerAuthToken(fallback string) string {
+	if m != nil && m.isRefinerModelUsage() {
+		if strings.TrimSpace(m.Token) != "" {
+			return strings.TrimSpace(m.Token)
+		}
+		if strings.TrimSpace(m.ProviderToken) != "" {
+			return strings.TrimSpace(m.ProviderToken)
+		}
+	}
 	if m != nil && strings.TrimSpace(m.RefinerToken) != "" {
 		return strings.TrimSpace(m.RefinerToken)
 	}
@@ -559,6 +652,11 @@ func (m *tryonModelConfig) refinerAuthToken(fallback string) string {
 }
 
 func (m *tryonModelConfig) refinerTaskQueryURL() string {
+	if m != nil && m.isRefinerModelUsage() {
+		if strings.TrimSpace(m.TaskQueryURL) != "" {
+			return strings.TrimSpace(m.TaskQueryURL)
+		}
+	}
 	if m != nil && strings.TrimSpace(m.RefinerTaskQueryURL) != "" {
 		return strings.TrimSpace(m.RefinerTaskQueryURL)
 	}
@@ -639,20 +737,6 @@ func (m *tryonModelConfig) gradioSeedValue() int {
 	return m.Seed
 }
 
-func (m *tryonModelConfig) autoEnableAliyunParsingUpperOnlyValue() bool {
-	if m == nil || m.AutoEnableAliyunParsingUpperOnly == nil {
-		return true
-	}
-	return *m.AutoEnableAliyunParsingUpperOnly
-}
-
-func (m *tryonModelConfig) autoEnableAliyunParsingLowerOnlyValue() bool {
-	if m == nil || m.AutoEnableAliyunParsingLowerOnly == nil {
-		return true
-	}
-	return *m.AutoEnableAliyunParsingLowerOnly
-}
-
 type tryonProviderResponse struct {
 	Code        int    `json:"code"`
 	Msg         string `json:"msg"`
@@ -671,6 +755,11 @@ type tryonInvokeResult struct {
 	ResultImage    string
 	ProviderTaskID string
 	ErrorMessage   string
+
+	ParsingAttempted bool
+	ParsingSucceeded bool
+	ParsingModelKey  string
+	ParsingError     string
 }
 
 type dashscopeTryonCreateResponse struct {
@@ -762,12 +851,43 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 	}
 
 	enableRefiner := req.EnableRefiner && canEnableAliyunRefiner(req.SceneType, modelCfg)
-	extraCostPoints := 0
+	enableParsing := req.EnableParsing && canEnableAliyunParsing(req.SceneType, modelCfg, req.TemplatePart)
+	refinerCostPoints := 0
+	parsingCostPoints := 0
+	resolvedRefinerModelKey := ""
+	resolvedParsingModelKey := ""
 	if enableRefiner {
-		extraCostPoints = modelCfg.refinerExtraCostValue()
+		refinerModelCfg, resolveErr := s.resolveRefinerModelConfig(req.SceneType, modelCfg)
+		if resolveErr != nil {
+			return task, false, resolveErr
+		}
+		if refinerModelCfg == nil {
+			return task, false, errors.New("tryonRefinerModelUnavailable")
+		}
+		refinerCostPoints = refinerModelCfg.refinerExtraCostValue()
+		resolvedRefinerModelKey = strings.TrimSpace(refinerModelCfg.Key)
+		if resolvedRefinerModelKey == "" {
+			resolvedRefinerModelKey = strings.TrimSpace(modelCfg.RefinerModelKey)
+		}
+	}
+	if enableParsing {
+		preferredParsingModelKey := ""
+		if modelCfg != nil {
+			preferredParsingModelKey = strings.TrimSpace(modelCfg.ParsingModelKey)
+		}
+		parsingModelCfg, resolveErr := s.resolveAliyunParsingAssistModelConfig(req.SceneType, preferredParsingModelKey)
+		if resolveErr != nil {
+			global.GVA_LOG.Warn("解析分割增强模型配置失败，按0扣费继续", zap.Error(resolveErr), zap.String("sceneType", req.SceneType), zap.String("preferredParsingModelKey", preferredParsingModelKey))
+		} else if parsingModelCfg != nil {
+			parsingCostPoints = parsingModelCfg.parsingCostValue()
+			resolvedParsingModelKey = strings.TrimSpace(parsingModelCfg.Key)
+		}
+		if resolvedParsingModelKey == "" && modelCfg != nil {
+			resolvedParsingModelKey = strings.TrimSpace(modelCfg.ParsingModelKey)
+		}
 	}
 
-	costPoints := baseCostPoints + extraCostPoints
+	costPoints := baseCostPoints + refinerCostPoints + parsingCostPoints
 	if costPoints < 1 {
 		costPoints = 1
 	}
@@ -777,19 +897,33 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 		refinerStatus = tryonRefinerStatusPending
 	}
 
+	parsingStatus := tryonParsingStatusDisabled
+	if enableParsing {
+		parsingStatus = tryonParsingStatusPending
+	}
+
 	task = client.TryonTask{
-		UserID:         userID,
-		RequestID:      requestID,
-		TaskNo:         generateTryonTaskNo(),
-		SceneType:      req.SceneType,
-		Status:         tryonTaskStatusProcessing,
-		SourceImage:    req.SourceImage,
-		TemplateImage:  req.TemplateImage,
-		Provider:       providerName,
-		EnableRefiner:  enableRefiner,
-		RefinerStatus:  refinerStatus,
-		BeautifyStatus: tryonBeautifyStatusDisabled,
-		CostPoints:     costPoints,
+		UserID:             userID,
+		RequestID:          requestID,
+		TaskNo:             generateTryonTaskNo(),
+		SceneType:          req.SceneType,
+		Status:             tryonTaskStatusProcessing,
+		SourceImage:        req.SourceImage,
+		TemplateImage:      req.TemplateImage,
+		TemplateImageLower: req.TemplateImageLower,
+		Provider:           providerName,
+		EnableRefiner:      enableRefiner,
+		EnableParsing:      enableParsing,
+		ParsingModelKey:    resolvedParsingModelKey,
+		ParsingStatus:      parsingStatus,
+		ParsingError:       "",
+		RefinerModelKey:    resolvedRefinerModelKey,
+		RefinerStatus:      refinerStatus,
+		BeautifyStatus:     tryonBeautifyStatusDisabled,
+		BaseCostPoints:     baseCostPoints,
+		ParsingCostPoints:  parsingCostPoints,
+		RefinerCostPoints:  refinerCostPoints,
+		CostPoints:         costPoints,
 	}
 
 	if err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
@@ -799,16 +933,39 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 		}
 
 		pointRecordService := PointRecordService{}
-		record := buildPointRecord(userID, client.AssetTypeTryonPoint, "decrease", costPoints, tryonOpConsume, tryonReasonTaskDeduct, "tryon_task:"+task.TaskNo)
-		if pointErr := pointRecordService.CreatePointRecord(txCtx, record); pointErr != nil {
-			return pointErr
+		if baseCostPoints > 0 {
+			record := buildPointRecord(userID, client.AssetTypeTryonPoint, "decrease", baseCostPoints, tryonOpConsume, tryonReasonTaskDeduct, "tryon_task:"+task.TaskNo)
+			if pointErr := pointRecordService.CreatePointRecord(txCtx, record); pointErr != nil {
+				return pointErr
+			}
+		}
+		if refinerCostPoints > 0 {
+			remark := "tryon_refiner:" + task.TaskNo
+			if strings.TrimSpace(resolvedRefinerModelKey) != "" {
+				remark = remark + ":" + strings.TrimSpace(resolvedRefinerModelKey)
+			}
+			record := buildPointRecord(userID, client.AssetTypeTryonPoint, "decrease", refinerCostPoints, tryonOpRefinerConsume, tryonReasonTaskDeduct, remark)
+			if pointErr := pointRecordService.CreatePointRecord(txCtx, record); pointErr != nil {
+				return pointErr
+			}
+		}
+		if parsingCostPoints > 0 {
+			remark := buildParsingPointRemark(task.TaskNo, resolvedParsingModelKey)
+			record := buildPointRecord(userID, client.AssetTypeTryonPoint, "decrease", parsingCostPoints, tryonOpParsingConsume, tryonReasonTaskDeduct, remark)
+			if pointErr := pointRecordService.CreatePointRecord(txCtx, record); pointErr != nil {
+				return pointErr
+			}
 		}
 		return nil
 	}); err != nil {
 		return task, false, err
 	}
 
-	invokeResult, invokeErr := s.invokeTryonProvider(req, modelCfg)
+	resolvedReq := req
+	resolvedReq.EnableRefiner = enableRefiner
+	resolvedReq.EnableParsing = enableParsing
+	traceCtx := createModelCallTraceContext(userID, task, resolvedReq)
+	invokeResult, invokeErr := s.invokeTryonProvider(resolvedReq, modelCfg, traceCtx)
 	if invokeErr != nil {
 		refundErr := s.markFailedAndRefund(ctx, &task, invokeErr.Error())
 		if refundErr != nil {
@@ -818,6 +975,8 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 		_ = global.GVA_DB.Where("id = ?", task.ID).First(&task).Error
 		return task, false, invokeErr
 	}
+
+	parsingStageUpdates := buildParsingStageUpdates(task, invokeResult)
 
 	switch invokeResult.Status {
 	case tryonTaskStatusProcessing:
@@ -832,6 +991,7 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 			updates["refiner_status"] = tryonRefinerStatusDisabled
 			updates["refiner_task_id"] = ""
 		}
+		mergeTryonTaskUpdates(updates, parsingStageUpdates)
 
 		updateResult := global.GVA_DB.Model(&client.TryonTask{}).
 			Where("id = ? AND user_id = ? AND status = ?", task.ID, userID, tryonTaskStatusProcessing).
@@ -844,27 +1004,30 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 		}
 	case tryonTaskStatusSuccess:
 		if task.EnableRefiner {
-			refinerResult, refinerErr := s.invokeAliyunRefinerAsync(req, strings.TrimSpace(invokeResult.ResultImage), modelCfg)
+			storedMainResultImage := s.persistTryonResultImage(strings.TrimSpace(invokeResult.ResultImage), task.TaskNo)
+			refinerResult, refinerErr := s.invokeAliyunRefinerAsync(resolvedReq, strings.TrimSpace(invokeResult.ResultImage), modelCfg, traceCtx)
 			if refinerErr != nil {
-				refundErr := s.markFailedAndRefund(ctx, &task, refinerErr.Error())
-				if refundErr != nil {
-					global.GVA_LOG.Error("试衣精修失败退币异常", zap.Error(refundErr), zap.Uint("taskID", task.ID))
+				fallbackErr := s.markTryonRefinerFailedAndKeepSuccess(ctx, &task, storedMainResultImage, refinerErr.Error(), "", parsingStageUpdates)
+				if fallbackErr != nil {
+					global.GVA_LOG.Error("试衣精修失败回退主图且退币异常", zap.Error(fallbackErr), zap.Uint("taskID", task.ID))
 					return task, false, errors.New("tryonRefinerRefundFailedContactAdmin")
 				}
-				_ = global.GVA_DB.Where("id = ?", task.ID).First(&task).Error
-				return task, false, refinerErr
+				break
 			}
 
 			switch refinerResult.Status {
 			case tryonTaskStatusProcessing:
+				updates := map[string]interface{}{
+					"provider_task_id": strings.TrimSpace(refinerResult.ProviderTaskID),
+					"refiner_task_id":  strings.TrimSpace(refinerResult.ProviderTaskID),
+					"refiner_status":   tryonRefinerStatusProcessing,
+					"result_image":     storedMainResultImage,
+					"error_message":    "",
+				}
+				mergeTryonTaskUpdates(updates, parsingStageUpdates)
 				updateResult := global.GVA_DB.Model(&client.TryonTask{}).
 					Where("id = ? AND user_id = ? AND status = ?", task.ID, userID, tryonTaskStatusProcessing).
-					Updates(map[string]interface{}{
-						"provider_task_id": strings.TrimSpace(refinerResult.ProviderTaskID),
-						"refiner_task_id":  strings.TrimSpace(refinerResult.ProviderTaskID),
-						"refiner_status":   tryonRefinerStatusProcessing,
-						"error_message":    "",
-					})
+					Updates(updates)
 				if updateResult.Error != nil {
 					return task, false, updateResult.Error
 				}
@@ -874,17 +1037,19 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 			case tryonTaskStatusSuccess:
 				storedResultImage := s.persistTryonResultImage(strings.TrimSpace(refinerResult.ResultImage), task.TaskNo)
 				completeAt := time.Now()
+				updates := map[string]interface{}{
+					"status":           tryonTaskStatusSuccess,
+					"provider_task_id": strings.TrimSpace(refinerResult.ProviderTaskID),
+					"refiner_task_id":  strings.TrimSpace(refinerResult.ProviderTaskID),
+					"refiner_status":   tryonRefinerStatusSuccess,
+					"result_image":     storedResultImage,
+					"error_message":    "",
+					"completed_at":     completeAt,
+				}
+				mergeTryonTaskUpdates(updates, parsingStageUpdates)
 				updateResult := global.GVA_DB.Model(&client.TryonTask{}).
 					Where("id = ? AND user_id = ? AND status = ?", task.ID, userID, tryonTaskStatusProcessing).
-					Updates(map[string]interface{}{
-						"status":           tryonTaskStatusSuccess,
-						"provider_task_id": strings.TrimSpace(refinerResult.ProviderTaskID),
-						"refiner_task_id":  strings.TrimSpace(refinerResult.ProviderTaskID),
-						"refiner_status":   tryonRefinerStatusSuccess,
-						"result_image":     storedResultImage,
-						"error_message":    "",
-						"completed_at":     completeAt,
-					})
+					Updates(updates)
 				if updateResult.Error != nil {
 					return task, false, updateResult.Error
 				}
@@ -896,36 +1061,34 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 				if strings.TrimSpace(failReason) == "" {
 					failReason = "tryonRefinerProcessFail"
 				}
-				refundErr := s.markFailedAndRefund(ctx, &task, failReason)
-				if refundErr != nil {
-					global.GVA_LOG.Error("试衣精修失败退币异常", zap.Error(refundErr), zap.Uint("taskID", task.ID))
+				fallbackErr := s.markTryonRefinerFailedAndKeepSuccess(ctx, &task, storedMainResultImage, failReason, strings.TrimSpace(refinerResult.ProviderTaskID), parsingStageUpdates)
+				if fallbackErr != nil {
+					global.GVA_LOG.Error("试衣精修失败回退主图且退币异常", zap.Error(fallbackErr), zap.Uint("taskID", task.ID))
 					return task, false, errors.New("tryonRefinerRefundFailedContactAdmin")
 				}
-				_ = global.GVA_DB.Where("id = ?", task.ID).First(&task).Error
-				return task, false, errors.New(failReason)
 			default:
-				refundErr := s.markFailedAndRefund(ctx, &task, "tryonRefinerStatusUnknown")
-				if refundErr != nil {
-					global.GVA_LOG.Error("试衣精修失败退币异常", zap.Error(refundErr), zap.Uint("taskID", task.ID))
+				fallbackErr := s.markTryonRefinerFailedAndKeepSuccess(ctx, &task, storedMainResultImage, "tryonRefinerStatusUnknown", strings.TrimSpace(refinerResult.ProviderTaskID), parsingStageUpdates)
+				if fallbackErr != nil {
+					global.GVA_LOG.Error("试衣精修未知状态回退主图且退币异常", zap.Error(fallbackErr), zap.Uint("taskID", task.ID))
 					return task, false, errors.New("tryonRefinerRefundFailedContactAdmin")
 				}
-				_ = global.GVA_DB.Where("id = ?", task.ID).First(&task).Error
-				return task, false, errors.New("tryonRefinerStatusUnknown")
 			}
 		} else {
 			storedResultImage := s.persistTryonResultImage(strings.TrimSpace(invokeResult.ResultImage), task.TaskNo)
 			completeAt := time.Now()
+			updates := map[string]interface{}{
+				"status":           tryonTaskStatusSuccess,
+				"provider_task_id": strings.TrimSpace(invokeResult.ProviderTaskID),
+				"refiner_status":   tryonRefinerStatusDisabled,
+				"refiner_task_id":  "",
+				"result_image":     storedResultImage,
+				"error_message":    "",
+				"completed_at":     completeAt,
+			}
+			mergeTryonTaskUpdates(updates, parsingStageUpdates)
 			updateResult := global.GVA_DB.Model(&client.TryonTask{}).
 				Where("id = ? AND user_id = ? AND status = ?", task.ID, userID, tryonTaskStatusProcessing).
-				Updates(map[string]interface{}{
-					"status":           tryonTaskStatusSuccess,
-					"provider_task_id": strings.TrimSpace(invokeResult.ProviderTaskID),
-					"refiner_status":   tryonRefinerStatusDisabled,
-					"refiner_task_id":  "",
-					"result_image":     storedResultImage,
-					"error_message":    "",
-					"completed_at":     completeAt,
-				})
+				Updates(updates)
 			if updateResult.Error != nil {
 				return task, false, updateResult.Error
 			}
@@ -955,6 +1118,11 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 		return task, false, errors.New("tryonModelStatusUnknown")
 	}
 
+	_ = global.GVA_DB.Where("id = ?", task.ID).First(&task).Error
+	if refundErr := s.refundParsingIfNeeded(ctx, &task); refundErr != nil {
+		global.GVA_LOG.Error("试衣分割增强失败退币异常", zap.Error(refundErr), zap.Uint("taskID", task.ID))
+		return task, false, errors.New("tryonParsingRefundFailedContactAdmin")
+	}
 	_ = global.GVA_DB.Where("id = ?", task.ID).First(&task).Error
 	return task, false, nil
 }
@@ -1050,7 +1218,8 @@ func (s *TryonTaskService) ApplyTryonBeautify(ctx context.Context, userID uint, 
 		return task, errors.New("tryonBeautifyUnsupported")
 	}
 
-	resultImage, invokeErr := s.invokeTryonBeautifyProvider(task.SceneType, task.ResultImage, modelCfg, req)
+	beautifyTraceCtx := createBeautifyTraceContext(userID, task)
+	resultImage, invokeErr := s.invokeTryonBeautifyProvider(task.SceneType, task.ResultImage, modelCfg, req, beautifyTraceCtx)
 	if invokeErr != nil {
 		refundErr := s.markTryonBeautifyFailedAndRefund(ctx, &task, beautifyCost, invokeErr.Error())
 		if refundErr != nil {
@@ -1189,70 +1358,146 @@ func (s *TryonTaskService) GetTryonTaskList(info clientReq.TryonTaskSearch) (lis
 
 // GetTryonTaskStats 获取管理端试衣任务统计（按筛选条件）
 func (s *TryonTaskService) GetTryonTaskStats(info clientReq.TryonTaskSearch) (stats TryonTaskStatsData, err error) {
-	baseQuery := s.applyTryonTaskFilters(global.GVA_DB.Model(&client.TryonTask{}), info, false)
+	queryInfo := info
+	queryInfo.Status = ""
 
-	if err = baseQuery.Count(&stats.Total).Error; err != nil {
-		return stats, err
-	}
-	if err = s.applyTryonTaskFilters(global.GVA_DB.Model(&client.TryonTask{}), info, false).Where("status = ?", tryonTaskStatusProcessing).Count(&stats.Processing).Error; err != nil {
-		return stats, err
-	}
-	if err = s.applyTryonTaskFilters(global.GVA_DB.Model(&client.TryonTask{}), info, false).Where("status = ?", tryonTaskStatusSuccess).Count(&stats.Success).Error; err != nil {
-		return stats, err
-	}
-	if err = s.applyTryonTaskFilters(global.GVA_DB.Model(&client.TryonTask{}), info, false).Where("status = ?", tryonTaskStatusFailed).Count(&stats.Failed).Error; err != nil {
-		return stats, err
+	latestIDSubQuery := s.buildLatestTryonStatsEventIDSubQuery(queryInfo)
+	buildLatestQuery := func() *gorm.DB {
+		return s.applyTryonStatsEventFilters(
+			global.GVA_DB.Table("client_tryon_stats_event as tse").Where("tse.id IN (?)", latestIDSubQuery),
+			queryInfo,
+			"tse",
+			false,
+		)
 	}
 
 	type tryonTaskStatsSummaryRow struct {
-		TotalCostPoints     int64 `json:"totalCostPoints"`
-		RefinerEnabledCount int64 `json:"refinerEnabledCount"`
+		Total             int64 `json:"total"`
+		Processing        int64 `json:"processing"`
+		Success           int64 `json:"success"`
+		Failed            int64 `json:"failed"`
+		TotalCostPoints   int64 `json:"totalCostPoints"`
+		RefinerUsageCount int64 `json:"refinerUsageCount"`
+		ParsingUsageCount int64 `json:"parsingUsageCount"`
 	}
 	var summary tryonTaskStatsSummaryRow
-	if err = s.applyTryonTaskFilters(global.GVA_DB.Model(&client.TryonTask{}), info, false).
-		Select("COALESCE(SUM(cost_points), 0) as total_cost_points, COALESCE(SUM(CASE WHEN enable_refiner THEN 1 ELSE 0 END), 0) as refiner_enabled_count").
+	if err = buildLatestQuery().
+		Select("COALESCE(SUM(CASE WHEN COALESCE(NULLIF(TRIM(tse.model_usage), ''), 'tryon') = 'tryon' THEN 1 ELSE 0 END), 0) as total, COALESCE(SUM(CASE WHEN COALESCE(NULLIF(TRIM(tse.model_usage), ''), 'tryon') = 'tryon' AND tse.status = 'processing' THEN 1 ELSE 0 END), 0) as processing, COALESCE(SUM(CASE WHEN COALESCE(NULLIF(TRIM(tse.model_usage), ''), 'tryon') = 'tryon' AND tse.status = 'success' THEN 1 ELSE 0 END), 0) as success, COALESCE(SUM(CASE WHEN COALESCE(NULLIF(TRIM(tse.model_usage), ''), 'tryon') = 'tryon' AND (tse.status = 'failed' OR tse.status = 'error') THEN 1 ELSE 0 END), 0) as failed, COALESCE(SUM(CASE WHEN tse.status = 'success' THEN GREATEST(COALESCE(tse.cost_points, 0) - COALESCE(tse.refund_points, 0), 0) ELSE 0 END), 0) as total_cost_points, COALESCE(SUM(CASE WHEN COALESCE(NULLIF(TRIM(tse.model_usage), ''), 'tryon') = 'refiner' THEN 1 ELSE 0 END), 0) as refiner_usage_count, COALESCE(SUM(CASE WHEN COALESCE(NULLIF(TRIM(tse.model_usage), ''), 'tryon') = 'parsing' THEN 1 ELSE 0 END), 0) as parsing_usage_count").
 		Scan(&summary).Error; err != nil {
 		return stats, err
 	}
+
+	stats.Total = summary.Total
+	stats.Processing = summary.Processing
+	stats.Success = summary.Success
+	stats.Failed = summary.Failed
 	stats.TotalCostPoints = summary.TotalCostPoints
-	stats.RefinerEnabledCount = summary.RefinerEnabledCount
+	stats.RefinerEnabledCount = summary.RefinerUsageCount
+	stats.ParsingEnabledCount = summary.ParsingUsageCount
 
 	type tryonTaskModelAggRow struct {
+		ModelKey            string `json:"modelKey"`
+		ModelUsage          string `json:"modelUsage"`
 		Provider            string `json:"provider"`
 		TaskCount           int64  `json:"taskCount"`
 		SuccessCount        int64  `json:"successCount"`
 		FailedCount         int64  `json:"failedCount"`
 		ProcessingCount     int64  `json:"processingCount"`
 		RefinerEnabledCount int64  `json:"refinerEnabledCount"`
+		ParsingCount        int64  `json:"parsingCount"`
 		TotalCostPoints     int64  `json:"totalCostPoints"`
 	}
+
 	var rows []tryonTaskModelAggRow
-	err = s.applyTryonTaskFilters(global.GVA_DB.Model(&client.TryonTask{}), info, false).
-		Select("provider, COUNT(*) as task_count, COALESCE(SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END), 0) as success_count, COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) as failed_count, COALESCE(SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END), 0) as processing_count, COALESCE(SUM(CASE WHEN enable_refiner THEN 1 ELSE 0 END), 0) as refiner_enabled_count, COALESCE(SUM(cost_points), 0) as total_cost_points").
-		Group("provider").
-		Order("task_count DESC").
-		Scan(&rows).Error
-	if err != nil {
+	if err = buildLatestQuery().
+		Select("COALESCE(NULLIF(TRIM(tse.model_key), ''), 'default') as model_key, COALESCE(NULLIF(TRIM(tse.model_usage), ''), 'tryon') as model_usage, COALESCE(NULLIF(TRIM(tse.provider), ''), 'default') as provider, COALESCE(SUM(CASE WHEN tse.status = 'success' OR tse.status = 'failed' OR tse.status = 'error' THEN 1 ELSE 0 END), 0) as task_count, COALESCE(SUM(CASE WHEN tse.status = 'success' THEN 1 ELSE 0 END), 0) as success_count, COALESCE(SUM(CASE WHEN tse.status = 'failed' OR tse.status = 'error' THEN 1 ELSE 0 END), 0) as failed_count, COALESCE(SUM(CASE WHEN tse.status = 'processing' THEN 1 ELSE 0 END), 0) as processing_count, COALESCE(SUM(CASE WHEN COALESCE(NULLIF(TRIM(tse.model_usage), ''), 'tryon') = 'refiner' THEN 1 ELSE 0 END), 0) as refiner_enabled_count, COALESCE(SUM(CASE WHEN COALESCE(NULLIF(TRIM(tse.model_usage), ''), 'tryon') = 'parsing' THEN 1 ELSE 0 END), 0) as parsing_count, COALESCE(SUM(CASE WHEN tse.status = 'success' THEN GREATEST(COALESCE(tse.cost_points, 0) - COALESCE(tse.refund_points, 0), 0) ELSE 0 END), 0) as total_cost_points").
+		Group("COALESCE(NULLIF(TRIM(tse.model_key), ''), 'default'), COALESCE(NULLIF(TRIM(tse.model_usage), ''), 'tryon'), COALESCE(NULLIF(TRIM(tse.provider), ''), 'default')").
+		Order("task_count DESC, success_count DESC").
+		Scan(&rows).Error; err != nil {
 		return stats, err
 	}
 
-	stats.ModelStats = make([]TryonTaskModelStatsItem, 0, len(rows))
+	modelProviderMap := loadTryonModelProviderMap()
+	modelUsageMap := loadTryonModelUsageMap()
+	defaultRefinerByProvider := loadDefaultModelKeyByUsageAndProvider("refiner")
+	type tryonTaskStatsModelAggKey struct {
+		ModelUsage string
+		ModelKey   string
+		Provider   string
+	}
+	modelStatsMap := make(map[tryonTaskStatsModelAggKey]*TryonTaskModelStatsItem, len(rows))
 	for _, row := range rows {
-		modelKey := strings.TrimSpace(row.Provider)
+		modelKey := strings.TrimSpace(row.ModelKey)
 		if modelKey == "" {
 			modelKey = "default"
 		}
-		stats.ModelStats = append(stats.ModelStats, TryonTaskModelStatsItem{
+
+		modelUsage := normalizeTryonModelUsageValue(row.ModelUsage)
+		modelProvider := strings.TrimSpace(row.Provider)
+		if modelProvider == "" || strings.EqualFold(modelProvider, "default") {
+			modelProvider = resolveTryonModelProvider(modelKey, modelProviderMap)
+		}
+		if modelProvider == "" {
+			modelProvider = "default"
+		}
+
+		if modelUsage == "refiner" {
+			modelKey = normalizeRefinerStatsModelKey(modelKey, modelProvider, modelUsageMap, defaultRefinerByProvider)
+			resolvedProvider := resolveTryonModelProvider(modelKey, modelProviderMap)
+			if strings.TrimSpace(resolvedProvider) != "" {
+				modelProvider = resolvedProvider
+			}
+		}
+
+		aggKey := tryonTaskStatsModelAggKey{
+			ModelUsage: strings.ToLower(strings.TrimSpace(modelUsage)),
+			ModelKey:   strings.ToLower(strings.TrimSpace(modelKey)),
+			Provider:   strings.ToLower(strings.TrimSpace(modelProvider)),
+		}
+		if item, exists := modelStatsMap[aggKey]; exists {
+			item.TaskCount += row.TaskCount
+			item.SuccessCount += row.SuccessCount
+			item.FailedCount += row.FailedCount
+			item.ProcessingCount += row.ProcessingCount
+			item.RefinerEnabledCount += row.RefinerEnabledCount
+			item.ParsingCount += row.ParsingCount
+			item.TotalCostPoints += row.TotalCostPoints
+			continue
+		}
+
+		item := TryonTaskModelStatsItem{
 			ModelKey:            modelKey,
+			ModelUsage:          modelUsage,
+			Provider:            modelProvider,
 			TaskCount:           row.TaskCount,
 			SuccessCount:        row.SuccessCount,
 			FailedCount:         row.FailedCount,
 			ProcessingCount:     row.ProcessingCount,
 			RefinerEnabledCount: row.RefinerEnabledCount,
+			ParsingCount:        row.ParsingCount,
 			TotalCostPoints:     row.TotalCostPoints,
-		})
-		stats.ModelCallTotal += row.TaskCount
+		}
+		modelStatsMap[aggKey] = &item
 	}
+
+	stats.ModelStats = make([]TryonTaskModelStatsItem, 0, len(modelStatsMap))
+	stats.ModelCallTotal = 0
+	for _, item := range modelStatsMap {
+		stats.ModelStats = append(stats.ModelStats, *item)
+		stats.ModelCallTotal += item.TaskCount
+	}
+
+	sort.SliceStable(stats.ModelStats, func(i, j int) bool {
+		if stats.ModelStats[i].TaskCount == stats.ModelStats[j].TaskCount {
+			leftKey := strings.TrimSpace(stats.ModelStats[i].ModelKey)
+			rightKey := strings.TrimSpace(stats.ModelStats[j].ModelKey)
+			if strings.EqualFold(leftKey, rightKey) {
+				return strings.TrimSpace(stats.ModelStats[i].ModelUsage) < strings.TrimSpace(stats.ModelStats[j].ModelUsage)
+			}
+			return strings.ToLower(leftKey) < strings.ToLower(rightKey)
+		}
+		return stats.ModelStats[i].TaskCount > stats.ModelStats[j].TaskCount
+	})
 
 	return stats, nil
 }
@@ -1292,10 +1537,22 @@ func (s *TryonTaskService) GetTryonTaskTrend(info clientReq.TryonTaskSearch) (li
 	queryInfo.StartCreatedAt = &startTime
 	queryInfo.EndCreatedAt = &endTime
 
-	var taskList []client.TryonTask
-	err = s.applyTryonTaskFilters(global.GVA_DB.Model(&client.TryonTask{}), queryInfo, false).
-		Select("created_at", "status").
-		Find(&taskList).Error
+	latestIDSubQuery := s.buildLatestTryonStatsEventIDSubQuery(queryInfo)
+	type tryonTaskTrendLogRow struct {
+		CreatedAt time.Time `json:"createdAt"`
+		Status    string    `json:"status"`
+	}
+	var logList []tryonTaskTrendLogRow
+	err = s.applyTryonStatsEventFilters(
+		global.GVA_DB.Table("client_tryon_stats_event as tse").Where("tse.id IN (?)", latestIDSubQuery),
+		queryInfo,
+		"tse",
+		false,
+	).
+		Where("COALESCE(NULLIF(TRIM(tse.model_usage), ''), 'tryon') = ?", "tryon").
+		Select("tse.event_at as created_at", "tse.status").
+		Order("tse.event_at asc").
+		Scan(&logList).Error
 	if err != nil {
 		return nil, err
 	}
@@ -1306,19 +1563,19 @@ func (s *TryonTaskService) GetTryonTaskTrend(info clientReq.TryonTaskSearch) (li
 		trendMap[dateKey] = &TryonTaskTrendItem{Date: dateKey}
 	}
 
-	for _, task := range taskList {
-		dateKey := task.CreatedAt.Format("2006-01-02")
+	for _, logRow := range logList {
+		dateKey := logRow.CreatedAt.Format("2006-01-02")
 		item, ok := trendMap[dateKey]
 		if !ok {
 			continue
 		}
 		item.Total++
-		switch task.Status {
+		switch strings.ToLower(strings.TrimSpace(logRow.Status)) {
 		case tryonTaskStatusProcessing:
 			item.Processing++
 		case tryonTaskStatusSuccess:
 			item.Success++
-		case tryonTaskStatusFailed:
+		case tryonTaskStatusFailed, modelCallStatusError:
 			item.Failed++
 		}
 	}
@@ -1330,6 +1587,17 @@ func (s *TryonTaskService) GetTryonTaskTrend(info clientReq.TryonTaskSearch) (li
 		}
 	}
 	return
+}
+
+func (s *TryonTaskService) buildLatestTryonStatsEventIDSubQuery(info clientReq.TryonTaskSearch) *gorm.DB {
+	return s.applyTryonStatsEventFilters(
+		global.GVA_DB.Table("client_tryon_stats_event as tse").Where("tse.task_id > 0"),
+		info,
+		"tse",
+		false,
+	).
+		Select("MAX(tse.id) as id").
+		Group("tse.task_id, COALESCE(NULLIF(TRIM(tse.model_usage), ''), 'tryon')")
 }
 
 func (s *TryonTaskService) applyTryonTaskFilters(db *gorm.DB, info clientReq.TryonTaskSearch, includeStatus bool) *gorm.DB {
@@ -1357,19 +1625,213 @@ func (s *TryonTaskService) applyTryonTaskFilters(db *gorm.DB, info clientReq.Try
 	return db
 }
 
+func (s *TryonTaskService) applyTryonStatsEventFilters(db *gorm.DB, info clientReq.TryonTaskSearch, alias string, includeStatus bool) *gorm.DB {
+	prefix := strings.TrimSpace(alias)
+	column := func(name string) string {
+		if prefix == "" {
+			return name
+		}
+		return prefix + "." + name
+	}
+
+	if info.UserID > 0 {
+		db = db.Where(column("user_id")+" = ?", info.UserID)
+	}
+	if strings.TrimSpace(info.TaskNo) != "" {
+		db = db.Where(column("task_no")+" = ?", strings.TrimSpace(info.TaskNo))
+	}
+	if strings.TrimSpace(info.RequestID) != "" {
+		db = db.Where(column("request_id")+" = ?", strings.TrimSpace(info.RequestID))
+	}
+	if strings.TrimSpace(info.SceneType) != "" {
+		db = db.Where(column("scene_type")+" = ?", strings.TrimSpace(info.SceneType))
+	}
+	if includeStatus && strings.TrimSpace(info.Status) != "" {
+		status := strings.ToLower(strings.TrimSpace(info.Status))
+		switch status {
+		case tryonTaskStatusFailed, modelCallStatusError:
+			db = db.Where(column("status")+" IN ?", []string{tryonTaskStatusFailed, modelCallStatusError})
+		default:
+			db = db.Where(column("status")+" = ?", status)
+		}
+	}
+	if info.StartCreatedAt != nil {
+		db = db.Where(column("event_at")+" >= ?", *info.StartCreatedAt)
+	}
+	if info.EndCreatedAt != nil {
+		db = db.Where(column("event_at")+" <= ?", *info.EndCreatedAt)
+	}
+
+	usageFilterExpr := fmt.Sprintf("COALESCE(NULLIF(TRIM(%s), ''), 'tryon') IN ?", column("model_usage"))
+	db = db.Where(usageFilterExpr, []string{"tryon", "refiner", "parsing", "beautify"})
+	return db
+}
+
+func mergeTryonTaskUpdates(base map[string]interface{}, patch map[string]interface{}) {
+	if len(base) == 0 || len(patch) == 0 {
+		return
+	}
+	for key, value := range patch {
+		base[key] = value
+	}
+}
+
+func buildParsingStageUpdates(task client.TryonTask, invokeResult tryonInvokeResult) map[string]interface{} {
+	updates := map[string]interface{}{}
+	if !task.EnableParsing {
+		updates["parsing_status"] = tryonParsingStatusDisabled
+		updates["parsing_model_key"] = ""
+		updates["parsing_error"] = ""
+		return updates
+	}
+
+	modelKey := strings.TrimSpace(task.ParsingModelKey)
+	if strings.TrimSpace(invokeResult.ParsingModelKey) != "" {
+		modelKey = strings.TrimSpace(invokeResult.ParsingModelKey)
+	}
+	updates["parsing_model_key"] = modelKey
+
+	if !invokeResult.ParsingAttempted {
+		updates["parsing_status"] = tryonParsingStatusDisabled
+		updates["parsing_error"] = ""
+		return updates
+	}
+
+	if invokeResult.ParsingSucceeded {
+		updates["parsing_status"] = tryonParsingStatusSuccess
+		updates["parsing_error"] = ""
+		return updates
+	}
+
+	updates["parsing_status"] = tryonParsingStatusFailed
+	updates["parsing_error"] = truncateTryonError(firstNonEmptyString(invokeResult.ParsingError, "aliyunParsingNoUsableGarmentArea"))
+	return updates
+}
+
+func buildParsingPointRemark(taskNo string, parsingModelKey string) string {
+	remark := "tryon_parsing:" + strings.TrimSpace(taskNo)
+	if strings.TrimSpace(parsingModelKey) != "" {
+		remark += ":" + strings.TrimSpace(parsingModelKey)
+	}
+	return remark
+}
+
+func resolveParsingStatus(task *client.TryonTask, extraUpdates map[string]interface{}) string {
+	if extraUpdates != nil {
+		if raw, ok := extraUpdates["parsing_status"]; ok {
+			text := strings.ToLower(strings.TrimSpace(fmt.Sprint(raw)))
+			if text != "" {
+				return text
+			}
+		}
+	}
+	if task == nil {
+		return ""
+	}
+	return strings.ToLower(strings.TrimSpace(task.ParsingStatus))
+}
+
+func (s *TryonTaskService) refundParsingIfNeeded(ctx context.Context, task *client.TryonTask) error {
+	if task == nil || task.ID == 0 || task.UserID == 0 {
+		return nil
+	}
+	if !task.EnableParsing {
+		return nil
+	}
+	if resolveParsingStatus(task, nil) != tryonParsingStatusFailed {
+		return nil
+	}
+	if task.ParsingCostPoints <= 0 || task.ParsingRefund >= task.ParsingCostPoints {
+		return nil
+	}
+
+	return global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		var latest client.TryonTask
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND user_id = ?", task.ID, task.UserID).
+			First(&latest).Error; err != nil {
+			return err
+		}
+
+		if !latest.EnableParsing || resolveParsingStatus(&latest, nil) != tryonParsingStatusFailed {
+			*task = latest
+			return nil
+		}
+		if latest.ParsingCostPoints <= 0 || latest.ParsingRefund >= latest.ParsingCostPoints {
+			*task = latest
+			return nil
+		}
+
+		refundPoints := latest.ParsingCostPoints - latest.ParsingRefund
+		if refundPoints <= 0 {
+			*task = latest
+			return nil
+		}
+
+		now := time.Now()
+		updateData := map[string]interface{}{
+			"parsing_refund": latest.ParsingRefund + refundPoints,
+			"refund_points":  latest.RefundPoints + refundPoints,
+			"refunded_at":    now,
+		}
+		if err := tx.Model(&client.TryonTask{}).
+			Where("id = ? AND user_id = ?", latest.ID, latest.UserID).
+			Updates(updateData).Error; err != nil {
+			return err
+		}
+
+		pointRecordService := PointRecordService{}
+		txCtx := context.WithValue(ctx, "tx", tx)
+		record := buildPointRecord(latest.UserID, client.AssetTypeTryonPoint, "increase", refundPoints, tryonOpParsingRefund, tryonReasonTaskRefund, buildParsingPointRemark(latest.TaskNo, latest.ParsingModelKey))
+		if err := pointRecordService.CreatePointRecord(txCtx, record); err != nil {
+			return err
+		}
+
+		latest.ParsingRefund += refundPoints
+		latest.RefundPoints += refundPoints
+		latest.RefundedAt = &now
+		*task = latest
+		return nil
+	})
+}
+
 func (s *TryonTaskService) markFailedAndRefund(ctx context.Context, task *client.TryonTask, failReason string) error {
 	return global.GVA_DB.Transaction(func(tx *gorm.DB) error {
 		now := time.Now()
 		failReason = truncateTryonError(failReason)
+
+		baseRefundPoints := task.BaseCostPoints
+		parsingRefundPoints := task.ParsingCostPoints
+		refinerRefundPoints := task.RefinerCostPoints
+		if baseRefundPoints < 0 {
+			baseRefundPoints = 0
+		}
+		if parsingRefundPoints < 0 {
+			parsingRefundPoints = 0
+		}
+		if refinerRefundPoints < 0 {
+			refinerRefundPoints = 0
+		}
+		totalRefundPoints := baseRefundPoints + parsingRefundPoints + refinerRefundPoints
+		if totalRefundPoints <= 0 {
+			totalRefundPoints = task.CostPoints
+			baseRefundPoints = totalRefundPoints
+			parsingRefundPoints = 0
+			refinerRefundPoints = 0
+		}
+
 		updates := map[string]interface{}{
 			"status":        tryonTaskStatusFailed,
 			"error_message": failReason,
-			"refund_points": task.CostPoints,
+			"refund_points": totalRefundPoints,
 			"completed_at":  now,
 			"refunded_at":   now,
 		}
 		if task.EnableRefiner {
 			updates["refiner_status"] = tryonRefinerStatusFailed
+		}
+		if parsingRefundPoints > 0 {
+			updates["parsing_refund"] = parsingRefundPoints
 		}
 		updateResult := tx.Model(&client.TryonTask{}).
 			Where("id = ? AND user_id = ? AND status = ?", task.ID, task.UserID, tryonTaskStatusProcessing).
@@ -1383,9 +1845,126 @@ func (s *TryonTaskService) markFailedAndRefund(ctx context.Context, task *client
 
 		pointRecordService := PointRecordService{}
 		txCtx := context.WithValue(ctx, "tx", tx)
-		record := buildPointRecord(task.UserID, client.AssetTypeTryonPoint, "increase", task.CostPoints, tryonOpRefund, tryonReasonTaskRefund, "tryon_task:"+task.TaskNo)
-		if err := pointRecordService.CreatePointRecord(txCtx, record); err != nil {
-			return err
+		if baseRefundPoints > 0 {
+			record := buildPointRecord(task.UserID, client.AssetTypeTryonPoint, "increase", baseRefundPoints, tryonOpRefund, tryonReasonTaskRefund, "tryon_task:"+task.TaskNo)
+			if err := pointRecordService.CreatePointRecord(txCtx, record); err != nil {
+				return err
+			}
+		}
+		if refinerRefundPoints > 0 {
+			remark := "tryon_refiner:" + task.TaskNo
+			if strings.TrimSpace(task.RefinerModelKey) != "" {
+				remark = remark + ":" + strings.TrimSpace(task.RefinerModelKey)
+			}
+			record := buildPointRecord(task.UserID, client.AssetTypeTryonPoint, "increase", refinerRefundPoints, tryonOpRefinerRefund, tryonReasonTaskRefund, remark)
+			if err := pointRecordService.CreatePointRecord(txCtx, record); err != nil {
+				return err
+			}
+		}
+		if parsingRefundPoints > 0 {
+			record := buildPointRecord(task.UserID, client.AssetTypeTryonPoint, "increase", parsingRefundPoints, tryonOpParsingRefund, tryonReasonTaskRefund, buildParsingPointRemark(task.TaskNo, task.ParsingModelKey))
+			if err := pointRecordService.CreatePointRecord(txCtx, record); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (s *TryonTaskService) markTryonRefinerFailedAndKeepSuccess(ctx context.Context, task *client.TryonTask, mainResultImage string, failReason string, refinerTaskID string, extraUpdates map[string]interface{}) error {
+	return global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		now := time.Now()
+		failReason = truncateTryonError(failReason)
+
+		storedResultImage := strings.TrimSpace(mainResultImage)
+		if storedResultImage == "" {
+			storedResultImage = strings.TrimSpace(task.ResultImage)
+		}
+		if storedResultImage == "" {
+			return errors.New("tryonResultImageRequired")
+		}
+
+		refinerRefundPoints := task.RefinerCostPoints
+		if refinerRefundPoints < 0 {
+			refinerRefundPoints = 0
+		}
+		parsingRefundPoints := 0
+		if task.EnableParsing && resolveParsingStatus(task, extraUpdates) == tryonParsingStatusFailed {
+			parsingRefundPoints = task.ParsingCostPoints - task.ParsingRefund
+			if parsingRefundPoints < 0 {
+				parsingRefundPoints = 0
+			}
+		}
+
+		updates := map[string]interface{}{
+			"status":          tryonTaskStatusSuccess,
+			"result_image":    storedResultImage,
+			"refiner_status":  tryonRefinerStatusFailed,
+			"refiner_task_id": strings.TrimSpace(refinerTaskID),
+			"refiner_refund":  refinerRefundPoints,
+			"error_message":   failReason,
+			"completed_at":    now,
+		}
+		totalExtraRefund := refinerRefundPoints + parsingRefundPoints
+		if totalExtraRefund > 0 {
+			updates["refund_points"] = task.RefundPoints + totalExtraRefund
+			updates["refunded_at"] = now
+		}
+		if parsingRefundPoints > 0 {
+			updates["parsing_refund"] = task.ParsingRefund + parsingRefundPoints
+		}
+		if strings.TrimSpace(refinerTaskID) != "" {
+			updates["provider_task_id"] = strings.TrimSpace(refinerTaskID)
+		}
+		mergeTryonTaskUpdates(updates, extraUpdates)
+
+		updateResult := tx.Model(&client.TryonTask{}).
+			Where("id = ? AND user_id = ? AND status = ?", task.ID, task.UserID, tryonTaskStatusProcessing).
+			Updates(updates)
+		if updateResult.Error != nil {
+			return updateResult.Error
+		}
+		if updateResult.RowsAffected == 0 {
+			return errors.New("tryonTaskStatusConflictRefund")
+		}
+
+		if refinerRefundPoints > 0 {
+			pointRecordService := PointRecordService{}
+			txCtx := context.WithValue(ctx, "tx", tx)
+			remark := "tryon_refiner:" + task.TaskNo
+			if strings.TrimSpace(task.RefinerModelKey) != "" {
+				remark = remark + ":" + strings.TrimSpace(task.RefinerModelKey)
+			}
+			record := buildPointRecord(task.UserID, client.AssetTypeTryonPoint, "increase", refinerRefundPoints, tryonOpRefinerRefund, tryonReasonTaskRefund, remark)
+			if err := pointRecordService.CreatePointRecord(txCtx, record); err != nil {
+				return err
+			}
+		}
+		if parsingRefundPoints > 0 {
+			pointRecordService := PointRecordService{}
+			txCtx := context.WithValue(ctx, "tx", tx)
+			record := buildPointRecord(task.UserID, client.AssetTypeTryonPoint, "increase", parsingRefundPoints, tryonOpParsingRefund, tryonReasonTaskRefund, buildParsingPointRemark(task.TaskNo, task.ParsingModelKey))
+			if err := pointRecordService.CreatePointRecord(txCtx, record); err != nil {
+				return err
+			}
+		}
+
+		task.Status = tryonTaskStatusSuccess
+		task.ResultImage = storedResultImage
+		task.RefinerStatus = tryonRefinerStatusFailed
+		task.RefinerTaskID = strings.TrimSpace(refinerTaskID)
+		task.RefinerRefund = refinerRefundPoints
+		task.ErrorMessage = failReason
+		task.CompletedAt = &now
+		if totalExtraRefund > 0 {
+			task.RefundPoints += totalExtraRefund
+			task.RefundedAt = &now
+		}
+		if parsingRefundPoints > 0 {
+			task.ParsingRefund += parsingRefundPoints
+		}
+		if strings.TrimSpace(refinerTaskID) != "" {
+			task.ProviderTaskID = strings.TrimSpace(refinerTaskID)
 		}
 		return nil
 	})
@@ -1480,28 +2059,18 @@ func (s *TryonTaskService) GrantInviteRegisterRewardPoints(ctx context.Context, 
 	})
 }
 
-func (s *TryonTaskService) loadTryonModelConfigList(sceneType string) ([]tryonModelConfig, error) {
+func (s *TryonTaskService) loadTryonModelConfigList(_ string) ([]tryonModelConfig, error) {
 	sysConfigService := SysConfigService{}
-	scene := strings.ToLower(strings.TrimSpace(sceneType))
-	keys := []string{"tryon_models"}
-	if scene == "shoes" {
-		keys = []string{"shoe_models", "tryon_models"}
+	raw, err := sysConfigService.GetConfigByKey("tryon_models")
+	if err != nil || strings.TrimSpace(raw) == "" {
+		return nil, nil
 	}
 
-	for _, key := range keys {
-		raw, err := sysConfigService.GetConfigByKey(key)
-		if err != nil || strings.TrimSpace(raw) == "" {
-			continue
-		}
-
-		list := make([]tryonModelConfig, 0)
-		if unmarshalErr := json.Unmarshal([]byte(raw), &list); unmarshalErr != nil {
-			return nil, unmarshalErr
-		}
-		return list, nil
+	list := make([]tryonModelConfig, 0)
+	if unmarshalErr := json.Unmarshal([]byte(raw), &list); unmarshalErr != nil {
+		return nil, unmarshalErr
 	}
-
-	return nil, nil
+	return list, nil
 }
 
 func (s *TryonTaskService) resolveTryonModelConfig(sceneType string, modelKey string) (*tryonModelConfig, error) {
@@ -1574,7 +2143,107 @@ func findEnabledBeautifyModelByKey(list []tryonModelConfig, sceneType string, mo
 	return nil
 }
 
-func (s *TryonTaskService) resolveBeautifyModelConfig(sceneType string, _ string, preferredBeautifyModelKey string) (*tryonModelConfig, error) {
+func findEnabledRefinerModelByKey(list []tryonModelConfig, sceneType string, modelKey string) *tryonModelConfig {
+	modelKey = strings.TrimSpace(modelKey)
+	if modelKey == "" {
+		return nil
+	}
+
+	for i := range list {
+		item := &list[i]
+		if !item.isEnabled() || !item.isRefinerModelUsage() {
+			continue
+		}
+		if !strings.EqualFold(strings.TrimSpace(item.Key), modelKey) {
+			continue
+		}
+		if item.matchScene(sceneType) {
+			return item
+		}
+	}
+
+	for i := range list {
+		item := &list[i]
+		if !item.isEnabled() || !item.isRefinerModelUsage() {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(item.Key), modelKey) {
+			return item
+		}
+	}
+
+	return nil
+}
+
+func (s *TryonTaskService) resolveRefinerModelConfig(sceneType string, baseModelCfg *tryonModelConfig) (*tryonModelConfig, error) {
+	if baseModelCfg == nil {
+		return nil, nil
+	}
+
+	refinerModelKey := strings.TrimSpace(baseModelCfg.RefinerModelKey)
+	if refinerModelKey == "" {
+		// Backward compatibility for legacy embedded refiner configs.
+		hasLegacyEmbeddedRefiner := strings.TrimSpace(baseModelCfg.RefinerModel) != "" ||
+			strings.TrimSpace(baseModelCfg.RefinerURL) != "" ||
+			strings.TrimSpace(baseModelCfg.RefinerToken) != "" ||
+			strings.TrimSpace(baseModelCfg.RefinerTaskQueryURL) != "" ||
+			baseModelCfg.RefinerExtraCost > 0 ||
+			baseModelCfg.RefinerExtraPoints > 0
+		if hasLegacyEmbeddedRefiner && baseModelCfg.supportsRefinerValue() {
+			return baseModelCfg, nil
+		}
+		return nil, errors.New("tryonRefinerModelUnavailable")
+	}
+
+	list, err := s.loadTryonModelConfigList(sceneType)
+	if err != nil {
+		return nil, errors.New("tryonModelConfigInvalid")
+	}
+	if len(list) == 0 {
+		return nil, errors.New("tryonRefinerModelUnavailable")
+	}
+
+	refinerModelCfg := findEnabledRefinerModelByKey(list, sceneType, refinerModelKey)
+	if refinerModelCfg == nil {
+		return nil, errors.New("tryonRefinerModelUnavailable")
+	}
+
+	return refinerModelCfg, nil
+}
+
+func findEnabledTryonModelByKey(list []tryonModelConfig, sceneType string, modelKey string) *tryonModelConfig {
+	modelKey = strings.TrimSpace(modelKey)
+	if modelKey == "" {
+		return nil
+	}
+
+	for i := range list {
+		item := &list[i]
+		if !item.isEnabled() || !item.isTryonModelUsage() {
+			continue
+		}
+		if !strings.EqualFold(strings.TrimSpace(item.Key), modelKey) {
+			continue
+		}
+		if item.matchScene(sceneType) {
+			return item
+		}
+	}
+
+	for i := range list {
+		item := &list[i]
+		if !item.isEnabled() || !item.isTryonModelUsage() {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(item.Key), modelKey) {
+			return item
+		}
+	}
+
+	return nil
+}
+
+func (s *TryonTaskService) resolveBeautifyModelConfig(sceneType string, tryonModelKey string, preferredBeautifyModelKey string) (*tryonModelConfig, error) {
 	list, err := s.loadTryonModelConfigList(sceneType)
 	if err != nil {
 		return nil, errors.New("tryonModelConfigInvalid")
@@ -1582,6 +2251,8 @@ func (s *TryonTaskService) resolveBeautifyModelConfig(sceneType string, _ string
 	if len(list) == 0 {
 		return nil, nil
 	}
+
+	_ = strings.TrimSpace(tryonModelKey)
 
 	var beautifyFallback *tryonModelConfig
 	var beautifyAnyScene *tryonModelConfig
@@ -1616,23 +2287,17 @@ func (s *TryonTaskService) resolveBeautifyModelConfig(sceneType string, _ string
 	return nil, nil
 }
 
-func (s *TryonTaskService) invokeTryonProvider(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig) (tryonInvokeResult, error) {
-	sysConfigService := SysConfigService{}
-	providerMode, _ := sysConfigService.GetConfigByKey("tryon_provider_mode")
-	providerURL, _ := sysConfigService.GetConfigByKey("tryon_provider_url")
-	providerToken, _ := sysConfigService.GetConfigByKey("tryon_provider_token")
-
-	if modelCfg != nil {
-		if strings.TrimSpace(modelCfg.Mode) != "" {
-			providerMode = strings.TrimSpace(modelCfg.Mode)
-		}
-		if modelURL := modelCfg.endpointURL(); modelURL != "" {
-			providerURL = modelURL
-		}
-		if modelToken := modelCfg.authToken(); modelToken != "" {
-			providerToken = modelToken
-		}
+func (s *TryonTaskService) invokeTryonProvider(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig, traceCtx *modelCallTraceContext) (tryonInvokeResult, error) {
+	if modelCfg == nil {
+		return tryonInvokeResult{}, errors.New("tryonModelUnavailable")
 	}
+
+	providerMode := strings.TrimSpace(modelCfg.Mode)
+	if providerMode == "" {
+		providerMode = "prod"
+	}
+	providerURL := strings.TrimSpace(modelCfg.endpointURL())
+	providerToken := strings.TrimSpace(modelCfg.authToken())
 
 	if strings.EqualFold(providerMode, "mock_success") {
 		return tryonInvokeResult{
@@ -1642,10 +2307,7 @@ func (s *TryonTaskService) invokeTryonProvider(req clientReq.CreateTryonTaskReq,
 	}
 
 	modelName := resolveAliyunModelName(modelCfg, req.SceneType)
-	providerName := ""
-	if modelCfg != nil {
-		providerName = modelCfg.Provider
-	}
+	providerName := strings.TrimSpace(modelCfg.Provider)
 
 	isAliyunParsing := isAliyunParsingModel(providerName, modelName, providerURL, req.SceneType)
 	isAliyunTryon := isAliyunTryonModel(providerName, modelName, providerURL, req.SceneType)
@@ -1666,33 +2328,60 @@ func (s *TryonTaskService) invokeTryonProvider(req clientReq.CreateTryonTaskReq,
 				return tryonInvokeResult{}, normalizeErr
 			}
 			resolvedReq.TemplateImage = normalizedTemplate
+
+			if strings.TrimSpace(req.TemplateImageLower) != "" {
+				normalizedTemplateLower, normalizeErr := s.normalizeAliyunMediaURL(req.TemplateImageLower)
+				if normalizeErr != nil {
+					return tryonInvokeResult{}, normalizeErr
+				}
+				resolvedReq.TemplateImageLower = normalizedTemplateLower
+			}
 		}
 	}
 
 	if isAliyunParsing {
-		return s.invokeAliyunParsing(resolvedReq, modelCfg, providerToken, providerURL, modelName, false)
+		return s.invokeAliyunParsing(resolvedReq, modelCfg, providerToken, providerURL, modelName, false, traceCtx)
 	}
 
-	if isAliyunTryon && shouldAutoAliyunParsingForSinglePart(resolvedReq.SceneType, modelCfg, modelName, resolvedReq.TemplatePart) {
-		parsedTemplate, parseErr := s.tryBuildAliyunParsedTemplate(resolvedReq, providerToken)
+	parsedCompanionGarmentImage := ""
+	parsingAttempted := false
+	parsingSucceeded := false
+	parsingErrorMessage := ""
+	parsingModelKey := strings.TrimSpace(modelCfg.ParsingModelKey)
+	if isAliyunTryon && shouldEnableAliyunParsingForSinglePart(resolvedReq.SceneType, modelName, resolvedReq.TemplatePart, req.EnableParsing) {
+		parsingAttempted = true
+		parsedCompanionGarment, resolvedParsingModelKey, parseErr := s.tryBuildAliyunParsedCompanionGarment(resolvedReq, providerToken, modelCfg, traceCtx)
+		if strings.TrimSpace(resolvedParsingModelKey) != "" {
+			parsingModelKey = strings.TrimSpace(resolvedParsingModelKey)
+		}
 		if parseErr != nil {
-			global.GVA_LOG.Warn("自动阿里取衣分割失败，回退原始模板图继续试衣",
+			parsingErrorMessage = parseErr.Error()
+			global.GVA_LOG.Warn("自动阿里取衣分割失败，回退仅使用原始单件模板图继续试衣",
 				zap.String("modelKey", strings.TrimSpace(modelCfg.Key)),
 				zap.String("modelName", strings.TrimSpace(modelName)),
 				zap.String("templatePart", strings.TrimSpace(resolvedReq.TemplatePart)),
 				zap.Error(parseErr),
 			)
-		} else if strings.TrimSpace(parsedTemplate) != "" {
-			resolvedReq.TemplateImage = strings.TrimSpace(parsedTemplate)
+		} else if strings.TrimSpace(parsedCompanionGarment) != "" {
+			parsedCompanionGarmentImage = strings.TrimSpace(parsedCompanionGarment)
+			parsingSucceeded = true
 		}
 	}
 
 	if isAliyunTryon {
-		return s.invokeAliyunTryonAsync(resolvedReq, modelCfg, providerToken, providerURL, modelName)
+		result, invokeErr := s.invokeAliyunTryonAsync(resolvedReq, modelCfg, providerToken, providerURL, modelName, parsedCompanionGarmentImage, traceCtx)
+		if invokeErr != nil {
+			return tryonInvokeResult{}, invokeErr
+		}
+		result.ParsingAttempted = parsingAttempted
+		result.ParsingSucceeded = parsingSucceeded
+		result.ParsingModelKey = strings.TrimSpace(parsingModelKey)
+		result.ParsingError = strings.TrimSpace(parsingErrorMessage)
+		return result, nil
 	}
 
 	if isGradioTryon {
-		return s.invokeGradioTryon(resolvedReq, modelCfg, providerToken, providerURL)
+		return s.invokeGradioTryon(resolvedReq, modelCfg, providerToken, providerURL, traceCtx)
 	}
 
 	if strings.TrimSpace(providerURL) == "" {
@@ -1716,6 +2405,7 @@ func (s *TryonTaskService) invokeTryonProvider(req clientReq.CreateTryonTaskReq,
 		body["modelKey"] = strings.TrimSpace(resolvedReq.ModelKey)
 	}
 
+	startedAt := time.Now()
 	resp, err := external.HttpRequest[tryonProviderResponse](external.RequestParams{
 		URL:     strings.TrimSpace(providerURL),
 		Method:  "POST",
@@ -1723,9 +2413,39 @@ func (s *TryonTaskService) invokeTryonProvider(req clientReq.CreateTryonTaskReq,
 		Body:    body,
 	})
 	if err != nil {
+		saveModelCallLog(modelCallLogInput{
+			TraceContext:   traceCtx,
+			CallStage:      "tryon_custom_provider",
+			ModelKey:       strings.TrimSpace(modelCfg.Key),
+			ModelUsage:     modelCfg.usageValue(),
+			ModelName:      strings.TrimSpace(modelName),
+			Provider:       strings.TrimSpace(providerName),
+			EndpointURL:    strings.TrimSpace(providerURL),
+			RelatedModels:  map[string]string{"refinerModelKey": strings.TrimSpace(modelCfg.RefinerModelKey), "parsingModelKey": strings.TrimSpace(modelCfg.ParsingModelKey)},
+			RequestPayload: body,
+			Status:         modelCallStatusError,
+			ErrorMessage:   err.Error(),
+			StartedAt:      startedAt,
+			FinishedAt:     time.Now(),
+		})
 		return tryonInvokeResult{}, err
 	}
 	if resp == nil {
+		saveModelCallLog(modelCallLogInput{
+			TraceContext:   traceCtx,
+			CallStage:      "tryon_custom_provider",
+			ModelKey:       strings.TrimSpace(modelCfg.Key),
+			ModelUsage:     modelCfg.usageValue(),
+			ModelName:      strings.TrimSpace(modelName),
+			Provider:       strings.TrimSpace(providerName),
+			EndpointURL:    strings.TrimSpace(providerURL),
+			RelatedModels:  map[string]string{"refinerModelKey": strings.TrimSpace(modelCfg.RefinerModelKey), "parsingModelKey": strings.TrimSpace(modelCfg.ParsingModelKey)},
+			RequestPayload: body,
+			Status:         modelCallStatusError,
+			ErrorMessage:   "tryonModelResponseEmpty",
+			StartedAt:      startedAt,
+			FinishedAt:     time.Now(),
+		})
 		return tryonInvokeResult{}, errors.New("tryonModelResponseEmpty")
 	}
 
@@ -1739,15 +2459,96 @@ func (s *TryonTaskService) invokeTryonProvider(req clientReq.CreateTryonTaskReq,
 	)
 	if resultImage == "" {
 		if strings.TrimSpace(resp.Msg) != "" {
+			saveModelCallLog(modelCallLogInput{
+				TraceContext:    traceCtx,
+				CallStage:       "tryon_custom_provider",
+				ModelKey:        strings.TrimSpace(modelCfg.Key),
+				ModelUsage:      modelCfg.usageValue(),
+				ModelName:       strings.TrimSpace(modelName),
+				Provider:        strings.TrimSpace(providerName),
+				EndpointURL:     strings.TrimSpace(providerURL),
+				RelatedModels:   map[string]string{"refinerModelKey": strings.TrimSpace(modelCfg.RefinerModelKey), "parsingModelKey": strings.TrimSpace(modelCfg.ParsingModelKey)},
+				RequestPayload:  body,
+				ResponsePayload: resp,
+				Status:          modelCallStatusError,
+				ErrorMessage:    strings.TrimSpace(resp.Msg),
+				StartedAt:       startedAt,
+				FinishedAt:      time.Now(),
+			})
 			return tryonInvokeResult{}, errors.New(strings.TrimSpace(resp.Msg))
 		}
+		saveModelCallLog(modelCallLogInput{
+			TraceContext:    traceCtx,
+			CallStage:       "tryon_custom_provider",
+			ModelKey:        strings.TrimSpace(modelCfg.Key),
+			ModelUsage:      modelCfg.usageValue(),
+			ModelName:       strings.TrimSpace(modelName),
+			Provider:        strings.TrimSpace(providerName),
+			EndpointURL:     strings.TrimSpace(providerURL),
+			RelatedModels:   map[string]string{"refinerModelKey": strings.TrimSpace(modelCfg.RefinerModelKey), "parsingModelKey": strings.TrimSpace(modelCfg.ParsingModelKey)},
+			RequestPayload:  body,
+			ResponsePayload: resp,
+			Status:          modelCallStatusError,
+			ErrorMessage:    "tryonModelResultEmpty",
+			StartedAt:       startedAt,
+			FinishedAt:      time.Now(),
+		})
 		return tryonInvokeResult{}, errors.New("tryonModelResultEmpty")
 	}
+
+	saveModelCallLog(modelCallLogInput{
+		TraceContext:    traceCtx,
+		CallStage:       "tryon_custom_provider",
+		ModelKey:        strings.TrimSpace(modelCfg.Key),
+		ModelUsage:      modelCfg.usageValue(),
+		ModelName:       strings.TrimSpace(modelName),
+		Provider:        strings.TrimSpace(providerName),
+		EndpointURL:     strings.TrimSpace(providerURL),
+		RelatedModels:   map[string]string{"refinerModelKey": strings.TrimSpace(modelCfg.RefinerModelKey), "parsingModelKey": strings.TrimSpace(modelCfg.ParsingModelKey)},
+		RequestPayload:  body,
+		ResponsePayload: resp,
+		ResultImage:     strings.TrimSpace(resultImage),
+		Status:          tryonTaskStatusSuccess,
+		StartedAt:       startedAt,
+		FinishedAt:      time.Now(),
+	})
 
 	return tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: resultImage}, nil
 }
 
-func (s *TryonTaskService) invokeGradioTryon(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig, providerToken string, providerURL string) (tryonInvokeResult, error) {
+func (s *TryonTaskService) invokeGradioTryon(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig, providerToken string, providerURL string, traceCtx *modelCallTraceContext) (result tryonInvokeResult, err error) {
+	startedAt := time.Now()
+	var requestPayload interface{}
+	var responsePayload interface{}
+	defer func() {
+		status := strings.TrimSpace(result.Status)
+		if status == "" {
+			if err != nil {
+				status = modelCallStatusError
+			} else {
+				status = tryonTaskStatusUnknown
+			}
+		}
+
+		saveModelCallLog(modelCallLogInput{
+			TraceContext:    traceCtx,
+			CallStage:       "tryon_gradio",
+			ModelKey:        strings.TrimSpace(modelCfg.Key),
+			ModelUsage:      modelCfg.usageValue(),
+			ModelName:       strings.TrimSpace(modelCfg.Model),
+			Provider:        strings.TrimSpace(modelCfg.Provider),
+			EndpointURL:     strings.TrimSpace(providerURL),
+			RelatedModels:   map[string]string{"refinerModelKey": strings.TrimSpace(modelCfg.RefinerModelKey), "parsingModelKey": strings.TrimSpace(modelCfg.ParsingModelKey)},
+			RequestPayload:  requestPayload,
+			ResponsePayload: responsePayload,
+			ResultImage:     strings.TrimSpace(result.ResultImage),
+			Status:          status,
+			ErrorMessage:    errorToString(err),
+			StartedAt:       startedAt,
+			FinishedAt:      time.Now(),
+		})
+	}()
+
 	if strings.TrimSpace(req.SourceImage) == "" {
 		return tryonInvokeResult{}, errors.New("modelImageRequired")
 	}
@@ -1777,6 +2578,7 @@ func (s *TryonTaskService) invokeGradioTryon(req clientReq.CreateTryonTaskReq, m
 			modelCfg.gradioSeedValue(),
 		},
 	}
+	requestPayload = body
 
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
@@ -1803,6 +2605,10 @@ func (s *TryonTaskService) invokeGradioTryon(req clientReq.CreateTryonTaskReq, m
 	if err != nil {
 		return tryonInvokeResult{}, err
 	}
+	responsePayload = map[string]interface{}{
+		"statusCode": response.StatusCode,
+		"body":       string(responseBody),
+	}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		return tryonInvokeResult{}, errors.New("gradioTryonRequestFailed")
 	}
@@ -1821,7 +2627,8 @@ func (s *TryonTaskService) invokeGradioTryon(req clientReq.CreateTryonTaskReq, m
 	if len(createResp.Data) > 0 && string(createResp.Data) != "null" {
 		resultImage := extractGradioOutputImage(createResp.Data, rootURL)
 		if resultImage != "" {
-			return tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: resultImage}, nil
+			result = tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: resultImage}
+			return result, nil
 		}
 	}
 
@@ -1838,7 +2645,8 @@ func (s *TryonTaskService) invokeGradioTryon(req clientReq.CreateTryonTaskReq, m
 		return tryonInvokeResult{}, errors.New("gradioResultEmpty")
 	}
 
-	return tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: resultImage, ProviderTaskID: eventID}, nil
+	result = tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: resultImage, ProviderTaskID: eventID}
+	return result, nil
 }
 
 func (s *TryonTaskService) waitGradioResult(client *http.Client, callURL string, rootURL string, eventID string, providerToken string) (string, error) {
@@ -2121,8 +2929,8 @@ func sameAliyunClothesType(a []string, b []string) bool {
 	return true
 }
 
-func shouldAutoAliyunParsingForSinglePart(sceneType string, modelCfg *tryonModelConfig, modelName string, templatePart string) bool {
-	if modelCfg == nil || !strings.EqualFold(strings.TrimSpace(sceneType), "clothes") {
+func shouldEnableAliyunParsingForSinglePart(sceneType string, modelName string, templatePart string, enableParsing bool) bool {
+	if !enableParsing || !strings.EqualFold(strings.TrimSpace(sceneType), "clothes") {
 		return false
 	}
 
@@ -2135,24 +2943,68 @@ func shouldAutoAliyunParsingForSinglePart(sceneType string, modelCfg *tryonModel
 	if modelLower != "aitryon" && modelLower != "aitryon-plus" {
 		return false
 	}
-
-	if part == "upper" {
-		return modelCfg.autoEnableAliyunParsingUpperOnlyValue()
-	}
-	if part == "lower" {
-		return modelCfg.autoEnableAliyunParsingLowerOnlyValue()
-	}
-
-	return false
+	return part == "upper" || part == "lower"
 }
 
-func (s *TryonTaskService) resolveAliyunParsingAssistModelConfig(sceneType string) (*tryonModelConfig, error) {
+func isAliyunParsingAssistModel(item *tryonModelConfig) bool {
+	if item == nil {
+		return false
+	}
+	if item.isParsingModelUsage() {
+		return true
+	}
+	// Backward compatibility: old configs may still mark parsing entries as tryon.
+	itemModelName := resolveAliyunModelName(item, "")
+	return isAliyunParsingModel(item.Provider, itemModelName, item.endpointURL(), "")
+}
+
+func findEnabledAliyunParsingModelByKey(list []tryonModelConfig, sceneType string, modelKey string) *tryonModelConfig {
+	modelKey = strings.TrimSpace(modelKey)
+	if modelKey == "" {
+		return nil
+	}
+
+	for i := range list {
+		item := &list[i]
+		if !isAliyunParsingAssistModel(item) {
+			continue
+		}
+		if !strings.EqualFold(strings.TrimSpace(item.Key), modelKey) {
+			continue
+		}
+		if item.isEnabled() && item.matchScene(sceneType) {
+			return item
+		}
+	}
+
+	for i := range list {
+		item := &list[i]
+		if !isAliyunParsingAssistModel(item) {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(item.Key), modelKey) {
+			return item
+		}
+	}
+
+	return nil
+}
+
+func (s *TryonTaskService) resolveAliyunParsingAssistModelConfig(sceneType string, preferredParsingModelKey string) (*tryonModelConfig, error) {
 	list, err := s.loadTryonModelConfigList(sceneType)
 	if err != nil {
 		return nil, errors.New("tryonModelConfigInvalid")
 	}
 	if len(list) == 0 {
 		return nil, nil
+	}
+
+	preferredParsingModelKey = strings.TrimSpace(preferredParsingModelKey)
+	if preferredParsingModelKey != "" {
+		if preferred := findEnabledAliyunParsingModelByKey(list, sceneType, preferredParsingModelKey); preferred != nil {
+			return preferred, nil
+		}
+		return nil, errors.New("aliyunParsingModelUnavailable")
 	}
 
 	var enabledSceneMatched *tryonModelConfig
@@ -2162,15 +3014,7 @@ func (s *TryonTaskService) resolveAliyunParsingAssistModelConfig(sceneType strin
 
 	for i := range list {
 		item := &list[i]
-		if !item.isTryonModelUsage() {
-			continue
-		}
-
-		// Use strict parsing model detection here. Passing sceneType=takeoff would
-		// make isAliyunParsingModel return true for all models, which can wrongly
-		// select normal try-on models (e.g. aitryon) for parsing assist.
-		itemModelName := resolveAliyunModelName(item, "")
-		if !isAliyunParsingModel(item.Provider, itemModelName, item.endpointURL(), "") {
+		if !isAliyunParsingAssistModel(item) {
 			continue
 		}
 
@@ -2203,18 +3047,23 @@ func (s *TryonTaskService) resolveAliyunParsingAssistModelConfig(sceneType strin
 	return configuredFallback, nil
 }
 
-func (s *TryonTaskService) tryBuildAliyunParsedTemplate(req clientReq.CreateTryonTaskReq, fallbackToken string) (string, error) {
+func (s *TryonTaskService) tryBuildAliyunParsedCompanionGarment(req clientReq.CreateTryonTaskReq, fallbackToken string, currentModelCfg *tryonModelConfig, traceCtx *modelCallTraceContext) (string, string, error) {
 	part := normalizeTryonTemplatePart(req.TemplatePart)
 	if part == "" {
-		return "", nil
+		return "", "", nil
 	}
 
-	parsingCfg, err := s.resolveAliyunParsingAssistModelConfig(req.SceneType)
+	preferredParsingModelKey := ""
+	if currentModelCfg != nil {
+		preferredParsingModelKey = strings.TrimSpace(currentModelCfg.ParsingModelKey)
+	}
+
+	parsingCfg, err := s.resolveAliyunParsingAssistModelConfig(req.SceneType, preferredParsingModelKey)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if parsingCfg == nil {
-		return "", errors.New("aliyunParsingModelUnavailable")
+		return "", "", errors.New("aliyunParsingModelUnavailable")
 	}
 
 	cfgCopy := *parsingCfg
@@ -2224,14 +3073,11 @@ func (s *TryonTaskService) tryBuildAliyunParsedTemplate(req clientReq.CreateTryo
 	}
 
 	attemptClothesTypes := [][]string{parseClothesType}
-	fallbackClothesType := []string{part}
-	if !sameAliyunClothesType(parseClothesType, fallbackClothesType) {
-		attemptClothesTypes = append(attemptClothesTypes, fallbackClothesType)
-	}
 
 	parseReq := clientReq.CreateTryonTaskReq{
-		SceneType:   "takeoff",
-		SourceImage: strings.TrimSpace(req.TemplateImage),
+		SceneType: "takeoff",
+		// Parsing assist should segment from the model/source image, then reuse crop_img_url as companion garment image.
+		SourceImage: strings.TrimSpace(req.SourceImage),
 	}
 
 	parseProviderURL := strings.TrimSpace(cfgCopy.endpointURL())
@@ -2257,17 +3103,28 @@ func (s *TryonTaskService) tryBuildAliyunParsedTemplate(req clientReq.CreateTryo
 			zap.Int("attemptTotal", len(attemptClothesTypes)),
 		)
 
-		parseResult, parseErr := s.invokeAliyunParsing(parseReq, &cfgCopy, parseProviderToken, parseProviderURL, parseModelName, true)
+		parseTraceCtx := cloneTraceContext(traceCtx)
+		if parseTraceCtx != nil {
+			parseTraceCtx.SceneType = "takeoff"
+			parseTraceCtx.TemplatePart = ""
+			parseTraceCtx.SourceImage = strings.TrimSpace(parseReq.SourceImage)
+			parseTraceCtx.TemplateImage = ""
+			parseTraceCtx.EntrySource = inferModelCallEntrySource(parseTraceCtx.SceneType, parseTraceCtx.TemplatePart)
+			parseTraceCtx.Behavior = inferModelCallBehavior(parseTraceCtx.SceneType, parseTraceCtx.TemplatePart)
+		}
+
+		// Keep preferParsingImage=false so crop_img_url is selected first for downstream companion garment image.
+		parseResult, parseErr := s.invokeAliyunParsing(parseReq, &cfgCopy, parseProviderToken, parseProviderURL, parseModelName, false, parseTraceCtx)
 		if parseErr != nil {
-			return "", parseErr
+			return "", strings.TrimSpace(cfgCopy.Key), parseErr
 		}
 
 		if strings.EqualFold(strings.TrimSpace(parseResult.Status), tryonTaskStatusSuccess) && strings.TrimSpace(parseResult.ResultImage) != "" {
-			normalizedTemplate, normalizeErr := s.normalizeAliyunMediaURL(strings.TrimSpace(parseResult.ResultImage))
+			normalizedCompanion, normalizeErr := s.normalizeAliyunMediaURL(strings.TrimSpace(parseResult.ResultImage))
 			if normalizeErr != nil {
-				return "", normalizeErr
+				return "", strings.TrimSpace(cfgCopy.Key), normalizeErr
 			}
-			return strings.TrimSpace(normalizedTemplate), nil
+			return strings.TrimSpace(normalizedCompanion), strings.TrimSpace(cfgCopy.Key), nil
 		}
 
 		errMsg := strings.TrimSpace(parseResult.ErrorMessage)
@@ -2276,20 +3133,10 @@ func (s *TryonTaskService) tryBuildAliyunParsedTemplate(req clientReq.CreateTryo
 		}
 		lastErr = errors.New(errMsg)
 
-		if i < len(attemptClothesTypes)-1 && isAliyunParsingNoUsableGarmentAreaError(errMsg) {
-			global.GVA_LOG.Warn("自动阿里取衣分割无可用区域，尝试备用clothesType",
-				zap.String("templatePart", part),
-				zap.String("modelKey", strings.TrimSpace(cfgCopy.Key)),
-				zap.Strings("failedClothesType", clothesTypeAttempt),
-				zap.String("error", errMsg),
-			)
-			continue
-		}
-
-		return "", lastErr
+		return "", strings.TrimSpace(cfgCopy.Key), lastErr
 	}
 
-	return "", lastErr
+	return "", strings.TrimSpace(cfgCopy.Key), lastErr
 }
 
 func resolveGradioGarmentDescription(configured string, templatePart string) string {
@@ -2320,22 +3167,86 @@ func resolveGradioGarmentDescription(configured string, templatePart string) str
 	return base
 }
 
-func buildAliyunTryonInput(personImageURL string, templateImageURL string, templatePart string) map[string]interface{} {
+func buildAliyunTryonInput(personImageURL string, templateImageURL string, templateImageLowerURL string, templatePart string, companionGarmentImageURL string) map[string]interface{} {
 	input := map[string]interface{}{
 		"person_image_url": strings.TrimSpace(personImageURL),
 	}
 
+	templateImageURL = strings.TrimSpace(templateImageURL)
+	templateImageLowerURL = strings.TrimSpace(templateImageLowerURL)
+	companionGarmentImageURL = strings.TrimSpace(companionGarmentImageURL)
+
 	part := normalizeTryonTemplatePart(templatePart)
 	if part == "lower" {
-		input["bottom_garment_url"] = strings.TrimSpace(templateImageURL)
+		input["bottom_garment_url"] = templateImageURL
+		if companionGarmentImageURL != "" {
+			input["top_garment_url"] = companionGarmentImageURL
+		}
+		return input
+	}
+	if part == "" {
+		if templateImageURL != "" {
+			input["top_garment_url"] = templateImageURL
+		}
+		if templateImageLowerURL != "" {
+			input["bottom_garment_url"] = templateImageLowerURL
+		}
+		if companionGarmentImageURL != "" {
+			if _, ok := input["top_garment_url"]; !ok {
+				input["top_garment_url"] = companionGarmentImageURL
+			}
+			if _, ok := input["bottom_garment_url"]; !ok {
+				input["bottom_garment_url"] = companionGarmentImageURL
+			}
+		}
 		return input
 	}
 
-	input["top_garment_url"] = strings.TrimSpace(templateImageURL)
+	input["top_garment_url"] = templateImageURL
+	if part == "upper" {
+		if templateImageLowerURL != "" {
+			input["bottom_garment_url"] = templateImageLowerURL
+		} else if companionGarmentImageURL != "" {
+			input["bottom_garment_url"] = companionGarmentImageURL
+		}
+	}
 	return input
 }
 
-func (s *TryonTaskService) invokeAliyunTryonAsync(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig, providerToken string, providerURL string, modelName string) (tryonInvokeResult, error) {
+func (s *TryonTaskService) invokeAliyunTryonAsync(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig, providerToken string, providerURL string, modelName string, companionGarmentImageURL string, traceCtx *modelCallTraceContext) (result tryonInvokeResult, err error) {
+	startedAt := time.Now()
+	var requestPayload interface{}
+	var responsePayload interface{}
+	defer func() {
+		status := strings.TrimSpace(result.Status)
+		if status == "" {
+			if err != nil {
+				status = modelCallStatusError
+			} else {
+				status = tryonTaskStatusUnknown
+			}
+		}
+
+		saveModelCallLog(modelCallLogInput{
+			TraceContext:    traceCtx,
+			CallStage:       "tryon_aliyun_async",
+			ModelKey:        strings.TrimSpace(modelCfg.Key),
+			ModelUsage:      modelCfg.usageValue(),
+			ModelName:       strings.TrimSpace(modelName),
+			Provider:        strings.TrimSpace(modelCfg.Provider),
+			EndpointURL:     strings.TrimSpace(providerURL),
+			QueryURL:        strings.TrimSpace(modelCfg.queryTaskURL()),
+			RelatedModels:   map[string]string{"refinerModelKey": strings.TrimSpace(modelCfg.RefinerModelKey), "parsingModelKey": strings.TrimSpace(modelCfg.ParsingModelKey)},
+			RequestPayload:  requestPayload,
+			ResponsePayload: responsePayload,
+			ResultImage:     strings.TrimSpace(result.ResultImage),
+			Status:          status,
+			ErrorMessage:    errorToString(err),
+			StartedAt:       startedAt,
+			FinishedAt:      time.Now(),
+		})
+	}()
+
 	if strings.TrimSpace(providerToken) == "" {
 		return tryonInvokeResult{}, errors.New("aliyunTryonApiKeyMissing")
 	}
@@ -2359,12 +3270,13 @@ func (s *TryonTaskService) invokeAliyunTryonAsync(req clientReq.CreateTryonTaskR
 
 	body := map[string]interface{}{
 		"model": resolvedModelName,
-		"input": buildAliyunTryonInput(req.SourceImage, req.TemplateImage, req.TemplatePart),
+		"input": buildAliyunTryonInput(req.SourceImage, req.TemplateImage, req.TemplateImageLower, req.TemplatePart, companionGarmentImageURL),
 		"parameters": map[string]interface{}{
 			"resolution":   modelCfg.resolutionValue(),
 			"restore_face": modelCfg.restoreFaceValue(),
 		},
 	}
+	requestPayload = body
 
 	resp, err := external.HttpRequest[dashscopeTryonCreateResponse](external.RequestParams{
 		URL:    createURL,
@@ -2378,12 +3290,14 @@ func (s *TryonTaskService) invokeAliyunTryonAsync(req clientReq.CreateTryonTaskR
 	if err != nil {
 		return tryonInvokeResult{}, err
 	}
+	responsePayload = resp
 	if resp == nil {
 		return tryonInvokeResult{}, errors.New("aliyunTryonResponseEmpty")
 	}
 
 	if code := strings.TrimSpace(resp.Code); code != "" {
-		return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: formatAliyunModelError(resp.Message, code)}, nil
+		result = tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: formatAliyunModelError(resp.Message, code)}
+		return result, nil
 	}
 
 	taskID := strings.TrimSpace(resp.Output.TaskID)
@@ -2393,21 +3307,92 @@ func (s *TryonTaskService) invokeAliyunTryonAsync(req clientReq.CreateTryonTaskR
 
 	status := normalizeProviderTaskStatus(resp.Output.TaskStatus)
 	if status == tryonTaskStatusFailed {
-		return tryonInvokeResult{Status: tryonTaskStatusFailed, ProviderTaskID: taskID, ErrorMessage: formatAliyunModelError(resp.Message, resp.Code)}, nil
+		result = tryonInvokeResult{Status: tryonTaskStatusFailed, ProviderTaskID: taskID, ErrorMessage: formatAliyunModelError(resp.Message, resp.Code)}
+		return result, nil
 	}
 	if status == tryonTaskStatusSuccess {
-		queryResult, queryErr := s.queryAliyunTryonTask(taskID, strings.TrimSpace(providerToken), createURL, modelCfg.queryTaskURL())
+		queryResult, queryErr := s.queryAliyunTryonTask(taskID, strings.TrimSpace(providerToken), createURL, modelCfg.queryTaskURL(), traceCtx, "tryon_aliyun_query")
 		if queryErr != nil {
 			return tryonInvokeResult{}, queryErr
 		}
 		queryResult.ProviderTaskID = taskID
-		return queryResult, nil
+		result = queryResult
+		return result, nil
 	}
 
-	return tryonInvokeResult{Status: tryonTaskStatusProcessing, ProviderTaskID: taskID}, nil
+	result = tryonInvokeResult{Status: tryonTaskStatusProcessing, ProviderTaskID: taskID}
+	return result, nil
 }
 
-func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTaskReq, coarseImageURL string, modelCfg *tryonModelConfig) (tryonInvokeResult, error) {
+func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTaskReq, coarseImageURL string, modelCfg *tryonModelConfig, traceCtx *modelCallTraceContext) (result tryonInvokeResult, err error) {
+	startedAt := time.Now()
+	var requestPayload interface{}
+	var responsePayload interface{}
+	var resolvedRefinerModelCfg *tryonModelConfig
+	defer func() {
+		modelKey := ""
+		modelUsage := "refiner"
+		modelName := ""
+		provider := ""
+		endpointURL := ""
+		queryURL := ""
+		relatedModels := map[string]string{}
+
+		if modelCfg != nil {
+			relatedModels["baseModelKey"] = strings.TrimSpace(modelCfg.Key)
+			relatedModels["baseModelUsage"] = modelCfg.usageValue()
+		}
+		if resolvedRefinerModelCfg != nil {
+			modelKey = strings.TrimSpace(resolvedRefinerModelCfg.Key)
+			modelName = strings.TrimSpace(resolvedRefinerModelCfg.refinerModelValue())
+			provider = strings.TrimSpace(resolvedRefinerModelCfg.Provider)
+			endpointURL = strings.TrimSpace(resolvedRefinerModelCfg.refinerEndpointURL(strings.TrimSpace(resolvedRefinerModelCfg.endpointURL())))
+			queryURL = strings.TrimSpace(resolvedRefinerModelCfg.refinerTaskQueryURL())
+			relatedModels["refinerModelKey"] = strings.TrimSpace(resolvedRefinerModelCfg.Key)
+		}
+
+		status := strings.TrimSpace(result.Status)
+		if status == "" {
+			if err != nil {
+				status = modelCallStatusError
+			} else {
+				status = tryonTaskStatusUnknown
+			}
+		}
+
+		saveModelCallLog(modelCallLogInput{
+			TraceContext:    traceCtx,
+			CallStage:       "refiner_aliyun_async",
+			ModelKey:        modelKey,
+			ModelUsage:      modelUsage,
+			ModelName:       modelName,
+			Provider:        provider,
+			EndpointURL:     endpointURL,
+			QueryURL:        queryURL,
+			RelatedModels:   relatedModels,
+			RequestPayload:  requestPayload,
+			ResponsePayload: responsePayload,
+			ResultImage:     strings.TrimSpace(result.ResultImage),
+			Status:          status,
+			ErrorMessage:    errorToString(err),
+			StartedAt:       startedAt,
+			FinishedAt:      time.Now(),
+		})
+	}()
+
+	if modelCfg == nil {
+		return tryonInvokeResult{}, errors.New("tryonModelUnavailable")
+	}
+
+	refinerModelCfg, resolveErr := s.resolveRefinerModelConfig(req.SceneType, modelCfg)
+	if resolveErr != nil {
+		return tryonInvokeResult{}, resolveErr
+	}
+	if refinerModelCfg == nil {
+		return tryonInvokeResult{}, errors.New("tryonRefinerModelUnavailable")
+	}
+	resolvedRefinerModelCfg = refinerModelCfg
+
 	if strings.TrimSpace(coarseImageURL) == "" {
 		return tryonInvokeResult{}, errors.New("refinerInputImageRequired")
 	}
@@ -2426,17 +3411,22 @@ func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTas
 	if normalizeErr != nil {
 		return tryonInvokeResult{}, normalizeErr
 	}
+	normalizedTemplateLower := ""
+	if strings.TrimSpace(req.TemplateImageLower) != "" {
+		normalizedTemplateLower, normalizeErr = s.normalizeAliyunMediaURL(req.TemplateImageLower)
+		if normalizeErr != nil {
+			return tryonInvokeResult{}, normalizeErr
+		}
+	}
 	normalizedCoarse, normalizeErr := s.normalizeAliyunMediaURL(coarseImageURL)
 	if normalizeErr != nil {
 		return tryonInvokeResult{}, normalizeErr
 	}
 
-	sysConfigService := SysConfigService{}
-	providerURL, _ := sysConfigService.GetConfigByKey("tryon_provider_url")
-	providerToken, _ := sysConfigService.GetConfigByKey("tryon_provider_token")
-
-	refinerURL := modelCfg.refinerEndpointURL(providerURL)
-	refinerToken := modelCfg.refinerAuthToken(providerToken)
+	providerURL := strings.TrimSpace(refinerModelCfg.endpointURL())
+	providerToken := strings.TrimSpace(refinerModelCfg.authToken())
+	refinerURL := refinerModelCfg.refinerEndpointURL(providerURL)
+	refinerToken := refinerModelCfg.refinerAuthToken(providerToken)
 	if strings.TrimSpace(refinerToken) == "" {
 		return tryonInvokeResult{}, errors.New("aliyunRefinerApiKeyMissing")
 	}
@@ -2453,16 +3443,17 @@ func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTas
 		zap.String("coarseHost", coarseHost),
 	)
 
-	input := buildAliyunTryonInput(normalizedSource, normalizedTemplate, req.TemplatePart)
+	input := buildAliyunTryonInput(normalizedSource, normalizedTemplate, normalizedTemplateLower, req.TemplatePart, "")
 	input["coarse_image_url"] = strings.TrimSpace(normalizedCoarse)
 
 	body := map[string]interface{}{
-		"model": modelCfg.refinerModelValue(),
+		"model": refinerModelCfg.refinerModelValue(),
 		"input": input,
 		"parameters": map[string]interface{}{
-			"gender": modelCfg.refinerGenderValue(),
+			"gender": refinerModelCfg.refinerGenderValue(),
 		},
 	}
+	requestPayload = body
 
 	resp, err := external.HttpRequest[dashscopeTryonCreateResponse](external.RequestParams{
 		URL:    refinerURL,
@@ -2480,6 +3471,7 @@ func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTas
 		)
 		return tryonInvokeResult{}, err
 	}
+	responsePayload = resp
 	if resp == nil {
 		global.GVA_LOG.Warn("阿里精修响应为空",
 			zap.String("refinerURLHost", refinerURLHost),
@@ -2495,7 +3487,8 @@ func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTas
 			zap.String("aliyunTaskStatus", strings.TrimSpace(resp.Output.TaskStatus)),
 			zap.String("mappedError", mappedErr),
 		)
-		return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: mappedErr}, nil
+		result = tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: mappedErr}
+		return result, nil
 	}
 
 	taskID := strings.TrimSpace(resp.Output.TaskID)
@@ -2511,21 +3504,69 @@ func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTas
 			zap.String("aliyunTaskStatus", strings.TrimSpace(resp.Output.TaskStatus)),
 			zap.String("mappedError", mappedErr),
 		)
-		return tryonInvokeResult{Status: tryonTaskStatusFailed, ProviderTaskID: taskID, ErrorMessage: mappedErr}, nil
+		result = tryonInvokeResult{Status: tryonTaskStatusFailed, ProviderTaskID: taskID, ErrorMessage: mappedErr}
+		return result, nil
 	}
 	if status == tryonTaskStatusSuccess {
-		queryResult, queryErr := s.queryAliyunTryonTask(taskID, strings.TrimSpace(refinerToken), refinerURL, modelCfg.refinerTaskQueryURL())
+		queryResult, queryErr := s.queryAliyunTryonTask(taskID, strings.TrimSpace(refinerToken), refinerURL, refinerModelCfg.refinerTaskQueryURL(), traceCtx, "refiner_aliyun_query")
 		if queryErr != nil {
 			return tryonInvokeResult{}, queryErr
 		}
 		queryResult.ProviderTaskID = taskID
-		return queryResult, nil
+		result = queryResult
+		return result, nil
 	}
 
-	return tryonInvokeResult{Status: tryonTaskStatusProcessing, ProviderTaskID: taskID}, nil
+	result = tryonInvokeResult{Status: tryonTaskStatusProcessing, ProviderTaskID: taskID}
+	return result, nil
 }
 
-func (s *TryonTaskService) invokeAliyunParsing(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig, providerToken string, providerURL string, modelName string, preferParsingImage bool) (tryonInvokeResult, error) {
+func (s *TryonTaskService) invokeAliyunParsing(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig, providerToken string, providerURL string, modelName string, preferParsingImage bool, traceCtx *modelCallTraceContext) (result tryonInvokeResult, err error) {
+	startedAt := time.Now()
+	var requestPayload interface{}
+	var responsePayload interface{}
+	defer func() {
+		status := strings.TrimSpace(result.Status)
+		if status == "" {
+			if err != nil {
+				status = modelCallStatusError
+			} else {
+				status = tryonTaskStatusUnknown
+			}
+		}
+
+		modelKey := ""
+		modelUsage := "parsing"
+		provider := ""
+		if modelCfg != nil {
+			modelKey = strings.TrimSpace(modelCfg.Key)
+			provider = strings.TrimSpace(modelCfg.Provider)
+		}
+
+		queryURL := ""
+		if modelCfg != nil {
+			queryURL = strings.TrimSpace(modelCfg.queryTaskURL())
+		}
+
+		saveModelCallLog(modelCallLogInput{
+			TraceContext:    traceCtx,
+			CallStage:       "parsing_aliyun_sync",
+			ModelKey:        modelKey,
+			ModelUsage:      modelUsage,
+			ModelName:       strings.TrimSpace(modelName),
+			Provider:        provider,
+			EndpointURL:     strings.TrimSpace(providerURL),
+			QueryURL:        queryURL,
+			RequestPayload:  requestPayload,
+			ResponsePayload: responsePayload,
+			ResultImage:     strings.TrimSpace(result.ResultImage),
+			Status:          status,
+			ErrorMessage:    errorToString(err),
+			StartedAt:       startedAt,
+			FinishedAt:      time.Now(),
+		})
+	}()
+
 	if strings.TrimSpace(providerToken) == "" {
 		return tryonInvokeResult{}, errors.New("aliyunParsingApiKeyMissing")
 	}
@@ -2554,6 +3595,7 @@ func (s *TryonTaskService) invokeAliyunParsing(req clientReq.CreateTryonTaskReq,
 			"clothes_type": clothesType,
 		},
 	}
+	requestPayload = body
 
 	resp, err := external.HttpRequest[dashscopeParsingResponse](external.RequestParams{
 		URL:    processURL,
@@ -2570,10 +3612,11 @@ func (s *TryonTaskService) invokeAliyunParsing(req clientReq.CreateTryonTaskReq,
 				zap.String("processURLHost", urlHostname(processURL)),
 				zap.Error(err),
 			)
-			return s.invokeAliyunParsingAsync(req, modelCfg, providerToken, processURL, resolvedModelName, clothesType, preferParsingImage)
+			return s.invokeAliyunParsingAsync(req, modelCfg, providerToken, processURL, resolvedModelName, clothesType, preferParsingImage, traceCtx)
 		}
 		return tryonInvokeResult{}, err
 	}
+	responsePayload = resp
 	if resp == nil {
 		return tryonInvokeResult{}, errors.New("aliyunParsingResponseEmpty")
 	}
@@ -2587,9 +3630,10 @@ func (s *TryonTaskService) invokeAliyunParsing(req clientReq.CreateTryonTaskReq,
 				zap.String("aliyunCode", code),
 				zap.String("aliyunMessage", strings.TrimSpace(resp.Message)),
 			)
-			return s.invokeAliyunParsingAsync(req, modelCfg, providerToken, processURL, resolvedModelName, clothesType, preferParsingImage)
+			return s.invokeAliyunParsingAsync(req, modelCfg, providerToken, processURL, resolvedModelName, clothesType, preferParsingImage, traceCtx)
 		}
-		return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: mappedErr}, nil
+		result = tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: mappedErr}
+		return result, nil
 	}
 
 	resultImage := ""
@@ -2611,10 +3655,12 @@ func (s *TryonTaskService) invokeAliyunParsing(req clientReq.CreateTryonTaskReq,
 	}
 
 	if resultImage == "" {
-		return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: "aliyunParsingNoUsableGarmentArea"}, nil
+		result = tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: "aliyunParsingNoUsableGarmentArea"}
+		return result, nil
 	}
 
-	return tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: resultImage}, nil
+	result = tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: resultImage}
+	return result, nil
 }
 
 func shouldFallbackToAliyunParsingAsync(values ...string) bool {
@@ -2657,7 +3703,49 @@ func pickAliyunParsingResultImage(preferParsingImage bool, parsingURLs []string,
 	return extractDashscopeImageURL(fallbackImageURL)
 }
 
-func (s *TryonTaskService) invokeAliyunParsingAsync(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig, providerToken string, processURL string, modelName string, clothesType []string, preferParsingImage bool) (tryonInvokeResult, error) {
+func (s *TryonTaskService) invokeAliyunParsingAsync(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig, providerToken string, processURL string, modelName string, clothesType []string, preferParsingImage bool, traceCtx *modelCallTraceContext) (result tryonInvokeResult, err error) {
+	startedAt := time.Now()
+	var requestPayload interface{}
+	var responsePayload interface{}
+	defer func() {
+		status := strings.TrimSpace(result.Status)
+		if status == "" {
+			if err != nil {
+				status = modelCallStatusError
+			} else {
+				status = tryonTaskStatusUnknown
+			}
+		}
+
+		modelKey := ""
+		modelUsage := "parsing"
+		provider := ""
+		queryURL := ""
+		if modelCfg != nil {
+			modelKey = strings.TrimSpace(modelCfg.Key)
+			provider = strings.TrimSpace(modelCfg.Provider)
+			queryURL = strings.TrimSpace(modelCfg.queryTaskURL())
+		}
+
+		saveModelCallLog(modelCallLogInput{
+			TraceContext:    traceCtx,
+			CallStage:       "parsing_aliyun_async",
+			ModelKey:        modelKey,
+			ModelUsage:      modelUsage,
+			ModelName:       strings.TrimSpace(modelName),
+			Provider:        provider,
+			EndpointURL:     strings.TrimSpace(processURL),
+			QueryURL:        queryURL,
+			RequestPayload:  requestPayload,
+			ResponsePayload: responsePayload,
+			ResultImage:     strings.TrimSpace(result.ResultImage),
+			Status:          status,
+			ErrorMessage:    errorToString(err),
+			StartedAt:       startedAt,
+			FinishedAt:      time.Now(),
+		})
+	}()
+
 	body := map[string]interface{}{
 		"model": modelName,
 		"input": map[string]interface{}{
@@ -2667,6 +3755,7 @@ func (s *TryonTaskService) invokeAliyunParsingAsync(req clientReq.CreateTryonTas
 			"clothes_type": clothesType,
 		},
 	}
+	requestPayload = body
 
 	resp, err := external.HttpRequest[dashscopeTryonCreateResponse](external.RequestParams{
 		URL:    processURL,
@@ -2680,12 +3769,14 @@ func (s *TryonTaskService) invokeAliyunParsingAsync(req clientReq.CreateTryonTas
 	if err != nil {
 		return tryonInvokeResult{}, err
 	}
+	responsePayload = resp
 	if resp == nil {
 		return tryonInvokeResult{}, errors.New("aliyunParsingResponseEmpty")
 	}
 
 	if code := strings.TrimSpace(resp.Code); code != "" {
-		return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: formatAliyunModelError(resp.Message, code)}, nil
+		result = tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: formatAliyunModelError(resp.Message, code)}
+		return result, nil
 	}
 
 	taskID := strings.TrimSpace(resp.Output.TaskID)
@@ -2695,7 +3786,8 @@ func (s *TryonTaskService) invokeAliyunParsingAsync(req clientReq.CreateTryonTas
 
 	status := normalizeProviderTaskStatus(resp.Output.TaskStatus)
 	if status == tryonTaskStatusFailed {
-		return tryonInvokeResult{Status: tryonTaskStatusFailed, ProviderTaskID: taskID, ErrorMessage: formatAliyunModelError(resp.Message, resp.Code)}, nil
+		result = tryonInvokeResult{Status: tryonTaskStatusFailed, ProviderTaskID: taskID, ErrorMessage: formatAliyunModelError(resp.Message, resp.Code)}
+		return result, nil
 	}
 
 	taskQueryURL := ""
@@ -2707,24 +3799,52 @@ func (s *TryonTaskService) invokeAliyunParsingAsync(req clientReq.CreateTryonTas
 	const interval = 1500 * time.Millisecond
 
 	for attempt := 0; attempt < maxAttempts; attempt++ {
-		result, queryErr := s.queryAliyunParsingTask(taskID, providerToken, processURL, taskQueryURL, preferParsingImage)
+		queryResult, queryErr := s.queryAliyunParsingTask(taskID, providerToken, processURL, taskQueryURL, preferParsingImage, traceCtx)
 		if queryErr != nil {
 			return tryonInvokeResult{}, queryErr
 		}
-		if result.Status == tryonTaskStatusProcessing || result.Status == tryonTaskStatusUnknown {
+		if queryResult.Status == tryonTaskStatusProcessing || queryResult.Status == tryonTaskStatusUnknown {
 			if attempt == maxAttempts-1 {
 				break
 			}
 			time.Sleep(interval)
 			continue
 		}
+		result = queryResult
 		return result, nil
 	}
 
-	return tryonInvokeResult{Status: tryonTaskStatusFailed, ProviderTaskID: taskID, ErrorMessage: "tryonTaskFailed"}, nil
+	result = tryonInvokeResult{Status: tryonTaskStatusFailed, ProviderTaskID: taskID, ErrorMessage: "tryonTaskFailed"}
+	return result, nil
 }
 
-func (s *TryonTaskService) queryAliyunParsingTask(taskID string, providerToken string, createURL string, taskQueryURL string, preferParsingImage bool) (tryonInvokeResult, error) {
+func (s *TryonTaskService) queryAliyunParsingTask(taskID string, providerToken string, createURL string, taskQueryURL string, preferParsingImage bool, traceCtx *modelCallTraceContext) (result tryonInvokeResult, err error) {
+	startedAt := time.Now()
+	var responsePayload interface{}
+	defer func() {
+		status := strings.TrimSpace(result.Status)
+		if status == "" {
+			if err != nil {
+				status = modelCallStatusError
+			} else {
+				status = tryonTaskStatusUnknown
+			}
+		}
+		saveModelCallLog(modelCallLogInput{
+			TraceContext:    traceCtx,
+			CallStage:       "parsing_aliyun_query",
+			ModelUsage:      "parsing",
+			EndpointURL:     strings.TrimSpace(createURL),
+			QueryURL:        strings.TrimSpace(taskQueryURL),
+			ResponsePayload: responsePayload,
+			ResultImage:     strings.TrimSpace(result.ResultImage),
+			Status:          status,
+			ErrorMessage:    errorToString(err),
+			StartedAt:       startedAt,
+			FinishedAt:      time.Now(),
+		})
+	}()
+
 	taskID = strings.TrimSpace(taskID)
 	if taskID == "" {
 		return tryonInvokeResult{}, errors.New("aliyunTaskIDRequired")
@@ -2749,12 +3869,14 @@ func (s *TryonTaskService) queryAliyunParsingTask(taskID string, providerToken s
 	if err != nil {
 		return tryonInvokeResult{}, err
 	}
+	responsePayload = resp
 	if resp == nil {
 		return tryonInvokeResult{}, errors.New("aliyunTaskQueryResponseEmpty")
 	}
 
 	if code := strings.TrimSpace(resp.Code); code != "" {
-		return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: formatAliyunModelError(resp.Message, code), ProviderTaskID: taskID}, nil
+		result = tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: formatAliyunModelError(resp.Message, code), ProviderTaskID: taskID}
+		return result, nil
 	}
 
 	status := normalizeProviderTaskStatus(resp.Output.TaskStatus)
@@ -2762,11 +3884,13 @@ func (s *TryonTaskService) queryAliyunParsingTask(taskID string, providerToken s
 	case tryonTaskStatusSuccess:
 		resultImage := pickAliyunParsingResultImage(preferParsingImage, resp.Output.ParsingImgURL, resp.Output.CropImgURL, resp.Output.ImageURL)
 		if strings.TrimSpace(resultImage) == "" {
-			return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: "aliyunTaskSuccessNoImage", ProviderTaskID: taskID}, nil
+			result = tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: "aliyunTaskSuccessNoImage", ProviderTaskID: taskID}
+			return result, nil
 		}
-		return tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: strings.TrimSpace(resultImage), ProviderTaskID: taskID}, nil
+		result = tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: strings.TrimSpace(resultImage), ProviderTaskID: taskID}
+		return result, nil
 	case tryonTaskStatusFailed:
-		return tryonInvokeResult{
+		result = tryonInvokeResult{
 			Status:         tryonTaskStatusFailed,
 			ProviderTaskID: taskID,
 			ErrorMessage: formatAliyunModelError(
@@ -2776,15 +3900,57 @@ func (s *TryonTaskService) queryAliyunParsingTask(taskID string, providerToken s
 				resp.Code,
 				"tryonTaskFailed",
 			),
-		}, nil
+		}
+		return result, nil
 	case tryonTaskStatusProcessing, tryonTaskStatusUnknown:
-		return tryonInvokeResult{Status: tryonTaskStatusProcessing, ProviderTaskID: taskID}, nil
+		result = tryonInvokeResult{Status: tryonTaskStatusProcessing, ProviderTaskID: taskID}
+		return result, nil
 	default:
-		return tryonInvokeResult{Status: tryonTaskStatusProcessing, ProviderTaskID: taskID}, nil
+		result = tryonInvokeResult{Status: tryonTaskStatusProcessing, ProviderTaskID: taskID}
+		return result, nil
 	}
 }
 
-func (s *TryonTaskService) invokeTryonBeautifyProvider(sceneType string, resultImage string, modelCfg *tryonModelConfig, req clientReq.ApplyTryonBeautifyReq) (string, error) {
+func (s *TryonTaskService) invokeTryonBeautifyProvider(sceneType string, resultImage string, modelCfg *tryonModelConfig, req clientReq.ApplyTryonBeautifyReq, traceCtx *modelCallTraceContext) (outputImage string, err error) {
+	startedAt := time.Now()
+	var requestPayload interface{}
+	var responsePayload interface{}
+	defer func() {
+		modelKey := ""
+		modelUsage := "beautify"
+		modelName := ""
+		provider := ""
+		endpointURL := ""
+		if modelCfg != nil {
+			modelKey = strings.TrimSpace(modelCfg.Key)
+			modelName = strings.TrimSpace(modelCfg.beautifyModelValue())
+			provider = strings.TrimSpace(modelCfg.Provider)
+			endpointURL = strings.TrimSpace(firstNonEmptyString(modelCfg.endpointURL(), modelCfg.beautifyEndpointURL()))
+		}
+
+		status := modelCallStatusSuccess
+		if err != nil {
+			status = modelCallStatusError
+		}
+
+		saveModelCallLog(modelCallLogInput{
+			TraceContext:    traceCtx,
+			CallStage:       "beautify_provider",
+			ModelKey:        modelKey,
+			ModelUsage:      modelUsage,
+			ModelName:       modelName,
+			Provider:        provider,
+			EndpointURL:     endpointURL,
+			RequestPayload:  requestPayload,
+			ResponsePayload: responsePayload,
+			ResultImage:     strings.TrimSpace(outputImage),
+			Status:          status,
+			ErrorMessage:    errorToString(err),
+			StartedAt:       startedAt,
+			FinishedAt:      time.Now(),
+		})
+	}()
+
 	if modelCfg == nil || !modelCfg.isBeautifyModelUsage() {
 		return "", errors.New("tryonBeautifyUnsupported")
 	}
@@ -2797,18 +3963,16 @@ func (s *TryonTaskService) invokeTryonBeautifyProvider(sceneType string, resultI
 	providerToken := strings.TrimSpace(modelCfg.authToken())
 
 	if strings.EqualFold(strings.TrimSpace(providerMode), "mock_success") {
-		return strings.TrimSpace(resultImage), nil
+		outputImage = strings.TrimSpace(resultImage)
+		return outputImage, nil
 	}
 
-	modelName := ""
-	providerName := ""
-	modelKey := ""
-	modelName = modelCfg.beautifyModelValue()
-	providerName = strings.TrimSpace(modelCfg.Provider)
-	modelKey = strings.TrimSpace(modelCfg.Key)
+	modelName := modelCfg.beautifyModelValue()
+	providerName := strings.TrimSpace(modelCfg.Provider)
+	modelKey := strings.TrimSpace(modelCfg.Key)
 
 	if isAliyunBeautifyModel(providerName, modelName, providerURL) {
-		return s.invokeAliyunRetouchSkin(resultImage, modelCfg, providerToken, req)
+		return s.invokeAliyunRetouchSkin(resultImage, modelCfg, providerToken, req, traceCtx)
 	}
 
 	normalizedImage, normalizeErr := s.normalizeAliyunMediaURL(resultImage)
@@ -2850,6 +4014,7 @@ func (s *TryonTaskService) invokeTryonBeautifyProvider(sceneType string, resultI
 	if strings.TrimSpace(providerName) != "" {
 		body["provider"] = strings.TrimSpace(providerName)
 	}
+	requestPayload = body
 
 	resp, err := external.HttpRequest[tryonProviderResponse](external.RequestParams{
 		URL:     strings.TrimSpace(targetURL),
@@ -2860,6 +4025,7 @@ func (s *TryonTaskService) invokeTryonBeautifyProvider(sceneType string, resultI
 	if err != nil {
 		return "", err
 	}
+	responsePayload = resp
 	if resp == nil {
 		return "", errors.New("tryonModelResponseEmpty")
 	}
@@ -2879,10 +4045,50 @@ func (s *TryonTaskService) invokeTryonBeautifyProvider(sceneType string, resultI
 		return "", errors.New("tryonBeautifyResultEmpty")
 	}
 
-	return strings.TrimSpace(resultURL), nil
+	outputImage = strings.TrimSpace(resultURL)
+	return outputImage, nil
 }
 
-func (s *TryonTaskService) invokeAliyunRetouchSkin(resultImage string, modelCfg *tryonModelConfig, fallbackToken string, req clientReq.ApplyTryonBeautifyReq) (string, error) {
+func (s *TryonTaskService) invokeAliyunRetouchSkin(resultImage string, modelCfg *tryonModelConfig, fallbackToken string, req clientReq.ApplyTryonBeautifyReq, traceCtx *modelCallTraceContext) (outputImage string, err error) {
+	startedAt := time.Now()
+	var requestPayload interface{}
+	var responsePayload interface{}
+	defer func() {
+		modelKey := ""
+		modelUsage := "beautify"
+		modelName := ""
+		provider := ""
+		endpointURL := ""
+		if modelCfg != nil {
+			modelKey = strings.TrimSpace(modelCfg.Key)
+			modelName = strings.TrimSpace(modelCfg.beautifyModelValue())
+			provider = strings.TrimSpace(modelCfg.Provider)
+			endpointURL = strings.TrimSpace(modelCfg.beautifyEndpointURL())
+		}
+
+		status := modelCallStatusSuccess
+		if err != nil {
+			status = modelCallStatusError
+		}
+
+		saveModelCallLog(modelCallLogInput{
+			TraceContext:    traceCtx,
+			CallStage:       "beautify_aliyun_rpc",
+			ModelKey:        modelKey,
+			ModelUsage:      modelUsage,
+			ModelName:       modelName,
+			Provider:        provider,
+			EndpointURL:     endpointURL,
+			RequestPayload:  requestPayload,
+			ResponsePayload: responsePayload,
+			ResultImage:     strings.TrimSpace(outputImage),
+			Status:          status,
+			ErrorMessage:    errorToString(err),
+			StartedAt:       startedAt,
+			FinishedAt:      time.Now(),
+		})
+	}()
+
 	normalizedImage, normalizeErr := s.normalizeAliyunMediaURL(resultImage)
 	if normalizeErr != nil {
 		return "", normalizeErr
@@ -2925,6 +4131,7 @@ func (s *TryonTaskService) invokeAliyunRetouchSkin(resultImage string, modelCfg 
 
 	signature := signAliyunRPCParams(params, strings.TrimSpace(accessKeySecret))
 	params["Signature"] = signature
+	requestPayload = params
 
 	body := encodeAliyunRPCParams(params)
 	httpReq, err := http.NewRequest(http.MethodPost, endpointURL, strings.NewReader(body))
@@ -2945,6 +4152,7 @@ func (s *TryonTaskService) invokeAliyunRetouchSkin(resultImage string, modelCfg 
 	if err != nil {
 		return "", err
 	}
+	responsePayload = map[string]interface{}{"statusCode": resp.StatusCode, "body": string(responseBody)}
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		return "", errors.New(formatAliyunModelError(string(responseBody), "tryonBeautifyRequestFailed"))
@@ -2954,6 +4162,7 @@ func (s *TryonTaskService) invokeAliyunRetouchSkin(resultImage string, modelCfg 
 	if err := json.Unmarshal(responseBody, &apiResp); err != nil {
 		return "", errors.New("tryonBeautifyResponseInvalid")
 	}
+	responsePayload = apiResp
 
 	if strings.TrimSpace(apiResp.Code) != "" {
 		return "", errors.New(formatAliyunModelError(apiResp.Message, apiResp.Code))
@@ -2963,10 +4172,41 @@ func (s *TryonTaskService) invokeAliyunRetouchSkin(resultImage string, modelCfg 
 	if resultURL == "" {
 		return "", errors.New("tryonBeautifyResultEmpty")
 	}
-	return resultURL, nil
+	outputImage = resultURL
+	return outputImage, nil
 }
 
-func (s *TryonTaskService) queryAliyunTryonTask(taskID string, providerToken string, createURL string, taskQueryURL string) (tryonInvokeResult, error) {
+func (s *TryonTaskService) queryAliyunTryonTask(taskID string, providerToken string, createURL string, taskQueryURL string, traceCtx *modelCallTraceContext, callStage string) (result tryonInvokeResult, err error) {
+	startedAt := time.Now()
+	var responsePayload interface{}
+	defer func() {
+		stage := strings.TrimSpace(callStage)
+		if stage == "" {
+			stage = "tryon_aliyun_query"
+		}
+		status := strings.TrimSpace(result.Status)
+		if status == "" {
+			if err != nil {
+				status = modelCallStatusError
+			} else {
+				status = tryonTaskStatusUnknown
+			}
+		}
+		saveModelCallLog(modelCallLogInput{
+			TraceContext:    traceCtx,
+			CallStage:       stage,
+			ModelUsage:      traceModelUsage(traceCtx),
+			EndpointURL:     strings.TrimSpace(createURL),
+			QueryURL:        strings.TrimSpace(taskQueryURL),
+			ResponsePayload: responsePayload,
+			ResultImage:     strings.TrimSpace(result.ResultImage),
+			Status:          status,
+			ErrorMessage:    errorToString(err),
+			StartedAt:       startedAt,
+			FinishedAt:      time.Now(),
+		})
+	}()
+
 	taskID = strings.TrimSpace(taskID)
 	if taskID == "" {
 		return tryonInvokeResult{}, errors.New("aliyunTaskIDRequired")
@@ -2991,12 +4231,14 @@ func (s *TryonTaskService) queryAliyunTryonTask(taskID string, providerToken str
 	if err != nil {
 		return tryonInvokeResult{}, err
 	}
+	responsePayload = resp
 	if resp == nil {
 		return tryonInvokeResult{}, errors.New("aliyunTaskQueryResponseEmpty")
 	}
 
 	if code := strings.TrimSpace(resp.Code); code != "" {
-		return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: formatAliyunModelError(resp.Message, code), ProviderTaskID: taskID}, nil
+		result = tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: formatAliyunModelError(resp.Message, code), ProviderTaskID: taskID}
+		return result, nil
 	}
 
 	status := normalizeProviderTaskStatus(resp.Output.TaskStatus)
@@ -3004,11 +4246,13 @@ func (s *TryonTaskService) queryAliyunTryonTask(taskID string, providerToken str
 	case tryonTaskStatusSuccess:
 		resultImage := extractDashscopeImageURL(resp.Output.ImageURL)
 		if resultImage == "" {
-			return tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: "aliyunTaskSuccessNoImage", ProviderTaskID: taskID}, nil
+			result = tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: "aliyunTaskSuccessNoImage", ProviderTaskID: taskID}
+			return result, nil
 		}
-		return tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: resultImage, ProviderTaskID: taskID}, nil
+		result = tryonInvokeResult{Status: tryonTaskStatusSuccess, ResultImage: resultImage, ProviderTaskID: taskID}
+		return result, nil
 	case tryonTaskStatusFailed:
-		return tryonInvokeResult{
+		result = tryonInvokeResult{
 			Status:         tryonTaskStatusFailed,
 			ProviderTaskID: taskID,
 			ErrorMessage: formatAliyunModelError(
@@ -3018,11 +4262,14 @@ func (s *TryonTaskService) queryAliyunTryonTask(taskID string, providerToken str
 				resp.Code,
 				"tryonTaskFailed",
 			),
-		}, nil
+		}
+		return result, nil
 	case tryonTaskStatusProcessing, tryonTaskStatusUnknown:
-		return tryonInvokeResult{Status: tryonTaskStatusProcessing, ProviderTaskID: taskID}, nil
+		result = tryonInvokeResult{Status: tryonTaskStatusProcessing, ProviderTaskID: taskID}
+		return result, nil
 	default:
-		return tryonInvokeResult{Status: tryonTaskStatusProcessing, ProviderTaskID: taskID}, nil
+		result = tryonInvokeResult{Status: tryonTaskStatusProcessing, ProviderTaskID: taskID}
+		return result, nil
 	}
 }
 
@@ -3227,30 +4474,35 @@ func (s *TryonTaskService) refreshTryonTaskStatus(ctx context.Context, task *cli
 	}
 
 	modelCfg, _ := s.resolveTryonModelConfig(task.SceneType, task.Provider)
+	if modelCfg == nil {
+		return nil
+	}
+	traceCtx := createTraceContextFromTask(task)
 
-	sysConfigService := SysConfigService{}
-	providerURL, _ := sysConfigService.GetConfigByKey("tryon_provider_url")
-	providerToken, _ := sysConfigService.GetConfigByKey("tryon_provider_token")
+	providerURL := strings.TrimSpace(modelCfg.endpointURL())
+	providerToken := strings.TrimSpace(modelCfg.authToken())
 	providerName := ""
 	modelName := ""
 	taskQueryURL := ""
+	refinerModelCfg := modelCfg
+	if resolvedRefinerModelCfg, resolveErr := s.resolveRefinerModelConfig(task.SceneType, modelCfg); resolveErr == nil && resolvedRefinerModelCfg != nil {
+		refinerModelCfg = resolvedRefinerModelCfg
+	} else if resolveErr != nil {
+		global.GVA_LOG.Warn("解析精修模型失败，回退当前试衣模型配置",
+			zap.String("taskNo", strings.TrimSpace(task.TaskNo)),
+			zap.String("provider", strings.TrimSpace(task.Provider)),
+			zap.Error(resolveErr),
+		)
+	}
 	refinerURL := strings.TrimSpace(providerURL)
 	refinerToken := strings.TrimSpace(providerToken)
 	refinerTaskQueryURL := ""
-	if modelCfg != nil {
-		if modelURL := modelCfg.endpointURL(); modelURL != "" {
-			providerURL = modelURL
-		}
-		if modelToken := modelCfg.authToken(); modelToken != "" {
-			providerToken = modelToken
-		}
-		providerName = modelCfg.Provider
-		modelName = resolveAliyunModelName(modelCfg, task.SceneType)
-		taskQueryURL = modelCfg.queryTaskURL()
-		refinerURL = modelCfg.refinerEndpointURL(providerURL)
-		refinerToken = modelCfg.refinerAuthToken(providerToken)
-		refinerTaskQueryURL = modelCfg.refinerTaskQueryURL()
-	}
+	providerName = modelCfg.Provider
+	modelName = resolveAliyunModelName(modelCfg, task.SceneType)
+	taskQueryURL = modelCfg.queryTaskURL()
+	refinerURL = refinerModelCfg.refinerEndpointURL(strings.TrimSpace(refinerModelCfg.endpointURL()))
+	refinerToken = refinerModelCfg.refinerAuthToken(strings.TrimSpace(refinerModelCfg.authToken()))
+	refinerTaskQueryURL = refinerModelCfg.refinerTaskQueryURL()
 	if strings.TrimSpace(refinerTaskQueryURL) == "" {
 		refinerTaskQueryURL = taskQueryURL
 	}
@@ -3268,7 +4520,7 @@ func (s *TryonTaskService) refreshTryonTaskStatus(ctx context.Context, task *cli
 			return nil
 		}
 
-		result, err := s.queryAliyunTryonTask(refinerTaskID, refinerToken, refinerURL, refinerTaskQueryURL)
+		result, err := s.queryAliyunTryonTask(refinerTaskID, refinerToken, refinerURL, refinerTaskQueryURL, traceCtx, "refiner_aliyun_query")
 		if err != nil {
 			return err
 		}
@@ -3305,7 +4557,7 @@ func (s *TryonTaskService) refreshTryonTaskStatus(ctx context.Context, task *cli
 			task.CompletedAt = &now
 			return nil
 		case tryonTaskStatusFailed:
-			if err = s.markFailedAndRefund(ctx, task, result.ErrorMessage); err != nil {
+			if err = s.markTryonRefinerFailedAndKeepSuccess(ctx, task, strings.TrimSpace(task.ResultImage), result.ErrorMessage, refinerTaskID, nil); err != nil {
 				return err
 			}
 			return global.GVA_DB.Where("id = ? AND user_id = ?", task.ID, task.UserID).First(task).Error
@@ -3314,7 +4566,7 @@ func (s *TryonTaskService) refreshTryonTaskStatus(ctx context.Context, task *cli
 		}
 	}
 
-	result, err := s.queryAliyunTryonTask(task.ProviderTaskID, providerToken, providerURL, taskQueryURL)
+	result, err := s.queryAliyunTryonTask(task.ProviderTaskID, providerToken, providerURL, taskQueryURL, traceCtx, "tryon_aliyun_query")
 	if err != nil {
 		return err
 	}
@@ -3324,15 +4576,26 @@ func (s *TryonTaskService) refreshTryonTaskStatus(ctx context.Context, task *cli
 		return nil
 	case tryonTaskStatusSuccess:
 		if task.EnableRefiner && strings.EqualFold(strings.TrimSpace(task.RefinerStatus), tryonRefinerStatusPending) {
+			storedMainResultImage := s.persistTryonResultImage(strings.TrimSpace(result.ResultImage), task.TaskNo)
+			refinerModelCfg := modelCfg
+			if modelCfg != nil && strings.TrimSpace(task.RefinerModelKey) != "" {
+				copied := *modelCfg
+				copied.RefinerModelKey = strings.TrimSpace(task.RefinerModelKey)
+				refinerModelCfg = &copied
+			}
 			refinerReq := clientReq.CreateTryonTaskReq{
 				SceneType:     task.SceneType,
 				SourceImage:   task.SourceImage,
 				TemplateImage: task.TemplateImage,
 				ModelKey:      task.Provider,
 			}
-			refinerResult, refinerErr := s.invokeAliyunRefinerAsync(refinerReq, strings.TrimSpace(result.ResultImage), modelCfg)
+			refinerTraceCtx := cloneTraceContext(traceCtx)
+			if refinerTraceCtx != nil {
+				refinerTraceCtx.Behavior = "refiner_generate"
+			}
+			refinerResult, refinerErr := s.invokeAliyunRefinerAsync(refinerReq, strings.TrimSpace(result.ResultImage), refinerModelCfg, refinerTraceCtx)
 			if refinerErr != nil {
-				if err = s.markFailedAndRefund(ctx, task, refinerErr.Error()); err != nil {
+				if err = s.markTryonRefinerFailedAndKeepSuccess(ctx, task, storedMainResultImage, refinerErr.Error(), "", nil); err != nil {
 					return err
 				}
 				return global.GVA_DB.Where("id = ? AND user_id = ?", task.ID, task.UserID).First(task).Error
@@ -3347,6 +4610,7 @@ func (s *TryonTaskService) refreshTryonTaskStatus(ctx context.Context, task *cli
 						"provider_task_id": refinerTaskID,
 						"refiner_task_id":  refinerTaskID,
 						"refiner_status":   tryonRefinerStatusProcessing,
+						"result_image":     storedMainResultImage,
 						"error_message":    "",
 					})
 				if updateResult.Error != nil {
@@ -3358,6 +4622,7 @@ func (s *TryonTaskService) refreshTryonTaskStatus(ctx context.Context, task *cli
 				task.ProviderTaskID = refinerTaskID
 				task.RefinerTaskID = refinerTaskID
 				task.RefinerStatus = tryonRefinerStatusProcessing
+				task.ResultImage = storedMainResultImage
 				task.ErrorMessage = ""
 				return nil
 			case tryonTaskStatusSuccess:
@@ -3390,12 +4655,12 @@ func (s *TryonTaskService) refreshTryonTaskStatus(ctx context.Context, task *cli
 				task.CompletedAt = &now
 				return nil
 			case tryonTaskStatusFailed:
-				if err = s.markFailedAndRefund(ctx, task, refinerResult.ErrorMessage); err != nil {
+				if err = s.markTryonRefinerFailedAndKeepSuccess(ctx, task, storedMainResultImage, refinerResult.ErrorMessage, strings.TrimSpace(refinerResult.ProviderTaskID), nil); err != nil {
 					return err
 				}
 				return global.GVA_DB.Where("id = ? AND user_id = ?", task.ID, task.UserID).First(task).Error
 			default:
-				if err = s.markFailedAndRefund(ctx, task, "tryonRefinerStatusUnknown"); err != nil {
+				if err = s.markTryonRefinerFailedAndKeepSuccess(ctx, task, storedMainResultImage, "tryonRefinerStatusUnknown", strings.TrimSpace(refinerResult.ProviderTaskID), nil); err != nil {
 					return err
 				}
 				return global.GVA_DB.Where("id = ? AND user_id = ?", task.ID, task.UserID).First(task).Error
@@ -3718,6 +4983,14 @@ func canEnableAliyunRefiner(sceneType string, modelCfg *tryonModelConfig) bool {
 	modelName := resolveAliyunModelName(modelCfg, sceneType)
 	modelLower := strings.ToLower(strings.TrimSpace(modelName))
 	return modelLower == "aitryon" || modelLower == "aitryon-plus"
+}
+
+func canEnableAliyunParsing(sceneType string, modelCfg *tryonModelConfig, templatePart string) bool {
+	if modelCfg == nil || !modelCfg.isTryonModelUsage() {
+		return false
+	}
+	modelName := resolveAliyunModelName(modelCfg, sceneType)
+	return shouldEnableAliyunParsingForSinglePart(sceneType, modelName, templatePart, true)
 }
 
 func normalizeProviderTaskStatus(raw string) string {

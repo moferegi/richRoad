@@ -45,9 +45,12 @@ var publicConfigKeyAllowlist = map[string]struct{}{
 	"review_pic_enabled":                  {},
 	"shop_kefu_enabled":                   {},
 	"sign_in_enabled":                     {},
-	"shoe_models":                         {},
 	"tryon_cost_points":                   {},
 	"tryon_fail_refund_percent":           {},
+	"tryon_append_parsing_failed_tip":     {},
+	"tryon_append_refiner_failed_tip":     {},
+	"tryon_parsing_failed_tip_text":       {},
+	"tryon_refiner_failed_tip_text":       {},
 	"tryon_guest_init_points":             {},
 	"tryon_invite_register_reward_points": {},
 	"tryon_models":                        {},
@@ -91,6 +94,43 @@ func (s *SysConfigApi) GetSysConfigList(c *gin.Context) {
 		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
+	response.OkWithDetailed(response.PageResult{
+		List:     list,
+		Total:    total,
+		Page:     pageInfo.Page,
+		PageSize: pageInfo.PageSize,
+	}, i18n.T(c, "getSuccess"), c)
+}
+
+// GetModelCallLogList 分页获取模型调用日志列表
+// @Tags SysConfig
+// @Summary 分页获取模型调用日志列表
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data query request.ModelCallLogSearch true "分页获取模型调用日志列表"
+// @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
+// @Router /sysConfig/getModelCallLogList [get]
+func (s *SysConfigApi) GetModelCallLogList(c *gin.Context) {
+	if !isSysConfigAdmin(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return
+	}
+
+	var pageInfo request.ModelCallLogSearch
+	err := c.ShouldBindQuery(&pageInfo)
+	if err != nil {
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		return
+	}
+
+	list, total, err := sysConfigService.GetModelCallLogList(pageInfo)
+	if err != nil {
+		global.GVA_LOG.Error("获取模型调用日志失败!", zap.Error(err))
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		return
+	}
+
 	response.OkWithDetailed(response.PageResult{
 		List:     list,
 		Total:    total,
@@ -225,8 +265,11 @@ func (s *SysConfigApi) GetTryonConfig(c *gin.Context) {
 	inviteRegisterReward, _ := sysConfigService.GetConfigByKey("tryon_invite_register_reward_points")
 	costPoints, _ := sysConfigService.GetConfigByKey("tryon_cost_points")
 	failRefundPercent, _ := sysConfigService.GetConfigByKey("tryon_fail_refund_percent")
+	appendParsingFailedTip, _ := sysConfigService.GetConfigByKey("tryon_append_parsing_failed_tip")
+	parsingFailedTipText, _ := sysConfigService.GetConfigByKey("tryon_parsing_failed_tip_text")
+	appendRefinerFailedTip, _ := sysConfigService.GetConfigByKey("tryon_append_refiner_failed_tip")
+	refinerFailedTipText, _ := sysConfigService.GetConfigByKey("tryon_refiner_failed_tip_text")
 	tryonModels, _ := sysConfigService.GetConfigByKey("tryon_models")
-	shoeModels, _ := sysConfigService.GetConfigByKey("shoe_models")
 
 	if guestInit == "" {
 		guestInit = "0"
@@ -243,11 +286,20 @@ func (s *SysConfigApi) GetTryonConfig(c *gin.Context) {
 	if failRefundPercent == "" {
 		failRefundPercent = "100"
 	}
+	if strings.TrimSpace(appendParsingFailedTip) == "" {
+		appendParsingFailedTip = "false"
+	}
+	if strings.TrimSpace(parsingFailedTipText) == "" {
+		parsingFailedTipText = `{"zh":"试衣成功，但分割增强失败，相关金币已退回","en":"Try-on succeeded, but parsing enhancement failed. Related coins have been refunded.","mn":"Туршилт амжилттай боловч segmentation enhancement амжилтгүй боллоо. Холбогдох зоос буцаан олгогдлоо."}`
+	}
+	if strings.TrimSpace(appendRefinerFailedTip) == "" {
+		appendRefinerFailedTip = "true"
+	}
+	if strings.TrimSpace(refinerFailedTipText) == "" {
+		refinerFailedTipText = `{"zh":"试衣成功，但精修失败，金币已退回","en":"Try-on succeeded, but refiner failed. Coins have been refunded.","mn":"Туршилт амжилттай боловч нарийвчлал амжилтгүй боллоо. Зоос буцаан олгогдсон."}`
+	}
 	if strings.TrimSpace(tryonModels) == "" {
 		tryonModels = defaultTryonModelsConfig()
-	}
-	if strings.TrimSpace(shoeModels) == "" {
-		shoeModels = defaultShoeModelsConfig()
 	}
 
 	response.OkWithDetailed(map[string]string{
@@ -256,8 +308,11 @@ func (s *SysConfigApi) GetTryonConfig(c *gin.Context) {
 		"tryon_invite_register_reward_points": inviteRegisterReward,
 		"tryon_cost_points":                   costPoints,
 		"tryon_fail_refund_percent":           failRefundPercent,
+		"tryon_append_parsing_failed_tip":     appendParsingFailedTip,
+		"tryon_parsing_failed_tip_text":       parsingFailedTipText,
+		"tryon_append_refiner_failed_tip":     appendRefinerFailedTip,
+		"tryon_refiner_failed_tip_text":       refinerFailedTipText,
 		"tryon_models":                        tryonModels,
-		"shoe_models":                         shoeModels,
 	}, i18n.T(c, "getSuccess"), c)
 }
 
@@ -639,8 +694,8 @@ func defaultTryonModelsConfig() string {
 		"refinerModel": "aitryon-refiner",
 		"refinerGender": "woman",
 		"refinerExtraCost": 1,
-		"autoEnableAliyunParsingUpperOnly": true,
-		"autoEnableAliyunParsingLowerOnly": true,
+		"refinerModelKey": "aliyun_aitryon_refiner",
+		"parsingModelKey": "aliyun_aitryon_parsing",
 		"supportsBeautify": false
 	},
 	{
@@ -663,8 +718,8 @@ func defaultTryonModelsConfig() string {
 		"refinerModel": "aitryon-refiner",
 		"refinerGender": "woman",
 		"refinerExtraCost": 1,
-		"autoEnableAliyunParsingUpperOnly": true,
-		"autoEnableAliyunParsingLowerOnly": true,
+		"refinerModelKey": "aliyun_aitryon_refiner",
+		"parsingModelKey": "aliyun_aitryon_parsing",
 		"supportsBeautify": false
 	},
 	{
@@ -692,19 +747,19 @@ func defaultTryonModelsConfig() string {
 	},
 	{
 		"key": "aliyun_aitryon_parsing",
-		"modelUsage": "tryon",
+		"modelUsage": "parsing",
 		"enabled": false,
 		"scenes": ["takeoff"],
 		"model": "aitryon-parsing-v1",
 		"name": {"zh": "阿里取衣分割", "en": "Aliyun Takeoff Parsing", "mn": "Aliyun хувцас салгах"},
 		"desc": {"zh": "用于取衣区分割模特服饰并输出可用服饰图。", "en": "Segments garment regions for takeoff area and outputs reusable garment images.", "mn": "Загварын хувцсыг ялган авч, дахин ашиглах зургийг гаргана."},
-		"cost": 1,
+		"cost": 0,
+		"parsingExtraCost": 0,
 		"provider": "aliyun",
 		"mode": "prod",
 		"url": "https://dashscope.aliyuncs.com/api/v1/services/vision/image-process/process",
 		"token": "",
-		"clothesType": ["upper"],
-		"supportsBeautify": false
+		"clothesType": ["upper"]
 	},
 	{
 		"key": "smart_beautify_default",
@@ -726,10 +781,6 @@ func defaultTryonModelsConfig() string {
 		"beautifyWhiteningDegree": 30
 	}
 ]`
-}
-
-func defaultShoeModelsConfig() string {
-	return `[{"key":"aliyun_shoes_and_boots","enabled":true,"scenes":["shoes"],"model":"shoes-and-boots","name":{"zh":"阿里AI试鞋","en":"Aliyun Shoes Try-On","mn":"Aliyun гутлын туршилт"},"desc":{"zh":"适用于鞋靴类虚拟试穿。","en":"Suitable for virtual try-on of shoes and boots.","mn":"Гутал, түрийвчний виртуал туршилтад тохиромжтой."},"cost":1,"provider":"aliyun","mode":"prod","url":"https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis","taskQueryUrl":"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}","token":"","resolution":-1,"restoreFace":true}]`
 }
 
 // GetPaymentConfig 获取支付方式配置（公开接口）

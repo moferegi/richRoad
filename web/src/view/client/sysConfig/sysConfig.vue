@@ -102,6 +102,105 @@
       </div>
     </div>
 
+    <div class="gva-search-box model-call-log-search">
+      <el-form :inline="true" :model="modelLogSearch" class="model-call-log-form">
+        <el-form-item label="时间范围">
+          <el-date-picker
+            v-model="modelLogDateRange"
+            type="datetimerange"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            range-separator="至"
+          />
+        </el-form-item>
+        <el-form-item label="场景">
+          <el-select v-model="modelLogSearch.sceneType" clearable style="width: 140px">
+            <el-option label="试衣 clothes" value="clothes" />
+            <el-option label="试鞋 shoes" value="shoes" />
+            <el-option label="取衣 takeoff" value="takeoff" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="用途">
+          <el-select v-model="modelLogSearch.modelUsage" clearable style="width: 130px">
+            <el-option label="tryon" value="tryon" />
+            <el-option label="refiner" value="refiner" />
+            <el-option label="parsing" value="parsing" />
+            <el-option label="beautify" value="beautify" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="modelLogSearch.status" clearable style="width: 130px" :disabled="modelLogSearch.onlyFailed">
+            <el-option label="success" value="success" />
+            <el-option label="processing" value="processing" />
+            <el-option label="failed" value="failed" />
+            <el-option label="error" value="error" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="快速筛选">
+          <el-switch v-model="modelLogSearch.onlyFailed" active-text="仅失败" inactive-text="全部" />
+        </el-form-item>
+        <el-form-item label="关键词">
+          <el-input
+            v-model="modelLogSearch.keyword"
+            clearable
+            placeholder="taskNo/requestID/modelKey"
+            style="width: 260px"
+            @keyup.enter="handleModelLogSearch"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="modelLogLoading" @click="handleModelLogSearch">查询</el-button>
+          <el-button @click="resetModelLogSearch">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+
+    <div class="gva-table-box">
+      <el-table :data="modelCallLogList" stripe v-loading="modelLogLoading">
+        <el-table-column label="时间" width="170">
+          <template #default="scope">
+            {{ formatDateTime(scope.row.CreatedAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="taskNo" label="任务号" min-width="150" />
+        <el-table-column prop="requestID" label="请求ID" min-width="140" show-overflow-tooltip />
+        <el-table-column prop="sceneType" label="场景" width="90" />
+        <el-table-column prop="behavior" label="行为" min-width="140" show-overflow-tooltip />
+        <el-table-column prop="callStage" label="阶段" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="modelKey" label="模型key" min-width="170" show-overflow-tooltip />
+        <el-table-column prop="modelUsage" label="用途" width="90" />
+        <el-table-column prop="provider" label="provider" width="110" show-overflow-tooltip />
+        <el-table-column label="耗时" width="90">
+          <template #default="scope">
+            {{ Number(scope.row.durationMs || 0) }}ms
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="100">
+          <template #default="scope">
+            <el-tag size="small" :type="modelCallStatusTag(scope.row.status)">{{ scope.row.status || '-' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="errorMessage" label="错误信息" min-width="200" show-overflow-tooltip />
+        <el-table-column label="操作" width="90" fixed="right">
+          <template #default="scope">
+            <el-button link type="primary" @click="openModelLogDetail(scope.row)">详情</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="gva-pagination">
+        <el-pagination
+          layout="total, sizes, prev, pager, next, jumper"
+          :current-page="modelLogSearch.page"
+          :page-size="modelLogSearch.pageSize"
+          :page-sizes="[20, 50, 100]"
+          :total="modelLogTotal"
+          @current-change="handleModelLogCurrentChange"
+          @size-change="handleModelLogSizeChange"
+        />
+      </div>
+    </div>
+
     <!-- 编辑弹窗 -->
     <el-dialog v-model="editVisible" title="编辑参数" width="600px">
       <el-form :model="editForm" label-width="120px">
@@ -152,8 +251,8 @@
                       <el-tag size="small" :type="model.enabled ? 'success' : 'info'">
                         {{ model.enabled ? '启用' : '关闭' }}
                       </el-tag>
-                      <el-tag size="small" :type="model.modelUsage === 'beautify' ? 'warning' : 'primary'">
-                        {{ model.modelUsage === 'beautify' ? '美肤模型' : '试衣模型' }}
+                      <el-tag size="small" :type="getModelUsageTagType(model)">
+                        {{ getModelUsageLabel(model) }}
                       </el-tag>
                     </div>
                   </template>
@@ -174,24 +273,12 @@
                       <div class="tryon-model-quota-content">
                         <template v-if="getAliyunQuotaItem(model)">
                           <el-tag type="success">
-                            基础剩余 {{ getAliyunQuotaItem(model).remainingEstimate }} / {{ getAliyunQuotaItem(model).freeQuotaTotal }}
-                          </el-tag>
-                          <el-tag
-                            v-if="getAliyunQuotaItem(model).refinerEnabled"
-                            type="warning"
-                          >
-                            精修剩余 {{ getAliyunQuotaItem(model).refinerRemainingEstimate }} / {{ getAliyunQuotaItem(model).refinerFreeQuotaTotal }}
+                            剩余 {{ getAliyunQuotaItem(model).remainingEstimate }} / {{ getAliyunQuotaItem(model).freeQuotaTotal }}
                           </el-tag>
                         </template>
                         <el-tag v-else type="info">暂无数据</el-tag>
                         <span class="tryon-model-summary-text" v-if="getAliyunQuotaItem(model)">
-                          基础已用 {{ getAliyunQuotaItem(model).usedSuccessCount }}
-                        </span>
-                        <span
-                          class="tryon-model-summary-text"
-                          v-if="getAliyunQuotaItem(model) && getAliyunQuotaItem(model).refinerEnabled"
-                        >
-                          精修已用 {{ getAliyunQuotaItem(model).refinerUsedSuccessCount }}
+                          已用 {{ getAliyunQuotaItem(model).usedSuccessCount }}
                         </span>
                         <span class="tryon-model-summary-text" v-if="getAliyunQuotaItem(model)">
                           {{ formatQuotaRefreshTime(getAliyunQuotaItem(model).lastRefreshedAt) }}
@@ -218,6 +305,8 @@
                         <span class="tryon-model-label">用途 modelUsage</span>
                         <el-select v-model="model.modelUsage" style="width: 100%">
                           <el-option label="试衣模型 tryon" value="tryon" />
+                          <el-option label="图片精修 refiner" value="refiner" />
+                          <el-option label="分割模型 parsing" value="parsing" />
                           <el-option label="智能美肤 beautify" value="beautify" />
                         </el-select>
                       </div>
@@ -251,7 +340,6 @@
                           <el-checkbox value="takeoff">取衣 takeoff</el-checkbox>
                         </el-checkbox-group>
                       </div>
-
                       <div class="tryon-model-field full">
                         <span class="tryon-model-label">模型地址 url</span>
                         <el-input v-model="model.url" placeholder="如 https://dashscope.aliyuncs.com/api/v1/services/... 或 https://yisol-idm-vton.hf.space" />
@@ -262,103 +350,116 @@
                       </div>
                       <div class="tryon-model-field full">
                         <span class="tryon-model-label">模型 token</span>
-                        <el-input v-model="model.token" type="password" show-password placeholder="留空则回退使用 tryon_provider_token" />
+                        <el-input v-model="model.token" type="password" show-password placeholder="模型级鉴权 token（留空表示该模型无鉴权）" />
                       </div>
 
-                      <div class="tryon-model-subtitle">Gradio / HuggingFace Space 参数</div>
-                      <div class="tryon-model-field">
+                      <div class="tryon-model-subtitle" v-if="isTryonUsageModel(model)">Gradio / HuggingFace Space 参数</div>
+                      <div class="tryon-model-field" v-if="isTryonUsageModel(model)">
                         <span class="tryon-model-label">API 名称 apiName</span>
                         <el-input v-model="model.apiName" placeholder="/tryon" />
                       </div>
-                      <div class="tryon-model-field">
+                      <div class="tryon-model-field" v-if="isTryonUsageModel(model)">
                         <span class="tryon-model-label">服装描述 garmentDes</span>
                         <el-input v-model="model.garmentDes" placeholder="clothing item" />
                       </div>
-                      <div class="tryon-model-field">
+                      <div class="tryon-model-field" v-if="isTryonUsageModel(model)">
                         <span class="tryon-model-label">自动蒙版 isChecked</span>
                         <el-switch v-model="model.isChecked" active-text="开" inactive-text="关" />
                       </div>
-                      <div class="tryon-model-field">
+                      <div class="tryon-model-field" v-if="isTryonUsageModel(model)">
                         <span class="tryon-model-label">自动裁剪 isCheckedCrop</span>
                         <el-switch v-model="model.isCheckedCrop" active-text="开" inactive-text="关" />
                       </div>
-                      <div class="tryon-model-field">
+                      <div class="tryon-model-field" v-if="isTryonUsageModel(model)">
                         <span class="tryon-model-label">降噪步数 denoiseSteps</span>
                         <el-input-number v-model="model.denoiseSteps" :min="1" :max="100" :step="1" />
                       </div>
-                      <div class="tryon-model-field">
+                      <div class="tryon-model-field" v-if="isTryonUsageModel(model)">
                         <span class="tryon-model-label">随机种子 seed</span>
                         <el-input-number v-model="model.seed" :min="-1" :step="1" />
                       </div>
 
-                      <div class="tryon-model-field">
+                      <div class="tryon-model-field" v-if="isTryonUsageModel(model)">
                         <span class="tryon-model-label">分辨率 resolution</span>
                         <el-input-number v-model="model.resolution" :min="-1" :step="1" />
                       </div>
-                      <div class="tryon-model-field">
+                      <div class="tryon-model-field" v-if="isTryonUsageModel(model)">
                         <span class="tryon-model-label">人脸修复 restoreFace</span>
                         <el-switch v-model="model.restoreFace" active-text="开" inactive-text="关" />
                       </div>
 
-                      <div class="tryon-model-field full">
+                      <div class="tryon-model-field full" v-if="isParsingUsageModel(model)">
                         <span class="tryon-model-label">取衣分割 clothesType</span>
                         <el-checkbox-group v-model="model.clothesType">
                           <el-checkbox value="upper">upper</el-checkbox>
                           <el-checkbox value="lower">lower</el-checkbox>
                         </el-checkbox-group>
                       </div>
+                      <div class="tryon-model-field" v-if="isParsingUsageModel(model)">
+                        <span class="tryon-model-label">分割额外消耗 parsingExtraCost</span>
+                        <el-input-number v-model="model.parsingExtraCost" :min="0" :step="1" />
+                      </div>
 
-                      <template v-if="model.modelUsage !== 'beautify'">
+                      <template v-if="isTryonUsageModel(model)">
                         <div class="tryon-model-subtitle">阿里取衣分割增强（仅 aitryon / aitryon-plus 生效）</div>
-                        <div class="tryon-model-field">
-                          <span class="tryon-model-label">仅上装自动分割 autoEnableAliyunParsingUpperOnly</span>
-                          <el-switch v-model="model.autoEnableAliyunParsingUpperOnly" active-text="开" inactive-text="关" />
-                        </div>
-                        <div class="tryon-model-field">
-                          <span class="tryon-model-label">仅下装自动分割 autoEnableAliyunParsingLowerOnly</span>
-                          <el-switch v-model="model.autoEnableAliyunParsingLowerOnly" active-text="开" inactive-text="关" />
+                        <div class="tryon-model-field full">
+                          <span class="tryon-model-label">绑定分割模型 parsingModelKey</span>
+                          <el-select
+                            v-model="model.parsingModelKey"
+                            filterable
+                            clearable
+                            allow-create
+                            default-first-option
+                            style="width: 100%"
+                            placeholder="留空自动选择可用分割模型"
+                          >
+                            <el-option
+                              v-for="parsingKey in parsingModelKeyOptions"
+                              :key="parsingKey"
+                              :label="parsingKey"
+                              :value="parsingKey"
+                            />
+                          </el-select>
                         </div>
                       </template>
 
-                      <div class="tryon-model-subtitle">图片精修配置（阿里基础/Plus）</div>
-                      <div class="tryon-model-field">
-                        <span class="tryon-model-label">支持精修 supportsRefiner</span>
-                        <el-switch v-model="model.supportsRefiner" active-text="开" inactive-text="关" />
+                      <div class="tryon-model-subtitle" v-if="isTryonUsageModel(model)">模型引用配置</div>
+                      <div class="tryon-model-field full" v-if="isTryonUsageModel(model)">
+                        <span class="tryon-model-label">绑定精修模型 refinerModelKey</span>
+                        <el-select
+                          v-model="model.refinerModelKey"
+                          filterable
+                          clearable
+                          allow-create
+                          default-first-option
+                          style="width: 100%"
+                          placeholder="留空表示当前模型不启用精修"
+                        >
+                          <el-option
+                            v-for="refinerKey in refinerModelKeyOptions"
+                            :key="refinerKey"
+                            :label="refinerKey"
+                            :value="refinerKey"
+                          />
+                        </el-select>
                       </div>
-                      <div class="tryon-model-field">
+
+                      <div class="tryon-model-subtitle" v-if="isRefinerUsageModel(model)">图片精修参数</div>
+                      <div class="tryon-model-field" v-if="isRefinerUsageModel(model)">
                         <span class="tryon-model-label">精修额外消耗 refinerExtraCost</span>
                         <el-input-number v-model="model.refinerExtraCost" :min="0" :step="1" />
                       </div>
-                      <div class="tryon-model-field">
-                        <span class="tryon-model-label">精修模型 refinerModel</span>
-                        <el-input v-model="model.refinerModel" placeholder="如 aitryon-refiner" />
-                      </div>
-                      <div class="tryon-model-field">
+                      <div class="tryon-model-field" v-if="isRefinerUsageModel(model)">
                         <span class="tryon-model-label">精修性别 refinerGender</span>
                         <el-select v-model="model.refinerGender" style="width: 100%">
                           <el-option label="woman" value="woman" />
                           <el-option label="man" value="man" />
                         </el-select>
                       </div>
-                      <div class="tryon-model-field">
+
+                      <div class="tryon-model-field" v-if="!isBeautifyUsageModel(model)">
                         <span class="tryon-model-label">免费额度总数 freeQuotaTotal</span>
                         <el-input-number v-model="model.freeQuotaTotal" :min="0" :step="1" />
-                      </div>
-                      <div class="tryon-model-field">
-                        <span class="tryon-model-label">精修额度总数 refinerFreeQuotaTotal</span>
-                        <el-input-number v-model="model.refinerFreeQuotaTotal" :min="0" :step="1" />
-                      </div>
-                      <div class="tryon-model-field full">
-                        <span class="tryon-model-label">精修地址 refinerUrl</span>
-                        <el-input v-model="model.refinerUrl" placeholder="留空沿用 url（默认阿里 image-synthesis）" />
-                      </div>
-                      <div class="tryon-model-field full">
-                        <span class="tryon-model-label">精修查询地址 refinerTaskQueryUrl</span>
-                        <el-input v-model="model.refinerTaskQueryUrl" placeholder="留空沿用 taskQueryUrl" />
-                      </div>
-                      <div class="tryon-model-field full">
-                        <span class="tryon-model-label">精修 token refinerToken</span>
-                        <el-input v-model="model.refinerToken" type="password" show-password placeholder="留空沿用模型 token / tryon_provider_token" />
                       </div>
 
                       <template v-if="model.modelUsage === 'beautify'">
@@ -417,11 +518,13 @@
                         <el-input v-model="model.desc[lang.code]" type="textarea" :rows="2" :placeholder="`desc.${lang.code}`" />
                       </div>
 
-                      <div class="tryon-model-subtitle">精修说明多语言 refinerDesc</div>
-                      <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`refiner-desc-${model.__uid}-${lang.code}`">
-                        <span class="tryon-model-label">{{ lang.label }}</span>
-                        <el-input v-model="model.refinerDesc[lang.code]" type="textarea" :rows="2" :placeholder="`refinerDesc.${lang.code}`" />
-                      </div>
+                      <template v-if="isRefinerUsageModel(model)">
+                        <div class="tryon-model-subtitle">精修说明多语言 refinerDesc</div>
+                        <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`refiner-desc-${model.__uid}-${lang.code}`">
+                          <span class="tryon-model-label">{{ lang.label }}</span>
+                          <el-input v-model="model.refinerDesc[lang.code]" type="textarea" :rows="2" :placeholder="`refinerDesc.${lang.code}`" />
+                        </div>
+                      </template>
 
                       <template v-if="model.modelUsage === 'beautify'">
                         <div class="tryon-model-subtitle">美肤说明多语言 beautifyDesc</div>
@@ -655,12 +758,86 @@
         <el-button type="primary" @click="handleSave">保存</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="modelLogDetailVisible" title="模型调用日志详情" width="1000px" destroy-on-close>
+      <el-descriptions :column="2" border>
+        <el-descriptions-item label="时间">{{ formatDateTime(modelLogDetail.CreatedAt) }}</el-descriptions-item>
+        <el-descriptions-item label="耗时">{{ Number(modelLogDetail.durationMs || 0) }}ms</el-descriptions-item>
+        <el-descriptions-item label="任务号">{{ modelLogDetail.taskNo || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="请求ID">{{ modelLogDetail.requestID || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="场景/行为">{{ `${modelLogDetail.sceneType || '-'} / ${modelLogDetail.behavior || '-'}` }}</el-descriptions-item>
+        <el-descriptions-item label="阶段">{{ modelLogDetail.callStage || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="模型">{{ `${modelLogDetail.modelKey || '-'} (${modelLogDetail.modelUsage || '-'})` }}</el-descriptions-item>
+        <el-descriptions-item label="Provider">{{ modelLogDetail.provider || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="调用地址" :span="2">{{ modelLogDetail.endpointURL || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="查询地址" :span="2">{{ modelLogDetail.queryURL || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="输入图" :span="2">{{ modelLogDetail.sourceImage || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="模板图" :span="2">{{ modelLogDetail.templateImage || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="结果图" :span="2">{{ modelLogDetail.resultImage || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="状态">{{ modelLogDetail.status || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="错误信息">{{ modelLogDetail.errorMessage || '-' }}</el-descriptions-item>
+      </el-descriptions>
+
+      <div class="model-log-image-grid">
+        <div class="model-log-image-card">
+          <div class="model-log-payload-title">输入图 sourceImage</div>
+          <el-image
+            v-if="hasPreviewableImage(modelLogDetail.sourceImage)"
+            :src="modelLogDetail.sourceImage"
+            :preview-src-list="buildImagePreviewList(modelLogDetail.sourceImage)"
+            fit="cover"
+            preview-teleported
+            class="model-log-image"
+          />
+          <div v-else class="model-log-image-empty">无可预览图片</div>
+        </div>
+        <div class="model-log-image-card">
+          <div class="model-log-payload-title">模板图 templateImage</div>
+          <el-image
+            v-if="hasPreviewableImage(modelLogDetail.templateImage)"
+            :src="modelLogDetail.templateImage"
+            :preview-src-list="buildImagePreviewList(modelLogDetail.templateImage)"
+            fit="cover"
+            preview-teleported
+            class="model-log-image"
+          />
+          <div v-else class="model-log-image-empty">无可预览图片</div>
+        </div>
+        <div class="model-log-image-card">
+          <div class="model-log-payload-title">结果图 resultImage</div>
+          <el-image
+            v-if="hasPreviewableImage(modelLogDetail.resultImage)"
+            :src="modelLogDetail.resultImage"
+            :preview-src-list="buildImagePreviewList(modelLogDetail.resultImage)"
+            fit="cover"
+            preview-teleported
+            class="model-log-image"
+          />
+          <div v-else class="model-log-image-empty">无可预览图片</div>
+        </div>
+      </div>
+
+      <div class="model-log-payload-grid">
+        <div class="model-log-payload-item">
+          <div class="model-log-payload-title">协同模型 relatedModels</div>
+          <el-input :model-value="formatPayloadText(modelLogDetail.relatedModels)" type="textarea" :rows="6" readonly />
+        </div>
+        <div class="model-log-payload-item">
+          <div class="model-log-payload-title">请求 payload</div>
+          <el-input :model-value="formatPayloadText(modelLogDetail.requestPayload)" type="textarea" :rows="12" readonly />
+        </div>
+        <div class="model-log-payload-item">
+          <div class="model-log-payload-title">响应 payload</div>
+          <el-input :model-value="formatPayloadText(modelLogDetail.responsePayload)" type="textarea" :rows="12" readonly />
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { getSysConfigList, updateSysConfig, getAliyunTryonQuotaEstimate } from '@/api/client/sysConfig'
+import { getSysConfigList, updateSysConfig, getAliyunTryonQuotaEstimate, getModelCallLogList } from '@/api/client/sysConfig'
 import { ElMessage } from 'element-plus'
 
 // 配置组定义
@@ -693,6 +870,7 @@ const booleanKeys = [
   'maintenance_enabled', 'maintenance_popup_enabled', 'maintenance_home_btn_enabled',
   'phone_login_enabled', 'username_login_enabled', 'password_change_enabled',
   'sign_in_enabled', 'announcement_enabled',
+  'tryon_append_parsing_failed_tip', 'tryon_append_refiner_failed_tip',
   'payment_auto_enabled', 'payment_manual_qrcode_enabled', 'payment_manual_contact_enabled',
   'payment_wechat_enabled', 'payment_alipay_enabled', 'payment_bank_cn_enabled',
   'payment_bank_us_enabled', 'payment_bank_mn_enabled', 'payment_paypal_enabled'
@@ -703,13 +881,13 @@ const isBooleanConfig = (row) => booleanKeys.includes(row.configKey)
 const colorKeys = ['announcement_text_color', 'payment_tip_text_color']
 const isColorConfig = (row) => colorKeys.includes(row.configKey)
 
-const isTryonModelsConfig = (row) => ['tryon_models', 'shoe_models'].includes(row?.configKey)
+const isTryonModelsConfig = (row) => row?.configKey === 'tryon_models'
 const isTryonRechargePlansConfig = (row) => row?.configKey === 'tryon_recharge_plans'
 const isPaymentManualMethodsConfig = (row) => row?.configKey === 'payment_manual_methods'
 const isPaymentUniPreferredMethodsConfig = (row) => row?.configKey === 'payment_uni_preferred_methods'
 
 // 密钥键列表
-const secretKeys = ['tryon_provider_token']
+const secretKeys = []
 const isSecretConfig = (row) => secretKeys.includes(row.configKey)
 
 const maskSecretValue = (value) => {
@@ -726,7 +904,8 @@ const maskSecretValue = (value) => {
 const jsonKeys = [
   'payment_tip_text', 'maintenance_popup_title', 'maintenance_popup_content',
   'announcement_content', 'maintenance_message',
-  'username_regex_tip', 'password_regex_tip'
+  'username_regex_tip', 'password_regex_tip',
+  'tryon_parsing_failed_tip_text', 'tryon_refiner_failed_tip_text'
 ]
 const isJsonConfig = (row) => jsonKeys.includes(row.configKey)
 
@@ -740,6 +919,35 @@ const numberKeys = [
 ]
 const isNumberConfig = (row) => numberKeys.includes(row.configKey)
 
+const padDatePart = (value) => String(value).padStart(2, '0')
+
+const formatDateRangeValue = (date) => {
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())} ${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}:${padDatePart(date.getSeconds())}`
+}
+
+const buildDefaultModelLogDateRange = () => {
+  const end = new Date()
+  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000)
+  return [formatDateRangeValue(start), formatDateRangeValue(end)]
+}
+
+const normalizeLogImageURL = (value) => {
+  const url = String(value || '').trim()
+  if (!url || url === '-') {
+    return ''
+  }
+  return url
+}
+
+const hasPreviewableImage = (value) => {
+  return !!normalizeLogImageURL(value)
+}
+
+const buildImagePreviewList = (value) => {
+  const url = normalizeLogImageURL(value)
+  return url ? [url] : []
+}
+
 const activeGroup = ref('')
 const searchInfo = ref({
   page: 1,
@@ -750,6 +958,23 @@ const searchInfo = ref({
 
 const tableData = ref([])
 const total = ref(0)
+const modelCallLogList = ref([])
+const modelLogTotal = ref(0)
+const modelLogLoading = ref(false)
+const modelLogDateRange = ref(buildDefaultModelLogDateRange())
+const modelLogSearch = reactive({
+  page: 1,
+  pageSize: 20,
+  startCreatedAt: '',
+  endCreatedAt: '',
+  onlyFailed: false,
+  sceneType: '',
+  modelUsage: '',
+  status: '',
+  keyword: '',
+})
+const modelLogDetailVisible = ref(false)
+const modelLogDetail = ref({})
 const editVisible = ref(false)
 const editForm = ref({})
 const editBoolValue = ref(false)
@@ -841,15 +1066,106 @@ const normalizeGender = (value, fallback = 'woman') => {
   return fallback
 }
 
-const normalizeModelUsage = (value, fallback = 'tryon') => {
-  const text = String(value || fallback || '').trim().toLowerCase()
-  return text === 'beautify' ? 'beautify' : 'tryon'
+const inferLegacyModelUsage = (model = {}) => {
+  const key = String(model.key || model.modelKey || '').trim().toLowerCase()
+  const modelName = String(model.model || model.refinerModel || model.beautifyModel || '').trim().toLowerCase()
+  const hint = `${key} ${modelName}`
+
+  if (toBool(model.supportsBeautify, false)) {
+    return 'beautify'
+  }
+  if (hint.includes('refiner')) {
+    return 'refiner'
+  }
+  if (hint.includes('parsing') || hint.includes('takeoff')) {
+    return 'parsing'
+  }
+  return 'tryon'
 }
 
-const isBeautifyUsageModel = (model = {}) => normalizeModelUsage(model.modelUsage, 'tryon') === 'beautify'
+const normalizeModelUsage = (value, fallback = 'tryon', model = {}) => {
+  const text = String(value || '').trim().toLowerCase()
+  const inferred = inferLegacyModelUsage(model)
+
+  if (text === 'refiner' || text === 'parsing' || text === 'beautify') {
+    return text
+  }
+  if (text === 'tryon') {
+    if (inferred === 'refiner' || inferred === 'parsing' || inferred === 'beautify') {
+      return inferred
+    }
+    return 'tryon'
+  }
+
+  if (inferred === 'refiner' || inferred === 'parsing' || inferred === 'beautify') {
+    return inferred
+  }
+
+  const fallbackText = String(fallback || '').trim().toLowerCase()
+  if (['tryon', 'refiner', 'parsing', 'beautify'].includes(fallbackText)) {
+    return fallbackText
+  }
+  return 'tryon'
+}
+
+const isTryonUsageModel = (model = {}) => normalizeModelUsage(model.modelUsage, 'tryon', model) === 'tryon'
+const isRefinerUsageModel = (model = {}) => normalizeModelUsage(model.modelUsage, 'tryon', model) === 'refiner'
+const isParsingUsageModel = (model = {}) => normalizeModelUsage(model.modelUsage, 'tryon', model) === 'parsing'
+const isBeautifyUsageModel = (model = {}) => normalizeModelUsage(model.modelUsage, 'tryon', model) === 'beautify'
+
+const usageLabelMap = {
+  tryon: '试衣模型',
+  refiner: '图片精修',
+  parsing: '分割模型',
+  beautify: '美肤模型',
+}
+
+const usageTagTypeMap = {
+  tryon: 'primary',
+  refiner: 'warning',
+  parsing: 'info',
+  beautify: 'success',
+}
+
+const getModelUsageLabel = (model = {}) => {
+  const usage = normalizeModelUsage(model.modelUsage, 'tryon', model)
+  return usageLabelMap[usage] || '试衣模型'
+}
+
+const getModelUsageTagType = (model = {}) => {
+  const usage = normalizeModelUsage(model.modelUsage, 'tryon', model)
+  return usageTagTypeMap[usage] || 'primary'
+}
+
+const beautifyModelKeyOptions = computed(() => {
+  return Array.from(new Set(
+    tryonModels.value
+      .filter(model => isBeautifyUsageModel(model))
+      .map(model => String(model.key || '').trim())
+      .filter(Boolean)
+  ))
+})
+
+const refinerModelKeyOptions = computed(() => {
+  return Array.from(new Set(
+    tryonModels.value
+      .filter(model => isRefinerUsageModel(model))
+      .map(model => String(model.key || '').trim())
+      .filter(Boolean)
+  ))
+})
+
+const parsingModelKeyOptions = computed(() => {
+  return Array.from(new Set(
+    tryonModels.value
+      .filter(model => isParsingUsageModel(model))
+      .map(model => String(model.key || '').trim())
+      .filter(Boolean)
+  ))
+})
 
 const isAliyunModelForQuota = (model = {}) => {
-  if (isBeautifyUsageModel(model)) {
+  if (!isTryonUsageModel(model) && !isRefinerUsageModel(model)) {
     return false
   }
   const key = String(model.key || '').trim().toLowerCase()
@@ -859,7 +1175,7 @@ const isAliyunModelForQuota = (model = {}) => {
 }
 
 const inferSupportsRefiner = (model = {}) => {
-  if (isBeautifyUsageModel(model)) {
+  if (!isTryonUsageModel(model)) {
     return false
   }
   if (!isAliyunModelForQuota(model)) {
@@ -918,6 +1234,7 @@ const refreshAliyunQuota = async (model = {}, force = false) => {
   if (!state) return
 
   const modelKey = String(model.key || '').trim()
+  const modelUsage = normalizeModelUsage(model.modelUsage, 'tryon', model)
   if (!modelKey) {
     state.error = '请先填写模型 key 后再刷新额度估算'
     return
@@ -937,7 +1254,11 @@ const refreshAliyunQuota = async (model = {}, force = false) => {
       return
     }
     const list = Array.isArray(res?.data?.list) ? res.data.list : []
-    const matched = list.find(item => String(item.modelKey || '').trim() === modelKey)
+    const matched = list.find(item => {
+      const itemKey = String(item.modelKey || '').trim()
+      const itemUsage = normalizeModelUsage(item.modelUsage, 'tryon', item)
+      return itemKey === modelKey && itemUsage === modelUsage
+    })
     if (!matched) {
       state.error = '未找到该模型额度数据'
       state.data = null
@@ -1260,7 +1581,8 @@ const createDefaultTryonModel = () => ({
   __uid: createTryonModelUid(),
   key: '',
   modelUsage: 'tryon',
-  beautifyModelKey: '',
+  parsingModelKey: '',
+  refinerModelKey: '',
   enabled: true,
   scenes: ['clothes'],
   model: 'aitryon',
@@ -1272,24 +1594,22 @@ const createDefaultTryonModel = () => ({
   url: '',
   taskQueryUrl: '',
   token: '',
+
   apiName: '/tryon',
   garmentDes: 'clothing item',
   isChecked: true,
   isCheckedCrop: false,
   denoiseSteps: 30,
   seed: 42,
+
   resolution: -1,
   restoreFace: true,
+
   clothesType: ['upper'],
-  autoEnableAliyunParsingUpperOnly: true,
-  autoEnableAliyunParsingLowerOnly: true,
-  supportsRefiner: false,
+  parsingExtraCost: 0,
   refinerExtraCost: 1,
-  refinerModel: 'aitryon-refiner',
   refinerGender: 'woman',
-  refinerUrl: '',
-  refinerTaskQueryUrl: '',
-  refinerToken: '',
+
   supportsBeautify: false,
   beautifyExtraCost: 0,
   beautifyModel: 'custom_beautify',
@@ -1300,25 +1620,25 @@ const createDefaultTryonModel = () => ({
   beautifyAccessKeySecret: '',
   beautifySecurityToken: '',
   beautifyToken: '',
+
   freeQuotaTotal: 400,
-  refinerFreeQuotaTotal: 400,
-  refinerDesc: buildMultilingualObject({}, ''),
   beautifyDesc: buildMultilingualObject({}, ''),
 })
 
 const normalizeTryonModel = (item = {}, index = 0) => {
   const defaultModel = createDefaultTryonModel()
-  const modelUsage = normalizeModelUsage(item.modelUsage, defaultModel.modelUsage)
-  const inferredSupportsRefiner = modelUsage === 'beautify' ? false : inferSupportsRefiner(item)
-  const inferredAutoAliyunParsing = modelUsage === 'beautify' ? false : inferSupportsRefiner(item)
-  const defaultFreeQuota = isAliyunModelForQuota(item) ? 400 : 0
+  const modelUsage = normalizeModelUsage(item.modelUsage, defaultModel.modelUsage, item)
+  const inferredSupportsRefiner = modelUsage === 'tryon' ? inferSupportsRefiner(item) : false
+  const inferredAutoAliyunParsing = modelUsage === 'tryon' ? inferSupportsRefiner(item) : false
+  const defaultFreeQuota = isAliyunModelForQuota({ ...item, modelUsage }) ? 400 : 0
   const normalizedFreeQuota = Math.max(0, toInt(item.freeQuotaTotal, defaultFreeQuota))
-  const normalizedRefinerFreeQuota = Math.max(0, toInt(item.refinerFreeQuotaTotal, inferredSupportsRefiner ? (normalizedFreeQuota || 400) : 0))
-  return {
+  const defaultRefinerKey = inferredSupportsRefiner ? 'aliyun_aitryon_refiner' : ''
+  const defaultParsingKey = inferredAutoAliyunParsing ? 'aliyun_aitryon_parsing' : ''
+
+  const normalized = {
     __uid: createTryonModelUid(),
-    key: String(item.key || item.modelKey || ''),
+    key: String(item.key || item.modelKey || `model_${index + 1}`),
     modelUsage,
-    beautifyModelKey: '',
     enabled: toBool(item.enabled, true),
     scenes: toStringArray(item.scenes, [String(item.sceneType || '').trim() || 'clothes']),
     model: String(item.model || defaultModel.model),
@@ -1330,27 +1650,32 @@ const normalizeTryonModel = (item = {}, index = 0) => {
     url: String(item.url || item.providerUrl || ''),
     taskQueryUrl: String(item.taskQueryUrl || ''),
     token: String(item.token || item.providerToken || ''),
-    apiName: String(item.apiName || defaultModel.apiName),
-    garmentDes: String(item.garmentDes || defaultModel.garmentDes),
-    isChecked: toBool(item.isChecked, true),
-    isCheckedCrop: toBool(item.isCheckedCrop, false),
-    denoiseSteps: Math.max(1, toInt(item.denoiseSteps, 30)),
-    seed: toInt(item.seed, 42),
-    resolution: toInt(item.resolution, -1),
-    restoreFace: toBool(item.restoreFace, true),
-    clothesType: toStringArray(item.clothesType, ['upper']),
-    autoEnableAliyunParsingUpperOnly: modelUsage === 'beautify' ? false : toBool(item.autoEnableAliyunParsingUpperOnly, inferredAutoAliyunParsing),
-    autoEnableAliyunParsingLowerOnly: modelUsage === 'beautify' ? false : toBool(item.autoEnableAliyunParsingLowerOnly, inferredAutoAliyunParsing),
-    supportsRefiner: modelUsage === 'beautify' ? false : toBool(item.supportsRefiner, inferredSupportsRefiner),
-    refinerExtraCost: modelUsage === 'beautify' ? 0 : Math.max(0, toInt(item.refinerExtraCost, inferredSupportsRefiner ? 1 : 0)),
-    refinerModel: String(item.refinerModel || defaultModel.refinerModel),
-    refinerGender: normalizeGender(item.refinerGender, defaultModel.refinerGender),
+
+    parsingModelKey: '',
+    refinerModelKey: '',
+    apiName: '',
+    garmentDes: '',
+    isChecked: true,
+    isCheckedCrop: false,
+    denoiseSteps: 30,
+    seed: 42,
+    resolution: -1,
+    restoreFace: true,
+    clothesType: ['upper'],
+    parsingExtraCost: 0,
+    refinerExtraCost: 1,
+    refinerGender: 'woman',
+
+    // Legacy fields kept for compatibility during migration.
+    supportsRefiner: false,
+    refinerModel: String(item.refinerModel || ''),
     refinerUrl: String(item.refinerUrl || ''),
     refinerTaskQueryUrl: String(item.refinerTaskQueryUrl || ''),
     refinerToken: String(item.refinerToken || ''),
+
     supportsBeautify: modelUsage === 'beautify',
-    beautifyExtraCost: Math.max(0, toInt(item.beautifyExtraCost ?? item.beautifyExtraPoints, modelUsage === 'beautify' ? toInt(item.cost, 0) : 0)),
-    beautifyModel: String(modelUsage === 'beautify' ? (item.beautifyModel || item.model || defaultModel.beautifyModel) : ''),
+    beautifyExtraCost: 0,
+    beautifyModel: '',
     beautifyRetouchDegree: Math.max(0, Math.min(100, toInt(item.beautifyRetouchDegree, defaultModel.beautifyRetouchDegree))),
     beautifyWhiteningDegree: Math.max(0, Math.min(100, toInt(item.beautifyWhiteningDegree, defaultModel.beautifyWhiteningDegree))),
     beautifyUrl: String(item.beautifyUrl || ''),
@@ -1358,11 +1683,50 @@ const normalizeTryonModel = (item = {}, index = 0) => {
     beautifyAccessKeySecret: String(item.beautifyAccessKeySecret || ''),
     beautifySecurityToken: String(item.beautifySecurityToken || ''),
     beautifyToken: String(item.beautifyToken || ''),
+
     freeQuotaTotal: normalizedFreeQuota,
-    refinerFreeQuotaTotal: normalizedRefinerFreeQuota,
-    refinerDesc: normalizeI18nObject(item.refinerDesc),
     beautifyDesc: normalizeI18nObject(item.beautifyDesc),
+    refinerDesc: normalizeI18nObject(item.refinerDesc),
   }
+
+  if (modelUsage === 'tryon') {
+    normalized.apiName = String(item.apiName || defaultModel.apiName)
+    normalized.garmentDes = String(item.garmentDes || defaultModel.garmentDes)
+    normalized.isChecked = toBool(item.isChecked, true)
+    normalized.isCheckedCrop = toBool(item.isCheckedCrop, false)
+    normalized.denoiseSteps = Math.max(1, toInt(item.denoiseSteps, 30))
+    normalized.seed = toInt(item.seed, 42)
+    normalized.resolution = toInt(item.resolution, -1)
+    normalized.restoreFace = toBool(item.restoreFace, true)
+    normalized.parsingModelKey = String(item.parsingModelKey || defaultParsingKey).trim()
+    normalized.refinerModelKey = String(item.refinerModelKey || '').trim()
+    if (!normalized.refinerModelKey && toBool(item.supportsRefiner, inferredSupportsRefiner)) {
+      normalized.refinerModelKey = defaultRefinerKey
+    }
+    normalized.supportsRefiner = !!normalized.refinerModelKey
+    return normalized
+  }
+
+  if (modelUsage === 'refiner') {
+    normalized.refinerExtraCost = Math.max(0, toInt(item.refinerExtraCost ?? item.refinerExtraPoints, toInt(item.cost, 1)))
+    normalized.refinerGender = normalizeGender(item.refinerGender, defaultModel.refinerGender)
+    normalized.supportsRefiner = true
+    return normalized
+  }
+
+  if (modelUsage === 'parsing') {
+    normalized.clothesType = toStringArray(item.clothesType, ['upper'])
+    normalized.parsingExtraCost = Math.max(0, toInt(item.parsingExtraCost ?? item.parsingExtraPoints, toInt(item.cost, 0)))
+    normalized.cost = normalized.parsingExtraCost
+    return normalized
+  }
+
+  normalized.cost = Math.max(0, toInt(item.cost, 0))
+  normalized.supportsBeautify = true
+  normalized.beautifyExtraCost = Math.max(0, toInt(item.beautifyExtraCost ?? item.beautifyExtraPoints, toInt(item.cost, 0)))
+  normalized.beautifyModel = String(item.beautifyModel || item.model || defaultModel.beautifyModel)
+  normalized.model = normalized.beautifyModel
+  return normalized
 }
 
 const parseTryonModelsValue = (rawValue) => {
@@ -1378,72 +1742,135 @@ const parseTryonModelsValue = (rawValue) => {
 }
 
 const buildTryonModelsPayload = () => {
-  return tryonModels.value.map((item) => ({
-    key: String(item.key || '').trim(),
-    modelUsage: normalizeModelUsage(item.modelUsage, 'tryon'),
-    beautifyModelKey: '',
-    enabled: !!item.enabled,
-    scenes: toStringArray(item.scenes, ['clothes']),
-    model: String(item.model || '').trim(),
-    name: normalizeI18nObject(item.name),
-    desc: normalizeI18nObject(item.desc),
-    cost: Math.max(0, toInt(item.cost, 0)),
-    provider: String(item.provider || '').trim(),
-    mode: String(item.mode || '').trim(),
-    url: String(item.url || '').trim(),
-    taskQueryUrl: String(item.taskQueryUrl || '').trim(),
-    token: String(item.token || '').trim(),
-    apiName: String(item.apiName || '').trim(),
-    garmentDes: String(item.garmentDes || '').trim(),
-    isChecked: !!item.isChecked,
-    isCheckedCrop: !!item.isCheckedCrop,
-    denoiseSteps: Math.max(1, toInt(item.denoiseSteps, 30)),
-    seed: toInt(item.seed, 42),
-    resolution: toInt(item.resolution, -1),
-    restoreFace: !!item.restoreFace,
-    clothesType: toStringArray(item.clothesType, []),
-    autoEnableAliyunParsingUpperOnly: normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? false : !!item.autoEnableAliyunParsingUpperOnly,
-    autoEnableAliyunParsingLowerOnly: normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? false : !!item.autoEnableAliyunParsingLowerOnly,
-    supportsRefiner: normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? false : !!item.supportsRefiner,
-    refinerExtraCost: Math.max(0, toInt(item.refinerExtraCost, 0)),
-    refinerModel: String(item.refinerModel || '').trim(),
-    refinerGender: normalizeGender(item.refinerGender, 'woman'),
-    refinerUrl: String(item.refinerUrl || '').trim(),
-    refinerTaskQueryUrl: String(item.refinerTaskQueryUrl || '').trim(),
-    refinerToken: String(item.refinerToken || '').trim(),
-    supportsBeautify: normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify',
-    beautifyExtraCost: Math.max(0, toInt(item.beautifyExtraCost, normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? toInt(item.cost, 0) : 0)),
-    beautifyModel: String(normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? (item.beautifyModel || item.model || '') : '').trim(),
-    beautifyRetouchDegree: Math.max(0, Math.min(100, toInt(item.beautifyRetouchDegree, 70))),
-    beautifyWhiteningDegree: Math.max(0, Math.min(100, toInt(item.beautifyWhiteningDegree, 30))),
-    beautifyUrl: String(normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? item.beautifyUrl : '').trim(),
-    beautifyAccessKeyId: String(normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? item.beautifyAccessKeyId : '').trim(),
-    beautifyAccessKeySecret: String(normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? item.beautifyAccessKeySecret : '').trim(),
-    beautifySecurityToken: String(normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? item.beautifySecurityToken : '').trim(),
-    beautifyToken: String(normalizeModelUsage(item.modelUsage, 'tryon') === 'beautify' ? item.beautifyToken : '').trim(),
-    freeQuotaTotal: Math.max(0, toInt(item.freeQuotaTotal, 0)),
-    refinerFreeQuotaTotal: Math.max(0, toInt(item.refinerFreeQuotaTotal, 0)),
-    refinerDesc: normalizeI18nObject(item.refinerDesc),
-    beautifyDesc: normalizeI18nObject(item.beautifyDesc),
-  }))
+  return tryonModels.value.map((item) => {
+    const modelUsage = normalizeModelUsage(item.modelUsage, 'tryon', item)
+    const payload = {
+      key: String(item.key || '').trim(),
+      modelUsage,
+      enabled: !!item.enabled,
+      scenes: toStringArray(item.scenes, ['clothes']),
+      model: String(item.model || '').trim(),
+      name: normalizeI18nObject(item.name),
+      desc: normalizeI18nObject(item.desc),
+      cost: Math.max(0, toInt(item.cost, 0)),
+      provider: String(item.provider || '').trim(),
+      mode: String(item.mode || '').trim(),
+      url: String(item.url || '').trim(),
+      taskQueryUrl: String(item.taskQueryUrl || '').trim(),
+      token: String(item.token || '').trim(),
+    }
+
+    if (modelUsage === 'tryon') {
+      const providerLower = String(item.provider || '').trim().toLowerCase()
+      const result = {
+        ...payload,
+        freeQuotaTotal: Math.max(0, toInt(item.freeQuotaTotal, 0)),
+        resolution: toInt(item.resolution, -1),
+        restoreFace: !!item.restoreFace,
+        parsingModelKey: String(item.parsingModelKey || '').trim(),
+        refinerModelKey: String(item.refinerModelKey || '').trim(),
+      }
+      if (providerLower.includes('gradio') || providerLower.includes('huggingface') || providerLower.includes('hf')) {
+        result.apiName = String(item.apiName || '').trim() || '/tryon'
+        result.garmentDes = String(item.garmentDes || '').trim() || 'clothing item'
+        result.isChecked = !!item.isChecked
+        result.isCheckedCrop = !!item.isCheckedCrop
+        result.denoiseSteps = Math.max(1, toInt(item.denoiseSteps, 30))
+        result.seed = toInt(item.seed, 42)
+      }
+      return result
+    }
+
+    if (modelUsage === 'refiner') {
+      return {
+        ...payload,
+        freeQuotaTotal: Math.max(0, toInt(item.freeQuotaTotal, 0)),
+        refinerExtraCost: Math.max(0, toInt(item.refinerExtraCost, toInt(item.cost, 0))),
+        refinerGender: normalizeGender(item.refinerGender, 'woman'),
+        refinerDesc: normalizeI18nObject(item.refinerDesc),
+      }
+    }
+
+    if (modelUsage === 'parsing') {
+      const parsingExtraCost = Math.max(0, toInt(item.parsingExtraCost, toInt(item.cost, 0)))
+      return {
+        ...payload,
+        cost: parsingExtraCost,
+        parsingExtraCost,
+        freeQuotaTotal: Math.max(0, toInt(item.freeQuotaTotal, 0)),
+        clothesType: toStringArray(item.clothesType, ['upper']),
+      }
+    }
+
+    return {
+      ...payload,
+      beautifyExtraCost: Math.max(0, toInt(item.beautifyExtraCost, toInt(item.cost, 0))),
+      beautifyModel: String(item.beautifyModel || item.model || '').trim(),
+      beautifyRetouchDegree: Math.max(0, Math.min(100, toInt(item.beautifyRetouchDegree, 70))),
+      beautifyWhiteningDegree: Math.max(0, Math.min(100, toInt(item.beautifyWhiteningDegree, 30))),
+      beautifyUrl: String(item.beautifyUrl || '').trim(),
+      beautifyAccessKeyId: String(item.beautifyAccessKeyId || '').trim(),
+      beautifyAccessKeySecret: String(item.beautifyAccessKeySecret || '').trim(),
+      beautifySecurityToken: String(item.beautifySecurityToken || '').trim(),
+      beautifyToken: String(item.beautifyToken || '').trim(),
+      beautifyDesc: normalizeI18nObject(item.beautifyDesc),
+    }
+  })
 }
 
 const validateTryonModels = () => {
   let hasBeautifyModel = false
+  const keySet = new Set()
+  const refinerKeySet = new Set(
+    tryonModels.value
+      .filter(item => normalizeModelUsage(item.modelUsage, 'tryon', item) === 'refiner')
+      .map(item => String(item.key || '').trim())
+      .filter(Boolean)
+  )
+  const parsingKeySet = new Set(
+    tryonModels.value
+      .filter(item => normalizeModelUsage(item.modelUsage, 'tryon', item) === 'parsing')
+      .map(item => String(item.key || '').trim())
+      .filter(Boolean)
+  )
+
   for (let i = 0; i < tryonModels.value.length; i++) {
     const item = tryonModels.value[i]
     const modelIndex = i + 1
-    const modelUsage = normalizeModelUsage(item.modelUsage, 'tryon')
-    if (!String(item.key || '').trim()) {
+    const modelUsage = normalizeModelUsage(item.modelUsage, 'tryon', item)
+    const modelKey = String(item.key || '').trim()
+    if (!modelKey) {
       ElMessage.warning(`第 ${modelIndex} 个模型缺少 key`)
       return false
     }
+    if (keySet.has(modelKey)) {
+      ElMessage.warning(`模型 key 重复: ${modelKey}`)
+      return false
+    }
+    keySet.add(modelKey)
     if (!Array.isArray(item.scenes) || item.scenes.length === 0) {
       ElMessage.warning(`第 ${modelIndex} 个模型至少要选择一个场景`)
       return false
     }
-    if (modelUsage !== 'beautify' && item.supportsRefiner && !String(item.refinerModel || '').trim()) {
-      ElMessage.warning(`第 ${modelIndex} 个模型已开启精修，但缺少 refinerModel`)
+    if (modelUsage === 'tryon') {
+      const refinerModelKey = String(item.refinerModelKey || '').trim()
+      if (refinerModelKey && !refinerKeySet.has(refinerModelKey)) {
+      ElMessage.warning(`第 ${modelIndex} 个模型绑定的精修模型不存在或用途不为 refiner: ${refinerModelKey}`)
+      return false
+      }
+
+      const parsingModelKey = String(item.parsingModelKey || '').trim()
+      if (parsingModelKey && !parsingKeySet.has(parsingModelKey)) {
+      ElMessage.warning(`第 ${modelIndex} 个模型绑定的分割模型不存在或用途不为 parsing: ${parsingModelKey}`)
+      return false
+      }
+    }
+    if (modelUsage === 'refiner' && !String(item.model || '').trim()) {
+      ElMessage.warning(`第 ${modelIndex} 个精修模型缺少 model`)
+      return false
+    }
+    if (modelUsage === 'parsing' && !String(item.model || '').trim()) {
+      ElMessage.warning(`第 ${modelIndex} 个分割模型缺少 model`)
       return false
     }
     if (modelUsage === 'beautify' && !String(item.beautifyModel || item.model || '').trim()) {
@@ -1485,6 +1912,99 @@ const cloneTryonModel = (index) => {
 
 const removeTryonModel = (index) => {
   tryonModels.value.splice(index, 1)
+}
+
+const modelCallStatusTag = (status) => {
+  const value = String(status || '').trim().toLowerCase()
+  if (value === 'success') return 'success'
+  if (value === 'processing') return 'warning'
+  if (value === 'failed' || value === 'error') return 'danger'
+  return 'info'
+}
+
+const formatDateTime = (value) => {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return String(value)
+  }
+  return date.toLocaleString()
+}
+
+const formatPayloadText = (payload) => {
+  const raw = String(payload || '').trim()
+  if (!raw) return '-'
+  try {
+    const parsed = JSON.parse(raw)
+    return JSON.stringify(parsed, null, 2)
+  } catch {
+    return raw
+  }
+}
+
+const getModelLogList = async () => {
+  modelLogLoading.value = true
+  try {
+    const [startCreatedAt = '', endCreatedAt = ''] = Array.isArray(modelLogDateRange.value) ? modelLogDateRange.value : []
+    modelLogSearch.startCreatedAt = startCreatedAt
+    modelLogSearch.endCreatedAt = endCreatedAt
+
+    const params = {
+      ...modelLogSearch,
+      status: modelLogSearch.onlyFailed ? '' : modelLogSearch.status,
+    }
+
+    const res = await getModelCallLogList(params)
+    if (res.code === 0) {
+      modelCallLogList.value = res?.data?.list || []
+      modelLogTotal.value = Number(res?.data?.total || 0)
+      return
+    }
+    modelCallLogList.value = []
+    modelLogTotal.value = 0
+    ElMessage.error(res.msg || '获取模型调用日志失败')
+  } catch (e) {
+    modelCallLogList.value = []
+    modelLogTotal.value = 0
+    ElMessage.error(e?.message || '获取模型调用日志失败')
+  } finally {
+    modelLogLoading.value = false
+  }
+}
+
+const handleModelLogSearch = () => {
+  modelLogSearch.page = 1
+  getModelLogList()
+}
+
+const resetModelLogSearch = () => {
+  modelLogDateRange.value = buildDefaultModelLogDateRange()
+  modelLogSearch.page = 1
+  modelLogSearch.pageSize = 20
+  modelLogSearch.startCreatedAt = ''
+  modelLogSearch.endCreatedAt = ''
+  modelLogSearch.onlyFailed = false
+  modelLogSearch.sceneType = ''
+  modelLogSearch.modelUsage = ''
+  modelLogSearch.status = ''
+  modelLogSearch.keyword = ''
+  getModelLogList()
+}
+
+const handleModelLogCurrentChange = (val) => {
+  modelLogSearch.page = val
+  getModelLogList()
+}
+
+const handleModelLogSizeChange = (val) => {
+  modelLogSearch.pageSize = val
+  modelLogSearch.page = 1
+  getModelLogList()
+}
+
+const openModelLogDetail = (row) => {
+  modelLogDetail.value = { ...row }
+  modelLogDetailVisible.value = true
 }
 
 const handleGroupChange = (val) => {
@@ -1633,6 +2153,7 @@ const handleSave = async () => {
 
 onMounted(() => {
   getList()
+  getModelLogList()
 })
 </script>
 
@@ -1756,6 +2277,13 @@ onMounted(() => {
   margin-bottom: 6px;
 }
 
+.tryon-model-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #909399;
+}
+
 .tryon-model-subtitle {
   grid-column: 1 / -1;
   font-size: 12px;
@@ -1771,8 +2299,67 @@ onMounted(() => {
   gap: 8px;
 }
 
+.model-call-log-search {
+  margin-top: 14px;
+}
+
+.model-call-log-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.model-log-payload-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.model-log-image-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.model-log-image-card {
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.model-log-image {
+  width: 100%;
+  height: 190px;
+  border-radius: 6px;
+  border: 1px solid #f2f3f5;
+}
+
+.model-log-image-empty {
+  width: 100%;
+  height: 190px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #909399;
+  border-radius: 6px;
+  border: 1px dashed #dcdfe6;
+  background: #fafafa;
+}
+
+.model-log-payload-title {
+  font-size: 12px;
+  color: #606266;
+  margin-bottom: 6px;
+}
+
 @media (max-width: 900px) {
   .tryon-model-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .model-log-image-grid {
     grid-template-columns: 1fr;
   }
 }

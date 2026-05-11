@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
@@ -14,13 +15,12 @@ import (
 
 type PointRecordService struct{}
 
-type TryonPointModelStatsItem struct {
-	ModelKey            string `json:"modelKey"`
-	TaskCount           int64  `json:"taskCount"`
-	RefinerEnabledCount int64  `json:"refinerEnabledCount"`
-	BeautifyUsedCount   int64  `json:"beautifyUsedCount"`
-	TotalCostPoints     int64  `json:"totalCostPoints"`
-	BeautifyCostPoints  int64  `json:"beautifyCostPoints"`
+type TryonPointDailyTrendItem struct {
+	Date     string `json:"date"`
+	Granted  int64  `json:"granted"`
+	Consumed int64  `json:"consumed"`
+	Refunded int64  `json:"refunded"`
+	NetUsed  int64  `json:"netUsed"`
 }
 
 type TryonPointStatsData struct {
@@ -31,11 +31,8 @@ type TryonPointStatsData struct {
 	AdminDecreaseTotal  int64                      `json:"adminDecreaseTotal"`
 	TotalGranted        int64                      `json:"totalGranted"`
 	TotalUsed           int64                      `json:"totalUsed"`
-	BeautifyUsedTotal   int64                      `json:"beautifyUsedTotal"`
-	ModelCallTotal      int64                      `json:"modelCallTotal"`
-	ModelCostTotal      int64                      `json:"modelCostTotal"`
-	BeautifyCostTotal   int64                      `json:"beautifyCostTotal"`
-	ModelStats          []TryonPointModelStatsItem `json:"modelStats"`
+	RefundTotal         int64                      `json:"refundTotal"`
+	DailyTrend          []TryonPointDailyTrendItem `json:"dailyTrend"`
 }
 
 func normalizeAssetType(assetType *string) (string, error) {
@@ -152,7 +149,55 @@ func (cprService *PointRecordService) executePointRecordLogic(tx *gorm.DB, cpr *
 		return err
 	}
 
+	if assetType == client.AssetTypeTryonPoint {
+		if err := cprService.saveTryonPointStatsEvent(tx, cpr); err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+func buildTryonPointStatsEventFromPointRecord(record *client.PointRecord) client.TryonPointStatsEvent {
+	event := client.TryonPointStatsEvent{
+		SourcePointRecordID: record.ID,
+		EventAt:             record.CreatedAt,
+		PointChange:         0,
+		PointAmount:         0,
+	}
+
+	if record.UserId != nil {
+		event.UserID = uint(*record.UserId)
+	}
+	if record.ChangeType != nil {
+		event.ChangeType = strings.TrimSpace(*record.ChangeType)
+	}
+	if record.OperationType != nil {
+		event.OperationType = strings.TrimSpace(*record.OperationType)
+	}
+	if record.Reason != nil {
+		event.Reason = strings.TrimSpace(*record.Reason)
+	}
+	if record.PointChange != nil {
+		event.PointChange = *record.PointChange
+		if *record.PointChange < 0 {
+			event.PointAmount = -*record.PointChange
+		} else {
+			event.PointAmount = *record.PointChange
+		}
+	}
+	return event
+}
+
+func (cprService *PointRecordService) saveTryonPointStatsEvent(tx *gorm.DB, record *client.PointRecord) error {
+	event := buildTryonPointStatsEventFromPointRecord(record)
+	if event.EventAt.IsZero() {
+		event.EventAt = time.Now()
+	}
+	if event.SourcePointRecordID == 0 {
+		return errors.New("pointRecordIDMissing")
+	}
+	return tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "source_point_record_id"}}, DoNothing: true}).Create(&event).Error
 }
 
 // DeletePointRecord 删除积分记录管理记录
@@ -262,15 +307,28 @@ func (cprService *PointRecordService) GetTryonPointStats(ctx context.Context, in
 
 	const (
 		tryonOpRecharge  = "tryon_recharge"
-		tryonOpBeautify  = "tryon_beautify_consume"
 		adminAdjustOpKey = "admin_adjust_tryon_point"
 	)
+	consumeOps := []string{tryonOpConsume, tryonOpRefinerConsume, tryonOpParsingConsume, tryonOpBeautifyConsume}
+	refundOps := []string{tryonOpRefund, tryonOpRefinerRefund, tryonOpParsingRefund, tryonOpBeautifyRefund}
+	consumeOpSet := make(map[string]struct{}, len(consumeOps))
+	for _, op := range consumeOps {
+		consumeOpSet[strings.TrimSpace(op)] = struct{}{}
+	}
+	refundOpSet := make(map[string]struct{}, len(refundOps))
+	for _, op := range refundOps {
+		refundOpSet[strings.TrimSpace(op)] = struct{}{}
+	}
+
+	buildBaseQuery := func(filter clientReq.TryonPointStatsSearch) *gorm.DB {
+		return cprService.applyTryonPointStatsFilters(global.GVA_DB.Model(&client.TryonPointStatsEvent{}), filter)
+	}
 
 	sumByChangeType := func(operationType string, changeType string) (int64, error) {
 		var total int64
-		err := cprService.applyTryonPointStatsFilters(global.GVA_DB.Model(&client.PointRecord{}), info).
+		err := buildBaseQuery(info).
 			Where("operation_type = ? AND change_type = ?", strings.TrimSpace(operationType), strings.TrimSpace(changeType)).
-			Select("COALESCE(SUM(ABS(point_change)), 0)").
+			Select("COALESCE(SUM(point_amount), 0)").
 			Scan(&total).Error
 		return total, err
 	}
@@ -290,78 +348,140 @@ func (cprService *PointRecordService) GetTryonPointStats(ctx context.Context, in
 	if stats.AdminDecreaseTotal, err = sumByChangeType(adminAdjustOpKey, "decrease"); err != nil {
 		return stats, err
 	}
-	if stats.TotalUsed, err = sumByChangeType(tryonOpConsume, "decrease"); err != nil {
-		return stats, err
-	}
-	beautifyUsedCost, sumErr := sumByChangeType(tryonOpBeautify, "decrease")
-	if sumErr != nil {
-		return stats, sumErr
-	}
-	stats.TotalUsed += beautifyUsedCost
 
-	if err = cprService.applyTryonPointStatsFilters(global.GVA_DB.Model(&client.PointRecord{}), info).
-		Where("point_change > 0").
-		Select("COALESCE(SUM(point_change), 0)").
+	totalConsumed := int64(0)
+	for _, operationType := range consumeOps {
+		usedPoints, sumErr := sumByChangeType(operationType, "decrease")
+		if sumErr != nil {
+			return stats, sumErr
+		}
+		totalConsumed += usedPoints
+	}
+
+	totalRefund := int64(0)
+	for _, operationType := range refundOps {
+		refundPoints, sumErr := sumByChangeType(operationType, "increase")
+		if sumErr != nil {
+			return stats, sumErr
+		}
+		totalRefund += refundPoints
+	}
+	stats.RefundTotal = totalRefund
+	stats.TotalUsed = totalConsumed - totalRefund
+
+	if err = buildBaseQuery(info).
+		Where("change_type = ?", "increase").
+		Where("operation_type NOT IN ?", refundOps).
+		Select("COALESCE(SUM(point_amount), 0)").
 		Scan(&stats.TotalGranted).Error; err != nil {
 		return stats, err
 	}
 
-	taskQuery := global.GVA_DB.Model(&client.TryonTask{})
-	if len(info.CreatedAtRange) == 2 {
-		taskQuery = taskQuery.Where("created_at BETWEEN ? AND ?", info.CreatedAtRange[0], info.CreatedAtRange[1])
-	}
-	if info.UserId != nil {
-		taskQuery = taskQuery.Where("user_id = ?", *info.UserId)
+	type trendEventRow struct {
+		EventAt       time.Time `json:"eventAt"`
+		ChangeType    string    `json:"changeType"`
+		OperationType string    `json:"operationType"`
+		PointAmount   int64     `json:"pointAmount"`
 	}
 
-	type modelAggRow struct {
-		Provider            string `json:"provider"`
-		TaskCount           int64  `json:"taskCount"`
-		RefinerEnabledCount int64  `json:"refinerEnabledCount"`
-		BeautifyUsedCount   int64  `json:"beautifyUsedCount"`
-		TotalCostPoints     int64  `json:"totalCostPoints"`
-		BeautifyCostPoints  int64  `json:"beautifyCostPoints"`
+	trendFilter := info
+	autoTrendWindow := len(trendFilter.CreatedAtRange) != 2
+	if autoTrendWindow {
+		now := time.Now()
+		start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -29)
+		end := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, int(time.Second-time.Nanosecond), now.Location())
+		trendFilter.CreatedAtRange = []time.Time{start, end}
 	}
-	var rows []modelAggRow
-	err = taskQuery.
-		Select("provider, COUNT(*) as task_count, COALESCE(SUM(CASE WHEN enable_refiner THEN 1 ELSE 0 END), 0) as refiner_enabled_count, COALESCE(SUM(CASE WHEN beautify_status <> '' AND beautify_status <> 'disabled' THEN 1 ELSE 0 END), 0) as beautify_used_count, COALESCE(SUM(cost_points), 0) as total_cost_points, COALESCE(SUM(beautify_cost), 0) as beautify_cost_points").
-		Group("provider").
-		Order("task_count DESC").
+
+	rows := make([]trendEventRow, 0)
+	err = buildBaseQuery(trendFilter).
+		Select("event_at, change_type, operation_type, point_amount").
+		Order("event_at ASC").
 		Scan(&rows).Error
 	if err != nil {
 		return stats, err
 	}
 
-	stats.ModelStats = make([]TryonPointModelStatsItem, 0, len(rows))
-	for _, row := range rows {
-		modelKey := strings.TrimSpace(row.Provider)
-		if modelKey == "" {
-			modelKey = "default"
+	if autoTrendWindow && len(rows) == 0 {
+		var latestEvent client.TryonPointStatsEvent
+		latestErr := buildBaseQuery(info).
+			Select("event_at").
+			Order("event_at DESC").
+			Limit(1).
+			Take(&latestEvent).Error
+		if latestErr != nil {
+			if !errors.Is(latestErr, gorm.ErrRecordNotFound) {
+				return stats, latestErr
+			}
+		} else if !latestEvent.EventAt.IsZero() {
+			end := time.Date(latestEvent.EventAt.Year(), latestEvent.EventAt.Month(), latestEvent.EventAt.Day(), 23, 59, 59, int(time.Second-time.Nanosecond), latestEvent.EventAt.Location())
+			start := end.AddDate(0, 0, -13)
+			trendFilter.CreatedAtRange = []time.Time{start, end}
+			rows = rows[:0]
+			err = buildBaseQuery(trendFilter).
+				Select("event_at, change_type, operation_type, point_amount").
+				Order("event_at ASC").
+				Scan(&rows).Error
+			if err != nil {
+				return stats, err
+			}
 		}
-		stats.ModelStats = append(stats.ModelStats, TryonPointModelStatsItem{
-			ModelKey:            modelKey,
-			TaskCount:           row.TaskCount,
-			RefinerEnabledCount: row.RefinerEnabledCount,
-			BeautifyUsedCount:   row.BeautifyUsedCount,
-			TotalCostPoints:     row.TotalCostPoints,
-			BeautifyCostPoints:  row.BeautifyCostPoints,
-		})
-		stats.ModelCallTotal += row.TaskCount
-		stats.ModelCostTotal += row.TotalCostPoints
-		stats.BeautifyUsedTotal += row.BeautifyUsedCount
-		stats.BeautifyCostTotal += row.BeautifyCostPoints
+	}
+
+	trendByDate := make(map[string]*TryonPointDailyTrendItem, len(rows))
+	for _, row := range rows {
+		dateKey := row.EventAt.Format("2006-01-02")
+		item, exists := trendByDate[dateKey]
+		if !exists {
+			item = &TryonPointDailyTrendItem{Date: dateKey}
+			trendByDate[dateKey] = item
+		}
+
+		operationType := strings.TrimSpace(row.OperationType)
+		changeType := strings.TrimSpace(row.ChangeType)
+
+		if changeType == "decrease" {
+			if _, ok := consumeOpSet[operationType]; ok {
+				item.Consumed += row.PointAmount
+			}
+			continue
+		}
+
+		if changeType == "increase" {
+			if _, ok := refundOpSet[operationType]; ok {
+				item.Refunded += row.PointAmount
+			} else {
+				item.Granted += row.PointAmount
+			}
+		}
+	}
+
+	startDay := time.Date(trendFilter.CreatedAtRange[0].Year(), trendFilter.CreatedAtRange[0].Month(), trendFilter.CreatedAtRange[0].Day(), 0, 0, 0, 0, trendFilter.CreatedAtRange[0].Location())
+	endDay := time.Date(trendFilter.CreatedAtRange[1].Year(), trendFilter.CreatedAtRange[1].Month(), trendFilter.CreatedAtRange[1].Day(), 0, 0, 0, 0, trendFilter.CreatedAtRange[1].Location())
+	if endDay.Before(startDay) {
+		startDay, endDay = endDay, startDay
+	}
+
+	stats.DailyTrend = make([]TryonPointDailyTrendItem, 0)
+	for cursor := startDay; !cursor.After(endDay); cursor = cursor.AddDate(0, 0, 1) {
+		dateKey := cursor.Format("2006-01-02")
+		item, exists := trendByDate[dateKey]
+		if !exists {
+			item = &TryonPointDailyTrendItem{Date: dateKey}
+		}
+		item.NetUsed = item.Consumed - item.Refunded
+		stats.DailyTrend = append(stats.DailyTrend, *item)
 	}
 
 	return stats, nil
 }
 
 func (cprService *PointRecordService) applyTryonPointStatsFilters(db *gorm.DB, info clientReq.TryonPointStatsSearch) *gorm.DB {
-	db = db.Where("asset_type = ?", client.AssetTypeTryonPoint)
 	if len(info.CreatedAtRange) == 2 {
-		db = db.Where("created_at BETWEEN ? AND ?", info.CreatedAtRange[0], info.CreatedAtRange[1])
+		db = db.Where("event_at BETWEEN ? AND ?", info.CreatedAtRange[0], info.CreatedAtRange[1])
 	}
-	if info.UserId != nil {
-		db = db.Where("user_id = ?", *info.UserId)
+	if info.UserId != nil && *info.UserId > 0 {
+		db = db.Where("user_id = ?", uint(*info.UserId))
 	}
 	return db
 }

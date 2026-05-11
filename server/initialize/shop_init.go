@@ -160,6 +160,8 @@ func initShopApis(db *gorm.DB) {
 		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getConfigByKey", Description: "按key获取配置"},
 		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getSysConfigByGroup", Description: "按分组获取配置"},
 		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getSysConfigByKey", Description: "按key获取单条配置"},
+		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getAliyunTryonQuotaEstimate", Description: "获取阿里试衣额度估算"},
+		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getModelCallLogList", Description: "获取模型调用日志列表"},
 		// 外部链接域名
 		{ApiGroup: "外部链接域名", Method: "POST", Path: "/extDomain/createExternalLinkDomain", Description: "创建外部链接域名"},
 		{ApiGroup: "外部链接域名", Method: "DELETE", Path: "/extDomain/deleteExternalLinkDomain", Description: "删除外部链接域名"},
@@ -324,6 +326,8 @@ func initShopCasbin(db *gorm.DB) {
 		{"/sysConfig/getConfigByKey", "GET"},
 		{"/sysConfig/getSysConfigByGroup", "GET"},
 		{"/sysConfig/getSysConfigByKey", "GET"},
+		{"/sysConfig/getAliyunTryonQuotaEstimate", "GET"},
+		{"/sysConfig/getModelCallLogList", "GET"},
 		// 外部链接域名
 		{"/extDomain/createExternalLinkDomain", "POST"},
 		{"/extDomain/deleteExternalLinkDomain", "DELETE"},

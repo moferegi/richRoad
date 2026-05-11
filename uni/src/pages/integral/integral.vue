@@ -90,6 +90,8 @@ const REASON_KEYS = [
 const OPERATION_REASON_KEY_MAP = {
   tryon_consume: 'reason_tryonTaskDeduct',
   tryon_refund: 'reason_tryonTaskRefund',
+  tryon_refiner_consume: 'reason_tryonTaskDeduct',
+  tryon_refiner_refund: 'reason_tryonTaskRefund',
   tryon_guest_init: 'reason_tryonGuestInit',
   tryon_register_reward: 'reason_tryonRegisterReward',
   tryon_invite_register_reward: 'reason_tryonInviteReward',

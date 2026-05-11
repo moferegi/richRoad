@@ -68,6 +68,7 @@ func initNewModulesApis(db *gorm.DB) {
 		{ApiGroup: "签到管理", Method: "DELETE", Path: "/signIn/deleteSignIn", Description: "管理端删除签到记录"},
 		// 试衣任务
 		{ApiGroup: "试衣任务", Method: "POST", Path: "/tryonTask/createTryonTask", Description: "创建试衣任务"},
+		{ApiGroup: "试衣任务", Method: "POST", Path: "/tryonTask/applyTryonBeautify", Description: "执行试衣结果智能美肤"},
 		{ApiGroup: "试衣任务", Method: "DELETE", Path: "/tryonTask/deleteTryonTask", Description: "删除试衣任务(管理端)"},
 		{ApiGroup: "试衣任务", Method: "DELETE", Path: "/tryonTask/deleteTryonTaskByIds", Description: "批量删除试衣任务(管理端)"},
 		{ApiGroup: "试衣任务", Method: "GET", Path: "/tryonTask/findTryonTask", Description: "根据ID查询试衣任务"},
@@ -261,6 +262,7 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/signIn/deleteSignIn", "DELETE"},
 		// 试衣任务
 		{"/tryonTask/createTryonTask", "POST"},
+		{"/tryonTask/applyTryonBeautify", "POST"},
 		{"/tryonTask/deleteTryonTask", "DELETE"},
 		{"/tryonTask/deleteTryonTaskByIds", "DELETE"},
 		{"/tryonTask/findTryonTask", "GET"},

@@ -21,6 +21,7 @@ func (s *SysConfigRouter) InitSysConfigRouter(Router *gin.RouterGroup, PublicRou
 		sysConfigRouterWithoutRecord.GET("getSysConfigList", sysConfigApi.GetSysConfigList)                       // 获取系统参数列表
 		sysConfigRouterWithoutRecord.GET("getSysConfigByGroup", sysConfigApi.GetSysConfigByGroup)                 // 按分组获取参数
 		sysConfigRouterWithoutRecord.GET("getAliyunTryonQuotaEstimate", sysConfigApi.GetAliyunTryonQuotaEstimate) // 阿里模型剩余额度估算(管理端)
+		sysConfigRouterWithoutRecord.GET("getModelCallLogList", sysConfigApi.GetModelCallLogList)                 // 模型调用日志列表(管理端)
 	}
 	{
 		sysConfigPublicRouter.GET("getAnnouncementConfig", sysConfigApi.GetAnnouncementConfig) // 公告配置(公开)

@@ -49,6 +49,33 @@ description: "GVA 功能开发标准工作流。用于新建/扩展插件或业�
 - 新增词条时同步更新 layout/client/language（或项目实际 i18n 文件）
 - 上传规则（格式/大小）优先走后端配置源
 
+## 试衣模型配置专项规范（强制）
+1. 单一配置源
+- 统一使用 tryon_models 作为试衣/试鞋/取衣/美肤模型入口
+- 禁止新增或恢复 shoe_models 等并行模型列表
+- C 端下发配置接口仅返回 tryon_models，不再暴露废弃模型键
+
+2. 模型独立参数
+- 每个模型必须自带 provider、mode、url、token、taskQueryUrl 等调用参数
+- 禁止依赖全局 tryon_provider_mode / tryon_provider_url / tryon_provider_token 回退
+- 管理端编辑器按模型能力展示字段，禁止“全模型统一堆叠无关参数”
+
+3. 协同模型绑定规则
+- 协同能力（如精修、美肤、分割）通过 modelKey 或模型内显式字段关联
+- 试衣主模型优先通过 beautifyModelKey / refinerModelKey / parsingModelKey 绑定协同模型
+- 禁止不同模型共享同一 token 配置作为默认回退
+- 精修 token 留空只允许回退到当前模型 token，不允许跨模型回退
+
+4. 参数治理
+- 对当前运行链路无效的参数必须删除或隐藏，不得长期保留“占位参数”
+- 兼容历史字段时，必须在迁移完成后清理数据库旧键与前端入口
+- 配置说明需明确“哪些字段生效于哪些 provider/scene”
+
+5. 统计与运营联动
+- 新增或重命名试衣模型后，必须同步检查 tryonPointRecord 与 tryonTaskManage 的统计口径
+- 至少验证：模型维度筛选、成功/失败计数、精修计数、扣退币统计在新模型下正确
+- 若模型拆分为多子模型，需补充对应管理端可观测指标，避免运营看板失真
+
 ## Uni 多语言详细处理（强制执行）
 1. 后端接口返回规范
 - 参数绑定错误统一返回通用 key（如 invalidParams），禁止把绑定错误文本直接透传到前端

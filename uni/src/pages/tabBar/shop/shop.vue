@@ -316,7 +316,6 @@ const exampleImageFailIndex = ref({})
 const tryonConfig = ref({
   tryon_cost_points: '1',
   tryon_models: '',
-  shoe_models: '',
 })
 
 const personLocal = ref('')
@@ -1019,9 +1018,8 @@ const uploadDrawerTip = computed(() => {
 })
 
 const rebuildModelList = () => {
-  const shoesModelsRaw = tryonConfig.value.shoe_models || tryonConfig.value.tryon_models
   modelList.value = parseTryonModels(
-    shoesModelsRaw,
+    tryonConfig.value.tryon_models,
     'shoes',
     Number(tryonConfig.value.tryon_cost_points || 1),
     langStore.locale
@@ -1262,7 +1260,7 @@ const goGenerate = () => {
 }
 
 watch(
-  [() => tryonConfig.value.shoe_models, () => tryonConfig.value.tryon_models, () => tryonConfig.value.tryon_cost_points, () => langStore.locale],
+  [() => tryonConfig.value.tryon_models, () => tryonConfig.value.tryon_cost_points, () => langStore.locale],
   () => {
     rebuildModelList()
   }

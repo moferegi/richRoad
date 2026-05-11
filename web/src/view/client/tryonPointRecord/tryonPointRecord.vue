@@ -39,7 +39,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="操作类型" prop="operationType">
-          <el-input v-model="searchInfo.operationType" clearable placeholder="如 tryon_consume / tryon_beautify_consume" />
+          <el-input v-model="searchInfo.operationType" clearable placeholder="如 tryon_consume / tryon_refiner_consume / tryon_beautify_consume" />
         </el-form-item>
         <el-form-item label="原因" prop="reason">
           <el-input v-model="searchInfo.reason" clearable placeholder="搜索原因" />
@@ -110,38 +110,34 @@
             <el-card shadow="hover" class="stats-card"><div class="stats-label">后台减少</div><div class="stats-value">{{ stats.adminDecreaseTotal }}</div></el-card>
             <el-card shadow="hover" class="stats-card"><div class="stats-label">总试衣币(获得)</div><div class="stats-value">{{ stats.totalGranted }}</div></el-card>
             <el-card shadow="hover" class="stats-card"><div class="stats-label">已使用试衣币</div><div class="stats-value">{{ stats.totalUsed }}</div></el-card>
-            <el-card shadow="hover" class="stats-card"><div class="stats-label">模型调用总次数</div><div class="stats-value">{{ stats.modelCallTotal }}</div></el-card>
-            <el-card shadow="hover" class="stats-card"><div class="stats-label">模型总消耗试衣币</div><div class="stats-value">{{ stats.modelCostTotal }}</div></el-card>
-            <el-card shadow="hover" class="stats-card"><div class="stats-label">美肤使用次数</div><div class="stats-value">{{ stats.beautifyUsedTotal }}</div></el-card>
-            <el-card shadow="hover" class="stats-card"><div class="stats-label">美肤总消耗试衣币</div><div class="stats-value">{{ stats.beautifyCostTotal }}</div></el-card>
+            <el-card shadow="hover" class="stats-card"><div class="stats-label">试衣币回退（失败回退）</div><div class="stats-value">{{ stats.refundTotal }}</div></el-card>
           </div>
 
           <div class="chart-grid">
             <el-card shadow="never">
               <template #header>
-                <div class="chart-title">每个模型调用次数</div>
+                <div class="chart-title">每日试衣币趋势（获得/消耗/回退）</div>
               </template>
-              <div ref="modelCallChartRef" class="chart-container" />
+              <div ref="dailyTrendChartRef" class="chart-container" />
             </el-card>
             <el-card shadow="never">
               <template #header>
-                <div class="chart-title">模型消耗试衣币占比</div>
+                <div class="chart-title">每日净消耗趋势（消耗 - 回退）</div>
               </template>
-              <div ref="modelCostChartRef" class="chart-container" />
+              <div ref="dailyNetChartRef" class="chart-container" />
             </el-card>
           </div>
 
-          <el-card class="model-stats-wrap" shadow="never">
+          <el-card class="trend-table-wrap" shadow="never">
             <template #header>
-              <div class="model-stats-title">模型统计明细</div>
+              <div class="trend-table-title">每日统计明细</div>
             </template>
-            <el-table :data="stats.modelStats" border stripe>
-              <el-table-column label="模型" prop="modelKey" min-width="180" />
-              <el-table-column label="调用次数" prop="taskCount" width="130" />
-              <el-table-column label="开启精修次数" prop="refinerEnabledCount" width="150" />
-              <el-table-column label="美肤使用次数" prop="beautifyUsedCount" width="150" />
-              <el-table-column label="总消耗试衣币" prop="totalCostPoints" width="150" />
-              <el-table-column label="美肤消耗试衣币" prop="beautifyCostPoints" width="150" />
+            <el-table :data="stats.dailyTrend" border stripe>
+              <el-table-column label="日期" prop="date" width="140" />
+              <el-table-column label="获得" prop="granted" width="120" />
+              <el-table-column label="消耗" prop="consumed" width="120" />
+              <el-table-column label="回退" prop="refunded" width="120" />
+              <el-table-column label="净消耗" prop="netUsed" width="120" />
             </el-table>
           </el-card>
         </template>
@@ -177,26 +173,18 @@ const stats = ref({
   adminDecreaseTotal: 0,
   totalGranted: 0,
   totalUsed: 0,
-  beautifyUsedTotal: 0,
-  modelCallTotal: 0,
-  modelCostTotal: 0,
-  beautifyCostTotal: 0,
-  modelStats: [],
+  refundTotal: 0,
+  dailyTrend: [],
 })
 const searchInfo = ref({ assetType: 'tryon_point', sort: 'created_at', order: 'descending' })
 const userLoading = ref(false)
 const userOptions = ref([])
 const userCache = ref(new Map())
-const modelCallChartRef = ref(null)
-const modelCostChartRef = ref(null)
+const dailyTrendChartRef = ref(null)
+const dailyNetChartRef = ref(null)
 
-let modelCallChartInstance = null
-let modelCostChartInstance = null
-
-const formatModelKey = (value) => {
-  const key = String(value || '').trim()
-  return key || 'default'
-}
+let dailyTrendChartInstance = null
+let dailyNetChartInstance = null
 
 const buildStatsSearchParams = () => {
   return {
@@ -250,14 +238,13 @@ const getStatsData = async () => {
   try {
     const res = await getPointRecordStats(buildStatsSearchParams())
     if (res.code === 0) {
-      const modelStats = Array.isArray(res.data?.modelStats)
-        ? res.data.modelStats.map(item => ({
-          modelKey: formatModelKey(item.modelKey),
-          taskCount: Number(item.taskCount || 0),
-          refinerEnabledCount: Number(item.refinerEnabledCount || 0),
-          beautifyUsedCount: Number(item.beautifyUsedCount || 0),
-          totalCostPoints: Number(item.totalCostPoints || 0),
-          beautifyCostPoints: Number(item.beautifyCostPoints || 0),
+      const dailyTrend = Array.isArray(res.data?.dailyTrend)
+        ? res.data.dailyTrend.map(item => ({
+          date: String(item.date || ''),
+          granted: Number(item.granted || 0),
+          consumed: Number(item.consumed || 0),
+          refunded: Number(item.refunded || 0),
+          netUsed: Number(item.netUsed || 0),
         }))
         : []
       stats.value = {
@@ -268,25 +255,83 @@ const getStatsData = async () => {
         adminDecreaseTotal: Number(res.data?.adminDecreaseTotal || 0),
         totalGranted: Number(res.data?.totalGranted || 0),
         totalUsed: Number(res.data?.totalUsed || 0),
-        beautifyUsedTotal: Number(res.data?.beautifyUsedTotal || 0),
-        modelCallTotal: Number(res.data?.modelCallTotal || 0),
-        modelCostTotal: Number(res.data?.modelCostTotal || 0),
-        beautifyCostTotal: Number(res.data?.beautifyCostTotal || 0),
-        modelStats,
+        refundTotal: Number(res.data?.refundTotal || 0),
+        dailyTrend,
       }
-      await nextTick()
-      renderCharts()
     }
   } finally {
     statsLoading.value = false
   }
+
+  // Wait for skeleton switch and chart containers to mount before initializing ECharts.
+  await nextTick()
+  renderCharts()
 }
 
-const getModelCallChartOption = () => {
+const getDailyTrendChartOption = () => {
   const isDark = appStore.isDark
   const textColor = isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)'
-  const xData = stats.value.modelStats.map(item => item.modelKey)
-  const yData = stats.value.modelStats.map(item => item.taskCount)
+  const xData = stats.value.dailyTrend.map(item => item.date)
+  const grantedData = stats.value.dailyTrend.map(item => item.granted)
+  const consumedData = stats.value.dailyTrend.map(item => item.consumed)
+  const refundedData = stats.value.dailyTrend.map(item => item.refunded)
+  return {
+    backgroundColor: 'transparent',
+    tooltip: { trigger: 'axis', axisPointer: { type: 'line' } },
+    legend: {
+      top: 0,
+      textStyle: { color: textColor },
+      data: ['获得', '消耗', '回退'],
+    },
+    grid: { left: 16, right: 16, bottom: 8, top: 16, containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: xData,
+      axisLabel: { color: textColor, rotate: xData.length > 10 ? 24 : 0 },
+      axisLine: { lineStyle: { color: isDark ? '#4b5563' : '#dcdfe6' } },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { color: textColor },
+      splitLine: { lineStyle: { color: isDark ? 'rgba(255,255,255,0.08)' : '#ebeef5' } },
+    },
+    series: [
+      {
+        name: '获得',
+        type: 'line',
+        smooth: true,
+        data: grantedData,
+        symbolSize: 6,
+        lineStyle: { width: 2, color: '#67c23a' },
+        itemStyle: { color: '#67c23a' },
+      },
+      {
+        name: '消耗',
+        type: 'line',
+        smooth: true,
+        data: consumedData,
+        symbolSize: 6,
+        lineStyle: { width: 2, color: '#f56c6c' },
+        itemStyle: { color: '#f56c6c' },
+      },
+      {
+        name: '回退',
+        type: 'line',
+        smooth: true,
+        data: refundedData,
+        symbolSize: 6,
+        lineStyle: { width: 2, color: '#409eff' },
+        itemStyle: { color: '#409eff' },
+      },
+    ],
+  }
+}
+
+const getDailyNetChartOption = () => {
+  const isDark = appStore.isDark
+  const textColor = isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)'
+  const xData = stats.value.dailyTrend.map(item => item.date)
+  const netData = stats.value.dailyTrend.map(item => item.netUsed)
   return {
     backgroundColor: 'transparent',
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
@@ -294,7 +339,7 @@ const getModelCallChartOption = () => {
     xAxis: {
       type: 'category',
       data: xData,
-      axisLabel: { color: textColor, rotate: xData.length > 4 ? 18 : 0 },
+      axisLabel: { color: textColor, rotate: xData.length > 10 ? 24 : 0 },
       axisLine: { lineStyle: { color: isDark ? '#4b5563' : '#dcdfe6' } },
     },
     yAxis: {
@@ -303,11 +348,12 @@ const getModelCallChartOption = () => {
       splitLine: { lineStyle: { color: isDark ? 'rgba(255,255,255,0.08)' : '#ebeef5' } },
     },
     series: [{
+      name: '净消耗',
       type: 'bar',
-      data: yData,
+      data: netData,
       barMaxWidth: 44,
       itemStyle: {
-        color: '#409eff',
+        color: (params) => (Number(params.value) >= 0 ? '#e6a23c' : '#909399'),
         borderRadius: [4, 4, 0, 0],
       },
       label: {
@@ -320,68 +366,27 @@ const getModelCallChartOption = () => {
   }
 }
 
-const getModelCostChartOption = () => {
-  const isDark = appStore.isDark
-  const textColor = isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)'
-  return {
-    backgroundColor: 'transparent',
-    tooltip: { trigger: 'item' },
-    legend: {
-      orient: 'vertical',
-      right: 0,
-      top: 'middle',
-      textStyle: { color: textColor, fontSize: 12 },
-    },
-    series: [
-      {
-        name: '模型扣币',
-        type: 'pie',
-        radius: ['42%', '68%'],
-        center: ['36%', '50%'],
-        avoidLabelOverlap: true,
-        itemStyle: {
-          borderRadius: 6,
-          borderColor: isDark ? '#1f2937' : '#fff',
-          borderWidth: 2,
-        },
-        label: { show: false },
-        emphasis: {
-          label: {
-            show: true,
-            formatter: '{b}\n{c}币',
-            fontSize: 12,
-          },
-        },
-        data: stats.value.modelStats.map(item => ({
-          name: item.modelKey,
-          value: item.totalCostPoints,
-        })),
-      },
-    ],
-  }
-}
-
 const renderCharts = () => {
   if (activeTab.value !== 'stats') {
     return
   }
 
-  if (modelCallChartRef.value) {
-    if (modelCallChartInstance) {
-      modelCallChartInstance.dispose()
-      modelCallChartInstance = null
+  if (dailyTrendChartRef.value) {
+    if (dailyTrendChartInstance) {
+      dailyTrendChartInstance.dispose()
+      dailyTrendChartInstance = null
     }
-    modelCallChartInstance = echarts.init(modelCallChartRef.value, appStore.isDark ? 'dark' : null)
-    modelCallChartInstance.setOption(getModelCallChartOption())
+    dailyTrendChartInstance = echarts.init(dailyTrendChartRef.value, appStore.isDark ? 'dark' : null)
+    dailyTrendChartInstance.setOption(getDailyTrendChartOption())
   }
 
-  if (modelCostChartRef.value) {
-    if (modelCostChartInstance) {
-      modelCostChartInstance.dispose()
-      modelCostChartInstance = null
+  if (dailyNetChartRef.value) {
+    if (dailyNetChartInstance) {
+      dailyNetChartInstance.dispose()
+      dailyNetChartInstance = null
     }
-    modelCostChartInstance = echarts.init(modelCostChartRef.value, appStore.isDark ? 'dark' : null)
-    modelCostChartInstance.setOption(getModelCostChartOption())
+    dailyNetChartInstance = echarts.init(dailyNetChartRef.value, appStore.isDark ? 'dark' : null)
+    dailyNetChartInstance.setOption(getDailyNetChartOption())
   }
 }
 
@@ -392,11 +397,11 @@ const handleTabChange = async (tabName) => {
 }
 
 const handleResize = () => {
-  if (modelCallChartInstance) {
-    modelCallChartInstance.resize()
+  if (dailyTrendChartInstance) {
+    dailyTrendChartInstance.resize()
   }
-  if (modelCostChartInstance) {
-    modelCostChartInstance.resize()
+  if (dailyNetChartInstance) {
+    dailyNetChartInstance.resize()
   }
 }
 
@@ -448,13 +453,13 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
-  if (modelCallChartInstance) {
-    modelCallChartInstance.dispose()
-    modelCallChartInstance = null
+  if (dailyTrendChartInstance) {
+    dailyTrendChartInstance.dispose()
+    dailyTrendChartInstance = null
   }
-  if (modelCostChartInstance) {
-    modelCostChartInstance.dispose()
-    modelCostChartInstance = null
+  if (dailyNetChartInstance) {
+    dailyNetChartInstance.dispose()
+    dailyNetChartInstance = null
   }
 })
 </script>
@@ -512,11 +517,11 @@ onBeforeUnmount(() => {
   height: 320px;
 }
 
-.model-stats-wrap {
+.trend-table-wrap {
   margin-top: 16px;
 }
 
-.model-stats-title {
+.trend-table-title {
   font-size: 14px;
   font-weight: 600;
 }

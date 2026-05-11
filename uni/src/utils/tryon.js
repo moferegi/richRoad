@@ -177,12 +177,19 @@ const toBool = (value, fallback = false) => {
 
 const normalizeModelUsage = (value) => {
   const usage = String(value || '').trim().toLowerCase()
-  return usage === 'beautify' ? 'beautify' : 'tryon'
+  if (['tryon', 'refiner', 'parsing', 'beautify'].includes(usage)) {
+    return usage
+  }
+  return 'tryon'
 }
 
 const isBeautifyModelUsage = (item = {}) => normalizeModelUsage(item?.modelUsage) === 'beautify'
 
-const isTryonModelUsage = (item = {}) => !isBeautifyModelUsage(item)
+const isTryonModelUsage = (item = {}) => normalizeModelUsage(item?.modelUsage) === 'tryon'
+
+const isRefinerModelUsage = (item = {}) => normalizeModelUsage(item?.modelUsage) === 'refiner'
+
+const isParsingModelUsage = (item = {}) => normalizeModelUsage(item?.modelUsage) === 'parsing'
 
 const isAliyunTryonModel = (item = {}) => {
   if (!isTryonModelUsage(item)) return false
@@ -246,21 +253,75 @@ const parseTryonModelsRaw = (modelsRaw) => {
   return []
 }
 
-const normalizeTryonModelItem = (item = {}, index = 0, fallbackCost = 1, lang = '') => {
+const normalizeRefinerModelItem = (item = {}, index = 0, lang = '') => {
+  const key = String(item.key || item.modelKey || `refiner_${index + 1}`)
+  const rawName = item.nameI18n || item.name || item.titleI18n || item.title || key
+  const rawDesc = item.refinerDescI18n || item.refinerDesc || item.descI18n || item.desc || ''
+
+  return {
+    key,
+    modelUsage: 'refiner',
+    name: toLocalizedText(rawName, lang) || key,
+    model: String(item.model || item.refinerModel || 'aitryon-refiner'),
+    provider: item.provider || '',
+    mode: item.mode || '',
+    url: item.url || item.refinerUrl || item.providerUrl || '',
+    token: item.token || item.refinerToken || item.providerToken || '',
+    refinerExtraCost: Math.max(0, Number(item.refinerExtraCost || item.refinerExtraPoints || 0)),
+    refinerGender: normalizeRefinerGender(item.refinerGender, 'woman'),
+    refinerDesc: rawDesc,
+    refinerDescText: toLocalizedText(rawDesc, lang),
+    freeQuotaTotal: Math.max(0, Number(item.freeQuotaTotal || 0)),
+  }
+}
+
+const normalizeParsingModelItem = (item = {}, index = 0, lang = '') => {
+  const key = String(item.key || item.modelKey || `parsing_${index + 1}`)
+  const rawName = item.nameI18n || item.name || item.titleI18n || item.title || key
+  const rawDesc = item.parsingDescI18n || item.parsingDesc || item.descI18n || item.desc || ''
+
+  return {
+    key,
+    modelUsage: 'parsing',
+    name: toLocalizedText(rawName, lang) || key,
+    model: String(item.model || ''),
+    provider: item.provider || '',
+    mode: item.mode || '',
+    url: item.url || item.providerUrl || '',
+    token: item.token || item.providerToken || '',
+    parsingExtraCost: Math.max(0, Number(item.parsingExtraCost || item.parsingExtraPoints || 0)),
+    parsingDesc: rawDesc,
+    parsingDescText: toLocalizedText(rawDesc, lang),
+    freeQuotaTotal: Math.max(0, Number(item.freeQuotaTotal || 0)),
+  }
+}
+
+const normalizeTryonModelItem = (item = {}, index = 0, fallbackCost = 1, lang = '', refinerModelMap = new Map(), parsingModelMap = new Map()) => {
   const key = String(item.key || item.modelKey || `model_${index + 1}`)
   const rawName = item.nameI18n || item.name || item.titleI18n || item.title || key
   const rawDesc = item.descI18n || item.desc || item.descriptionI18n || item.description || ''
   const rawRefinerDesc = item.refinerDescI18n || item.refinerDesc || ''
   const rawBeautifyDesc = item.beautifyDescI18n || item.beautifyDesc || ''
-  const supportsRefiner = toBool(item.supportsRefiner, inferSupportsRefiner(item))
+  const parsingModelKey = String(item.parsingModelKey || '').trim()
+  const refinerModelKey = String(item.refinerModelKey || '').trim()
+  const linkedParsing = parsingModelKey ? parsingModelMap.get(parsingModelKey) : null
+  const linkedRefiner = refinerModelKey ? refinerModelMap.get(refinerModelKey) : null
+  const supportsRefiner = !!linkedRefiner || toBool(item.supportsRefiner, inferSupportsRefiner(item))
   const supportsBeautify = toBool(item.supportsBeautify, inferSupportsBeautify(item))
-  const refinerExtraCost = Math.max(0, Number(item.refinerExtraCost || item.refinerExtraPoints || 0))
+  const parsingExtraCost = linkedParsing
+    ? Math.max(0, Number(linkedParsing.parsingExtraCost || 0))
+    : Math.max(0, Number(item.parsingExtraCost || item.parsingExtraPoints || 0))
+  const refinerExtraCost = linkedRefiner
+    ? Math.max(0, Number(linkedRefiner.refinerExtraCost || 0))
+    : Math.max(0, Number(item.refinerExtraCost || item.refinerExtraPoints || 0))
   const beautifyExtraCost = Math.max(0, Number(item.beautifyExtraCost || item.beautifyExtraPoints || 0))
 
   return {
     key,
     modelUsage: 'tryon',
-    beautifyModelKey: String(item.beautifyModelKey || ''),
+    parsingModelKey,
+    parsingExtraCost,
+    refinerModelKey,
     name: toLocalizedText(rawName, lang) || key,
     cost: Number(item.cost || fallbackCost || 1),
     desc: rawDesc,
@@ -271,10 +332,10 @@ const normalizeTryonModelItem = (item = {}, index = 0, fallbackCost = 1, lang = 
     token: item.token || item.providerToken || '',
     supportsRefiner,
     refinerExtraCost,
-    refinerModel: String(item.refinerModel || 'aitryon-refiner'),
-    refinerGender: normalizeRefinerGender(item.refinerGender, 'woman'),
-    refinerDesc: rawRefinerDesc,
-    refinerDescText: toLocalizedText(rawRefinerDesc, lang),
+    refinerModel: String(linkedRefiner?.model || item.refinerModel || 'aitryon-refiner'),
+    refinerGender: normalizeRefinerGender(linkedRefiner?.refinerGender || item.refinerGender, 'woman'),
+    refinerDesc: linkedRefiner?.refinerDesc || rawRefinerDesc,
+    refinerDescText: linkedRefiner?.refinerDescText || toLocalizedText(rawRefinerDesc, lang),
     supportsBeautify,
     beautifyModel: String(item.beautifyModel || 'RetouchSkin'),
     beautifyExtraCost,
@@ -289,11 +350,33 @@ const normalizeTryonModelItem = (item = {}, index = 0, fallbackCost = 1, lang = 
 export const parseTryonModels = (modelsRaw, sceneType, fallbackCost = 1, lang = '') => {
   const list = parseTryonModelsRaw(modelsRaw)
 
-  const normalized = list
+  const enabledSceneModels = list
     .filter(item => item && typeof item === 'object')
-    .filter(item => isTryonModelUsage(item))
     .filter(item => isModelEnabled(item) && matchSceneType(item, sceneType))
-    .map((item, index) => normalizeTryonModelItem(item, index, fallbackCost, lang))
+
+  const refinerList = enabledSceneModels
+    .filter(item => isRefinerModelUsage(item))
+    .map((item, index) => normalizeRefinerModelItem(item, index, lang))
+
+  const parsingList = enabledSceneModels
+    .filter(item => isParsingModelUsage(item))
+    .map((item, index) => normalizeParsingModelItem(item, index, lang))
+
+  const refinerModelMap = new Map(
+    refinerList
+      .map(item => [String(item.key || '').trim(), item])
+      .filter(([modelKey]) => !!modelKey)
+  )
+
+  const parsingModelMap = new Map(
+    parsingList
+      .map(item => [String(item.key || '').trim(), item])
+      .filter(([modelKey]) => !!modelKey)
+  )
+
+  const normalized = enabledSceneModels
+    .filter(item => isTryonModelUsage(item))
+    .map((item, index) => normalizeTryonModelItem(item, index, fallbackCost, lang, refinerModelMap, parsingModelMap))
 
   if (normalized.length > 0) {
     return normalized
@@ -302,11 +385,13 @@ export const parseTryonModels = (modelsRaw, sceneType, fallbackCost = 1, lang = 
   return [{
     key: 'aitryon',
     modelUsage: 'tryon',
-    beautifyModelKey: '',
+    parsingModelKey: '',
+    parsingExtraCost: 0,
+    refinerModelKey: '',
     name: 'aitryon',
     cost: Number(fallbackCost || 1),
-    supportsRefiner: true,
-    refinerExtraCost: 1,
+    supportsRefiner: false,
+    refinerExtraCost: 0,
     refinerModel: 'aitryon-refiner',
     refinerGender: 'woman',
     supportsBeautify: false,

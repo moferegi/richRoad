@@ -39,3 +39,16 @@ export const getAliyunTryonQuotaEstimate = (params = {}) => {
     params
   })
 }
+
+/**
+ * 分页获取模型调用日志
+ * @param {Object} params 查询参数
+ * @returns {Promise}
+ */
+export const getModelCallLogList = (params = {}) => {
+  return service({
+    url: '/sysConfig/getModelCallLogList',
+    method: 'get',
+    params
+  })
+}

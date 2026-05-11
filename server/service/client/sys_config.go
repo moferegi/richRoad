@@ -13,8 +13,16 @@ import (
 
 type SysConfigService struct{}
 
+var deprecatedSysConfigKeys = []string{
+	"shoe_models",
+	"tryon_provider_mode",
+	"tryon_provider_url",
+	"tryon_provider_token",
+}
+
 type AliyunTryonQuotaItem struct {
 	ModelKey                 string `json:"modelKey"`
+	ModelUsage               string `json:"modelUsage"`
 	Model                    string `json:"model"`
 	Provider                 string `json:"provider"`
 	FreeQuotaTotal           int    `json:"freeQuotaTotal"`
@@ -34,6 +42,7 @@ func (s *SysConfigService) GetSysConfigList(info clientReq.SysConfigSearch) (lis
 	limit := info.PageSize
 	offset := info.PageSize * (info.Page - 1)
 	db := global.GVA_DB.Model(&client.SysConfig{})
+	db = db.Where("config_key NOT IN ?", deprecatedSysConfigKeys)
 
 	if info.ConfigGroup != "" {
 		db = db.Where("config_group = ?", info.ConfigGroup)
@@ -129,6 +138,7 @@ func (s *SysConfigService) GetAliyunTryonQuotaEstimate(modelKey string) (list []
 		if !isAliyunQuotaSupportedModel(item) {
 			continue
 		}
+		modelUsage := item.usageValue()
 
 		freeQuotaTotal := item.FreeQuotaTotal
 		if freeQuotaTotal <= 0 {
@@ -136,9 +146,15 @@ func (s *SysConfigService) GetAliyunTryonQuotaEstimate(modelKey string) (list []
 		}
 
 		var usedSuccessCount int64
-		err = global.GVA_DB.Model(&client.TryonTask{}).
-			Where("provider = ? AND status = ?", key, tryonTaskStatusSuccess).
-			Count(&usedSuccessCount).Error
+		usedQuery := global.GVA_DB.Model(&client.TryonTask{})
+		switch modelUsage {
+		case "refiner":
+			usedQuery = usedQuery.Where("enable_refiner = ? AND refiner_status = ?", true, tryonRefinerStatusSuccess).
+				Where("refiner_model_key = ? OR ((refiner_model_key = '' OR refiner_model_key IS NULL) AND provider = ?)", key, key)
+		default:
+			usedQuery = usedQuery.Where("provider = ? AND status = ?", key, tryonTaskStatusSuccess)
+		}
+		err = usedQuery.Count(&usedSuccessCount).Error
 		if err != nil {
 			return nil, err
 		}
@@ -148,50 +164,21 @@ func (s *SysConfigService) GetAliyunTryonQuotaEstimate(modelKey string) (list []
 			remainingEstimate = 0
 		}
 
-		supportsRefiner := item.supportsRefinerValue()
-		refinerModel := ""
-		refinerFreeQuotaTotal := 0
-		var refinerUsedSuccessCount int64
-		var refinerRemainingEstimate int64
-
-		if supportsRefiner {
-			refinerModel = item.refinerModelValue()
-			refinerFreeQuotaTotal = item.RefinerFreeQuotaTotal
-			if refinerFreeQuotaTotal <= 0 {
-				if freeQuotaTotal > 0 {
-					refinerFreeQuotaTotal = freeQuotaTotal
-				} else {
-					refinerFreeQuotaTotal = 400
-				}
-			}
-
-			err = global.GVA_DB.Model(&client.TryonTask{}).
-				Where("provider = ? AND enable_refiner = ? AND refiner_status = ?", key, true, tryonRefinerStatusSuccess).
-				Count(&refinerUsedSuccessCount).Error
-			if err != nil {
-				return nil, err
-			}
-
-			refinerRemainingEstimate = int64(refinerFreeQuotaTotal) - refinerUsedSuccessCount
-			if refinerRemainingEstimate < 0 {
-				refinerRemainingEstimate = 0
-			}
-		}
-
 		list = append(list, AliyunTryonQuotaItem{
 			ModelKey:                 key,
+			ModelUsage:               modelUsage,
 			Model:                    strings.TrimSpace(item.Model),
 			Provider:                 strings.TrimSpace(item.Provider),
 			FreeQuotaTotal:           freeQuotaTotal,
 			UsedSuccessCount:         usedSuccessCount,
 			RemainingEstimate:        remainingEstimate,
-			RefinerEnabled:           supportsRefiner,
-			RefinerModel:             refinerModel,
-			RefinerFreeQuotaTotal:    refinerFreeQuotaTotal,
-			RefinerUsedSuccessCount:  refinerUsedSuccessCount,
-			RefinerRemainingEstimate: refinerRemainingEstimate,
+			RefinerEnabled:           modelUsage == "refiner",
+			RefinerModel:             "",
+			RefinerFreeQuotaTotal:    0,
+			RefinerUsedSuccessCount:  0,
+			RefinerRemainingEstimate: 0,
 			LastRefreshedAt:          nowText,
-			EstimateDescription:      "本地估算值（按当前系统成功任务数统计，含基础与精修接口），官方免费额度请以百炼控制台为准",
+			EstimateDescription:      "本地估算值（按模型用途分别统计成功任务数），官方免费额度请以百炼控制台为准",
 		})
 	}
 
@@ -202,7 +189,7 @@ func isAliyunQuotaSupportedModel(item *tryonModelConfig) bool {
 	if item == nil {
 		return false
 	}
-	if !item.isTryonModelUsage() {
+	if !item.isTryonModelUsage() && !item.isRefinerModelUsage() {
 		return false
 	}
 	provider := strings.ToLower(strings.TrimSpace(item.Provider))

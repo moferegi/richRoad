@@ -8,13 +8,15 @@ import (
 
 // CreateTryonTaskReq 创建试衣任务请求
 type CreateTryonTaskReq struct {
-	RequestID     string `json:"requestID" form:"requestID"`
-	ModelKey      string `json:"modelKey" form:"modelKey"`
-	EnableRefiner bool   `json:"enableRefiner" form:"enableRefiner"`
-	SceneType     string `json:"sceneType" form:"sceneType" binding:"required,oneof=clothes shoes takeoff"`
-	TemplatePart  string `json:"templatePart" form:"templatePart" binding:"omitempty,oneof=upper lower"`
-	SourceImage   string `json:"sourceImage" form:"sourceImage" binding:"required"`
-	TemplateImage string `json:"templateImage" form:"templateImage" binding:"required"`
+	RequestID          string `json:"requestID" form:"requestID"`
+	ModelKey           string `json:"modelKey" form:"modelKey"`
+	EnableRefiner      bool   `json:"enableRefiner" form:"enableRefiner"`
+	EnableParsing      bool   `json:"enableParsing" form:"enableParsing"`
+	SceneType          string `json:"sceneType" form:"sceneType" binding:"required,oneof=clothes shoes takeoff"`
+	TemplatePart       string `json:"templatePart" form:"templatePart" binding:"omitempty,oneof=upper lower"`
+	SourceImage        string `json:"sourceImage" form:"sourceImage" binding:"required"`
+	TemplateImage      string `json:"templateImage" form:"templateImage" binding:"required"`
+	TemplateImageLower string `json:"templateImageLower" form:"templateImageLower"`
 }
 
 // TryonTaskSearch 试衣任务查询条件
