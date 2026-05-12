@@ -58,5 +58,18 @@ func Timer() {
 		if err != nil {
 			fmt.Println("add timer error:", err)
 		}
+
+		_, err = global.GVA_Timer.AddTaskByFunc("RefreshTryonProcessingTasks", "0 */1 * * * *", func() {
+			if global.GVA_DB == nil {
+				return
+			}
+			e := task.RefreshProcessingTryonTasks(global.GVA_DB)
+			if e != nil {
+				fmt.Println("试衣任务补偿刷新失败:", e)
+			}
+		}, "定时补偿刷新processing试衣任务状态", option...)
+		if err != nil {
+			fmt.Println("add tryon refresh timer error:", err)
+		}
 	}()
 }

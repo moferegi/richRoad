@@ -27,7 +27,7 @@
     <scroll-view class="list-wrap" scroll-y>
       <view class="grid">
         <view class="card" v-for="item in filteredClothList" :key="item.id">
-          <image class="card-image" :src="getUrl(item.url)" mode="aspectFill" @tap="preview(item)" />
+          <image class="card-image" :src="getUrl(item.url)" mode="aspectFit" @tap="preview(item)" />
           <view class="card-foot">
             <view class="name-row">
               <text class="card-name">{{ item.name || categoryLabel(item.category) }}</text>
@@ -640,6 +640,25 @@ const chooseUploadMode = () => {
 
 const normalizeCategory = (value) => {
   const category = String(value || '').trim().toLowerCase()
+  const aliasMap = {
+    '上装': 'upper',
+    '上衣': 'upper',
+    '下装': 'lower',
+    '下衣': 'lower',
+    '裤子': 'lower',
+    '裤': 'lower',
+    '裙子': 'lower',
+    '裙': 'lower',
+    '连体': 'onepiece',
+    '连体装': 'onepiece',
+    '连衣裙': 'onepiece',
+    dress: 'onepiece',
+    shoe: 'shoes',
+    '鞋': 'shoes',
+  }
+  if (aliasMap[category]) {
+    return aliasMap[category]
+  }
   return CATEGORY_KEYS.includes(category) ? category : ''
 }
 

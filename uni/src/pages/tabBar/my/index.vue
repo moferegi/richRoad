@@ -57,6 +57,18 @@
     <view class="section">
       <view class="section-title">{{ $t('otherFeatures') }}</view>
       <view class="menu-list">
+        <view class="menu-item" @tap="goMyCloth">
+          <text class="menu-text">{{ $t('myCloset') }}</text>
+          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
+        </view>
+        <view class="menu-item" @tap="goMyModel">
+          <text class="menu-text">{{ $t('myModels') }}</text>
+          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
+        </view>
+        <view class="menu-item" @tap="goInvite">
+          <text class="menu-text">{{ $t('inviteFriends') }}</text>
+          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
+        </view>
         <view class="menu-item" @tap="goKefu">
           <text class="menu-text">{{ $t('kefuContact') }}</text>
           <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
@@ -73,20 +85,8 @@
           <text class="menu-text">{{ $t('tryonRechargeRecord') }}</text>
           <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
         </view>
-        <view class="menu-item" @tap="goInvite">
-          <text class="menu-text">{{ $t('inviteFriends') }}</text>
-          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
-        </view>
         <view class="menu-item" @tap="goCollect">
           <text class="menu-text">{{ $t('myCollection') }}</text>
-          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
-        </view>
-        <view class="menu-item" @tap="goMyModel">
-          <text class="menu-text">{{ $t('myModels') }}</text>
-          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
-        </view>
-        <view class="menu-item" @tap="goMyCloth">
-          <text class="menu-text">{{ $t('myCloset') }}</text>
           <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
         </view>
         <view class="menu-item" @tap="goUseRecord">

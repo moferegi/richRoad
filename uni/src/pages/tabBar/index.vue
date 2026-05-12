@@ -10,6 +10,14 @@
     <view class="room-body">
       <view class="room-left" @tap="openUploadDrawer('person')">
         <LazyImage v-if="personPreview" class="room-preview" :src="personPreview" mode="aspectFit" />
+        <view class="slot-actions" v-if="personPreview">
+          <view class="slot-action-btn" @tap.stop="previewRoomImage('person')">
+            <uni-icons type="search" size="16" color="#2563eb" />
+          </view>
+          <view class="slot-action-btn danger" @tap.stop="clearRoomImage('person')">
+            <uni-icons type="trash" size="16" color="#dc2626" />
+          </view>
+        </view>
         <view v-if="personPreview && personSizeBytes > 0" class="preview-size-mask">{{ formatPreviewSize(personSizeBytes) }}</view>
         <view v-else class="room-upload-empty">
           <uni-icons type="camera" size="26" color="rgba(15,23,42,0.45)" />
@@ -19,11 +27,27 @@
       <view class="room-right">
         <view class="cloth-slot" @tap="openUploadDrawer('upper')">
           <LazyImage v-if="upperPreview" class="cloth-preview" :src="upperPreview" mode="aspectFit" />
+          <view class="slot-actions" v-if="upperPreview">
+            <view class="slot-action-btn" @tap.stop="previewRoomImage('upper')">
+              <uni-icons type="search" size="16" color="#2563eb" />
+            </view>
+            <view class="slot-action-btn danger" @tap.stop="clearRoomImage('upper')">
+              <uni-icons type="trash" size="16" color="#dc2626" />
+            </view>
+          </view>
           <view v-if="upperPreview && upperSizeBytes > 0" class="preview-size-mask">{{ formatPreviewSize(upperSizeBytes) }}</view>
           <text v-else class="cloth-text">{{ $t('uploadUpperImage') }}</text>
         </view>
         <view class="cloth-slot" @tap="openUploadDrawer('lower')">
           <LazyImage v-if="lowerPreview" class="cloth-preview" :src="lowerPreview" mode="aspectFit" />
+          <view class="slot-actions" v-if="lowerPreview">
+            <view class="slot-action-btn" @tap.stop="previewRoomImage('lower')">
+              <uni-icons type="search" size="16" color="#2563eb" />
+            </view>
+            <view class="slot-action-btn danger" @tap.stop="clearRoomImage('lower')">
+              <uni-icons type="trash" size="16" color="#dc2626" />
+            </view>
+          </view>
           <view v-if="lowerPreview && lowerSizeBytes > 0" class="preview-size-mask">{{ formatPreviewSize(lowerSizeBytes) }}</view>
           <text v-else class="cloth-text">{{ $t('uploadLowerImage') }}</text>
         </view>
@@ -36,9 +60,11 @@
 
     <view class="refiner-card" :class="{ disabled: !currentModelSupportsRefiner }">
       <view class="refiner-left">
-        <text class="refiner-label">{{ $t('tryonRefinerLabel') }}</text>
-        <text class="refiner-hint" v-if="currentModelSupportsRefiner">{{ $t('tryonRefinerHint') }}</text>
-        <text class="refiner-extra-cost" v-if="currentModelSupportsRefiner">{{ $t('tryonRefinerExtraCostHint').replace('{cost}', String(currentRefinerExtraCost)) }}</text>
+        <text class="refiner-label">{{ currentRefinerLabel }}</text>
+        <text class="refiner-hint" v-if="currentModelSupportsRefiner">{{ currentRefinerHint }}</text>
+        <text class="refiner-extra-cost" v-if="currentModelSupportsRefiner">
+          {{ currentRefinerExtraCost > 0 ? $t('tryonRefinerExtraCostHint').replace('{cost}', String(currentRefinerExtraCost)) : $t('tryonFeatureFreeHint') }}
+        </text>
         <text class="refiner-hint" v-if="!currentModelSupportsRefiner">{{ $t('tryonRefinerUnsupportedHint') }}</text>
       </view>
       <view class="refiner-right">
@@ -49,25 +75,7 @@
           color="#2563eb"
           @change="onRefinerSwitchChange"
         />
-        <view class="refiner-help" @tap="openRefinerHelp">?</view>
-      </view>
-    </view>
-
-    <view class="refiner-card" :class="{ disabled: !currentModelSupportsParsing }">
-      <view class="refiner-left">
-        <text class="refiner-label">{{ $t('tryonParsingLabel') }}</text>
-        <text class="refiner-hint" v-if="currentModelSupportsParsing">{{ $t('tryonParsingHint') }}</text>
-        <text class="refiner-extra-cost" v-if="currentModelSupportsParsing">{{ $t('tryonParsingExtraCostHint').replace('{cost}', String(currentParsingExtraCost)) }}</text>
-        <text class="refiner-hint" v-if="!currentModelSupportsParsing">{{ $t('tryonParsingUnsupportedHint') }}</text>
-      </view>
-      <view class="refiner-right">
-        <switch
-          class="refiner-switch"
-          :checked="parsingEnabled"
-          :disabled="!currentModelSupportsParsing"
-          color="#0ea5e9"
-          @change="onParsingSwitchChange"
-        />
+        <view class="refiner-help" @tap="openFeatureHelp">?</view>
       </view>
     </view>
 
@@ -89,6 +97,26 @@
       <view class="model-switch" @tap="showModelPopup = true">
         <text>{{ $t('switchAction') }}</text>
       </view>
+    </view>
+
+    <view class="upper-only-split-card" v-if="showUpperOnlySplitSelector">
+      <view class="upper-only-split-options">
+        <view
+          class="upper-only-split-option"
+          :class="{ active: upperOnlySplitMode === 'full_outfit' }"
+          @tap="selectUpperOnlySplitMode('full_outfit')"
+        >
+          <text>{{ $t('tryonParsingOptionDress') }}</text>
+        </view>
+        <view
+          class="upper-only-split-option"
+          :class="{ active: upperOnlySplitMode === 'upper_only' }"
+          @tap="selectUpperOnlySplitMode('upper_only')"
+        >
+          <text>{{ $t('tryonParsingOptionUpper') }}</text>
+        </view>
+      </view>
+      <view class="upper-only-split-help" @tap="showUpperOnlySplitHelpPopup = true">?</view>
     </view>
 
     <view class="generate-btn" @tap="goGenerate">
@@ -120,18 +148,6 @@
             <view>
               <text class="popup-item-name">{{ item.name }}</text>
               <text class="popup-item-cost">{{ $t('pointsCostEach').replace('{cost}', String(item.cost)) }}</text>
-              <text
-                class="popup-item-extra-cost"
-                v-if="item.supportsRefiner"
-              >
-                {{ $t('tryonRefinerExtraCostHint').replace('{cost}', String(item.refinerExtraCost)) }}
-              </text>
-              <text
-                class="popup-item-extra-cost"
-                v-if="item.parsingModelKey"
-              >
-                {{ $t('tryonParsingExtraCostHint').replace('{cost}', String(item.parsingExtraCost || 0)) }}
-              </text>
               <text class="popup-item-desc" v-if="item.descText">{{ item.descText }}</text>
             </view>
             <uni-icons type="checkmarkempty" size="20" color="#2563eb" v-if="item.key === selectedModelKey" />
@@ -142,10 +158,21 @@
 
     <view class="popup-mask" v-if="showRefinerHelpPopup" @tap="showRefinerHelpPopup = false">
       <view class="popup-panel popup-panel-help" @tap.stop>
-        <view class="popup-title">{{ $t('tryonRefinerHelpTitle') }}</view>
-        <view class="refiner-help-content">{{ currentRefinerDesc }}</view>
+        <view class="popup-title">{{ currentHelpTitle }}</view>
+        <view class="refiner-help-content">{{ currentHelpContent }}</view>
         <view class="refiner-help-actions">
           <view class="model-switch" @tap="showRefinerHelpPopup = false">
+            <text>{{ $t('doneText') }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="popup-mask" v-if="showUpperOnlySplitHelpPopup" @tap="showUpperOnlySplitHelpPopup = false">
+      <view class="popup-panel popup-panel-help" @tap.stop>
+        <view class="refiner-help-content">{{ upperOnlySplitGuideText }}</view>
+        <view class="refiner-help-actions">
+          <view class="model-switch" @tap="showUpperOnlySplitHelpPopup = false">
             <text>{{ $t('doneText') }}</text>
           </view>
         </view>
@@ -178,6 +205,7 @@
               <view class="upload-main-btn" @tap="uploadDrawerChooseImage('crop')">{{ $t('uploadModeCrop') }}</view>
               <view class="upload-main-btn" @tap="uploadDrawerChooseImage('compress')">{{ $t('uploadModeCompress') }}</view>
             </view>
+            <text class="upload-highlight-tip">{{ $t('uploadPersonDrawerStrongTip') }}</text>
             <text class="upload-center-tip">{{ $t('uploadSingleFullBodyTip') }}</text>
 
             <view class="example-grid two">
@@ -262,6 +290,7 @@
               <view class="upload-main-btn" @tap="uploadDrawerChooseImage('crop')">{{ $t('uploadModeCrop') }}</view>
               <view class="upload-main-btn" @tap="uploadDrawerChooseImage('compress')">{{ $t('uploadModeCompress') }}</view>
             </view>
+            <text class="upload-highlight-tip" v-if="uploadTarget === 'upper'">{{ $t('uploadUpperDrawerStrongTip') }}</text>
             <text class="upload-center-tip">{{ $t('uploadUpperRequiredTip') }}</text>
 
             <view class="example-grid three">
@@ -407,6 +436,7 @@ import { onShow } from '@dcloudio/uni-app'
 import AnnouncementMarquee from '@/components/announcement-marquee/announcement-marquee.vue'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
+import { useUserStore } from '@/pinia/modules/user.js'
 import { getTryonConfig, getDefaultDomain, getAnnouncementConfig } from '@/api/sysConfig.js'
 import { getMyTryonModelList, getMyTryonClothList } from '@/api/tryonTask.js'
 import { getUrl } from '@/utils/url.js'
@@ -426,14 +456,16 @@ import {
 
 const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
+const userStore = useUserStore()
 const $t = computed(() => langStore.$t)
 const roomTitle = computed(() => appConfigStore.appName || $t.value('tryonRoom'))
 
 const showModelPopup = ref(false)
 const showRefinerHelpPopup = ref(false)
+const showUpperOnlySplitHelpPopup = ref(false)
 const showUploadDrawer = ref(false)
 const refinerEnabled = ref(false)
-const parsingEnabled = ref(false)
+const upperOnlySplitMode = ref('')
 const uploadTarget = ref('')
 const drawerTab = ref('custom')
 const selectedModelKey = ref('')
@@ -489,6 +521,14 @@ const parseBoolFlag = (value, fallback = false) => {
   return fallback
 }
 
+const normalizeOptionalBeautifyDegree = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return 0
+  }
+  return numeric
+}
+
 const supportsRefinerByModel = (model = {}) => {
   const refinerModelKey = String(model?.refinerModelKey || '').trim()
   if (refinerModelKey) {
@@ -522,6 +562,7 @@ const currentModel = computed(() => {
 
 const currentBaseCost = computed(() => Number(currentModel.value.cost || 1))
 const currentModelDesc = computed(() => currentModel.value.descText || localText(currentModel.value.desc, langStore.locale) || '')
+const currentRefinerLabel = computed(() => currentModel.value?.refinerName || $t.value('tryonRefinerLabel'))
 const currentModelSupportsRefiner = computed(() => supportsRefinerByModel(currentModel.value))
 const currentModelSupportsParsing = computed(() => supportsParsingByModel(currentModel.value))
 const currentRefinerExtraCost = computed(() => {
@@ -536,25 +577,44 @@ const currentParsingExtraCost = computed(() => {
   }
   return Math.max(0, Number(currentModel.value.parsingExtraCost || 0))
 })
+const showUpperOnlySplitSelector = computed(() => hasUpperTemplate() && !hasLowerTemplate())
+const upperOnlySplitGuideText = computed(() => $t.value('tryonParsingRecommendContent'))
+const parsingEnabledBySelection = computed(() => {
+  const hasUpper = hasUpperTemplate()
+  const hasLower = hasLowerTemplate()
+  if (hasLower && !hasUpper) {
+    return true
+  }
+  if (hasUpper && !hasLower) {
+    return upperOnlySplitMode.value === 'upper_only'
+  }
+  return false
+})
 const currentCost = computed(() => {
   let total = currentBaseCost.value
   if (currentModelSupportsRefiner.value && refinerEnabled.value) {
     total += currentRefinerExtraCost.value
   }
-  if (currentModelSupportsParsing.value && parsingEnabled.value) {
+  if (parsingEnabledBySelection.value) {
     total += currentParsingExtraCost.value
   }
   return total
 })
+const showRefinerExtraCostInFormula = computed(() => {
+  return currentModelSupportsRefiner.value && refinerEnabled.value && currentRefinerExtraCost.value > 0
+})
+const showParsingExtraCostInFormula = computed(() => {
+  return parsingEnabledBySelection.value && currentParsingExtraCost.value > 0
+})
 const showModelCostBreakdown = computed(() => {
-  return (currentModelSupportsRefiner.value && refinerEnabled.value) || (currentModelSupportsParsing.value && parsingEnabled.value)
+  return showRefinerExtraCostInFormula.value || showParsingExtraCostInFormula.value
 })
 const currentCostFormulaText = computed(() => {
   const parts = [$t.value('pointsCostEach').replace('{cost}', String(currentBaseCost.value))]
-  if (currentModelSupportsRefiner.value && refinerEnabled.value) {
+  if (showRefinerExtraCostInFormula.value) {
     parts.push($t.value('pointsCostEach').replace('{cost}', String(currentRefinerExtraCost.value)))
   }
-  if (currentModelSupportsParsing.value && parsingEnabled.value) {
+  if (showParsingExtraCostInFormula.value) {
     parts.push($t.value('pointsCostEach').replace('{cost}', String(currentParsingExtraCost.value)))
   }
   return `${parts.join(' + ')} = ${$t.value('pointsCostEach').replace('{cost}', String(currentCost.value))}`
@@ -566,6 +626,9 @@ const currentRefinerDesc = computed(() => {
   }
   return $t.value('tryonRefinerHelpFallback')
 })
+const currentRefinerHint = computed(() => currentRefinerDesc.value || $t.value('tryonRefinerHint'))
+const currentHelpTitle = computed(() => currentRefinerLabel.value || $t.value('tryonRefinerHelpTitle'))
+const currentHelpContent = computed(() => currentRefinerDesc.value || $t.value('tryonRefinerHelpFallback'))
 const cropRatioLabel = computed(() => `${cropRatio.value.width}:${cropRatio.value.height}`)
 const cropRatioOptions = [
   { key: '1:1', label: '1:1', width: 1, height: 1 },
@@ -598,6 +661,42 @@ const formatPreviewSize = (bytes) => {
   const mb = kb / 1024
   const value = mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)
   return `${$t.value('uploadImageSizePrefix')}${value}mb`
+}
+
+const hasUpperTemplate = () => !!(upperRemote.value || upperLocal.value)
+const hasLowerTemplate = () => !!(lowerRemote.value || lowerLocal.value)
+
+const resolveTemplatePartBySelection = () => {
+  const hasUpper = hasUpperTemplate()
+  const hasLower = hasLowerTemplate()
+  if (hasLower && !hasUpper) return 'lower'
+  if (hasUpper && !hasLower) {
+    if (upperOnlySplitMode.value === 'full_outfit') return 'dress'
+    if (upperOnlySplitMode.value === 'upper_only') return 'upper'
+  }
+  return ''
+}
+
+const resolveParsingPartsBySelection = () => {
+  const templatePart = resolveTemplatePartBySelection()
+  if (templatePart === 'upper' || templatePart === 'lower') {
+    return [templatePart]
+  }
+  return []
+}
+
+const resolveTryonPointBalance = () => {
+  const storeInfo = userStore?.userInfo || {}
+  const cacheInfo = uni.getStorageSync('userInfo') || {}
+  const storeValue = Number(storeInfo.tryonPoint ?? storeInfo.point)
+  if (Number.isFinite(storeValue)) {
+    return Math.max(0, storeValue)
+  }
+  const cacheValue = Number(cacheInfo.tryonPoint ?? cacheInfo.point)
+  if (Number.isFinite(cacheValue)) {
+    return Math.max(0, cacheValue)
+  }
+  return 0
 }
 
 const waitFrame = (delay = 30) => new Promise((resolve) => setTimeout(resolve, delay))
@@ -1317,15 +1416,15 @@ const drawerTabs = computed(() => {
   if (isPersonDrawer.value) {
     return [
       { key: 'custom', labelKey: 'drawerTabCustomUpload' },
-      { key: 'myModel', labelKey: 'drawerTabMyModel' },
       { key: 'official', labelKey: 'drawerTabOfficialModel' },
+      { key: 'myModel', labelKey: 'drawerTabMyModel' },
     ]
   }
 
   return [
     { key: 'custom', labelKey: 'drawerTabCustomUpload' },
-    { key: 'myCloset', labelKey: 'drawerTabMyCloset' },
     { key: 'recommended', labelKey: 'drawerTabRecommended' },
+    { key: 'myCloset', labelKey: 'drawerTabMyCloset' },
   ]
 })
 
@@ -1377,8 +1476,8 @@ const resolveDraftBeautifyMeta = () => {
       beautifyModelKey: String(selectedBeautifyModel.key || ''),
       beautifyModel: String(selectedBeautifyModel.beautifyModel || 'RetouchSkin'),
       beautifyExtraCost: Math.max(0, Number(selectedBeautifyModel.beautifyExtraCost || 0)),
-      beautifyRetouchDegree: Number(selectedBeautifyModel.beautifyRetouchDegree || 70),
-      beautifyWhiteningDegree: Number(selectedBeautifyModel.beautifyWhiteningDegree || 30),
+      beautifyRetouchDegree: normalizeOptionalBeautifyDegree(selectedBeautifyModel.beautifyRetouchDegree),
+      beautifyWhiteningDegree: normalizeOptionalBeautifyDegree(selectedBeautifyModel.beautifyWhiteningDegree),
       beautifyDesc: selectedBeautifyModel.beautifyDesc || '',
       beautifyDescText: selectedBeautifyModel.beautifyDescText || '',
     }
@@ -1389,8 +1488,8 @@ const resolveDraftBeautifyMeta = () => {
     beautifyModelKey: '',
     beautifyModel: 'custom_beautify',
     beautifyExtraCost: 0,
-    beautifyRetouchDegree: 70,
-    beautifyWhiteningDegree: 30,
+    beautifyRetouchDegree: 0,
+    beautifyWhiteningDegree: 0,
     beautifyDesc: '',
     beautifyDescText: '',
   }
@@ -1414,6 +1513,29 @@ const assignImageToTarget = (target, value, isRemote = false, sizeBytes = 0) => 
   }
 
   setImageSizeForTarget(target, sizeBytes)
+}
+
+const previewRoomImage = (target) => {
+  const scene = String(target || '').trim()
+  let preview = ''
+  if (scene === 'person') {
+    preview = personPreview.value
+  } else if (scene === 'upper') {
+    preview = upperPreview.value
+  } else if (scene === 'lower') {
+    preview = lowerPreview.value
+  }
+  if (!preview) {
+    uni.showToast({ title: $t.value('noImagePreview'), icon: 'none' })
+    return
+  }
+  uni.previewImage({ urls: [preview] })
+}
+
+const clearRoomImage = (target) => {
+  const scene = String(target || '').trim()
+  if (!scene) return
+  assignImageToTarget(scene, '', false, 0)
 }
 
 const normalizeMyModelItem = (item) => {
@@ -1494,10 +1616,10 @@ const loadAnnouncement = async () => {
 }
 
 const uploadFolderByTarget = (target) => {
-  if (target === 'person') return 'cloth-on/uni-up'
-  if (target === 'upper') return 'cloth-on/uni-up'
-  if (target === 'lower') return 'cloth-on/uni-up'
-  return 'cloth-on/uni-up'
+  if (target === 'person') return 'cloth-on/up-try-cloth'
+  if (target === 'upper') return 'cloth-on/up-try-cloth'
+  if (target === 'lower') return 'cloth-on/up-try-cloth'
+  return 'cloth-on/up-try-cloth'
 }
 
 const uploadTypeByTarget = (target) => {
@@ -1591,18 +1713,15 @@ const onRefinerSwitchChange = (event) => {
   refinerEnabled.value = enabled
 }
 
-const onParsingSwitchChange = (event) => {
-  const enabled = !!event?.detail?.value
-  if (!currentModelSupportsParsing.value) {
-    parsingEnabled.value = false
-    uni.showToast({ title: $t.value('tryonParsingUnsupportedHint'), icon: 'none' })
-    return
-  }
-  parsingEnabled.value = enabled
+const openFeatureHelp = () => {
+  showRefinerHelpPopup.value = true
 }
 
-const openRefinerHelp = () => {
-  showRefinerHelpPopup.value = true
+const selectUpperOnlySplitMode = (mode) => {
+  if (mode !== 'full_outfit' && mode !== 'upper_only') {
+    return
+  }
+  upperOnlySplitMode.value = mode
 }
 
 const selectModel = (key) => {
@@ -1610,9 +1729,6 @@ const selectModel = (key) => {
   const selected = modelList.value.find(v => v.key === key)
   if (!supportsRefinerByModel(selected)) {
     refinerEnabled.value = false
-  }
-  if (!supportsParsingByModel(selected)) {
-    parsingEnabled.value = false
   }
   showModelPopup.value = false
 }
@@ -1666,81 +1782,130 @@ const goClothesPage = () => {
   uni.switchTab({ url: '/pages/tabBar/clothes/index' })
 }
 
-const goGenerate = () => {
-  if (!personLocal.value && !personRemote.value) {
-    uni.showToast({ title: $t.value('uploadModelFirst'), icon: 'none' })
-    return
-  }
+const resolveTemplateDraftPayload = () => {
+  const upperRemoteUrl = upperRemote.value
+  const upperLocalPath = upperLocal.value
+  const lowerRemoteUrl = lowerRemote.value
+  const lowerLocalPath = lowerLocal.value
+  const templatePart = resolveTemplatePartBySelection()
+  const parsingParts = resolveParsingPartsBySelection()
 
-  const hasUpperTemplate = !!(upperRemote.value || upperLocal.value)
-  const hasLowerTemplate = !!(lowerRemote.value || lowerLocal.value)
-  let templatePart = ''
-  if (hasUpperTemplate && !hasLowerTemplate) {
-    templatePart = 'upper'
-  } else if (hasLowerTemplate && !hasUpperTemplate) {
-    templatePart = 'lower'
-  }
-
-  let templateRemoteUrl = templatePart === 'lower' ? lowerRemote.value : upperRemote.value
-  let templateLocalPath = templatePart === 'lower' ? lowerLocal.value : upperLocal.value
-
-  const templateUpperRemoteUrl = upperRemote.value
-  const templateUpperLocalPath = upperLocal.value
-  const templateLowerRemoteUrl = lowerRemote.value
-  const templateLowerLocalPath = lowerLocal.value
+  let templateRemoteUrl = templatePart === 'lower' ? lowerRemoteUrl : upperRemoteUrl
+  let templateLocalPath = templatePart === 'lower' ? lowerLocalPath : upperLocalPath
 
   if (!templateRemoteUrl && !templateLocalPath) {
-    templateRemoteUrl = upperRemote.value || lowerRemote.value
-    templateLocalPath = upperLocal.value || lowerLocal.value
+    templateRemoteUrl = upperRemoteUrl || lowerRemoteUrl
+    templateLocalPath = upperLocalPath || lowerLocalPath
   }
 
-  if (!templateRemoteUrl && !templateLocalPath) {
+  return {
+    templatePart,
+    parsingParts,
+    templateRemoteUrl,
+    templateLocalPath,
+    templateUpperRemoteUrl: upperRemoteUrl,
+    templateUpperLocalPath: upperLocalPath,
+    templateLowerRemoteUrl: lowerRemoteUrl,
+    templateLowerLocalPath: lowerLocalPath,
+  }
+}
+
+const saveTryonDraftAndGoGenerate = () => {
+  const templatePayload = resolveTemplateDraftPayload()
+  if (!templatePayload.templateRemoteUrl && !templatePayload.templateLocalPath) {
     uni.showToast({ title: $t.value('uploadClothesFirst'), icon: 'none' })
     return
   }
 
-  const sourceUploadFolder = 'cloth-on/uni-up'
-  const templateUploadFolder = 'cloth-on/uni-up'
+  const sourceUploadFolder = 'cloth-on/up-try-cloth'
+  const templateUploadFolder = 'cloth-on/up-try-cloth'
   const beautifyMeta = resolveDraftBeautifyMeta()
+  const beautifyRetouchDegree = normalizeOptionalBeautifyDegree(beautifyMeta.beautifyRetouchDegree)
+  const beautifyWhiteningDegree = normalizeOptionalBeautifyDegree(beautifyMeta.beautifyWhiteningDegree)
+  const parsingEnabled = parsingEnabledBySelection.value
+  const parsingParts = parsingEnabled ? templatePayload.parsingParts : []
 
   saveTryonDraft({
     roomType: 'tryon',
     sceneType: 'clothes',
-    templatePart,
+    templatePart: templatePayload.templatePart,
+    parsingParts,
     operationType: 'tryon',
     sourceLocalPath: personLocal.value,
     sourceRemoteUrl: personRemote.value,
     sourceUploadFolder,
-    templateLocalPath,
-    templateRemoteUrl,
-    templateUpperLocalPath,
-    templateUpperRemoteUrl,
-    templateLowerLocalPath,
-    templateLowerRemoteUrl,
+    templateLocalPath: templatePayload.templateLocalPath,
+    templateRemoteUrl: templatePayload.templateRemoteUrl,
+    templateUpperLocalPath: templatePayload.templateUpperLocalPath,
+    templateUpperRemoteUrl: templatePayload.templateUpperRemoteUrl,
+    templateLowerLocalPath: templatePayload.templateLowerLocalPath,
+    templateLowerRemoteUrl: templatePayload.templateLowerRemoteUrl,
     templateUploadFolder,
     modelKey: currentModel.value.key,
     modelName: currentModel.value.name,
     parsingModelKey: String(currentModel.value.parsingModelKey || ''),
-    parsingExtraCost: currentParsingExtraCost.value,
+    parsingExtraCost: parsingEnabled ? currentParsingExtraCost.value : 0,
     baseModelCost: currentBaseCost.value,
     refinerExtraCost: currentRefinerExtraCost.value,
     modelCost: currentCost.value,
     enableRefiner: currentModelSupportsRefiner.value && refinerEnabled.value,
-    enableParsing: currentModelSupportsParsing.value && parsingEnabled.value,
+    enableParsing: parsingEnabled,
     refinerModelKey: String(currentModel.value.refinerModelKey || ''),
     refinerModel: String(currentModel.value.refinerModel || 'aitryon-refiner'),
     supportsBeautify: !!beautifyMeta.supportsBeautify,
     beautifyModelKey: String(beautifyMeta.beautifyModelKey || ''),
     beautifyModel: String(beautifyMeta.beautifyModel || 'RetouchSkin'),
     beautifyExtraCost: Math.max(0, Number(beautifyMeta.beautifyExtraCost || 0)),
-    beautifyRetouchDegree: Number(beautifyMeta.beautifyRetouchDegree || 70),
-    beautifyWhiteningDegree: Number(beautifyMeta.beautifyWhiteningDegree || 30),
+    beautifyRetouchDegree,
+    beautifyWhiteningDegree,
     beautifyDesc: beautifyMeta.beautifyDesc || '',
     beautifyDescText: beautifyMeta.beautifyDescText || '',
     requestID: createTryonRequestId(),
   })
 
   uni.navigateTo({ url: '/pages/tryon/generate' })
+}
+
+const goGenerate = () => {
+  if (!personLocal.value && !personRemote.value) {
+    uni.showToast({ title: $t.value('uploadModelFirst'), icon: 'none' })
+    return
+  }
+
+  if (!hasUpperTemplate() && !hasLowerTemplate()) {
+    uni.showToast({ title: $t.value('uploadClothesFirst'), icon: 'none' })
+    return
+  }
+
+  if (showUpperOnlySplitSelector.value && !upperOnlySplitMode.value) {
+    uni.showModal({
+      title: '',
+      content: upperOnlySplitGuideText.value,
+      showCancel: false,
+      confirmText: $t.value('doneText'),
+    })
+    return
+  }
+
+  const token = uni.getStorageSync('x-token') || ''
+  if (token) {
+    const balance = resolveTryonPointBalance()
+    if (balance < Math.max(0, Number(currentCost.value || 0))) {
+      uni.showToast({ title: $t.value('tryonCoinsNotEnough'), icon: 'none' })
+      return
+    }
+  }
+
+  uni.showModal({
+    title: $t.value('generateConfirmTitle'),
+    content: $t.value('generateConfirmContent'),
+    cancelText: $t.value('cancel'),
+    confirmText: $t.value('confirm'),
+    success: (confirmRes) => {
+      if (!confirmRes.confirm) return
+      saveTryonDraftAndGoGenerate()
+    },
+  })
 }
 
 watch(
@@ -1759,6 +1924,12 @@ watch([isPersonDrawer, drawerTab], ([isPerson, tab]) => {
 watch([isClothDrawer, drawerTab], ([isCloth, tab]) => {
   if (isCloth && tab === 'myCloset') {
     loadMyClothList()
+  }
+})
+
+watch(showUpperOnlySplitSelector, (visible, prevVisible) => {
+  if (visible !== prevVisible) {
+    upperOnlySplitMode.value = ''
   }
 })
 
@@ -1891,6 +2062,30 @@ page {
   color: #ffffff;
   background: rgba(15, 23, 42, 0.38);
   pointer-events: none;
+}
+
+.slot-actions {
+  position: absolute;
+  top: 12rpx;
+  right: 12rpx;
+  z-index: 4;
+  display: flex;
+  gap: 8rpx;
+}
+
+.slot-action-btn {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1rpx solid rgba(37, 99, 235, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slot-action-btn.danger {
+  border-color: rgba(220, 38, 38, 0.28);
 }
 
 .takeoff-body {
@@ -2050,6 +2245,52 @@ page {
   color: #2563eb;
   font-size: 22rpx;
   font-weight: 600;
+}
+
+.upper-only-split-card {
+  margin-top: 18rpx;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.upper-only-split-options {
+  flex: 1;
+  display: flex;
+  gap: 10rpx;
+}
+
+.upper-only-split-option {
+  flex: 1;
+  height: 66rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.95);
+  color: rgba(15, 23, 42, 0.7);
+  font-size: 23rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upper-only-split-option.active {
+  color: #ffffff;
+  border-color: transparent;
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
+}
+
+.upper-only-split-help {
+  width: 46rpx;
+  height: 46rpx;
+  border-radius: 50%;
+  border: 1rpx solid rgba(37, 99, 235, 0.45);
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 .generate-btn {
@@ -2264,6 +2505,18 @@ page {
   color: rgba(15, 23, 42, 0.6);
   font-size: 22rpx;
   margin-bottom: 14rpx;
+}
+
+.upload-highlight-tip {
+  display: block;
+  margin-bottom: 12rpx;
+  padding: 12rpx 14rpx;
+  border-radius: 10rpx;
+  border: 1rpx solid rgba(245, 158, 11, 0.38);
+  background: rgba(254, 243, 199, 0.62);
+  color: #92400e;
+  font-size: 21rpx;
+  line-height: 1.55;
 }
 
 .example-grid {

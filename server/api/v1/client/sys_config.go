@@ -776,9 +776,7 @@ func defaultTryonModelsConfig() string {
 		"mode": "prod",
 		"url": "",
 		"token": "",
-		"supportsBeautify": true,
-		"beautifyRetouchDegree": 70,
-		"beautifyWhiteningDegree": 30
+		"supportsBeautify": true
 	}
 ]`
 }

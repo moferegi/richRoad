@@ -30,7 +30,6 @@
           <text class="time">{{ formatTime(item.CreatedAt || item.savedAt) }}</text>
           <text class="error" v-if="item.status === 'failed' && item.errorMessage">{{ item.errorMessage }}</text>
           <view class="card-actions">
-            <view class="mini-btn" @tap.stop="goBeautify(item)">{{ $t('tryonBeautifyAction') }}</view>
             <view class="mini-btn danger" @tap.stop="removeHistory(item)">{{ $t('delete') }}</view>
           </view>
         </view>
@@ -72,13 +71,6 @@
             @tap="switchPreviewTab('origin')"
           >
             {{ $t('previewOriginTab') }}
-          </view>
-          <view
-            class="preview-tab"
-            :class="{ active: previewTab === 'beautify', disabled: !previewBeautifyImages.length }"
-            @tap="switchPreviewTab('beautify')"
-          >
-            {{ $t('beautifyResultTab') }}
           </view>
         </view>
 
@@ -133,15 +125,6 @@
           <text class="preview-title">{{ compareDialogTitle }}</text>
           <view class="preview-close" @tap="closeCompare">
             <uni-icons type="closeempty" size="20" color="#0f172a" />
-          </view>
-        </view>
-
-        <view class="compare-mode-row">
-          <view class="compare-mode-tab" :class="{ active: compareMode === 'tryon', disabled: !canCompareTryonPreview }" @tap="switchCompareMode('tryon')">
-            {{ $t('compareTryonTab') }}
-          </view>
-          <view class="compare-mode-tab" :class="{ active: compareMode === 'beautify', disabled: !canCompareBeautifyPreview }" @tap="switchCompareMode('beautify')">
-            {{ $t('compareBeautifyTab') }}
           </view>
         </view>
 
@@ -233,7 +216,6 @@ const previewVisible = ref(false)
 const previewTab = ref('result')
 const previewResultImages = ref([])
 const previewOriginImages = ref([])
-const previewBeautifyImages = ref([])
 const previewCurrentIndex = ref(0)
 const compareVisible = ref(false)
 const compareMode = ref('tryon')
@@ -281,57 +263,18 @@ const currentPreviewImages = computed(() => {
   if (previewTab.value === 'origin') {
     return previewOriginImages.value
   }
-  if (previewTab.value === 'beautify') {
-    return previewBeautifyImages.value
-  }
   return previewResultImages.value
 })
 
 const canCompareTryonPreview = computed(() => previewOriginImages.value.length > 0 && previewResultImages.value.length > 0)
-const canCompareBeautifyPreview = computed(() => previewResultImages.value.length > 0 && previewBeautifyImages.value.length > 0)
-const canComparePreview = computed(() => {
-  if (previewTab.value === 'beautify') {
-    return canCompareBeautifyPreview.value
-  }
-  return canCompareTryonPreview.value
-})
+const canComparePreview = computed(() => canCompareTryonPreview.value)
 const canDownloadPreview = computed(() => currentPreviewImages.value.length > 0)
-const compareButtonText = computed(() => {
-  if (previewTab.value === 'beautify') {
-    return $t.value('compareBeautifyButton')
-  }
-  return $t.value('compareImageButton')
-})
-const compareDialogTitle = computed(() => {
-  if (compareMode.value === 'beautify') {
-    return $t.value('compareBeautifyButton')
-  }
-  return $t.value('compareImageButton')
-})
-const compareOriginPreview = computed(() => {
-  if (compareMode.value === 'beautify') {
-    return previewResultImages.value[0] || ''
-  }
-  return previewOriginImages.value[0] || ''
-})
-const compareResultPreview = computed(() => {
-  if (compareMode.value === 'beautify') {
-    return previewBeautifyImages.value[0] || ''
-  }
-  return previewResultImages.value[0] || ''
-})
-const compareLeftLabel = computed(() => {
-  if (compareMode.value === 'beautify') {
-    return $t.value('tryonResultTab')
-  }
-  return $t.value('previewOriginTab')
-})
-const compareRightLabel = computed(() => {
-  if (compareMode.value === 'beautify') {
-    return $t.value('beautifyResultTab')
-  }
-  return $t.value('previewResultTab')
-})
+const compareButtonText = computed(() => $t.value('compareImageButton'))
+const compareDialogTitle = computed(() => $t.value('compareImageButton'))
+const compareOriginPreview = computed(() => previewOriginImages.value[0] || '')
+const compareResultPreview = computed(() => previewResultImages.value[0] || '')
+const compareLeftLabel = computed(() => $t.value('previewOriginTab'))
+const compareRightLabel = computed(() => $t.value('previewResultTab'))
 const compareZoomScale = computed(() => Math.max(1, Number(compareZoomPercent.value || 100) / 100))
 const comparePanRangeX = computed(() => {
   const width = Number(compareStageWidthPx.value || 0)
@@ -456,11 +399,6 @@ const uniqueImageList = (list) => {
 }
 
 const thumbnailImage = (item) => {
-  const beautifyList = uniqueImageList(extractImageValues(item?.beautifyResult || item?.beautifyResultImage))
-  if (beautifyList.length) {
-    return getUrl(beautifyList[0])
-  }
-
   const resultList = uniqueImageList(extractImageValues(item?.resultImage))
   if (resultList.length) {
     return getUrl(resultList[0])
@@ -590,12 +528,7 @@ const loadMoreHistory = async () => {
 const switchPreviewTab = (tab) => {
   if (tab === 'result' && !previewResultImages.value.length) return
   if (tab === 'origin' && !previewOriginImages.value.length) return
-  if (tab === 'beautify' && !previewBeautifyImages.value.length) {
-    uni.showToast({ title: $t.value('tryonBeautifyEmptyHint'), icon: 'none' })
-    return
-  }
-
-  previewTab.value = tab
+  previewTab.value = tab === 'origin' ? 'origin' : 'result'
   previewCurrentIndex.value = 0
 }
 
@@ -610,7 +543,6 @@ const closePreview = () => {
   previewCurrentIndex.value = 0
   previewResultImages.value = []
   previewOriginImages.value = []
-  previewBeautifyImages.value = []
   closeCompare()
 }
 
@@ -803,42 +735,13 @@ const measureCompareStage = () => {
   })
 }
 
-const switchCompareMode = (mode) => {
-  if (mode === 'beautify') {
-    if (!canCompareBeautifyPreview.value) {
-      uni.showToast({ title: $t.value('tryonBeautifyCompareEmptyHint'), icon: 'none' })
-      return
-    }
-    compareMode.value = 'beautify'
-    return
-  }
-
+const openCompareFromPreview = () => {
   if (!canCompareTryonPreview.value) {
     uni.showToast({ title: $t.value('noImagePreview'), icon: 'none' })
     return
   }
+
   compareMode.value = 'tryon'
-}
-
-const openCompareFromPreview = () => {
-  let targetMode = previewTab.value === 'beautify' ? 'beautify' : 'tryon'
-  if (targetMode === 'beautify' && !canCompareBeautifyPreview.value) {
-    targetMode = 'tryon'
-  }
-  if (targetMode === 'tryon' && !canCompareTryonPreview.value) {
-    targetMode = 'beautify'
-  }
-
-  if (targetMode === 'beautify' && !canCompareBeautifyPreview.value) {
-    uni.showToast({ title: $t.value('tryonBeautifyCompareEmptyHint'), icon: 'none' })
-    return
-  }
-  if (targetMode === 'tryon' && !canCompareTryonPreview.value) {
-    uni.showToast({ title: $t.value('noImagePreview'), icon: 'none' })
-    return
-  }
-
-  compareMode.value = targetMode
   comparePercent.value = 50
   compareZoomPercent.value = 100
   compareOffsetX.value = 0
@@ -857,35 +760,6 @@ const handleCardTap = (item) => {
     return
   }
   preview(item)
-}
-
-const hasBeautifyUsed = (item) => {
-  const status = String(item?.beautifyStatus || '').trim().toLowerCase()
-  if (status && status !== 'disabled') return true
-  if (String(item?.beautifyTaskNo || '').trim()) return true
-  if (String(item?.beautifyResult || '').trim()) return true
-  return false
-}
-
-const goBeautify = (item) => {
-  const taskID = Number(item?.ID || 0)
-  if (!taskID) {
-    uni.showToast({ title: $t.value('tryonTaskNotFound'), icon: 'none' })
-    return
-  }
-
-  const status = String(item?.status || '').trim().toLowerCase()
-  if (status !== 'success') {
-    uni.showToast({ title: $t.value('tryonTaskNotReadyForBeautify'), icon: 'none' })
-    return
-  }
-
-  if (hasBeautifyUsed(item)) {
-    uni.showToast({ title: $t.value('tryonBeautifyAlreadyUsedHint'), icon: 'none' })
-    return
-  }
-
-  uni.navigateTo({ url: `/pages/tryon/generate?taskID=${taskID}&autoBeautify=1` })
 }
 
 const currentPreviewImage = () => {
@@ -1084,27 +958,21 @@ const removeHistory = (item) => {
 
 const preview = (item) => {
   const resultImages = uniqueImageList(extractImageValues(item.resultImage))
-  const beautifyImages = uniqueImageList(extractImageValues(item.beautifyResult || item.beautifyResultImage))
   const originImages = uniqueImageList([
     ...extractImageValues(item.sourceImage),
     ...extractImageValues(item.templateImage),
   ])
 
-  if (!resultImages.length && !originImages.length && !beautifyImages.length) {
+  if (!resultImages.length && !originImages.length) {
     uni.showToast({ title: $t.value('noImagePreview'), icon: 'none' })
     return
   }
 
   previewResultImages.value = resultImages
   previewOriginImages.value = originImages
-  previewBeautifyImages.value = beautifyImages
-  if (beautifyImages.length) {
-    previewTab.value = 'beautify'
-  } else {
-    previewTab.value = resultImages.length ? 'result' : 'origin'
-  }
+  previewTab.value = resultImages.length ? 'result' : 'origin'
   previewCurrentIndex.value = 0
-  compareMode.value = previewTab.value === 'beautify' ? 'beautify' : 'tryon'
+  compareMode.value = 'tryon'
   previewNativeOpening.value = false
   previewVisible.value = true
 }
@@ -1559,46 +1427,20 @@ page {
 .compare-panel {
   width: calc(100vw - 32rpx);
   max-width: 980rpx;
+  max-height: calc(100vh - 36rpx);
+  display: flex;
+  flex-direction: column;
 }
 
 .compare-stage {
   margin: 12rpx 16rpx 0;
-  height: 78vh;
-  min-height: 700rpx;
-  max-height: 1120rpx;
+  height: 56vh;
+  min-height: 420rpx;
+  max-height: none;
   border-radius: 12rpx;
   overflow: hidden;
   position: relative;
   background: #f8fafc;
-}
-
-.compare-mode-row {
-  margin: 12rpx 16rpx 0;
-  display: flex;
-  gap: 10rpx;
-}
-
-.compare-mode-tab {
-  flex: 1;
-  height: 56rpx;
-  border-radius: 999rpx;
-  border: 1rpx solid rgba(15, 23, 42, 0.12);
-  color: rgba(15, 23, 42, 0.64);
-  background: rgba(15, 23, 42, 0.04);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22rpx;
-}
-
-.compare-mode-tab.active {
-  color: #ffffff;
-  border-color: transparent;
-  background: linear-gradient(90deg, #2563eb, #0ea5e9);
-}
-
-.compare-mode-tab.disabled {
-  opacity: 0.5;
 }
 
 .compare-image {

@@ -15,7 +15,7 @@
     <scroll-view class="list-wrap" scroll-y>
       <view class="grid">
         <view class="card" v-for="item in modelList" :key="item.id">
-          <image class="card-image" :src="getUrl(item.url)" mode="aspectFill" @tap="preview(item)" />
+          <image class="card-image" :src="getUrl(item.url)" mode="aspectFit" @tap="preview(item)" />
           <view class="card-foot">
             <text class="card-name">{{ item.name || $t('unnamedModel') }}</text>
             <view class="card-actions">

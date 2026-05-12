@@ -1109,7 +1109,7 @@ const loadExampleDomain = async () => {
   }
 }
 
-const uploadFolderByTarget = () => 'cloth-on/uni-up'
+const uploadFolderByTarget = () => 'cloth-on/up-try-shoe'
 
 const uploadTypeByTarget = (target) => {
   if (target === 'person') return 'person'
@@ -1246,10 +1246,10 @@ const goGenerate = () => {
     operationType: 'tryon',
     sourceLocalPath: personLocal.value,
     sourceRemoteUrl: personRemote.value,
-    sourceUploadFolder: 'cloth-on/uni-up',
+    sourceUploadFolder: 'cloth-on/up-try-shoe',
     templateLocalPath: shoeLocal.value,
     templateRemoteUrl: shoeRemote.value,
-    templateUploadFolder: 'cloth-on/uni-up',
+    templateUploadFolder: 'cloth-on/up-try-shoe',
     modelKey: currentModel.value.key,
     modelName: currentModel.value.name,
     modelCost: currentCost.value,

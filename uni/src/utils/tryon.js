@@ -301,6 +301,9 @@ const normalizeTryonModelItem = (item = {}, index = 0, fallbackCost = 1, lang = 
   const rawName = item.nameI18n || item.name || item.titleI18n || item.title || key
   const rawDesc = item.descI18n || item.desc || item.descriptionI18n || item.description || ''
   const rawRefinerDesc = item.refinerDescI18n || item.refinerDesc || ''
+  const rawRefinerName = item.refinerNameI18n || item.refinerName || ''
+  const rawParsingDesc = item.parsingDescI18n || item.parsingDesc || ''
+  const rawParsingName = item.parsingNameI18n || item.parsingName || ''
   const rawBeautifyDesc = item.beautifyDescI18n || item.beautifyDesc || ''
   const parsingModelKey = String(item.parsingModelKey || '').trim()
   const refinerModelKey = String(item.refinerModelKey || '').trim()
@@ -334,13 +337,17 @@ const normalizeTryonModelItem = (item = {}, index = 0, fallbackCost = 1, lang = 
     refinerExtraCost,
     refinerModel: String(linkedRefiner?.model || item.refinerModel || 'aitryon-refiner'),
     refinerGender: normalizeRefinerGender(linkedRefiner?.refinerGender || item.refinerGender, 'woman'),
+    refinerName: linkedRefiner?.name || toLocalizedText(rawRefinerName, lang) || '',
     refinerDesc: linkedRefiner?.refinerDesc || rawRefinerDesc,
     refinerDescText: linkedRefiner?.refinerDescText || toLocalizedText(rawRefinerDesc, lang),
+    parsingName: linkedParsing?.name || toLocalizedText(rawParsingName, lang) || '',
+    parsingDesc: linkedParsing?.parsingDesc || rawParsingDesc,
+    parsingDescText: linkedParsing?.parsingDescText || toLocalizedText(rawParsingDesc, lang),
     supportsBeautify,
     beautifyModel: String(item.beautifyModel || 'RetouchSkin'),
     beautifyExtraCost,
-    beautifyRetouchDegree: Number(item.beautifyRetouchDegree || 70),
-    beautifyWhiteningDegree: Number(item.beautifyWhiteningDegree || 30),
+    beautifyRetouchDegree: Number(item.beautifyRetouchDegree || 0),
+    beautifyWhiteningDegree: Number(item.beautifyWhiteningDegree || 0),
     beautifyDesc: rawBeautifyDesc,
     beautifyDescText: toLocalizedText(rawBeautifyDesc, lang),
     freeQuotaTotal: Math.max(0, Number(item.freeQuotaTotal || 0)),
@@ -397,8 +404,8 @@ export const parseTryonModels = (modelsRaw, sceneType, fallbackCost = 1, lang = 
     supportsBeautify: false,
     beautifyModel: 'RetouchSkin',
     beautifyExtraCost: 0,
-    beautifyRetouchDegree: 70,
-    beautifyWhiteningDegree: 30,
+    beautifyRetouchDegree: 0,
+    beautifyWhiteningDegree: 0,
     desc: {
       en: 'Default AI try-on model for common try-on scenes',
       zh: 'Default AI try-on model for common try-on scenes',
@@ -426,8 +433,8 @@ const normalizeBeautifyModelItem = (item = {}, index = 0, fallbackCost = 0, lang
     beautifyModelKey: key,
     beautifyModel,
     beautifyExtraCost,
-    beautifyRetouchDegree: Number(item.beautifyRetouchDegree || 70),
-    beautifyWhiteningDegree: Number(item.beautifyWhiteningDegree || 30),
+    beautifyRetouchDegree: Number(item.beautifyRetouchDegree || 0),
+    beautifyWhiteningDegree: Number(item.beautifyWhiteningDegree || 0),
     beautifyDesc: rawDesc,
     beautifyDescText: toLocalizedText(rawDesc, lang),
     provider: item.provider || '',

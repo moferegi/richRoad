@@ -272,9 +272,7 @@ func defaultTryonModelsSysConfigValue() string {
 	    "provider": "custom",
 	    "mode": "prod",
 	    "url": "",
-	    "token": "",
-	    "beautifyRetouchDegree": 70,
-	    "beautifyWhiteningDegree": 30
+	    "token": ""
 	  }
 	]`
 }
@@ -357,22 +355,20 @@ func appendIDMVTONTryonModelIfMissing() {
 
 	if !hasBeautify {
 		models = append(models, map[string]interface{}{
-			"key":                     "smart_beautify_default",
-			"modelUsage":              "beautify",
-			"enabled":                 true,
-			"scenes":                  []string{"clothes", "shoes", "takeoff"},
-			"model":                   "custom_beautify",
-			"beautifyModel":           "custom_beautify",
-			"name":                    map[string]string{"zh": "智能美肤模型", "en": "Smart Beautify Model", "mn": "Ухаалаг арьс гоёжуулах загвар"},
-			"beautifyDesc":            map[string]string{"zh": "仅用于生成页对试衣结果图进行二次美肤。", "en": "Used only on generate page to beautify try-on results.", "mn": "Зөвхөн туршилтын үр дүнгийн зургийг арьс сайжруулахад ашиглана."},
-			"cost":                    0,
-			"beautifyExtraCost":       0,
-			"provider":                "custom",
-			"mode":                    "prod",
-			"url":                     "",
-			"token":                   "",
-			"beautifyRetouchDegree":   70,
-			"beautifyWhiteningDegree": 30,
+			"key":               "smart_beautify_default",
+			"modelUsage":        "beautify",
+			"enabled":           true,
+			"scenes":            []string{"clothes", "shoes", "takeoff"},
+			"model":             "custom_beautify",
+			"beautifyModel":     "custom_beautify",
+			"name":              map[string]string{"zh": "智能美肤模型", "en": "Smart Beautify Model", "mn": "Ухаалаг арьс гоёжуулах загвар"},
+			"beautifyDesc":      map[string]string{"zh": "仅用于生成页对试衣结果图进行二次美肤。", "en": "Used only on generate page to beautify try-on results.", "mn": "Зөвхөн туршилтын үр дүнгийн зургийг арьс сайжруулахад ашиглана."},
+			"cost":              0,
+			"beautifyExtraCost": 0,
+			"provider":          "custom",
+			"mode":              "prod",
+			"url":               "",
+			"token":             "",
 		})
 		changed = true
 	}
@@ -597,6 +593,8 @@ func normalizeTryonModelConfigItem(model map[string]interface{}, index int) map[
 		baseModel = "custom_beautify"
 	}
 
+	tokenBackups := toStringArrayLoose(pickFirstValue(model, "tokenBackups", "backupTokens"))
+
 	basePayload := map[string]interface{}{
 		"key":          modelKey,
 		"modelUsage":   modelUsage,
@@ -611,6 +609,7 @@ func normalizeTryonModelConfigItem(model map[string]interface{}, index int) map[
 		"url":          firstNonEmptyStringValue(toString(model["url"]), toString(model["providerUrl"])),
 		"taskQueryUrl": toString(model["taskQueryUrl"]),
 		"token":        firstNonEmptyStringValue(toString(model["token"]), toString(model["providerToken"])),
+		"tokenBackups": tokenBackups,
 	}
 
 	providerLower := strings.ToLower(strings.TrimSpace(toString(model["provider"])))
@@ -676,8 +675,12 @@ func normalizeTryonModelConfigItem(model map[string]interface{}, index int) map[
 		basePayload["cost"] = clampNonNegativeInt(toIntLoose(model["cost"], 0))
 		basePayload["beautifyExtraCost"] = clampNonNegativeInt(beautifyExtraCost)
 		basePayload["beautifyModel"] = firstNonEmptyStringValue(toString(model["beautifyModel"]), baseModel)
-		basePayload["beautifyRetouchDegree"] = clampIntRange(toIntLoose(model["beautifyRetouchDegree"], 70), 0, 100)
-		basePayload["beautifyWhiteningDegree"] = clampIntRange(toIntLoose(model["beautifyWhiteningDegree"], 30), 0, 100)
+		if degree, ok := parseOptionalBeautifyDegree(model["beautifyRetouchDegree"]); ok {
+			basePayload["beautifyRetouchDegree"] = degree
+		}
+		if degree, ok := parseOptionalBeautifyDegree(model["beautifyWhiteningDegree"]); ok {
+			basePayload["beautifyWhiteningDegree"] = degree
+		}
 		basePayload["beautifyUrl"] = toString(model["beautifyUrl"])
 		basePayload["beautifyAccessKeyId"] = toString(model["beautifyAccessKeyId"])
 		basePayload["beautifyAccessKeySecret"] = toString(model["beautifyAccessKeySecret"])
@@ -750,6 +753,25 @@ func toIntLoose(value interface{}, fallback int) int {
 	return fallback
 }
 
+func parseOptionalBeautifyDegree(value interface{}) (float64, bool) {
+	text := strings.TrimSpace(toString(value))
+	if text == "" {
+		return 0, false
+	}
+
+	var degree float64
+	if _, err := fmt.Sscanf(text, "%f", &degree); err != nil {
+		return 0, false
+	}
+	if degree <= 0 {
+		return 0, false
+	}
+	if degree > 1.5 {
+		return 0, false
+	}
+	return degree, true
+}
+
 func toIntLooseWithFallback(model map[string]interface{}, keys []string, fallback int) int {
 	for _, key := range keys {
 		if model == nil {
@@ -805,7 +827,9 @@ func toStringArrayLoose(value interface{}) []string {
 				return result
 			}
 		}
-		for _, item := range strings.Split(text, ",") {
+		for _, item := range strings.FieldsFunc(text, func(r rune) bool {
+			return r == ',' || r == ';' || r == '\n' || r == '\r' || r == '\t'
+		}) {
 			appendValue(item)
 		}
 	}

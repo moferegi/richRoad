@@ -202,7 +202,7 @@
     </div>
 
     <!-- 编辑弹窗 -->
-    <el-dialog v-model="editVisible" title="编辑参数" width="600px">
+    <el-dialog v-model="editVisible" title="编辑参数" :width="editDialogWidth">
       <el-form :model="editForm" label-width="120px">
         <el-form-item label="配置键">
           <el-input :model-value="editForm.configKey" disabled />
@@ -235,19 +235,21 @@
                 暂无模型，点击“新增模型”开始配置
               </div>
 
-              <el-collapse
+              <el-tabs
                 v-else
-                v-model="tryonModelActivePanels"
-                @change="handleTryonModelPanelChange"
+                v-model="tryonModelActiveTab"
+                tab-position="left"
+                class="tryon-model-tabs"
+                @tab-change="handleTryonModelTabChange"
               >
-                <el-collapse-item
+                <el-tab-pane
                   v-for="(model, index) in tryonModels"
                   :key="model.__uid"
                   :name="model.__uid"
                 >
-                  <template #title>
-                    <div class="tryon-model-title">
-                      <span>{{ displayI18nText(model.name) || model.key || ('模型' + (index + 1)) }}</span>
+                  <template #label>
+                    <div class="tryon-model-tab-label">
+                      <span class="tryon-model-tab-title">{{ displayI18nText(model.name) || model.key || ('模型' + (index + 1)) }}</span>
                       <el-tag size="small" :type="model.enabled ? 'success' : 'info'">
                         {{ model.enabled ? '启用' : '关闭' }}
                       </el-tag>
@@ -350,7 +352,18 @@
                       </div>
                       <div class="tryon-model-field full">
                         <span class="tryon-model-label">模型 token</span>
-                        <el-input v-model="model.token" type="password" show-password placeholder="模型级鉴权 token（留空表示该模型无鉴权）" />
+                        <el-input v-model="model.token" type="password" show-password placeholder="模型级主 token（留空表示该模型无鉴权）" />
+                        <div class="tryon-model-hint">主 token 优先使用。</div>
+                      </div>
+                      <div class="tryon-model-field full">
+                        <span class="tryon-model-label">备用 token 列表 tokenBackups</span>
+                        <el-input
+                          v-model="model.tokenBackupText"
+                          type="textarea"
+                          :rows="4"
+                          placeholder="每行一个备用 token；主 token 失效或额度不足时自动切换"
+                        />
+                        <div class="tryon-model-hint">按顺序回退，直到找到可用 token；全部不可用时才返回失败。</div>
                       </div>
 
                       <div class="tryon-model-subtitle" v-if="isTryonUsageModel(model)">Gradio / HuggingFace Space 参数</div>
@@ -478,11 +491,11 @@
                         </div>
                         <div class="tryon-model-field">
                           <span class="tryon-model-label">磨皮强度 beautifyRetouchDegree</span>
-                          <el-input-number v-model="model.beautifyRetouchDegree" :min="0" :max="100" :step="1" />
+                          <el-input-number v-model="model.beautifyRetouchDegree" :min="0" :max="1.5" :step="0.1" :precision="2" />
                         </div>
                         <div class="tryon-model-field">
                           <span class="tryon-model-label">美白强度 beautifyWhiteningDegree</span>
-                          <el-input-number v-model="model.beautifyWhiteningDegree" :min="0" :max="100" :step="1" />
+                          <el-input-number v-model="model.beautifyWhiteningDegree" :min="0" :max="1.5" :step="0.1" :precision="2" />
                         </div>
                         <div class="tryon-model-field full">
                           <span class="tryon-model-label">美肤地址 beautifyUrl</span>
@@ -540,8 +553,8 @@
                       <el-button size="small" type="danger" plain @click="removeTryonModel(index)">删除</el-button>
                     </div>
                   </div>
-                </el-collapse-item>
-              </el-collapse>
+                </el-tab-pane>
+              </el-tabs>
             </div>
           </template>
           <!-- 试衣币充值套餐可视化编辑 -->
@@ -986,8 +999,12 @@ const tryonModels = ref([])
 const rechargePlans = ref([])
 const paymentManualMethods = ref([])
 const paymentPreferredMethods = ref([])
-const tryonModelActivePanels = ref([])
+const tryonModelActiveTab = ref('')
 const aliyunQuotaState = reactive({})
+
+const editDialogWidth = computed(() => {
+  return isTryonModelsConfig(editForm.value) ? '1200px' : '600px'
+})
 
 const multilingualLangs = [
   { code: 'zh', label: '中文 zh' },
@@ -1051,11 +1068,58 @@ const toInt = (value, fallback = 0) => {
   return Number.isFinite(numberValue) ? numberValue : fallback
 }
 
+const parseOptionalBeautifyDegree = (value) => {
+  if (value === '' || value === null || value === undefined) {
+    return undefined
+  }
+  const numberValue = Number(value)
+  if (!Number.isFinite(numberValue) || numberValue <= 0) {
+    return undefined
+  }
+  if (numberValue > 1.5) {
+    return undefined
+  }
+  return Number(numberValue.toFixed(3))
+}
+
 const toStringArray = (value, fallback = []) => {
   if (Array.isArray(value)) {
     return Array.from(new Set(value.map(item => String(item).trim()).filter(Boolean)))
   }
   return [...fallback]
+}
+
+const splitTokenBackupInput = (value) => {
+  return String(value || '')
+    .split(/\r?\n|,|;/g)
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+const normalizeTokenBackups = (value) => {
+  const result = []
+  const appendToken = (token) => {
+    const normalized = String(token || '').trim()
+    if (!normalized) return
+    if (result.includes(normalized)) return
+    result.push(normalized)
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach(appendToken)
+    return result
+  }
+
+  if (value && typeof value === 'object') {
+    return result
+  }
+
+  splitTokenBackupInput(value).forEach(appendToken)
+  return result
+}
+
+const joinTokenBackups = (value) => {
+  return normalizeTokenBackups(value).join('\n')
 }
 
 const normalizeGender = (value, fallback = 'woman') => {
@@ -1273,17 +1337,34 @@ const refreshAliyunQuota = async (model = {}, force = false) => {
   }
 }
 
-const handleTryonModelPanelChange = (panelNames) => {
-  const activePanels = Array.isArray(panelNames)
-    ? panelNames
-    : (panelNames ? [panelNames] : [])
+const ensureTryonModelActiveTab = (preferredTab = '') => {
+  const available = tryonModels.value
+  if (!Array.isArray(available) || available.length === 0) {
+    tryonModelActiveTab.value = ''
+    return
+  }
 
-  activePanels.forEach((panelName) => {
-    const model = tryonModels.value.find(item => item.__uid === panelName)
-    if (model && isAliyunModelForQuota(model)) {
-      refreshAliyunQuota(model, true)
-    }
-  })
+  const preferred = String(preferredTab || '').trim()
+  if (preferred && available.some(item => item.__uid === preferred)) {
+    tryonModelActiveTab.value = preferred
+    return
+  }
+
+  const current = String(tryonModelActiveTab.value || '').trim()
+  if (current && available.some(item => item.__uid === current)) {
+    return
+  }
+
+  tryonModelActiveTab.value = available[0].__uid
+}
+
+const handleTryonModelTabChange = (tabName) => {
+  const selected = String(tabName || '').trim()
+  if (!selected) return
+  const model = tryonModels.value.find(item => item.__uid === selected)
+  if (model && isAliyunModelForQuota(model)) {
+    refreshAliyunQuota(model, true)
+  }
 }
 
 const normalizeI18nObject = (value) => {
@@ -1594,6 +1675,7 @@ const createDefaultTryonModel = () => ({
   url: '',
   taskQueryUrl: '',
   token: '',
+  tokenBackupText: '',
 
   apiName: '/tryon',
   garmentDes: 'clothing item',
@@ -1613,8 +1695,8 @@ const createDefaultTryonModel = () => ({
   supportsBeautify: false,
   beautifyExtraCost: 0,
   beautifyModel: 'custom_beautify',
-  beautifyRetouchDegree: 70,
-  beautifyWhiteningDegree: 30,
+  beautifyRetouchDegree: undefined,
+  beautifyWhiteningDegree: undefined,
   beautifyUrl: '',
   beautifyAccessKeyId: '',
   beautifyAccessKeySecret: '',
@@ -1634,6 +1716,7 @@ const normalizeTryonModel = (item = {}, index = 0) => {
   const normalizedFreeQuota = Math.max(0, toInt(item.freeQuotaTotal, defaultFreeQuota))
   const defaultRefinerKey = inferredSupportsRefiner ? 'aliyun_aitryon_refiner' : ''
   const defaultParsingKey = inferredAutoAliyunParsing ? 'aliyun_aitryon_parsing' : ''
+  const tokenBackups = normalizeTokenBackups(item.tokenBackups || item.backupTokens)
 
   const normalized = {
     __uid: createTryonModelUid(),
@@ -1650,6 +1733,7 @@ const normalizeTryonModel = (item = {}, index = 0) => {
     url: String(item.url || item.providerUrl || ''),
     taskQueryUrl: String(item.taskQueryUrl || ''),
     token: String(item.token || item.providerToken || ''),
+    tokenBackupText: joinTokenBackups(tokenBackups),
 
     parsingModelKey: '',
     refinerModelKey: '',
@@ -1676,8 +1760,8 @@ const normalizeTryonModel = (item = {}, index = 0) => {
     supportsBeautify: modelUsage === 'beautify',
     beautifyExtraCost: 0,
     beautifyModel: '',
-    beautifyRetouchDegree: Math.max(0, Math.min(100, toInt(item.beautifyRetouchDegree, defaultModel.beautifyRetouchDegree))),
-    beautifyWhiteningDegree: Math.max(0, Math.min(100, toInt(item.beautifyWhiteningDegree, defaultModel.beautifyWhiteningDegree))),
+    beautifyRetouchDegree: parseOptionalBeautifyDegree(item.beautifyRetouchDegree),
+    beautifyWhiteningDegree: parseOptionalBeautifyDegree(item.beautifyWhiteningDegree),
     beautifyUrl: String(item.beautifyUrl || ''),
     beautifyAccessKeyId: String(item.beautifyAccessKeyId || ''),
     beautifyAccessKeySecret: String(item.beautifyAccessKeySecret || ''),
@@ -1744,6 +1828,7 @@ const parseTryonModelsValue = (rawValue) => {
 const buildTryonModelsPayload = () => {
   return tryonModels.value.map((item) => {
     const modelUsage = normalizeModelUsage(item.modelUsage, 'tryon', item)
+    const tokenBackups = normalizeTokenBackups(item.tokenBackupText || item.tokenBackups || item.backupTokens)
     const payload = {
       key: String(item.key || '').trim(),
       modelUsage,
@@ -1758,6 +1843,7 @@ const buildTryonModelsPayload = () => {
       url: String(item.url || '').trim(),
       taskQueryUrl: String(item.taskQueryUrl || '').trim(),
       token: String(item.token || '').trim(),
+      tokenBackups,
     }
 
     if (modelUsage === 'tryon') {
@@ -1802,12 +1888,12 @@ const buildTryonModelsPayload = () => {
       }
     }
 
-    return {
+    const beautifyRetouchDegree = parseOptionalBeautifyDegree(item.beautifyRetouchDegree)
+    const beautifyWhiteningDegree = parseOptionalBeautifyDegree(item.beautifyWhiteningDegree)
+    const result = {
       ...payload,
       beautifyExtraCost: Math.max(0, toInt(item.beautifyExtraCost, toInt(item.cost, 0))),
       beautifyModel: String(item.beautifyModel || item.model || '').trim(),
-      beautifyRetouchDegree: Math.max(0, Math.min(100, toInt(item.beautifyRetouchDegree, 70))),
-      beautifyWhiteningDegree: Math.max(0, Math.min(100, toInt(item.beautifyWhiteningDegree, 30))),
       beautifyUrl: String(item.beautifyUrl || '').trim(),
       beautifyAccessKeyId: String(item.beautifyAccessKeyId || '').trim(),
       beautifyAccessKeySecret: String(item.beautifyAccessKeySecret || '').trim(),
@@ -1815,6 +1901,13 @@ const buildTryonModelsPayload = () => {
       beautifyToken: String(item.beautifyToken || '').trim(),
       beautifyDesc: normalizeI18nObject(item.beautifyDesc),
     }
+    if (beautifyRetouchDegree !== undefined) {
+      result.beautifyRetouchDegree = beautifyRetouchDegree
+    }
+    if (beautifyWhiteningDegree !== undefined) {
+      result.beautifyWhiteningDegree = beautifyWhiteningDegree
+    }
+    return result
   })
 }
 
@@ -1895,7 +1988,9 @@ const enabledTryonModelsCount = (rawValue) => {
 }
 
 const addTryonModel = () => {
-  tryonModels.value.push(createDefaultTryonModel())
+  const created = createDefaultTryonModel()
+  tryonModels.value.push(created)
+  ensureTryonModelActiveTab(created.__uid)
 }
 
 const cloneTryonModel = (index) => {
@@ -1908,10 +2003,13 @@ const cloneTryonModel = (index) => {
     cloned.key = `${cloned.key}_copy`
   }
   tryonModels.value.splice(index + 1, 0, cloned)
+  ensureTryonModelActiveTab(cloned.__uid)
 }
 
 const removeTryonModel = (index) => {
   tryonModels.value.splice(index, 1)
+  const nextModel = tryonModels.value[index] || tryonModels.value[index - 1]
+  ensureTryonModelActiveTab(nextModel?.__uid || '')
 }
 
 const modelCallStatusTag = (status) => {
@@ -2042,7 +2140,7 @@ const openEdit = (row) => {
   rechargePlans.value = []
   paymentManualMethods.value = []
   paymentPreferredMethods.value = []
-  tryonModelActivePanels.value = []
+  tryonModelActiveTab.value = ''
   Object.keys(aliyunQuotaState).forEach((key) => {
     delete aliyunQuotaState[key]
   })
@@ -2054,6 +2152,7 @@ const openEdit = (row) => {
   }
   if (isTryonModelsConfig(row)) {
     tryonModels.value = parseTryonModelsValue(row.configValue)
+    ensureTryonModelActiveTab()
     const rawValue = String(row.configValue || '').trim()
     if (rawValue && rawValue !== '[]' && tryonModels.value.length === 0) {
       ElMessage.warning('当前试衣模型配置格式异常，已按空列表打开，请确认后保存')
@@ -2196,6 +2295,36 @@ onMounted(() => {
 
 .tryon-model-editor {
   width: 100%;
+}
+
+.tryon-model-tabs {
+  width: 100%;
+}
+
+.tryon-model-tabs :deep(.el-tabs__header) {
+  min-width: 280px;
+  max-width: 360px;
+}
+
+.tryon-model-tabs :deep(.el-tabs__content) {
+  padding-left: 12px;
+}
+
+.tryon-model-tab-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 340px;
+}
+
+.tryon-model-tab-title {
+  display: inline-block;
+  min-width: 0;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
 }
 
 .tryon-model-toolbar {

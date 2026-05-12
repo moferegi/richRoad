@@ -13,7 +13,7 @@ type CreateTryonTaskReq struct {
 	EnableRefiner      bool   `json:"enableRefiner" form:"enableRefiner"`
 	EnableParsing      bool   `json:"enableParsing" form:"enableParsing"`
 	SceneType          string `json:"sceneType" form:"sceneType" binding:"required,oneof=clothes shoes takeoff"`
-	TemplatePart       string `json:"templatePart" form:"templatePart" binding:"omitempty,oneof=upper lower"`
+	TemplatePart       string `json:"templatePart" form:"templatePart" binding:"omitempty,oneof=upper lower upper_lower dress"`
 	SourceImage        string `json:"sourceImage" form:"sourceImage" binding:"required"`
 	TemplateImage      string `json:"templateImage" form:"templateImage" binding:"required"`
 	TemplateImageLower string `json:"templateImageLower" form:"templateImageLower"`
