@@ -52,6 +52,25 @@
             <span v-else>-</span>
           </template>
         </el-table-column>
+        <el-table-column align="left" label="图片体积" width="130">
+          <template #default="scope">
+            <span>{{ getImageSizeText(scope.row) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column align="left" label="图片链接" min-width="280" show-overflow-tooltip>
+          <template #default="scope">
+            <el-link
+              v-if="scope.row.image"
+              :href="getImageLink(scope.row.image)"
+              target="_blank"
+              type="primary"
+              :underline="false"
+            >
+              {{ getImageLink(scope.row.image) }}
+            </el-link>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column align="left" label="创建时间" width="180">
           <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
@@ -102,6 +121,74 @@ const searchInfo = ref({
   name: '',
 })
 
+const imageSizeTextMap = ref({})
+const imageSizeCache = new Map()
+const imageSizePromiseCache = new Map()
+
+const getImageLink = (image) => getUrl(image)
+
+const formatFileSize = (bytes) => {
+  const value = Number(bytes)
+  if (!Number.isFinite(value) || value <= 0) return '-'
+  if (value < 1024) return `${Math.round(value)} B`
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(2)} KB`
+  return `${(value / (1024 * 1024)).toFixed(2)} MB`
+}
+
+const loadImageSizeText = (url) => {
+  const target = String(url || '').trim()
+  if (!target) return Promise.resolve('-')
+
+  if (imageSizeCache.has(target)) {
+    return Promise.resolve(imageSizeCache.get(target))
+  }
+
+  if (imageSizePromiseCache.has(target)) {
+    return imageSizePromiseCache.get(target)
+  }
+
+  const pending = fetch(target, { method: 'GET' })
+    .then((res) => {
+      if (!res.ok) return '-'
+      return res.blob().then((blob) => formatFileSize(blob?.size))
+    })
+    .catch(() => '-')
+    .then((text) => {
+      const finalText = text || '-'
+      imageSizeCache.set(target, finalText)
+      imageSizePromiseCache.delete(target)
+      return finalText
+    })
+
+  imageSizePromiseCache.set(target, pending)
+  return pending
+}
+
+const warmImageSize = (row) => {
+  const id = row?.ID
+  const image = row?.image
+  if (!id || !image) return
+  if (imageSizeTextMap.value[id]) return
+
+  const link = getImageLink(image)
+  if (!link) {
+    imageSizeTextMap.value[id] = '-'
+    return
+  }
+
+  loadImageSizeText(link).then((text) => {
+    imageSizeTextMap.value[id] = text || '-'
+  })
+}
+
+const getImageSizeText = (row) => {
+  const id = row?.ID
+  if (!id || !row?.image) return '-'
+  if (imageSizeTextMap.value[id]) return imageSizeTextMap.value[id]
+  warmImageSize(row)
+  return '-'
+}
+
 const buildSearchParams = () => ({
   ...searchInfo.value,
 })
@@ -117,6 +204,8 @@ const getTableData = async () => {
     const res = await getTryonModelList(params)
     if (res.code === 0) {
       tableData.value = res.data?.list || []
+      imageSizeTextMap.value = {}
+      tableData.value.forEach((row) => warmImageSize(row))
       total.value = res.data?.total || 0
       page.value = res.data?.page || page.value
       pageSize.value = res.data?.pageSize || pageSize.value

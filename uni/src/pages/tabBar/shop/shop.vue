@@ -18,6 +18,13 @@
           <LazyImage v-if="shoePreview" class="slot-preview" :src="shoePreview" mode="aspectFit" />
           <view v-if="shoePreview && shoeSizeBytes > 0" class="preview-size-mask">{{ formatPreviewSize(shoeSizeBytes) }}</view>
           <text v-else class="slot-text">{{ $t('uploadShoeImage') }}</text>
+          <text class="slot-index">1</text>
+        </view>
+        <view class="slot" @tap="openUploadDrawer('shoeSecondary')">
+          <LazyImage v-if="shoeSecondaryPreview" class="slot-preview" :src="shoeSecondaryPreview" mode="aspectFit" />
+          <view v-if="shoeSecondaryPreview && shoeSecondarySizeBytes > 0" class="preview-size-mask">{{ formatPreviewSize(shoeSecondarySizeBytes) }}</view>
+          <text v-else class="slot-text">{{ $t('uploadShoeImage') }}</text>
+          <text class="slot-index">2</text>
         </view>
         <view class="slot suit-slot" @tap="goClothesPage">
           <text class="slot-text">{{ $t('suitSet') }}</text>
@@ -27,7 +34,7 @@
     </view>
 
     <view class="model-card">
-      <view class="model-left" @tap="showModelPopup = true">
+      <view class="model-left" @tap="canSwitchModel && (showModelPopup = true)">
         <text class="model-label">{{ $t('currentModelLabel') }}</text>
         <view class="model-info">
           <text class="model-value">{{ currentModel.name }}</text>
@@ -35,7 +42,7 @@
           <text class="model-desc-hint" v-if="currentModelDesc">{{ currentModelDesc }}</text>
         </view>
       </view>
-      <view class="model-switch" @tap="showModelPopup = true">
+      <view class="model-switch" v-if="canSwitchModel" @tap="showModelPopup = true">
         <text>{{ $t('switchAction') }}</text>
       </view>
     </view>
@@ -46,7 +53,7 @@
 
     <!-- <view class="tips">{{ $t('shoeTryonTip') }}</view> -->
 
-    <view class="popup-mask" v-if="showModelPopup" @tap="showModelPopup = false">
+    <view class="popup-mask" v-if="showModelPopup && canSwitchModel" @tap="showModelPopup = false">
       <view class="popup-panel" @tap.stop>
         <view class="popup-title">{{ $t('selectModel') }}</view>
         <scroll-view scroll-y class="popup-list">
@@ -165,6 +172,7 @@
               <view class="upload-main-btn" @tap="uploadDrawerChooseImage('compress')">{{ $t('uploadModeCompress') }}</view>
             </view>
             <text class="upload-center-tip">{{ $t('uploadSingleShoeTip') }}</text>
+            <text class="upload-center-tip">{{ $t('uploadImagesMax').replace('{n}', String(MAX_SHOE_IMAGE_COUNT)) }}</text>
 
             <view class="example-grid two">
               <view
@@ -224,7 +232,7 @@
           <text class="crop-editor-title">{{ $t('uploadModeCrop') }}</text>
           <text class="crop-editor-ratio">{{ cropRatioLabel }}</text>
         </view>
-        <view class="crop-ratio-options">
+        <view class="crop-ratio-options" v-if="!cropRatioLocked">
           <view
             v-for="ratio in cropRatioOptions"
             :key="ratio.key"
@@ -317,13 +325,24 @@ const tryonConfig = ref({
   tryon_cost_points: '1',
   tryon_models: '',
 })
+const SHOE_ONLY_MODEL_KEY = 'aliyun_shoemodel_v1'
+const SHOE_ONLY_MODEL_NAME = 'shoemodel-v1'
+const FIXED_TRYON_CROP_RATIO = { width: 4, height: 3 }
+const MAX_TRYON_IMAGE_BYTES = 5 * 1024 * 1024
+const MAX_SHOE_IMAGE_COUNT = 2
+const CROP_EXPORT_MAX_EDGE = 3072
+
+const isShoeTarget = (target) => target === 'shoe' || target === 'shoeSecondary'
 
 const personLocal = ref('')
 const personRemote = ref('')
 const shoeLocal = ref('')
 const shoeRemote = ref('')
+const shoeSecondaryLocal = ref('')
+const shoeSecondaryRemote = ref('')
 const personSizeBytes = ref(0)
 const shoeSizeBytes = ref(0)
+const shoeSecondarySizeBytes = ref(0)
 const cropCanvasSize = ref({ width: 1, height: 1 })
 const cropEditorVisible = ref(false)
 const cropSourcePath = ref('')
@@ -331,18 +350,21 @@ const cropSourceSize = ref({ width: 0, height: 0 })
 const cropStageSize = ref({ width: 1, height: 1 })
 const cropBoxSize = ref({ width: 1, height: 1 })
 const cropBoxPosition = ref({ x: 0, y: 0 })
-const cropRatio = ref({ width: 3, height: 4 })
+const cropRatio = ref({ width: 4, height: 3 })
+const cropRatioLocked = ref(false)
 const activeCropEdge = ref('all')
 const cropConfirming = ref(false)
 let cropResolve = null
 
 const personPreview = computed(() => personRemote.value ? getUrl(personRemote.value) : personLocal.value)
 const shoePreview = computed(() => shoeRemote.value ? getUrl(shoeRemote.value) : shoeLocal.value)
+const shoeSecondaryPreview = computed(() => shoeSecondaryRemote.value ? getUrl(shoeSecondaryRemote.value) : shoeSecondaryLocal.value)
 
 const currentModel = computed(() => {
   const selected = modelList.value.find(v => v.key === selectedModelKey.value)
-  return selected || modelList.value[0] || { key: 'shoes-and-boots', name: 'shoes-and-boots', cost: Number(tryonConfig.value.tryon_cost_points || 1), desc: {} }
+  return selected || modelList.value[0] || { key: SHOE_ONLY_MODEL_KEY, name: SHOE_ONLY_MODEL_NAME, cost: Number(tryonConfig.value.tryon_cost_points || 1), desc: {} }
 })
+const canSwitchModel = computed(() => modelList.value.length > 1)
 const currentCost = computed(() => Number(currentModel.value.cost || 1))
 const currentModelDesc = computed(() => currentModel.value.descText || localText(currentModel.value.desc, langStore.locale) || '')
 const cropRatioLabel = computed(() => `${cropRatio.value.width}:${cropRatio.value.height}`)
@@ -361,6 +383,7 @@ const setImageSizeForTarget = (target, bytes = 0) => {
   const safeSize = Number.isFinite(Number(bytes)) && Number(bytes) > 0 ? Math.round(Number(bytes)) : 0
   if (target === 'person') personSizeBytes.value = safeSize
   if (target === 'shoe') shoeSizeBytes.value = safeSize
+  if (target === 'shoeSecondary') shoeSecondarySizeBytes.value = safeSize
 }
 
 const formatPreviewSize = (bytes) => {
@@ -440,6 +463,7 @@ const isCropRatioActive = (ratio) => {
 }
 
 const changeCropRatio = (ratio) => {
+  if (cropRatioLocked.value) return
   if (!ratio) return
   const stageWidth = Number(cropStageSize.value.width || 0)
   const stageHeight = Number(cropStageSize.value.height || 0)
@@ -473,19 +497,19 @@ const changeCropRatio = (ratio) => {
 
 const buildCropStageLayout = (imageWidth, imageHeight, ratio) => {
   const systemInfo = uni.getSystemInfoSync()
-  const maxStageWidth = Math.max(220, Math.min(systemInfo.windowWidth - 40, 420))
-  const maxStageHeight = Math.max(260, Math.min(Math.round(systemInfo.windowHeight * 0.58), 620))
+  const maxStageWidth = Math.max(240, Math.min(systemInfo.windowWidth - 20, 520))
+  const maxStageHeight = Math.max(300, Math.min(Math.round(systemInfo.windowHeight * 0.72), 760))
   const scale = Math.min(maxStageWidth / imageWidth, maxStageHeight / imageHeight, 1)
 
   const stageWidth = Math.max(120, Math.round(imageWidth * scale))
   const stageHeight = Math.max(120, Math.round(imageHeight * scale))
   const targetRatio = ratio.width / ratio.height
 
-  let boxWidth = Math.round(stageWidth * 0.72)
+  let boxWidth = Math.round(stageWidth * 0.86)
   let boxHeight = Math.round(boxWidth / targetRatio)
 
-  if (boxHeight > Math.round(stageHeight * 0.82)) {
-    boxHeight = Math.round(stageHeight * 0.82)
+  if (boxHeight > Math.round(stageHeight * 0.9)) {
+    boxHeight = Math.round(stageHeight * 0.9)
     boxWidth = Math.round(boxHeight * targetRatio)
   }
 
@@ -514,6 +538,7 @@ const buildCropStageLayout = (imageWidth, imageHeight, ratio) => {
 
 const finishCropEditor = (croppedPath = '') => {
   cropEditorVisible.value = false
+  cropRatioLocked.value = false
   const resolver = cropResolve
   cropResolve = null
   if (typeof resolver === 'function') {
@@ -619,7 +644,8 @@ const zoomOutCropBox = () => {
   scaleCropBox(-0.12)
 }
 
-const openCropEditor = async (filePath, ratio = { width: 3, height: 4 }) => {
+const openCropEditor = async (filePath, ratio = FIXED_TRYON_CROP_RATIO, options = {}) => {
+  cropRatioLocked.value = false
   const info = await getImageInfoAsync(filePath)
   const imageWidth = Number(info.width || 0)
   const imageHeight = Number(info.height || 0)
@@ -627,9 +653,10 @@ const openCropEditor = async (filePath, ratio = { width: 3, height: 4 }) => {
     return false
   }
 
+  const lockRatio = !!options?.lockRatio
   const safeRatio = Number(ratio?.width || 0) > 0 && Number(ratio?.height || 0) > 0
     ? ratio
-    : { width: 3, height: 4 }
+    : FIXED_TRYON_CROP_RATIO
 
   const layout = buildCropStageLayout(imageWidth, imageHeight, safeRatio)
   cropSourcePath.value = filePath
@@ -641,6 +668,7 @@ const openCropEditor = async (filePath, ratio = { width: 3, height: 4 }) => {
     width: safeRatio.width,
     height: safeRatio.height,
   }
+  cropRatioLocked.value = lockRatio
   cropStageSize.value = {
     width: layout.stageWidth,
     height: layout.stageHeight,
@@ -657,13 +685,13 @@ const openCropEditor = async (filePath, ratio = { width: 3, height: 4 }) => {
   return true
 }
 
-const requestCropImage = async (filePath, ratio = { width: 3, height: 4 }) => {
+const requestCropImage = async (filePath, ratio = FIXED_TRYON_CROP_RATIO, options = {}) => {
   if (typeof cropResolve === 'function') {
     cropResolve('')
     cropResolve = null
   }
 
-  const opened = await openCropEditor(filePath, ratio)
+  const opened = await openCropEditor(filePath, ratio, options)
   if (!opened) return ''
 
   return new Promise((resolve) => {
@@ -731,7 +759,7 @@ const confirmCropEditor = async () => {
     cropWidth = clamp(cropWidth, 1, srcWidth - cropX)
     cropHeight = clamp(cropHeight, 1, srcHeight - cropY)
 
-    const maxEdge = 1600
+    const maxEdge = CROP_EXPORT_MAX_EDGE
     const scale = Math.min(1, maxEdge / Math.max(cropWidth, cropHeight))
     const destWidth = Math.max(1, Math.round(cropWidth * scale))
     const destHeight = Math.max(1, Math.round(cropHeight * scale))
@@ -788,9 +816,10 @@ const compressImage = async (filePath) => {
   let bestSize = originalSize > 0 ? originalSize : Number.MAX_SAFE_INTEGER
 
   const attempts = [
-    { quality: 0.72, maxEdge: 1680 },
-    { quality: 0.6, maxEdge: 1360 },
-    { quality: 0.48, maxEdge: 1080 },
+    { quality: 0.9, maxEdge: 3072 },
+    { quality: 0.82, maxEdge: 2560 },
+    { quality: 0.72, maxEdge: 2048 },
+    { quality: 0.6, maxEdge: 1680 },
   ]
 
   for (const attempt of attempts) {
@@ -834,21 +863,65 @@ const compressImage = async (filePath) => {
   return filePath
 }
 
-const pickAndProcessImage = async (mode = 'original') => {
+const ensureImageSizeWithinLimit = async (filePath) => {
+  let uploadPath = filePath
+  let sizeBytes = await getFileSizeAsync(uploadPath)
+
+  if (sizeBytes > MAX_TRYON_IMAGE_BYTES) {
+    const compressedPath = await compressImage(uploadPath)
+    if (compressedPath) {
+      uploadPath = compressedPath
+      sizeBytes = await getFileSizeAsync(uploadPath)
+    }
+  }
+
+  return {
+    uploadPath,
+    sizeBytes,
+  }
+}
+
+const isRemoteHTTPImage = (src) => /^https?:\/\//i.test(String(src || '').trim())
+
+const downloadImageAsync = (url) => {
+  return new Promise((resolve, reject) => {
+    uni.downloadFile({
+      url,
+      success: (res) => {
+        if (Number(res?.statusCode) >= 200 && Number(res?.statusCode) < 300 && res?.tempFilePath) {
+          resolve(res.tempFilePath)
+          return
+        }
+        reject(new Error('downloadFail'))
+      },
+      fail: reject,
+    })
+  })
+}
+
+const resolveImageSourcePath = async (src) => {
+  const value = String(src || '').trim()
+  if (!value) return ''
+  if (!isRemoteHTTPImage(value)) return value
+  return downloadImageAsync(value)
+}
+
+const pickAndProcessImage = async (target, mode = 'original') => {
   const chooseRes = await chooseImageAsync(['original'])
   const selectedPath = chooseRes.tempFilePaths && chooseRes.tempFilePaths[0]
   if (!selectedPath) return null
 
   let uploadPath = selectedPath
-  if (mode === 'crop') {
-    uploadPath = await requestCropImage(selectedPath)
+  if (target === 'person' || isShoeTarget(target)) {
+    uploadPath = await requestCropImage(selectedPath, FIXED_TRYON_CROP_RATIO, { lockRatio: true })
     if (!uploadPath) return null
-  } else if (mode === 'compress') {
-    uploadPath = await compressImage(selectedPath)
   }
 
-  const sizeBytes = await getFileSizeAsync(uploadPath)
-  return { uploadPath, sizeBytes }
+  if (mode === 'compress') {
+    uploadPath = await compressImage(uploadPath)
+  }
+
+  return ensureImageSizeWithinLimit(uploadPath)
 }
 
 const EXAMPLE_PRIMARY_DOMAIN = 'https://video.mnmovie.icu'
@@ -989,7 +1062,7 @@ const shoeRecommendedExamples = computed(() => buildIndexedExampleItems(
 
 const uploadSceneKey = computed(() => uploadTarget.value || 'person')
 const isPersonDrawer = computed(() => uploadSceneKey.value === 'person')
-const isShoeDrawer = computed(() => uploadSceneKey.value === 'shoe')
+const isShoeDrawer = computed(() => isShoeTarget(uploadSceneKey.value))
 
 const drawerTabs = computed(() => {
   if (isPersonDrawer.value) {
@@ -1007,7 +1080,7 @@ const drawerTabs = computed(() => {
 })
 
 const uploadDrawerTitle = computed(() => {
-  return uploadTarget.value === 'shoe' ? $t.value('uploadShoeImage') : $t.value('uploadPersonImage')
+  return isShoeTarget(uploadTarget.value) ? $t.value('uploadShoeImage') : $t.value('uploadPersonImage')
 })
 
 const uploadDrawerTip = computed(() => {
@@ -1018,12 +1091,24 @@ const uploadDrawerTip = computed(() => {
 })
 
 const rebuildModelList = () => {
-  modelList.value = parseTryonModels(
+  const parsedModels = parseTryonModels(
     tryonConfig.value.tryon_models,
     'shoes',
     Number(tryonConfig.value.tryon_cost_points || 1),
     langStore.locale
   )
+  const preferredModel = parsedModels.find(item => {
+    const key = String(item?.key || '').trim().toLowerCase()
+    const modelName = String(item?.model || '').trim().toLowerCase()
+    return key === SHOE_ONLY_MODEL_KEY || modelName === SHOE_ONLY_MODEL_NAME
+  })
+
+  if (preferredModel) {
+    modelList.value = [preferredModel]
+  } else {
+    modelList.value = parsedModels.length > 0 ? [parsedModels[0]] : []
+  }
+
   if (!modelList.value.find(item => item.key === selectedModelKey.value)) {
     selectedModelKey.value = modelList.value[0]?.key || ''
   }
@@ -1040,6 +1125,10 @@ const assignImageToTarget = (target, value, isRemote = false, sizeBytes = 0) => 
   if (target === 'shoe') {
     shoeLocal.value = localPath
     shoeRemote.value = remotePath
+  }
+  if (target === 'shoeSecondary') {
+    shoeSecondaryLocal.value = localPath
+    shoeSecondaryRemote.value = remotePath
   }
 
   setImageSizeForTarget(target, sizeBytes)
@@ -1113,14 +1202,45 @@ const uploadFolderByTarget = () => 'cloth-on/up-try-shoe'
 
 const uploadTypeByTarget = (target) => {
   if (target === 'person') return 'person'
-  if (target === 'shoe') return 'shoe'
+  if (isShoeTarget(target)) return 'shoe'
   return 'cloth'
+}
+
+const processImageToTargetAndUpload = async (target, sourcePath, mode = 'original') => {
+  if (!target || !sourcePath) return null
+
+  const localPath = await resolveImageSourcePath(sourcePath)
+  if (!localPath) return null
+
+  let uploadPath = localPath
+  if (target === 'person' || isShoeTarget(target)) {
+    uploadPath = await requestCropImage(localPath, FIXED_TRYON_CROP_RATIO, { lockRatio: true })
+    if (!uploadPath) return null
+  }
+
+  if (mode === 'compress') {
+    uploadPath = await compressImage(uploadPath)
+  }
+
+  const ensured = await ensureImageSizeWithinLimit(uploadPath)
+  if (!ensured?.uploadPath) return null
+
+  const remoteUrl = await uploadTryonImage(
+    ensured.uploadPath,
+    uploadFolderByTarget(target),
+    uploadTypeByTarget(target)
+  )
+
+  return {
+    remoteUrl,
+    sizeBytes: ensured.sizeBytes,
+  }
 }
 
 const chooseAndUploadImage = async (target, mode = 'original') => {
   if (!target) return
   try {
-    const selected = await pickAndProcessImage(mode)
+    const selected = await pickAndProcessImage(target, mode)
     if (!selected?.uploadPath) return
 
     uni.showLoading({ title: $t.value('uploading'), mask: true })
@@ -1147,7 +1267,7 @@ const openUploadDrawer = (target) => {
   showUploadDrawer.value = true
   if (target === 'person') {
     loadMyModelList()
-  } else if (target === 'shoe') {
+  } else if (isShoeTarget(target)) {
     loadMyShoeList()
   }
 }
@@ -1169,27 +1289,47 @@ const clearUploadTarget = () => {
   showUploadDrawer.value = false
 }
 
-const applyRemoteExample = (item) => {
+const applyRemoteExample = async (item) => {
   if (!uploadTarget.value || !item?.url) return
   const previewUrl = getExamplePreview(item.url)
   if (!previewUrl) return
-  assignImageToTarget(uploadTarget.value, previewUrl, true)
+
   showUploadDrawer.value = false
-  uni.showToast({ title: $t.value('autoFillApplied'), icon: 'none' })
+  try {
+    const uploaded = await processImageToTargetAndUpload(uploadTarget.value, previewUrl)
+    if (!uploaded?.remoteUrl) return
+    assignImageToTarget(uploadTarget.value, uploaded.remoteUrl, true, uploaded.sizeBytes)
+    uni.showToast({ title: $t.value('autoFillApplied'), icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: resolveApiMessage(e?.message, 'uploadFail'), icon: 'none' })
+  }
 }
 
-const applyMyModel = (item) => {
+const applyMyModel = async (item) => {
   if (!item?.url) return
-  assignImageToTarget('person', item.url, true)
   showUploadDrawer.value = false
-  uni.showToast({ title: $t.value('autoFillApplied'), icon: 'none' })
+  try {
+    const uploaded = await processImageToTargetAndUpload('person', item.url)
+    if (!uploaded?.remoteUrl) return
+    assignImageToTarget('person', uploaded.remoteUrl, true, uploaded.sizeBytes)
+    uni.showToast({ title: $t.value('autoFillApplied'), icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: resolveApiMessage(e?.message, 'uploadFail'), icon: 'none' })
+  }
 }
 
-const applyMyShoe = (item) => {
+const applyMyShoe = async (item) => {
   if (!item?.url) return
-  assignImageToTarget('shoe', item.url, true)
+  const target = isShoeTarget(uploadTarget.value) ? uploadTarget.value : 'shoe'
   showUploadDrawer.value = false
-  uni.showToast({ title: $t.value('autoFillApplied'), icon: 'none' })
+  try {
+    const uploaded = await processImageToTargetAndUpload(target, item.url)
+    if (!uploaded?.remoteUrl) return
+    assignImageToTarget(target, uploaded.remoteUrl, true, uploaded.sizeBytes)
+    uni.showToast({ title: $t.value('autoFillApplied'), icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: resolveApiMessage(e?.message, 'uploadFail'), icon: 'none' })
+  }
 }
 
 const selectModel = (key) => {
@@ -1235,10 +1375,20 @@ const goGenerate = () => {
     uni.showToast({ title: $t.value('uploadPersonFirst'), icon: 'none' })
     return
   }
-  if (!shoeLocal.value && !shoeRemote.value) {
+
+  const primaryShoeRemote = shoeRemote.value || shoeSecondaryRemote.value
+  const primaryShoeLocal = shoeLocal.value || shoeSecondaryLocal.value
+  const hasPrimaryShoe = !!(primaryShoeLocal || primaryShoeRemote)
+  if (!hasPrimaryShoe) {
     uni.showToast({ title: $t.value('uploadShoeFirst'), icon: 'none' })
     return
   }
+
+  const hasPrimarySlotFilled = !!(shoeLocal.value || shoeRemote.value)
+  const secondaryShoeRemote = hasPrimarySlotFilled ? shoeSecondaryRemote.value : ''
+  const secondaryShoeLocal = hasPrimarySlotFilled ? shoeSecondaryLocal.value : ''
+  const hasSecondaryShoe = !!(secondaryShoeLocal || secondaryShoeRemote)
+  const templatePart = hasSecondaryShoe ? 'upper_lower' : 'upper'
 
   saveTryonDraft({
     roomType: 'shoe',
@@ -1247,8 +1397,13 @@ const goGenerate = () => {
     sourceLocalPath: personLocal.value,
     sourceRemoteUrl: personRemote.value,
     sourceUploadFolder: 'cloth-on/up-try-shoe',
-    templateLocalPath: shoeLocal.value,
-    templateRemoteUrl: shoeRemote.value,
+    templatePart,
+    templateLocalPath: primaryShoeLocal,
+    templateRemoteUrl: primaryShoeRemote,
+    templateUpperLocalPath: primaryShoeLocal,
+    templateUpperRemoteUrl: primaryShoeRemote,
+    templateLowerLocalPath: secondaryShoeLocal,
+    templateLowerRemoteUrl: secondaryShoeRemote,
     templateUploadFolder: 'cloth-on/up-try-shoe',
     modelKey: currentModel.value.key,
     modelName: currentModel.value.name,
@@ -1350,6 +1505,24 @@ page {
   margin-top: 8rpx;
   font-size: 20rpx;
   color: rgba(15, 23, 42, 0.55);
+}
+
+.slot-index {
+  position: absolute;
+  top: 10rpx;
+  right: 10rpx;
+  min-width: 30rpx;
+  height: 30rpx;
+  padding: 0 8rpx;
+  border-radius: 15rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 2rpx 8rpx rgba(15, 23, 42, 0.12);
+  z-index: 2;
 }
 
 .slot-text {

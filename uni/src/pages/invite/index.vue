@@ -22,6 +22,13 @@
             <view class="code-btn primary" @tap="copyCode">{{ $t('copyInviteCode') }}</view>
             <view class="code-btn" @tap="shareLink">{{ $t('shareLink') }}</view>
           </view>
+          <text
+            v-if="inviteShareTipText"
+            class="code-share-tip"
+            :style="{ color: inviteShareTipTextColor }"
+          >
+            {{ inviteShareTipText }}
+          </text>
         </view>
 
         <view class="invite-card stats-card">
@@ -75,6 +82,8 @@ import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getMyInviteInfo, getMySubordinates } from '@/api/base.js'
 import { request } from '@/utils/request.js'
+import { getSysConfigByKey } from '@/api/sysConfig.js'
+import { localText } from '@/utils/i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
@@ -93,6 +102,8 @@ const inviteRewardStats = ref({
   totalTryonReward: 0,
   rewardCount: 0,
 })
+const inviteShareTipText = ref('')
+const inviteShareTipTextColor = ref('#475569')
 
 const subordinateList = ref([])
 const page = ref(1)
@@ -188,13 +199,18 @@ const copyCode = () => {
 const shareLink = () => {
   const code = String(inviteInfo.value.inviteCode || '').trim()
   if (!code) return
+  const encodedCode = encodeURIComponent(code)
   // #ifdef H5
   const origin = window.location.origin
+  const pathname = window.location.pathname || '/'
+  const entryPath = pathname.endsWith('/') ? `${pathname}index.html` : pathname
+  const registerHash = `#/pages/user/register?inviteCode=${encodedCode}`
+  const link = `${origin}${entryPath}?inviteCode=${encodedCode}${registerHash}`
   // #endif
   // #ifndef H5
   const origin = 'https://your-domain.com'
+  const link = `${origin}/#/pages/user/register?inviteCode=${encodedCode}`
   // #endif
-  const link = `${origin}/#/pages/user/register?inviteCode=${code}`
   uni.setClipboardData({
     data: link,
     success: () => {
@@ -213,6 +229,36 @@ const formatTime = (value) => {
   return `${y}-${m}-${d}`
 }
 
+const normalizeColorValue = (value, fallback = '#475569') => {
+  const text = String(value || '').trim()
+  if (!text) return fallback
+  if (/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(text)) return text
+  if (/^rgba?\([^)]*\)$/.test(text)) return text
+  return fallback
+}
+
+const loadInviteShareTipConfig = async () => {
+  try {
+    const [tipRes, colorRes] = await Promise.all([
+      getSysConfigByKey('invite_share_link_tip_text'),
+      getSysConfigByKey('invite_share_link_tip_text_color'),
+    ])
+
+    if (tipRes.code === 0) {
+      const rawText = typeof tipRes.data === 'object' ? tipRes.data?.configValue : tipRes.data
+      inviteShareTipText.value = localText(rawText, langStore.locale) || ''
+    }
+
+    if (colorRes.code === 0) {
+      const rawColor = typeof colorRes.data === 'object' ? colorRes.data?.configValue : colorRes.data
+      inviteShareTipTextColor.value = normalizeColorValue(rawColor, '#475569')
+    }
+  } catch (e) {
+    inviteShareTipText.value = ''
+    inviteShareTipTextColor.value = '#475569'
+  }
+}
+
 const refreshInvitePage = async () => {
   page.value = 1
   total.value = 0
@@ -223,6 +269,7 @@ const refreshInvitePage = async () => {
     loadInviteInfo(),
     loadSubordinates(),
     loadInviteRewardStats(),
+    loadInviteShareTipConfig(),
   ])
 }
 
@@ -337,6 +384,14 @@ page {
 .code-actions {
   display: flex;
   gap: 10rpx;
+}
+
+.code-share-tip {
+  display: block;
+  margin-top: 14rpx;
+  font-size: 22rpx;
+  line-height: 1.45;
+  text-align: left;
 }
 
 .code-btn {

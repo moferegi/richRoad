@@ -1097,7 +1097,7 @@ const downloadResult = async () => {
 
 const goContinue = () => {
   if (draft.value.roomType === 'shoe') {
-    uni.switchTab({ url: '/pages/tabBar/shop/shop' })
+    uni.navigateTo({ url: '/pages/tabBar/shop/shop' })
     return
   }
   uni.switchTab({ url: '/pages/tabBar/index' })

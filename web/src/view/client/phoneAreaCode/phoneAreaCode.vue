@@ -72,8 +72,14 @@
               </div>
             </template>
           <el-form :model="formData" label-position="top" ref="elFormRef" :rules="rule" label-width="80px">
-            <el-form-item label="国家名称(JSON多语言):" prop="countryName">
-              <el-input v-model="formData.countryName" placeholder='例: {"zh":"蒙古","en":"Mongolia","mn":"Монгол"}' />
+            <el-form-item label="国家名称(多语言):" prop="countryName">
+              <div class="country-name-grid">
+                <div v-for="lang in multilingualLangs" :key="lang.code" class="country-name-item">
+                  <span class="country-name-label">{{ lang.label }}</span>
+                  <el-input v-model="countryNameI18n[lang.code]" :placeholder="`请输入${lang.label}`" clearable />
+                </div>
+              </div>
+              <el-text type="info" size="small" class="country-name-tip">保存时会自动转换为 JSON 多语言字段，仅提交非空语言。</el-text>
             </el-form-item>
             <el-form-item label="区号:" prop="areaCode">
               <el-input v-model="formData.areaCode" placeholder="例: +976" />
@@ -112,13 +118,77 @@ defineOptions({ name: 'PhoneAreaCode' })
 
 const btnLoading = ref(false)
 
-const parseI18n = (jsonStr) => {
-  try {
-    const obj = JSON.parse(jsonStr)
-    return obj.zh || obj.en || Object.values(obj)[0] || jsonStr
-  } catch {
-    return jsonStr
+const multilingualLangs = [
+  { code: 'zh', label: '中文 zh' },
+  { code: 'en', label: '英文 en' },
+  { code: 'mn', label: '蒙文 mn' },
+  { code: 'zh-TW', label: '繁体 zh-TW' },
+  { code: 'th', label: '泰语 th' },
+  { code: 'hi', label: '印地语 hi' },
+  { code: 'id', label: '印尼语 id' },
+]
+
+const createEmptyCountryNameMap = () => {
+  return multilingualLangs.reduce((acc, item) => {
+    acc[item.code] = ''
+    return acc
+  }, {})
+}
+
+const parseCountryNameObject = (value) => {
+  if (!value) {
+    return {}
   }
+  if (typeof value === 'object') {
+    return value
+  }
+  if (typeof value !== 'string') {
+    return {}
+  }
+  try {
+    const parsed = JSON.parse(value)
+    return typeof parsed === 'object' && parsed !== null ? parsed : {}
+  } catch {
+    const normalized = value.trim()
+    return normalized ? { zh: normalized } : {}
+  }
+}
+
+const countryNameI18n = ref(createEmptyCountryNameMap())
+
+const applyCountryNameToEditor = (value) => {
+  const parsed = parseCountryNameObject(value)
+  const mapped = createEmptyCountryNameMap()
+  for (const item of multilingualLangs) {
+    mapped[item.code] = String(parsed[item.code] ?? '')
+  }
+  countryNameI18n.value = mapped
+}
+
+const getCountryNamePayload = () => {
+  return multilingualLangs.reduce((acc, item) => {
+    const text = String(countryNameI18n.value[item.code] ?? '').trim()
+    if (text) {
+      acc[item.code] = text
+    }
+    return acc
+  }, {})
+}
+
+const parseI18n = (value) => {
+  const obj = parseCountryNameObject(value)
+  const order = multilingualLangs.map(item => item.code)
+  for (const code of order) {
+    const text = String(obj[code] ?? '').trim()
+    if (text) {
+      return text
+    }
+  }
+  const firstText = Object.values(obj).find(item => String(item ?? '').trim())
+  if (firstText) {
+    return String(firstText)
+  }
+  return typeof value === 'string' ? value : ''
 }
 
 const defaultForm = () => ({
@@ -132,7 +202,16 @@ const defaultForm = () => ({
 
 const formData = ref(defaultForm())
 
+const validateCountryName = (_rule, _value, callback) => {
+  if (Object.keys(getCountryNamePayload()).length === 0) {
+    callback(new Error('请至少填写一种语言的国家名称'))
+    return
+  }
+  callback()
+}
+
 const rule = reactive({
+  countryName: [{ validator: validateCountryName, trigger: 'change' }],
   areaCode: [{ required: true, message: '请输入区号', trigger: 'blur' }],
 })
 
@@ -181,7 +260,12 @@ const onDelete = async() => {
 }
 
 const type = ref('')
-const updateFunc = async(row) => { type.value = 'update'; formData.value = { ...row }; dialogFormVisible.value = true }
+const updateFunc = async(row) => {
+  type.value = 'update'
+  formData.value = { ...row }
+  applyCountryNameToEditor(row.countryName)
+  dialogFormVisible.value = true
+}
 const deleteFunc = async (row) => {
   const res = await deletePhoneAreaCode({ ID: row.ID })
   if (res.code === 0) {
@@ -192,13 +276,23 @@ const deleteFunc = async (row) => {
 }
 
 const dialogFormVisible = ref(false)
-const openDialog = () => { type.value = 'create'; dialogFormVisible.value = true }
-const closeDialog = () => { dialogFormVisible.value = false; formData.value = defaultForm() }
+const openDialog = () => {
+  type.value = 'create'
+  formData.value = defaultForm()
+  applyCountryNameToEditor(formData.value.countryName)
+  dialogFormVisible.value = true
+}
+const closeDialog = () => {
+  dialogFormVisible.value = false
+  formData.value = defaultForm()
+  applyCountryNameToEditor(formData.value.countryName)
+}
 
 const enterDialog = async () => {
   btnLoading.value = true
   elFormRef.value?.validate(async (valid) => {
     if (!valid) return btnLoading.value = false
+    formData.value.countryName = JSON.stringify(getCountryNamePayload())
     let res
     switch (type.value) {
       case 'create': res = await createPhoneAreaCode(formData.value); break
@@ -214,3 +308,27 @@ const enterDialog = async () => {
   })
 }
 </script>
+
+<style scoped>
+.country-name-grid {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.country-name-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.country-name-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.country-name-tip {
+  margin-top: 8px;
+}
+</style>

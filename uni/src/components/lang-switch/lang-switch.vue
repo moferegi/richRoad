@@ -33,7 +33,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, computed, onMounted } from 'vue'
+import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
@@ -46,7 +46,15 @@ const emit = defineEmits(['update:modelValue', 'change'])
 
 const visible = ref(false)
 const animShow = ref(false)
+const hideTimer = ref(null)
 const currentLang = computed(() => langStore.locale)
+
+const clearHideTimer = () => {
+  if (hideTimer.value) {
+    clearTimeout(hideTimer.value)
+    hideTimer.value = null
+  }
+}
 
 // 回退硬编码列表（API加载前或加载失败时使用）
 const fallbackLangs = [
@@ -69,14 +77,22 @@ onMounted(() => {
 })
 
 watch(() => props.modelValue, (val) => {
+  clearHideTimer()
   if (val) {
     visible.value = true
     nextTick(() => { animShow.value = true })
   } else {
     animShow.value = false
-    setTimeout(() => { visible.value = false }, 300)
+    hideTimer.value = setTimeout(() => {
+      visible.value = false
+      hideTimer.value = null
+    }, 300)
   }
 }, { immediate: true })
+
+onUnmounted(() => {
+  clearHideTimer()
+})
 
 const selectLang = (lang) => {
   langStore.setLocale(lang)

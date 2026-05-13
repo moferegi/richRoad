@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import messages, { t, localText } from '@/utils/i18n.js'
 import { getEnabledLanguages } from '@/api/language.js'
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
 // 国旗映射
 const flagMap = {
@@ -10,10 +11,29 @@ const flagMap = {
   ru: '🇷🇺', fr: '🇫🇷', de: '🇩🇪', es: '🇪🇸', pt: '🇧🇷',
 }
 
+const LANG_MANUAL_SELECTED_KEY = 'app-lang-manual-selected'
+const LANG_PICKER_PROMPTED_KEY = 'app-lang-picker-prompted'
+
 export const useLangStore = defineStore('lang', () => {
   const locale = ref(uni.getStorageSync('app-lang') || '')
   const enabledLangs = ref([]) // 从后端加载的启用语言列表
   const loaded = ref(false)
+  const manuallySelected = ref(uni.getStorageSync(LANG_MANUAL_SELECTED_KEY) === '1')
+  const pickerPrompted = ref(uni.getStorageSync(LANG_PICKER_PROMPTED_KEY) === '1')
+
+  const markLanguageManualSelected = () => {
+    manuallySelected.value = true
+    uni.setStorageSync(LANG_MANUAL_SELECTED_KEY, '1')
+  }
+
+  const markLanguagePickerPrompted = () => {
+    pickerPrompted.value = true
+    uni.setStorageSync(LANG_PICKER_PROMPTED_KEY, '1')
+  }
+
+  const shouldAutoShowLanguagePicker = () => {
+    return !manuallySelected.value && !pickerPrompted.value
+  }
 
   const getEffectiveLocale = (lang) => {
     return lang || locale.value || uni.getStorageSync('app-lang') || 'mn'
@@ -56,19 +76,24 @@ export const useLangStore = defineStore('lang', () => {
     loaded.value = true
   }
 
-  const setLocale = (lang) => {
+  const setLocale = (lang, options = {}) => {
+    const { manual = true } = options
+    if (!lang) return
     locale.value = lang
     uni.setStorageSync('app-lang', lang)
+    if (manual) {
+      markLanguageManualSelected()
+    }
     updateTabBar(lang)
+    useAppConfigStore().refreshLocalizedConfig()
   }
 
   const updateTabBar = (lang, retry = 0) => {
     const currentLang = getEffectiveLocale(lang)
     const tabs = [
       { index: 0, key: 'tryonRoom' },
-      { index: 1, key: 'shoeRoom' },
-      { index: 2, key: 'clothesPage' },
-      { index: 3, key: 'tabMy' },
+      { index: 1, key: 'clothesPage' },
+      { index: 2, key: 'tabMy' },
     ]
 
     let finished = 0
@@ -106,5 +131,19 @@ export const useLangStore = defineStore('lang', () => {
     return (value) => localText(value, locale.value)
   })
 
-  return { locale, enabledLangs, loaded, initLangs, setLocale, updateTabBar, $t, $lt }
+  return {
+    locale,
+    enabledLangs,
+    loaded,
+    manuallySelected,
+    pickerPrompted,
+    initLangs,
+    setLocale,
+    updateTabBar,
+    shouldAutoShowLanguagePicker,
+    markLanguagePickerPrompted,
+    markLanguageManualSelected,
+    $t,
+    $lt,
+  }
 })

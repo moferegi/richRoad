@@ -66,9 +66,22 @@
       <el-image preview-teleported style="width: 100px; height: 100px" :src="scope.row.externalAvatar || getUrl(scope.row.avatar)" fit="cover"/>
     </template>
 </el-table-column>
+
+            <el-table-column label="二维码" prop="qrCode" width="200">
+    <template #default="scope">
+      <el-image
+        v-if="scope.row.qrCode"
+        preview-teleported
+        style="width: 100px; height: 100px"
+        :src="getUrl(scope.row.qrCode)"
+        fit="cover"
+      />
+      <span v-else>-</span>
+    </template>
+</el-table-column>
             <el-table-column align="left" label="状态" prop="status" width="120" />
 
-            <el-table-column align="left" label="链接" prop="link" width="120" />
+            <el-table-column align="left" label="链接" prop="link" width="220" show-overflow-tooltip />
 
         <el-table-column align="left" label="操作" fixed="right" :min-width="appStore.operateMinWith">
             <template #default="scope">
@@ -109,11 +122,21 @@
     <SelectImage
      v-model="formData.avatar"
      file-type="image"
+               :default-folder="KEFU_UPLOAD_FOLDER"
+               :fixed-upload-folder="true"
     />
 </el-form-item>
             <el-form-item label="头像外链(优先):">
     <el-input v-model="formData.externalAvatar" placeholder="https://example.com/avatar.jpg 或相对路径" clearable />
 </el-form-item>
+                <el-form-item label="二维码(上传):" prop="qrCode">
+              <SelectImage
+               v-model="formData.qrCode"
+               file-type="image"
+               :default-folder="KEFU_UPLOAD_FOLDER"
+               :fixed-upload-folder="true"
+              />
+          </el-form-item>
             <el-form-item label="状态:" prop="status">
     <el-select v-model="formData.status" placeholder="请选择状态" style="width:100%" filterable :clearable="false">
        <el-option v-for="item in ['在线','离线','忙碌']" :key="item" :label="item" :value="item" />
@@ -132,6 +155,16 @@
 </el-descriptions-item>
                     <el-descriptions-item label="头像">
     <el-image style="width: 50px; height: 50px" :preview-src-list="returnArrImg(detailForm.avatar)" :src="getUrl(detailForm.avatar)" fit="cover" />
+</el-descriptions-item>
+                    <el-descriptions-item label="二维码">
+    <el-image
+      v-if="detailForm.qrCode"
+      style="width: 50px; height: 50px"
+      :preview-src-list="returnArrImg(detailForm.qrCode)"
+      :src="getUrl(detailForm.qrCode)"
+      fit="cover"
+    />
+    <span v-else>-</span>
 </el-descriptions-item>
                     <el-descriptions-item label="状态">
     {{ detailForm.status }}
@@ -179,6 +212,7 @@ defineOptions({
 // 提交按钮loading
 const btnLoading = ref(false)
 const appStore = useAppStore()
+const KEFU_UPLOAD_FOLDER = 'Moffuu/cloth-on/uni-set'
 
 // 控制更多查询条件显示/隐藏状态
 const showAllQuery = ref(false)
@@ -188,6 +222,7 @@ const formData = ref({
             name: '',
             avatar: "",
             externalAvatar: "",
+      qrCode: "",
             status: null,
             link: '',
         })
@@ -386,6 +421,8 @@ const closeDialog = () => {
     formData.value = {
         name: '',
         avatar: "",
+      externalAvatar: "",
+      qrCode: "",
         status: null,
         link: '',
         }

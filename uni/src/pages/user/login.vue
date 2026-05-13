@@ -24,7 +24,7 @@
           <view v-else class="nf-logo nf-logo-fallback">{{ (appName || 'R').slice(0, 1).toUpperCase() }}</view>
           <view class="nf-brand-meta">
             <text class="nf-brand-name">{{ appName || 'RichRoad' }}</text>
-            <text class="nf-brand-subtitle">Premium AI Styling</text>
+            <text class="nf-brand-subtitle">{{ $t('wardrobeSlogan') }}</text>
           </view>
         </view>
         <text class="nf-title">{{ $t('loginBtn') }}</text>
@@ -75,9 +75,13 @@
       </view>
 
       <!-- 按钮 -->
-      <view class="nf-actions">
-        <button class="nf-btn nf-btn-primary" @tap="login()">{{ $t('loginBtn') }}</button>
-        <button class="nf-btn nf-btn-ghost" @tap="toRegister()">{{ $t('goToRegister') }}</button>
+      <view class="nf-actions" :key="`actions-${langStore.locale}`">
+        <button :key="`login-btn-${langStore.locale}`" class="nf-btn nf-btn-primary" @tap="login()">
+          <text>{{ $t('loginBtn') }}</text>
+        </button>
+        <button :key="`register-btn-${langStore.locale}`" class="nf-btn nf-btn-ghost" @tap="toRegister()">
+          <text>{{ $t('goToRegister') }}</text>
+        </button>
       </view>
     </view>
 
@@ -108,6 +112,7 @@
 		computed,
 		onMounted
 	} from 'vue';
+  import { onLoad } from '@dcloudio/uni-app'
 
 	import {useUserStore} from "@/pinia/modules/user.js"
 	import { useLangStore } from '@/pinia/modules/lang.js'
@@ -126,6 +131,51 @@
 	  return map[langStore.locale] || langStore.locale.slice(0, 2).toUpperCase()
 	})
 	const showLangPicker = ref(false)
+  const inviteCodeFromShare = ref('')
+
+  const tryAutoShowLangPicker = () => {
+    if (showLangPicker.value) return
+    if (!langStore.shouldAutoShowLanguagePicker()) return
+    showLangPicker.value = true
+    langStore.markLanguagePickerPrompted()
+  }
+
+  const safeDecode = (value) => {
+    if (value === undefined || value === null) return ''
+    const raw = String(value).trim()
+    if (!raw) return ''
+    try {
+      return decodeURIComponent(raw)
+    } catch (e) {
+      return raw
+    }
+  }
+
+  const parseInviteCodeFromH5Location = () => {
+    // #ifdef H5
+    try {
+      const fromSearch = new URLSearchParams(window.location.search || '').get('inviteCode')
+      if (fromSearch) return safeDecode(fromSearch)
+      const hash = window.location.hash || ''
+      const hashQuery = hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : ''
+      const fromHashQuery = new URLSearchParams(hashQuery).get('inviteCode')
+      if (fromHashQuery) return safeDecode(fromHashQuery)
+    } catch (e) {
+      return ''
+    }
+    // #endif
+    return ''
+  }
+
+  const applyInviteCode = (options = {}) => {
+    const fromOptions = options?.inviteCode || options?.invite_code || options?.code || ''
+    const fromStorage = safeDecode(uni.getStorageSync('pendingInviteCode') || '')
+    const resolved = safeDecode(fromOptions) || parseInviteCodeFromH5Location() || fromStorage
+    if (resolved) {
+      inviteCodeFromShare.value = resolved
+      uni.setStorageSync('pendingInviteCode', resolved)
+    }
+  }
 
 	const goBack = () => {
 	  uni.switchTab({ url: '/pages/tabBar/index' })
@@ -238,7 +288,15 @@
 		}
 	}
 
+  onLoad((options) => {
+    applyInviteCode(options)
+  })
+
 	onMounted(() => {
+    if (!inviteCodeFromShare.value) {
+      applyInviteCode()
+    }
+    tryAutoShowLangPicker()
 		getCaptchaFunc()
 		loadConfig()
 		loadAreaCodes()
@@ -314,6 +372,7 @@
 		}
 
 		if(flag){
+      uni.removeStorageSync('pendingInviteCode')
 			uni.showToast({ title: $t.value('loginSuccess') })
 			uni.navigateTo({ url: '/pages/tabBar/index' })
 			return
@@ -322,7 +381,9 @@
 	}
 	//注册按钮点击
 	const toRegister = () => {
-		uni.navigateTo({ url: '/pages/user/register' })
+    const inviteCode = String(inviteCodeFromShare.value || '').trim()
+    const query = inviteCode ? `?inviteCode=${encodeURIComponent(inviteCode)}` : ''
+    uni.navigateTo({ url: `/pages/user/register${query}` })
 	}
 </script>
 <style lang="scss" scoped>

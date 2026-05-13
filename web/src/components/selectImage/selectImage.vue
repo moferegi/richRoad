@@ -66,7 +66,7 @@
             <el-button @click="useSelectedImages" type="danger" :disabled="selectedImages.length === 0" :icon="ArrowLeftBold">选定</el-button>
             <upload-common :image-common="imageCommon" :classId="search.classId" :folder="uploadFolder" @on-success="onSuccess" />
             <cropper-image :classId="search.classId" :folder="uploadFolder" @on-success="onSuccess" />
-            <QRCodeUpload :classId="search.classId" @on-success="onSuccess" />
+            <QRCodeUpload :classId="search.classId" :folder="uploadFolder" @on-success="onSuccess" />
             <upload-image :image-url="imageUrl" :file-size="2048" :max-w-h="1080" :classId="search.classId" :folder="uploadFolder" @on-success="onSuccess" />
             <el-autocomplete
               v-model="uploadFolder"
@@ -75,6 +75,7 @@
               class="w-44"
               placeholder="上传文件夹(可选)"
               size="small"
+              :disabled="props.fixedUploadFolder"
               @focus="onFolderSelectOpen(true)"
             />
           </div>
@@ -158,7 +159,7 @@
 
 <script setup>
 import { getUrl, isVideoExt } from '@/utils/image'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { getFileList, editFileName, deleteFile } from '@/api/fileUploadAndDownload'
 import UploadImage from '@/components/upload/image.vue'
 import UploadCommon from '@/components/upload/common.vue'
@@ -232,8 +233,28 @@ const props = defineProps({
   rounded: {
     type: Boolean,
     default: false
+  },
+  defaultFolder: {
+    type: String,
+    default: ''
+  },
+  fixedUploadFolder: {
+    type: Boolean,
+    default: false
   }
 })
+
+const syncUploadFolder = () => {
+  if (props.fixedUploadFolder) {
+    uploadFolder.value = props.defaultFolder || ''
+    return
+  }
+  if (!uploadFolder.value && props.defaultFolder) {
+    uploadFolder.value = props.defaultFolder
+  }
+}
+
+watch(() => [props.defaultFolder, props.fixedUploadFolder], syncUploadFolder, { immediate: true })
 
 const deleteImg = (index) => {
   model.value.splice(index, 1)
@@ -315,6 +336,7 @@ const chooseImg = (url) => {
 }
 
 const openChooseImg = async() => {
+  syncUploadFolder()
   if (model.value && !props.multiple) {
     model.value = ''
     return

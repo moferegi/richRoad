@@ -57,6 +57,8 @@ func initDefaultSysConfigs() {
 	defaults := []client.SysConfig{
 		// invite 分组
 		{ConfigKey: "invite_reward_points", ConfigValue: "10", ConfigName: "邀请奖励积分", ConfigGroup: "invite", Remark: "用户邀请好友注册后获得的积分奖励"},
+		{ConfigKey: "invite_share_link_tip_text", ConfigValue: "{\"zh\":\"将分享链接发送给好友，好友注册后你将获得试衣币奖励。\",\"en\":\"Share the link with friends. You will receive try-on coin rewards after they register.\",\"mn\":\"Урилгын холбоосоо найзууддаа илгээснээр тэд бүртгүүлэхэд та туршилтын зоосны урамшуулал авна.\"}", ConfigName: "邀请分享提示文案", ConfigGroup: "invite", Remark: "邀请页分享链接下方提示文案(JSON多语言)"},
+		{ConfigKey: "invite_share_link_tip_text_color", ConfigValue: "#475569", ConfigName: "邀请分享提示颜色", ConfigGroup: "invite", Remark: "邀请页分享链接下方提示文字颜色(hex)"},
 		// payment 分组
 		{ConfigKey: "payment_tip_text", ConfigValue: "{\"zh\":\"请在规定时间内完成付款\",\"en\":\"Please complete payment within the specified time\",\"mn\":\"Заасан хугацаанд төлбөрөө хийнэ үү\"}", ConfigName: "付款提示文本", ConfigGroup: "payment", Remark: "二维码付款弹窗提示文本(JSON多语言)"},
 		{ConfigKey: "payment_tip_text_size", ConfigValue: "14", ConfigName: "付款提示文字大小", ConfigGroup: "payment", Remark: "付款提示文本字体大小(px)"},
@@ -83,7 +85,7 @@ func initDefaultSysConfigs() {
 		{ConfigKey: "currency_symbol", ConfigValue: "¥", ConfigName: "货币符号", ConfigGroup: "system", Remark: "前端展示的货币符号"},
 		{ConfigKey: "currency_unit", ConfigValue: "CNY", ConfigName: "货币单位", ConfigGroup: "system", Remark: "货币单位编码"},
 		{ConfigKey: "currency_suffix", ConfigValue: "rmb", ConfigName: "货币后缀", ConfigGroup: "system", Remark: "uni端显示的货币后缀(如rmb, usd等)"},
-		{ConfigKey: "app_name", ConfigValue: "RichRoad", ConfigName: "应用名称", ConfigGroup: "system", Remark: "uni端显示的应用名称"},
+		{ConfigKey: "app_name", ConfigValue: "{\"zh\":\"RichRoad\",\"en\":\"RichRoad\",\"mn\":\"RichRoad\"}", ConfigName: "应用名称", ConfigGroup: "system", Remark: "uni端显示的应用名称(JSON多语言)"},
 		{ConfigKey: "app_logo", ConfigValue: "", ConfigName: "应用Logo", ConfigGroup: "system", Remark: "uni端显示的应用Logo图片地址"},
 		// security 分组
 		{ConfigKey: "captcha_expiry_seconds", ConfigValue: "300", ConfigName: "验证码有效期", ConfigGroup: "security", Remark: "图形验证码有效期(秒)，默认300秒"},
@@ -139,6 +141,7 @@ func initDefaultSysConfigs() {
 	purgeDeprecatedTryonSysConfigs()
 	appendIDMVTONTryonModelIfMissing()
 	normalizeTryonModelsSysConfig()
+	normalizeLocalizedSysConfigDefaults()
 
 	// 为已存在的用户生成邀请码（如果缺失）
 	var users []client.ClientUser
@@ -148,6 +151,55 @@ func initDefaultSysConfigs() {
 		_, _ = rand.Read(b)
 		code := hex.EncodeToString(b)
 		global.GVA_DB.Model(&client.ClientUser{}).Where("id = ?", u.ID).Update("invite_code", code)
+	}
+}
+
+func normalizeLocalizedSysConfigDefaults() {
+	normalizeConfigValueToMultilingualObject("app_name")
+}
+
+func normalizeConfigValueToMultilingualObject(configKey string) {
+	if strings.TrimSpace(configKey) == "" {
+		return
+	}
+
+	var cfg client.SysConfig
+	if err := global.GVA_DB.Where("config_key = ?", configKey).First(&cfg).Error; err != nil {
+		return
+	}
+
+	rawValue := strings.TrimSpace(cfg.ConfigValue)
+	if rawValue == "" {
+		return
+	}
+
+	var obj map[string]interface{}
+	if err := json.Unmarshal([]byte(rawValue), &obj); err == nil {
+		if _, hasZh := obj["zh"]; hasZh {
+			return
+		}
+		if _, hasEn := obj["en"]; hasEn {
+			return
+		}
+		if _, hasMn := obj["mn"]; hasMn {
+			return
+		}
+	}
+
+	normalized := map[string]string{
+		"zh": rawValue,
+		"en": rawValue,
+		"mn": rawValue,
+	}
+	payload, err := json.Marshal(normalized)
+	if err != nil {
+		return
+	}
+
+	if err := global.GVA_DB.Model(&client.SysConfig{}).
+		Where("id = ?", cfg.ID).
+		Update("config_value", string(payload)).Error; err != nil {
+		global.GVA_LOG.Warn("规范化系统参数多语言值失败", zap.String("configKey", configKey), zap.Error(err))
 	}
 }
 
@@ -169,7 +221,7 @@ func defaultTryonModelsSysConfigValue() string {
 	    "key": "aliyun_aitryon",
 	    "modelUsage": "tryon",
 	    "enabled": true,
-	    "scenes": ["clothes", "shoes"],
+	    "scenes": ["clothes"],
 	    "model": "aitryon",
 	    "name": {"zh": "阿里AI试衣（基础）", "en": "Aliyun AI Try-On (Basic)", "mn": "Aliyun AI өмсгөл (Суурь)"},
 	    "desc": {"zh": "基础版试衣模型，速度更快，适合日常试衣。", "en": "Basic try-on model with faster generation for everyday use.", "mn": "Өдөр тутмын туршилтад тохирох, хурдан суурь загвар."},
@@ -188,7 +240,7 @@ func defaultTryonModelsSysConfigValue() string {
 	    "key": "aliyun_aitryon_plus",
 	    "modelUsage": "tryon",
 	    "enabled": true,
-	    "scenes": ["clothes", "shoes"],
+	    "scenes": ["clothes"],
 	    "model": "aitryon-plus",
 	    "name": {"zh": "阿里AI试衣（Plus）", "en": "Aliyun AI Try-On (Plus)", "mn": "Aliyun AI өмсгөл (Plus)"},
 	    "desc": {"zh": "Plus版细节更好，适合高质量试衣图。", "en": "Higher quality rendering with better texture and logo details.", "mn": "Нэхмэл, логог илүү сайн сэргээдэг өндөр чанарын загвар."},
@@ -202,6 +254,21 @@ func defaultTryonModelsSysConfigValue() string {
 	    "restoreFace": true,
 	    "refinerModelKey": "aliyun_aitryon_refiner",
 	    "parsingModelKey": "aliyun_aitryon_parsing"
+	  },
+	  {
+	    "key": "aliyun_shoemodel_v1",
+	    "modelUsage": "tryon",
+	    "enabled": true,
+	    "scenes": ["shoes"],
+	    "model": "shoemodel-v1",
+	    "name": {"zh": "阿里鞋靴模特", "en": "Aliyun Shoes Virtual Model", "mn": "Aliyun гутлын загвар"},
+	    "desc": {"zh": "阿里鞋靴模特专用模型，仅用于试鞋间生成。", "en": "Dedicated Aliyun shoes model for shoe try-on room.", "mn": "Гутлын туршилтын өрөөнд ашиглах тусгай Aliyun загвар."},
+	    "cost": 1,
+	    "provider": "aliyun",
+	    "mode": "prod",
+	    "url": "https://dashscope.aliyuncs.com/api/v1/services/aigc/virtualmodel/generation",
+	    "taskQueryUrl": "https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}",
+	    "token": ""
 	  },
 	  {
 	    "key": "aliyun_aitryon_refiner",
@@ -294,10 +361,12 @@ func appendIDMVTONTryonModelIfMissing() {
 	hasBeautify := false
 	hasRefiner := false
 	hasParsing := false
+	hasShoeTryon := false
 	for i := range models {
 		model := models[i]
 		key := strings.ToLower(strings.TrimSpace(toString(model["key"])))
 		usage := strings.ToLower(strings.TrimSpace(toString(model["modelUsage"])))
+		modelName := strings.ToLower(strings.TrimSpace(toString(model["model"])))
 		if usage == "" {
 			usage = "tryon"
 		}
@@ -310,6 +379,17 @@ func appendIDMVTONTryonModelIfMissing() {
 		}
 		if key == "aliyun_aitryon_parsing" || usage == "parsing" {
 			hasParsing = true
+		}
+		if key == "aliyun_shoemodel_v1" || modelName == "shoemodel-v1" {
+			hasShoeTryon = true
+		}
+
+		if key == "aliyun_aitryon" || key == "aliyun_aitryon_plus" {
+			scenes := toStringArrayLoose(model["scenes"])
+			if len(scenes) != 1 || !strings.EqualFold(strings.TrimSpace(scenes[0]), "clothes") {
+				model["scenes"] = []string{"clothes"}
+				changed = true
+			}
 		}
 
 		if usage == "beautify" {
@@ -325,6 +405,25 @@ func appendIDMVTONTryonModelIfMissing() {
 			continue
 		}
 
+	}
+
+	if !hasShoeTryon {
+		models = append(models, map[string]interface{}{
+			"key":          "aliyun_shoemodel_v1",
+			"modelUsage":   "tryon",
+			"enabled":      true,
+			"scenes":       []string{"shoes"},
+			"model":        "shoemodel-v1",
+			"name":         map[string]string{"zh": "阿里鞋靴模特", "en": "Aliyun Shoes Virtual Model", "mn": "Aliyun гутлын загвар"},
+			"desc":         map[string]string{"zh": "阿里鞋靴模特专用模型，仅用于试鞋间生成。", "en": "Dedicated Aliyun shoes model for shoe try-on room.", "mn": "Гутлын туршилтын өрөөнд ашиглах тусгай Aliyun загвар."},
+			"cost":         1,
+			"provider":     "aliyun",
+			"mode":         "prod",
+			"url":          "https://dashscope.aliyuncs.com/api/v1/services/aigc/virtualmodel/generation",
+			"taskQueryUrl": "https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}",
+			"token":        "",
+		})
+		changed = true
 	}
 
 	if !hasIDM {

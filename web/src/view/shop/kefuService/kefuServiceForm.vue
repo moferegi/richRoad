@@ -10,8 +10,18 @@
     <SelectImage
      v-model="formData.avatar"
      file-type="image"
+       :default-folder="KEFU_UPLOAD_FOLDER"
+       :fixed-upload-folder="true"
     />
 </el-form-item>
+        <el-form-item label="二维码:" prop="qrCode">
+      <SelectImage
+       v-model="formData.qrCode"
+       file-type="image"
+       :default-folder="KEFU_UPLOAD_FOLDER"
+       :fixed-upload-folder="true"
+      />
+    </el-form-item>
         <el-form-item label="状态:" prop="status">
     <el-select v-model="formData.status" placeholder="请选择状态" style="width:100%" filterable :clearable="false">
        <el-option v-for="item in ['在线','离线','忙碌']" :key="item" :label="item" :value="item" />
@@ -54,11 +64,13 @@ const router = useRouter()
 
 // 提交按钮loading
 const btnLoading = ref(false)
+const KEFU_UPLOAD_FOLDER = 'Moffuu/cloth-on/uni-set'
 
 const type = ref('')
 const formData = ref({
             name: '',
             avatar: "",
+      qrCode: "",
             status: null,
             link: '',
         })

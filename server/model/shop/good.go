@@ -16,6 +16,8 @@ type Good struct {
 	Specs       datatypes.JSON `json:"specs" form:"specs" gorm:"column:specs;comment:商品规格;"`                            //商品规格(JSON多语言key)
 	Attrs       datatypes.JSON `json:"attrs" form:"attrs" gorm:"column:attrs;comment:商品属性;"`                            //商品属性(JSON多语言key)
 	ImageUrl    string         `json:"imageUrl" form:"imageUrl" gorm:"column:image_url;comment:商品图片URL;"`               //商品图片URL
+	UpperImage  string         `json:"upperImage" form:"upperImage" gorm:"column:upper_image;comment:上装图URL;size:500;"` //上装图URL
+	LowerImage  string         `json:"lowerImage" form:"lowerImage" gorm:"column:lower_image;comment:下装图URL;size:500;"` //下装图URL
 	Banner      datatypes.JSON `json:"banner" form:"banner" gorm:"column:banner;comment:商品轮播图;type:text"`               //商品轮播图
 	Price       *float64       `json:"price" form:"price" gorm:"column:price;comment:商品价格;"`                            //商品价格
 	Rating      *float64       `json:"rating" form:"rating" gorm:"column:rating;comment:商品评分;"`                         //商品评分

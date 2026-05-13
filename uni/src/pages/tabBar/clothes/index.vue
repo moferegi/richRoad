@@ -226,6 +226,76 @@ const mainImage = (item) => {
   return getUrl(item.imageUrl || item.picture || item.image || '')
 }
 
+const getFileSizeAsync = (filePath) => {
+  return new Promise((resolve) => {
+    uni.getFileInfo({
+      filePath,
+      success: (res) => resolve(Number(res.size || 0)),
+      fail: () => resolve(0),
+    })
+  })
+}
+
+const downloadFileAsync = (url) => {
+  return new Promise((resolve, reject) => {
+    uni.downloadFile({
+      url,
+      success: resolve,
+      fail: reject,
+    })
+  })
+}
+
+const remoteImageSizeCache = Object.create(null)
+
+const resolveRemoteImageSize = async (rawUrl) => {
+  const normalizedUrl = String(rawUrl || '').trim()
+  if (!normalizedUrl) return 0
+
+  if (Object.prototype.hasOwnProperty.call(remoteImageSizeCache, normalizedUrl)) {
+    return Number(remoteImageSizeCache[normalizedUrl] || 0)
+  }
+
+  try {
+    const downloadRes = await downloadFileAsync(normalizedUrl)
+    const tempPath = String(downloadRes?.tempFilePath || '').trim()
+    if (!tempPath) {
+      remoteImageSizeCache[normalizedUrl] = 0
+      return 0
+    }
+    const size = await getFileSizeAsync(tempPath)
+    remoteImageSizeCache[normalizedUrl] = Number(size || 0)
+    return Number(size || 0)
+  } catch (e) {
+    remoteImageSizeCache[normalizedUrl] = 0
+    return 0
+  }
+}
+
+const resolveImageLinkByFields = (item, primaryFields = [], externalFields = []) => {
+  for (const field of primaryFields) {
+    const raw = String(item?.[field] || '').trim()
+    if (!raw) continue
+    return /^https?:\/\//i.test(raw) || /^data:/i.test(raw) ? raw : getUrl(raw)
+  }
+
+  for (const field of externalFields) {
+    const raw = String(item?.[field] || '').trim()
+    if (!raw) continue
+    return /^https?:\/\//i.test(raw) || /^data:/i.test(raw) ? raw : getExternalUrl(raw)
+  }
+
+  return ''
+}
+
+const getUpperImageLink = (item) => {
+  return resolveImageLinkByFields(item, ['upperImage', 'upper_image', 'tryonUpperImage'], ['upperExternalImagePath', 'upper_external_image_path'])
+}
+
+const getLowerImageLink = (item) => {
+  return resolveImageLinkByFields(item, ['lowerImage', 'lower_image', 'tryonLowerImage'], ['lowerExternalImagePath', 'lower_external_image_path'])
+}
+
 const extractTags = (item) => {
   const tags = []
 
@@ -401,14 +471,49 @@ const onScrollToLower = () => {
   loadMore()
 }
 
-const chooseTryon = (item) => {
-  const image = item.externalImagePath ? getExternalUrl(item.externalImagePath) : (item.imageUrl || item.picture || '')
+const chooseTryon = async (item) => {
+  const upperImage = getUpperImageLink(item)
+  const lowerImage = getLowerImageLink(item)
+
+  if (upperImage && lowerImage) {
+    uni.showLoading({ title: $t('loading'), mask: true })
+    try {
+      const [upperSizeBytes, lowerSizeBytes] = await Promise.all([
+        resolveRemoteImageSize(upperImage),
+        resolveRemoteImageSize(lowerImage),
+      ])
+      setSelectedClothes({
+        upperImage,
+        lowerImage,
+        upperSizeBytes,
+        lowerSizeBytes,
+      })
+    } finally {
+      uni.hideLoading()
+    }
+    uni.switchTab({ url: '/pages/tabBar/index' })
+    return
+  }
+
+  const image = mainImage(item)
   if (!image) {
     uni.showToast({ title: $t('goodsImageMissing'), icon: 'none' })
     return
   }
+
   const tryonPart = inferTryonPart(item)
-  setSelectedClothes(tryonPart === 'lower' ? { lowerImage: image } : { upperImage: image })
+  uni.showLoading({ title: $t('loading'), mask: true })
+  try {
+    const sizeBytes = await resolveRemoteImageSize(image)
+    setSelectedClothes(
+      tryonPart === 'lower'
+        ? { lowerImage: image, lowerSizeBytes: sizeBytes }
+        : { upperImage: image, upperSizeBytes: sizeBytes }
+    )
+  } finally {
+    uni.hideLoading()
+  }
+
   uni.switchTab({ url: '/pages/tabBar/index' })
 }
 

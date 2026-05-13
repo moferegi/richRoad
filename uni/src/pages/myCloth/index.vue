@@ -27,7 +27,10 @@
     <scroll-view class="list-wrap" scroll-y>
       <view class="grid">
         <view class="card" v-for="item in filteredClothList" :key="item.id">
-          <image class="card-image" :src="getUrl(item.url)" mode="aspectFit" @tap="preview(item)" />
+          <view class="card-image-wrap">
+            <image class="card-image" :src="getUrl(item.url)" mode="aspectFit" @tap="preview(item)" />
+            <view v-if="item.sizeText" class="card-size-badge">{{ item.sizeText }}</view>
+          </view>
           <view class="card-foot">
             <view class="name-row">
               <text class="card-name">{{ item.name || categoryLabel(item.category) }}</text>
@@ -102,6 +105,21 @@
       </view>
     </view>
 
+    <view class="mode-popup-mask" v-if="modePopupVisible" @tap="closeModePopup('')">
+      <view class="mode-popup-panel" @tap.stop>
+        <text v-if="modePopupTitle" class="mode-popup-title">{{ modePopupTitle }}</text>
+        <view
+          v-for="item in modePopupOptions"
+          :key="item.key"
+          class="mode-popup-item"
+          @tap="closeModePopup(item.key)"
+        >
+          {{ item.label }}
+        </view>
+        <view class="mode-popup-cancel" @tap="closeModePopup('')">{{ $t('cancel') }}</view>
+      </view>
+    </view>
+
     <canvas
       canvas-id="myClothCropCanvas"
       id="myClothCropCanvas"
@@ -125,13 +143,16 @@ import {
 } from '@/api/tryonTask.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
-const CATEGORY_KEYS = ['upper', 'lower', 'onepiece', 'shoes']
+const CATEGORY_KEYS = ['upper', 'lower', 'onepiece']
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 
 const clothList = ref([])
 const activeCategory = ref('all')
+const modePopupVisible = ref(false)
+const modePopupTitle = ref('')
+const modePopupOptions = ref([])
 const cropCanvasSize = ref({ width: 1, height: 1 })
 const cropEditorVisible = ref(false)
 const cropSourcePath = ref('')
@@ -160,50 +181,35 @@ const categoryOptions = [
   { key: 'upper', labelKey: 'clothCategoryUpper' },
   { key: 'lower', labelKey: 'clothCategoryLower' },
   { key: 'onepiece', labelKey: 'clothCategoryOnepiece' },
-  { key: 'shoes', labelKey: 'clothCategoryShoes' },
 ]
 
 const CATEGORY_LABEL_KEY_MAP = {
   upper: 'clothCategoryUpper',
   lower: 'clothCategoryLower',
   onepiece: 'clothCategoryOnepiece',
-  shoes: 'clothCategoryShoes',
 }
-
-const ACTION_SHEET_RETRY_DELAY = 140
 
 const waitFrame = (delay = 30) => new Promise((resolve) => setTimeout(resolve, delay))
 
-const waitActionSheetStable = (delay = ACTION_SHEET_RETRY_DELAY) => new Promise((resolve) => setTimeout(resolve, delay))
 
-const openActionSheetWithRetry = async (itemList, maxRetry = 1) => {
-  for (let attempt = 0; attempt <= maxRetry; attempt++) {
-    const result = await new Promise((resolve) => {
-      uni.showActionSheet({
-        itemList,
-        success: (res) => resolve({ ok: true, tapIndex: Number(res?.tapIndex || 0) }),
-        fail: (err) => resolve({ ok: false, errMsg: String(err?.errMsg || '') }),
-      })
-    })
+let modePopupResolve = null
 
-    if (result.ok) {
-      return { status: 'ok', tapIndex: result.tapIndex }
-    }
+const openModePopup = ({ title = '', options = [] } = {}) => {
+  return new Promise((resolve) => {
+    modePopupTitle.value = String(title || '').trim()
+    modePopupOptions.value = Array.isArray(options) ? options.filter((item) => item && item.key && item.label) : []
+    modePopupVisible.value = true
+    modePopupResolve = resolve
+  })
+}
 
-    const errMsg = String(result.errMsg || '').toLowerCase()
-    if (errMsg.includes('cancel')) {
-      return { status: 'cancel' }
-    }
-
-    if (attempt < maxRetry) {
-      await waitActionSheetStable()
-      continue
-    }
-
-    return { status: 'fail' }
+const closeModePopup = (selectedKey = '') => {
+  modePopupVisible.value = false
+  const resolver = modePopupResolve
+  modePopupResolve = null
+  if (typeof resolver === 'function') {
+    resolver(String(selectedKey || ''))
   }
-
-  return { status: 'fail' }
 }
 
 const chooseImageAsync = (sizeType = ['original']) => {
@@ -235,6 +241,68 @@ const getFileSizeAsync = (filePath) => {
       success: (res) => resolve(Number(res.size || 0)),
       fail: () => resolve(0),
     })
+  })
+}
+
+const downloadFileAsync = (url) => {
+  return new Promise((resolve, reject) => {
+    uni.downloadFile({
+      url,
+      success: resolve,
+      fail: reject,
+    })
+  })
+}
+
+const sizeTextCache = Object.create(null)
+
+const formatBadgeSize = (bytes) => {
+  const size = Number(bytes || 0)
+  if (!Number.isFinite(size) || size <= 0) return ''
+
+  const kb = size / 1024
+  if (kb < 1024) {
+    const value = kb >= 10 ? kb.toFixed(0) : kb.toFixed(1)
+    return `${value}KB`
+  }
+
+  const mb = kb / 1024
+  const value = mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)
+  return `${value}MB`
+}
+
+const resolveRemoteFileSizeText = async (rawUrl) => {
+  const normalizedUrl = String(getUrl(rawUrl) || '').trim()
+  if (!normalizedUrl) return ''
+
+  if (Object.prototype.hasOwnProperty.call(sizeTextCache, normalizedUrl)) {
+    return sizeTextCache[normalizedUrl]
+  }
+
+  try {
+    const downloadRes = await downloadFileAsync(normalizedUrl)
+    const tempPath = String(downloadRes?.tempFilePath || '').trim()
+    if (!tempPath) {
+      sizeTextCache[normalizedUrl] = ''
+      return ''
+    }
+    const bytes = await getFileSizeAsync(tempPath)
+    const text = formatBadgeSize(bytes)
+    sizeTextCache[normalizedUrl] = text
+    return text
+  } catch (e) {
+    sizeTextCache[normalizedUrl] = ''
+    return ''
+  }
+}
+
+const fillClothItemSizeText = (item) => {
+  if (!item?.url || item.sizeText) return
+  const currentUrl = String(item.url || '').trim()
+  resolveRemoteFileSizeText(currentUrl).then((text) => {
+    if (!text) return
+    if (String(item.url || '').trim() !== currentUrl) return
+    item.sizeText = text
   })
 }
 
@@ -621,20 +689,13 @@ const pickAndProcessImage = async (mode = 'original') => {
 }
 
 const chooseUploadMode = () => {
-  return openActionSheetWithRetry([
-    $t.value('uploadModeOriginal'),
-    $t.value('uploadModeCrop'),
-    $t.value('uploadModeCompress'),
-  ]).then((res) => {
-    if (res.status === 'cancel') return ''
-    if (res.status === 'fail') {
-      uni.showToast({ title: $t.value('operationFailed'), icon: 'none' })
-      return ''
-    }
-
-    if (res.tapIndex === 0) return 'original'
-    if (res.tapIndex === 1) return 'crop'
-    return 'compress'
+  return openModePopup({
+    title: '',
+    options: [
+      { key: 'original', label: $t.value('uploadModeOriginal') },
+      { key: 'crop', label: $t.value('uploadModeCrop') },
+      { key: 'compress', label: $t.value('uploadModeCompress') },
+    ],
   })
 }
 
@@ -667,6 +728,12 @@ const categoryLabel = (category) => {
   return key ? $t.value(key) : '-'
 }
 
+const buildDefaultClothName = (category) => {
+  const prefix = categoryLabel(category)
+  const safePrefix = prefix && prefix !== '-' ? prefix : $t.value('myCloset')
+  return `${safePrefix}${Date.now()}`
+}
+
 const normalizeClothItem = (item) => {
   const id = item?.ID || item?.id || ''
   const category = normalizeCategory(item?.category || item?.Category)
@@ -675,6 +742,7 @@ const normalizeClothItem = (item) => {
     name: item?.name || '',
     category,
     url: item?.image || item?.url || '',
+    sizeText: '',
   }
 }
 
@@ -692,32 +760,25 @@ const loadClothes = async () => {
   }
   const list = Array.isArray(res?.data?.list) ? res.data.list : []
   clothList.value = list.map(normalizeClothItem).filter(item => item.id && item.category && item.url)
+  clothList.value.forEach((item) => fillClothItemSizeText(item))
 }
 
-const chooseCreateCategory = () => {
-  if (activeCategory.value !== 'all') {
-    return Promise.resolve(activeCategory.value)
-  }
+const buildCreateCategoryOptions = () => {
+  return categoryOptions
+    .filter(item => item.key !== 'all')
+    .map(item => ({ key: item.key, label: $t.value(item.labelKey) }))
+}
 
-  return new Promise((resolve) => {
-    const createOptions = categoryOptions.filter(item => item.key !== 'all')
-    openActionSheetWithRetry(createOptions.map(item => $t.value(item.labelKey))).then((res) => {
-      if (res.status !== 'ok') {
-        resolve('')
-        return
-      }
-      resolve(createOptions[res.tapIndex]?.key || '')
-    })
+const chooseCreateCategory = async () => {
+  return openModePopup({
+    title: '',
+    options: buildCreateCategoryOptions(),
   })
 }
 
 const addCloth = async () => {
   const category = await chooseCreateCategory()
   if (!category) return
-
-  if (activeCategory.value === 'all') {
-    await waitActionSheetStable()
-  }
 
   const mode = await chooseUploadMode()
   if (!mode) return
@@ -739,7 +800,7 @@ const addCloth = async () => {
     }
 
     const createRes = await createTryonCloth({
-      name: '',
+      name: buildDefaultClothName(category),
       category,
       image: uploadedUrl,
     })
@@ -906,6 +967,23 @@ page {
 .card-image {
   width: 100%;
   height: 260rpx;
+}
+
+.card-image-wrap {
+  position: relative;
+}
+
+.card-size-badge {
+  position: absolute;
+  top: 8rpx;
+  right: 8rpx;
+  z-index: 2;
+  padding: 4rpx 10rpx;
+  border-radius: 999rpx;
+  background: rgba(15, 23, 42, 0.68);
+  color: #ffffff;
+  font-size: 18rpx;
+  line-height: 1.2;
 }
 
 .card-foot {
@@ -1166,5 +1244,55 @@ page {
   top: -9999px;
   opacity: 0;
   pointer-events: none;
+}
+
+.mode-popup-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  background: rgba(15, 23, 42, 0.48);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 24rpx;
+}
+
+.mode-popup-panel {
+  width: 100%;
+  max-width: 700rpx;
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 20rpx;
+  box-shadow: 0 20rpx 48rpx rgba(15, 23, 42, 0.2);
+}
+
+.mode-popup-title {
+  display: block;
+  margin-bottom: 12rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.62);
+}
+
+.mode-popup-item,
+.mode-popup-cancel {
+  height: 76rpx;
+  border-radius: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+}
+
+.mode-popup-item {
+  margin-bottom: 10rpx;
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+}
+
+.mode-popup-cancel {
+  margin-top: 6rpx;
+  background: rgba(15, 23, 42, 0.08);
+  color: rgba(15, 23, 42, 0.72);
 }
 </style>

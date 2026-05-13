@@ -80,8 +80,10 @@ const (
 	tryonReasonInviteReward   = "reason_tryonInviteReward"
 
 	aliyunTryonSynthesisURL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis"
+	aliyunShoeTryonURL      = "https://dashscope.aliyuncs.com/api/v1/services/aigc/virtualmodel/generation"
 	aliyunParsingProcessURL = "https://dashscope.aliyuncs.com/api/v1/services/vision/image-process/process"
 	aliyunTryonRefinerModel = "aitryon-refiner"
+	aliyunShoeTryonModel    = "shoemodel-v1"
 	aliyunRetouchSkinURL    = "https://facebody.cn-shanghai.aliyuncs.com/"
 	aliyunRetouchSkinAction = "RetouchSkin"
 	aliyunRetouchSkinVer    = "2019-12-30"
@@ -823,18 +825,28 @@ type dashscopeTryonCreateResponse struct {
 	} `json:"output"`
 }
 
+type dashscopeTaskResultItem struct {
+	URL       string          `json:"url"`
+	ImageURL  json.RawMessage `json:"image_url"`
+	ResultURL string          `json:"result_url"`
+}
+
 type dashscopeTaskQueryResponse struct {
 	Code      string `json:"code"`
 	Message   string `json:"message"`
 	RequestID string `json:"request_id"`
 	Output    struct {
-		TaskID        string          `json:"task_id"`
-		TaskStatus    string          `json:"task_status"`
-		ImageURL      json.RawMessage `json:"image_url"`
-		ParsingImgURL []string        `json:"parsing_img_url"`
-		CropImgURL    []string        `json:"crop_img_url"`
-		Code          string          `json:"code"`
-		Message       string          `json:"message"`
+		TaskID        string                    `json:"task_id"`
+		TaskStatus    string                    `json:"task_status"`
+		ImageURL      json.RawMessage           `json:"image_url"`
+		ImageURLs     []string                  `json:"image_urls"`
+		ResultURL     string                    `json:"result_url"`
+		ResultURLs    []string                  `json:"result_urls"`
+		Results       []dashscopeTaskResultItem `json:"results"`
+		ParsingImgURL []string                  `json:"parsing_img_url"`
+		CropImgURL    []string                  `json:"crop_img_url"`
+		Code          string                    `json:"code"`
+		Message       string                    `json:"message"`
 	} `json:"output"`
 }
 
@@ -3371,6 +3383,47 @@ func buildAliyunTryonInput(personImageURL string, templateImageURL string, templ
 	return input
 }
 
+func isAliyunShoeTryonModel(sceneType string, modelName string, providerURL string) bool {
+	if !strings.EqualFold(strings.TrimSpace(sceneType), "shoes") {
+		return false
+	}
+
+	if strings.EqualFold(strings.TrimSpace(modelName), aliyunShoeTryonModel) {
+		return true
+	}
+
+	urlLower := strings.ToLower(strings.TrimSpace(providerURL))
+	if strings.Contains(urlLower, "/virtualmodel/generation") {
+		return true
+	}
+
+	return false
+}
+
+func buildAliyunShoeTryonInput(templateImageURL string, shoeImageURL string, shoeImageLowerURL string) map[string]interface{} {
+	input := map[string]interface{}{
+		"template_image_url": strings.TrimSpace(templateImageURL),
+	}
+
+	shoeURLSet := make(map[string]struct{})
+	shoeURLs := make([]string, 0, 2)
+	for _, candidate := range []string{strings.TrimSpace(shoeImageURL), strings.TrimSpace(shoeImageLowerURL)} {
+		if candidate == "" {
+			continue
+		}
+		if _, exists := shoeURLSet[candidate]; exists {
+			continue
+		}
+		shoeURLSet[candidate] = struct{}{}
+		shoeURLs = append(shoeURLs, candidate)
+	}
+	if len(shoeURLs) > 0 {
+		input["shoe_image_url"] = shoeURLs
+	}
+
+	return input
+}
+
 func (s *TryonTaskService) invokeAliyunTryonAsync(req clientReq.CreateTryonTaskReq, modelCfg *tryonModelConfig, providerToken string, providerURL string, modelName string, companionGarmentImageURL string, traceCtx *modelCallTraceContext) (result tryonInvokeResult, err error) {
 	startedAt := time.Now()
 	var requestPayload interface{}
@@ -3426,13 +3479,22 @@ func (s *TryonTaskService) invokeAliyunTryonAsync(req clientReq.CreateTryonTaskR
 		return tryonInvokeResult{}, errors.New("clothesImageRequired")
 	}
 
+	inputPayload := buildAliyunTryonInput(req.SourceImage, req.TemplateImage, req.TemplateImageLower, req.TemplatePart, companionGarmentImageURL)
+	parametersPayload := map[string]interface{}{
+		"resolution":   modelCfg.resolutionValue(),
+		"restore_face": modelCfg.restoreFaceValue(),
+	}
+	if isAliyunShoeTryonModel(req.SceneType, resolvedModelName, createURL) {
+		inputPayload = buildAliyunShoeTryonInput(req.SourceImage, req.TemplateImage, req.TemplateImageLower)
+		parametersPayload = map[string]interface{}{
+			"n": 1,
+		}
+	}
+
 	body := map[string]interface{}{
-		"model": resolvedModelName,
-		"input": buildAliyunTryonInput(req.SourceImage, req.TemplateImage, req.TemplateImageLower, req.TemplatePart, companionGarmentImageURL),
-		"parameters": map[string]interface{}{
-			"resolution":   modelCfg.resolutionValue(),
-			"restore_face": modelCfg.restoreFaceValue(),
-		},
+		"model":      resolvedModelName,
+		"input":      inputPayload,
+		"parameters": parametersPayload,
 	}
 	requestPayload = body
 
@@ -4449,6 +4511,37 @@ func (s *TryonTaskService) queryAliyunTryonTask(taskID string, providerToken str
 	case tryonTaskStatusSuccess:
 		resultImage := extractDashscopeImageURL(resp.Output.ImageURL)
 		if resultImage == "" {
+			for _, item := range resp.Output.ImageURLs {
+				if strings.TrimSpace(item) != "" {
+					resultImage = strings.TrimSpace(item)
+					break
+				}
+			}
+		}
+		if resultImage == "" {
+			resultImage = strings.TrimSpace(resp.Output.ResultURL)
+		}
+		if resultImage == "" {
+			for _, item := range resp.Output.ResultURLs {
+				if strings.TrimSpace(item) != "" {
+					resultImage = strings.TrimSpace(item)
+					break
+				}
+			}
+		}
+		if resultImage == "" {
+			for _, item := range resp.Output.Results {
+				resultImage = firstNonEmptyString(
+					strings.TrimSpace(item.URL),
+					extractDashscopeImageURL(item.ImageURL),
+					strings.TrimSpace(item.ResultURL),
+				)
+				if resultImage != "" {
+					break
+				}
+			}
+		}
+		if resultImage == "" {
 			result = tryonInvokeResult{Status: tryonTaskStatusFailed, ErrorMessage: "aliyunTaskSuccessNoImage", ProviderTaskID: taskID}
 			return result, nil
 		}
@@ -5350,6 +5443,9 @@ func resolveAliyunModelName(modelCfg *tryonModelConfig, sceneType string) string
 	if strings.EqualFold(strings.TrimSpace(sceneType), "takeoff") {
 		return "aitryon-parsing-v1"
 	}
+	if strings.EqualFold(strings.TrimSpace(sceneType), "shoes") {
+		return aliyunShoeTryonModel
+	}
 
 	return ""
 }
@@ -5365,14 +5461,29 @@ func isAliyunTryonModel(provider string, modelName string, providerURL string, s
 	}
 
 	providerLower := strings.ToLower(strings.TrimSpace(provider))
+	urlLower := strings.ToLower(strings.TrimSpace(providerURL))
+	if modelLower == aliyunShoeTryonModel {
+		if strings.Contains(providerLower, "aliyun") || strings.Contains(providerLower, "dashscope") {
+			return true
+		}
+		if strings.Contains(urlLower, "dashscope.aliyuncs.com") || strings.Contains(urlLower, "virtualmodel/generation") {
+			return true
+		}
+	}
+
 	if strings.Contains(providerLower, "aliyun") || strings.Contains(providerLower, "dashscope") {
 		if !strings.Contains(providerLower, "parsing") {
 			return true
 		}
 	}
 
-	urlLower := strings.ToLower(strings.TrimSpace(providerURL))
 	if strings.Contains(urlLower, "dashscope.aliyuncs.com") && strings.Contains(urlLower, "image-synthesis") {
+		return true
+	}
+	if strings.Contains(urlLower, "dashscope.aliyuncs.com") && strings.Contains(urlLower, "virtualmodel/generation") {
+		return true
+	}
+	if strings.EqualFold(strings.TrimSpace(sceneType), "shoes") && strings.EqualFold(strings.TrimSpace(providerURL), aliyunShoeTryonURL) {
 		return true
 	}
 

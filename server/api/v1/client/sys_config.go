@@ -21,6 +21,8 @@ type SysConfigApi struct{}
 var publicConfigKeyAllowlist = map[string]struct{}{
 	"app_logo":                            {},
 	"app_name":                            {},
+	"invite_share_link_tip_text":          {},
+	"invite_share_link_tip_text_color":    {},
 	"currency_suffix":                     {},
 	"currency_symbol":                     {},
 	"order_logistics_enabled":             {},

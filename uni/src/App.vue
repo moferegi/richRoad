@@ -7,11 +7,61 @@
 	import { visitorHeartbeat } from '@/api/visitor.js'
 	import { generateFingerprint, getSessionId, getPlatform } from '@/utils/fingerprint.js'
 	import { initExternalDomain, initCdnDomain } from '@/utils/url.js'
+
+	const HOME_TAB_URL = '/pages/tabBar/index'
+	let backGuardInstalled = false
+	let pendingBackRoute = ''
+
+	const getCurrentRoutePath = () => {
+		const pages = getCurrentPages()
+		if (!pages || pages.length === 0) return ''
+		const route = pages[pages.length - 1]?.route || ''
+		return route ? '/' + route : ''
+	}
+
+	const switchToHomeTab = () => {
+		uni.switchTab({ url: HOME_TAB_URL })
+	}
+
+	const setupH5NavigateBackGuard = () => {
+		// #ifndef H5
+		return
+		// #endif
+		if (backGuardInstalled || typeof uni.addInterceptor !== 'function') {
+			return
+		}
+		backGuardInstalled = true
+		uni.addInterceptor('navigateBack', {
+			invoke(args) {
+				const pages = getCurrentPages()
+				const delta = Number(args?.delta || 1)
+				pendingBackRoute = getCurrentRoutePath()
+				if (!pages || pages.length <= delta) {
+					switchToHomeTab()
+					return false
+				}
+				return args
+			},
+			success() {
+				const fromRoute = pendingBackRoute
+				setTimeout(() => {
+					const currentRoute = getCurrentRoutePath()
+					if (fromRoute && currentRoute === fromRoute) {
+						switchToHomeTab()
+					}
+				}, 180)
+			},
+			fail() {
+				switchToHomeTab()
+			}
+		})
+	}
 	export default {
 		onLaunch: function() {
 			const userStore = useUserStore()
 			const langStore = useLangStore()
 			const appConfigStore = useAppConfigStore()
+			setupH5NavigateBackGuard()
 			userStore.getInfo()
 			langStore.initLangs()
 			initExternalDomain()
@@ -40,7 +90,9 @@
 		onShow: function() {
 			console.log('App Show')
 			const langStore = useLangStore()
+			const appConfigStore = useAppConfigStore()
 			langStore.updateTabBar(langStore.locale || uni.getStorageSync('app-lang') || 'mn')
+			appConfigStore.loadConfig()
 			this.reportVisitor()
 		},
 		onHide: function() {

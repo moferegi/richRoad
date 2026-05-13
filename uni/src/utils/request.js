@@ -68,6 +68,119 @@ const normalizeBackendMessage = (value) => {
 }
 
 const hasOwn = Object.prototype.hasOwnProperty
+const AUTH_ROUTES = ['/pages/user/login', '/pages/user/register']
+
+const safeDecode = (value) => {
+    if (value === null || value === undefined) return ''
+    const text = String(value).trim()
+    if (!text) return ''
+    try {
+        return decodeURIComponent(text)
+    } catch (e) {
+        return text
+    }
+}
+
+const getRouteFromH5Location = () => {
+    // #ifdef H5
+    try {
+        const hash = String(window.location.hash || '')
+        if (hash.startsWith('#/')) {
+            const route = hash.slice(1).split('?')[0]
+            return route || ''
+        }
+        const pathname = String(window.location.pathname || '').trim()
+        if (pathname.startsWith('/pages/')) {
+            return pathname.split('?')[0]
+        }
+    } catch (e) {
+        return ''
+    }
+    // #endif
+    return ''
+}
+
+const getRouteFromLaunchOptions = () => {
+    try {
+        if (typeof uni.getLaunchOptionsSync !== 'function') {
+            return ''
+        }
+        const launch = uni.getLaunchOptionsSync() || {}
+        const path = String(launch.path || '').trim()
+        if (!path) {
+            return ''
+        }
+        return path.startsWith('/') ? path : `/${path}`
+    } catch (e) {
+        return ''
+    }
+}
+
+const getCurrentRoutePath = () => {
+    const pages = getCurrentPages()
+    if (pages && pages.length > 0) {
+        const route = pages[pages.length - 1]?.route || ''
+        return route ? `/${route}` : ''
+    }
+    return getRouteFromH5Location() || getRouteFromLaunchOptions() || ''
+}
+
+const isAuthRoute = (routePath = '') => {
+    return AUTH_ROUTES.some(item => routePath.startsWith(item))
+}
+
+const getInviteCodeFromCurrentPage = () => {
+    try {
+        const pages = getCurrentPages()
+        if (!pages || pages.length === 0) return ''
+        const options = pages[pages.length - 1]?.options || {}
+        return safeDecode(options.inviteCode || options.invite_code || options.code || '')
+    } catch (e) {
+        return ''
+    }
+}
+
+const getInviteCodeFromH5Location = () => {
+    // #ifdef H5
+    try {
+        const fromSearch = new URLSearchParams(window.location.search || '').get('inviteCode')
+        if (fromSearch) return safeDecode(fromSearch)
+        const hash = window.location.hash || ''
+        const hashQuery = hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : ''
+        const fromHashQuery = new URLSearchParams(hashQuery).get('inviteCode')
+        if (fromHashQuery) return safeDecode(fromHashQuery)
+    } catch (e) {
+        return ''
+    }
+    // #endif
+    return ''
+}
+
+const resolveInviteCode = () => {
+    return (
+        getInviteCodeFromCurrentPage() ||
+        getInviteCodeFromH5Location() ||
+        safeDecode(uni.getStorageSync('pendingInviteCode') || '')
+    )
+}
+
+const buildLoginRedirectUrl = () => {
+    const inviteCode = resolveInviteCode()
+    if (!inviteCode) return '/pages/user/login'
+    uni.setStorageSync('pendingInviteCode', inviteCode)
+    return `/pages/user/login?inviteCode=${encodeURIComponent(inviteCode)}`
+}
+
+const redirectToLogin = () => {
+    uni.removeStorageSync('x-token')
+    uni.removeStorageSync('userInfo')
+    const currentRoute = getCurrentRoutePath()
+    if (isAuthRoute(currentRoute)) {
+        return false
+    }
+    uni.reLaunch({ url: buildLoginRedirectUrl() })
+    return true
+}
 
 const isApiResponseObject = (payload) => {
     return !!payload && typeof payload === 'object' && !Array.isArray(payload) && hasOwn.call(payload, 'code')
@@ -126,22 +239,25 @@ export const request = ({url, data, header, method, params}) => {
                     uni.setStorageSync('x-token',res.header['new-token'])
                 }
                 if (res.statusCode === 401) {
-                    uni.removeStorageSync('x-token')
-                    uni.removeStorageSync('userInfo')
-                    uni.reLaunch({ url: '/pages/user/login' })
+                    const redirected = redirectToLogin()
+                    if (!redirected) {
+                        resolve(normalizeApiResponse(res.data))
+                    }
                     return
                 }
                 // 封禁检测：后端返回 banned=true 时强制退出登录并跳转登录页
                 if (res.data && res.data.data && res.data.data.banned) {
-                    uni.removeStorageSync('x-token')
-                    uni.removeStorageSync('userInfo')
+                    redirectToLogin()
                     uni.showModal({
                         title: '',
                         content: normalizeBackendMessage(res.data.msg) || t('operationFailed'),
                         showCancel: false,
                         confirmText: t('confirm'),
                         success: () => {
-                            uni.reLaunch({ url: '/pages/user/login' })
+                            const redirected = redirectToLogin()
+                            if (!redirected) {
+                                uni.reLaunch({ url: buildLoginRedirectUrl() })
+                            }
                         }
                     })
                     resolve(res.data)

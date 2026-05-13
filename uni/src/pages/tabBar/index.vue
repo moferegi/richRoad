@@ -2,8 +2,8 @@
   <view class="room-page">
     <view class="room-header">
       <text class="room-title">{{ roomTitle }}</text>
-      <view class="room-tabs">
-        <view class="room-tab active">{{ $t('tryonArea') }}</view>
+      <view class="room-header-action" @tap="showTutorialPopup = true">
+        <text>{{ $t('tryonTutorialAction') }}</text>
       </view>
     </view>
 
@@ -56,6 +56,10 @@
           <text class="cloth-tip">{{ $t('goClothesPageTip') }}</text>
         </view>
       </view>
+    </view>
+
+    <view class="image-size-rule-card">
+      <text class="image-size-rule-text">{{ $t('tryonImageSizeRuleHint') }}</text>
     </view>
 
     <view class="refiner-card" :class="{ disabled: !currentModelSupportsRefiner }">
@@ -179,6 +183,25 @@
       </view>
     </view>
 
+    <view class="popup-mask" v-if="showTutorialPopup" @tap="showTutorialPopup = false" @touchmove.stop>
+      <view class="popup-panel popup-panel-help popup-panel-tutorial" @tap.stop @touchmove.stop>
+        <view class="tutorial-popup-head">
+          <view class="popup-title tutorial-popup-title">{{ $t('tryonTutorialTitle') }}</view>
+          <view class="tutorial-popup-close" @tap="showTutorialPopup = false">
+            <text>×</text>
+          </view>
+        </view>
+        <scroll-view class="tutorial-scroll" scroll-y @touchmove.stop>
+          <view class="tutorial-list">
+            <view class="tutorial-item" v-for="(item, index) in tutorialItems" :key="`tutorial-${index}`">
+              <text class="tutorial-index">{{ index + 1 }}.</text>
+              <text class="tutorial-text">{{ item }}</text>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
+
     <view class="upload-mask" v-if="showUploadDrawer" @tap="closeUploadDrawer">
       <view class="upload-drawer" @tap.stop>
         <view class="upload-drawer-head">
@@ -206,6 +229,20 @@
               <view class="upload-main-btn" @tap="uploadDrawerChooseImage('compress')">{{ $t('uploadModeCompress') }}</view>
             </view>
             <text class="upload-highlight-tip">{{ $t('uploadPersonDrawerStrongTip') }}</text>
+            <text class="upload-highlight-tip">{{ $t('uploadPersonSidePoseHint') }}</text>
+
+            <view class="example-grid three">
+              <view
+                v-for="item in personSidePoseExamples"
+                :key="item.url"
+                class="example-card"
+                @tap="applyRemoteExample(item)"
+              >
+                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <text class="example-label">{{ item.label }}</text>
+              </view>
+            </view>
+
             <text class="upload-center-tip">{{ $t('uploadSingleFullBodyTip') }}</text>
 
             <view class="example-grid two">
@@ -241,7 +278,7 @@
 
           <view class="upload-section" v-if="isPersonDrawer && drawerTab === 'myModel'">
             <view v-if="myModelList.length === 0" class="drawer-empty">
-              <text>{{ $t('myModelEmpty') }}</text>
+              <text>{{ $t('uploadDrawerEmptyPersonToMyModel') }}</text>
             </view>
             <view v-else class="example-grid two">
               <view
@@ -257,10 +294,10 @@
           </view>
 
           <view class="upload-section" v-if="isPersonDrawer && drawerTab === 'official'">
-            <text class="group-title">{{ $t('clothesGenderMale') }}</text>
+            <text class="group-title">{{ $t('clothesGenderFemale') }}</text>
             <view class="example-grid two">
               <view
-                v-for="item in officialMaleExamples"
+                v-for="item in officialFemaleExamples"
                 :key="item.url"
                 class="example-card"
                 @tap="applyRemoteExample(item)"
@@ -270,10 +307,10 @@
               </view>
             </view>
 
-            <text class="group-title">{{ $t('clothesGenderFemale') }}</text>
+            <text class="group-title">{{ $t('clothesGenderMale') }}</text>
             <view class="example-grid two">
               <view
-                v-for="item in officialFemaleExamples"
+                v-for="item in officialMaleExamples"
                 :key="item.url"
                 class="example-card"
                 @tap="applyRemoteExample(item)"
@@ -291,7 +328,21 @@
               <view class="upload-main-btn" @tap="uploadDrawerChooseImage('compress')">{{ $t('uploadModeCompress') }}</view>
             </view>
             <text class="upload-highlight-tip" v-if="uploadTarget === 'upper'">{{ $t('uploadUpperDrawerStrongTip') }}</text>
-            <text class="upload-center-tip">{{ $t('uploadUpperRequiredTip') }}</text>
+            <text class="upload-highlight-tip" v-if="uploadTarget === 'upper'">{{ $t('uploadUpperPersonWearHint') }}</text>
+
+            <view class="example-grid three" v-if="uploadTarget === 'upper'">
+              <view
+                v-for="item in upperPersonWearExamples"
+                :key="item.url"
+                class="example-card"
+                @tap="applyRemoteExample(item)"
+              >
+                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <text class="example-label">{{ item.label }}</text>
+              </view>
+            </view>
+
+            <text class="upload-center-tip">{{ $t(uploadTarget === 'lower' ? 'uploadLowerOptionalTip' : 'uploadUpperRequiredTip') }}</text>
 
             <view class="example-grid three">
               <view
@@ -326,7 +377,7 @@
 
           <view class="upload-section" v-if="isClothDrawer && drawerTab === 'myCloset'">
             <view v-if="filteredMyClothList.length === 0" class="drawer-empty">
-              <text>{{ $t('myClosetEmpty') }}</text>
+              <text>{{ $t('uploadDrawerEmptyClothesToMyCloset') }}</text>
             </view>
             <view v-else class="example-grid three">
               <view
@@ -427,6 +478,8 @@
       class="crop-canvas-hidden"
       :style="{ width: `${cropCanvasSize.width}px`, height: `${cropCanvasSize.height}px` }"
     ></canvas>
+
+    <lang-switch v-model="showLangPicker" />
   </view>
 </template>
 
@@ -442,6 +495,7 @@ import { getMyTryonModelList, getMyTryonClothList } from '@/api/tryonTask.js'
 import { getUrl } from '@/utils/url.js'
 import { localText, resolveApiMessage } from '@/utils/i18n.js'
 import LazyImage from '@/components/lazy-image/lazy-image.vue'
+import langSwitch from '@/components/lang-switch/lang-switch.vue'
 import {
   createTryonRequestId,
   saveTryonDraft,
@@ -459,10 +513,26 @@ const appConfigStore = useAppConfigStore()
 const userStore = useUserStore()
 const $t = computed(() => langStore.$t)
 const roomTitle = computed(() => appConfigStore.appName || $t.value('tryonRoom'))
+const tutorialItems = computed(() => {
+  return [
+    $t.value('tryonTutorialItem1'),
+    $t.value('tryonTutorialItem2'),
+    $t.value('tryonTutorialItem3'),
+    $t.value('tryonTutorialItem4'),
+    $t.value('tryonTutorialItem5'),
+    $t.value('tryonTutorialItem6'),
+    $t.value('tryonTutorialItem7'),
+    $t.value('tryonTutorialItem8'),
+    $t.value('tryonTutorialItem9'),
+    $t.value('tryonTutorialItem10'),
+  ]
+})
 
 const showModelPopup = ref(false)
 const showRefinerHelpPopup = ref(false)
 const showUpperOnlySplitHelpPopup = ref(false)
+const showTutorialPopup = ref(false)
+const showLangPicker = ref(false)
 const showUploadDrawer = ref(false)
 const refinerEnabled = ref(false)
 const upperOnlySplitMode = ref('')
@@ -731,6 +801,61 @@ const getFileSizeAsync = (filePath) => {
       fail: () => resolve(0),
     })
   })
+}
+
+const downloadFileAsync = (url) => {
+  return new Promise((resolve, reject) => {
+    uni.downloadFile({
+      url,
+      success: resolve,
+      fail: reject,
+    })
+  })
+}
+
+const remoteImageSizeCache = Object.create(null)
+
+const resolveRemoteImageSize = async (rawUrl) => {
+  const normalizedUrl = String(getUrl(rawUrl) || '').trim()
+  if (!normalizedUrl) return 0
+
+  if (Object.prototype.hasOwnProperty.call(remoteImageSizeCache, normalizedUrl)) {
+    return Number(remoteImageSizeCache[normalizedUrl] || 0)
+  }
+
+  try {
+    const downloadRes = await downloadFileAsync(normalizedUrl)
+    const tempPath = String(downloadRes?.tempFilePath || '').trim()
+    if (!tempPath) {
+      remoteImageSizeCache[normalizedUrl] = 0
+      return 0
+    }
+    const size = await getFileSizeAsync(tempPath)
+    remoteImageSizeCache[normalizedUrl] = Number(size || 0)
+    return Number(size || 0)
+  } catch (e) {
+    remoteImageSizeCache[normalizedUrl] = 0
+    return 0
+  }
+}
+
+const getRemoteValueByTarget = (target) => {
+  if (target === 'person') return personRemote.value
+  if (target === 'upper') return upperRemote.value
+  if (target === 'lower') return lowerRemote.value
+  return ''
+}
+
+const applyRemoteSizeForTarget = async (target, rawUrl) => {
+  const normalizedUrl = String(getUrl(rawUrl) || '').trim()
+  if (!target || !normalizedUrl) return
+
+  const size = await resolveRemoteImageSize(normalizedUrl)
+  if (size <= 0) return
+
+  const currentTargetUrl = String(getUrl(getRemoteValueByTarget(target)) || '').trim()
+  if (!currentTargetUrl || currentTargetUrl !== normalizedUrl) return
+  setImageSizeForTarget(target, size)
 }
 
 const drawCanvasAsync = (ctx) => {
@@ -1341,50 +1466,81 @@ const handleExampleImageError = (url) => {
 }
 
 const personGoodExamples = computed(() => {
-  return buildIndexedExampleItems(['firstcan.jpg', 'secondcan.jpg', 'thridcan.jpg', 'fourthcan.jpg'], 'tryonExampleFullBodyPrefix')
+  return buildIndexedExampleItems(['model-baby.jpg', 'secondcan.jpg', 'thridcan.jpg', 'fourthcan.jpg'], 'tryonExampleFullBodyPrefix')
+})
+
+const personSidePoseExamples = computed(() => {
+  return buildIndexedExampleItems(['model-ertong2.jpg', 'model-man.jpg', 'model-women2.jpg'], 'tryonExampleSidePosePrefix')
 })
 
 const personBadExamples = computed(() => {
-  return buildIndexedExampleItems(['firstcant.jpg', 'secondcant.jpg', 'thridcant.jpg', 'fourthcant.jpg'], 'tryonExampleBadPrefix')
+  return buildIndexedExampleItems(['firstcant.jpg', 'fourthcant.jpg'], 'tryonExampleBadPrefix')
 })
 
 const officialMaleExamples = computed(() => {
-  return buildIndexedExampleItems(['secondcan.jpg', 'fourthcan.jpg'], 'tryonExampleMaleModelPrefix')
+  return buildIndexedExampleItems(['secondcan.jpg', 'fourthcan.jpg', 'model-man2.jpg', 'model-baby2.jpg'], 'tryonExampleMaleModelPrefix')
 })
 
 const officialFemaleExamples = computed(() => {
-  return buildIndexedExampleItems(['firstcan.jpg', 'thridcan.jpg'], 'tryonExampleFemaleModelPrefix')
+  return buildIndexedExampleItems(['firstcan.jpg', 'thridcan.jpg', 'model-sex5.jpg', 'model-sex.jpg'], 'tryonExampleFemaleModelPrefix')
+})
+
+const upperPersonWearExamples = computed(() => {
+  return buildIndexedExampleItems(['model-ertong.jpg', 'model-man.jpg', 'model-sex2.jpg'], 'tryonExamplePersonWearPrefix')
 })
 
 const clothGoodExamples = computed(() => {
-  return buildIndexedExampleItems(
-    ['upcan.jpg', 'upcan2.jpg', 'upcan3.jpg', 'downcan.jpg', 'downcan2.jpg', 'downcan3.jpg', 'allcan.jpg', 'allcan2.jpg', 'allcan3.jpg'],
-    'tryonExampleGoodPrefix'
-  )
+  if (uploadTarget.value === 'upper') {
+    return buildIndexedExampleItems(['upcan.jpg', 'upcan2.jpg', 'upcan3.jpg', 'allcan.jpg', 'allcan2.jpg', 'allcan3.jpg'], 'tryonExampleGoodPrefix')
+  }
+  if (uploadTarget.value === 'lower') {
+    return buildIndexedExampleItems(['downcan.jpg', 'downcan2.jpg', 'downcan3.jpg'], 'tryonExampleGoodPrefix')
+  }
+  return []
 })
 
 const clothBadExamples = computed(() => {
-  return buildIndexedExampleItems(['clothcant.jpg', 'clothcant2.jpg', 'clothcant3.jpg', 'clothcant4.jpg'], 'tryonExampleBadPrefix')
+  if (uploadTarget.value === 'upper') {
+    return buildIndexedExampleItems(['clothcant.jpg', 'clothcant2.jpg', 'clothcant3.jpg'], 'tryonExampleBadPrefix')
+  }
+  if (uploadTarget.value === 'lower') {
+    return buildIndexedExampleItems(['clothcant.jpg', 'clothcant2.jpg', 'clothcant3.jpg'], 'tryonExampleBadPrefix')
+  }
+  return []
 })
 
 const clothRecommendedGroups = computed(() => {
-  return [
-    {
-      key: 'upper',
-      title: $t.value('uploadUpperImage'),
-      items: buildIndexedExampleItems(['upcan.jpg', 'upcan2.jpg', 'upcan3.jpg'], 'tryonExampleUpperPrefix'),
-    },
-    {
-      key: 'lower',
-      title: $t.value('uploadLowerImage'),
-      items: buildIndexedExampleItems(['downcan.jpg', 'downcan2.jpg', 'downcan3.jpg'], 'tryonExampleLowerPrefix'),
-    },
-    {
-      key: 'all',
-      title: $t.value('suitSet'),
-      items: buildIndexedExampleItems(['allcan.jpg', 'allcan2.jpg', 'allcan3.jpg'], 'tryonExampleAllPrefix'),
-    },
-  ]
+  if (uploadTarget.value === 'upper') {
+    return [
+      {
+        key: 'person-wear',
+        title: $t.value('uploadPersonWearingImage'),
+        items: buildIndexedExampleItems(['model-man2.jpg', 'model-baby.jpg', 'model-women.jpg'], 'tryonExamplePersonWearPrefix'),
+      },
+      {
+        key: 'upper',
+        title: $t.value('uploadUpperImage'),
+        items: buildIndexedExampleItems(['upcan.jpg', 'upcan2.jpg', 'upcan3.jpg'], 'tryonExampleUpperPrefix'),
+      },
+      {
+        key: 'all',
+        title: $t.value('suitSet'),
+        items: buildIndexedExampleItems(['allcan.jpg', 'allcan2.jpg', 'allcan3.jpg'], 'tryonExampleAllPrefix'),
+      },
+    ]
+  }
+
+  if (uploadTarget.value === 'lower') {
+    return [
+      {
+        key: 'lower',
+        title: $t.value('uploadLowerImage'),
+        items: buildIndexedExampleItems(['downcan.jpg', 'downcan2.jpg', 'downcan3.jpg'], 'tryonExampleLowerPrefix'),
+      },
+    ]
+  }
+
+  return []
 })
 
 const myClothDisplayName = (category) => {
@@ -1578,7 +1734,7 @@ const loadMyClothList = async () => {
     const list = Array.isArray(res?.data?.list) ? res.data.list : []
     myClothList.value = list
       .map(normalizeMyClothItem)
-      .filter(item => item.id && item.url && ['upper', 'lower', 'onepiece', 'shoes'].includes(item.category))
+      .filter(item => item.id && item.url && ['upper', 'lower', 'onepiece'].includes(item.category))
   } catch (e) {
     myClothList.value = []
   }
@@ -1685,6 +1841,7 @@ const applyRemoteExample = (item) => {
   const previewUrl = getExamplePreview(item.url)
   if (!previewUrl) return
   assignImageToTarget(uploadTarget.value, previewUrl, true)
+  applyRemoteSizeForTarget(uploadTarget.value, previewUrl)
   showUploadDrawer.value = false
   uni.showToast({ title: $t.value('autoFillApplied'), icon: 'none' })
 }
@@ -1692,6 +1849,7 @@ const applyRemoteExample = (item) => {
 const applyMyModel = (item) => {
   if (!item?.url) return
   assignImageToTarget('person', item.url, true)
+  applyRemoteSizeForTarget('person', item.url)
   showUploadDrawer.value = false
   uni.showToast({ title: $t.value('autoFillApplied'), icon: 'none' })
 }
@@ -1699,6 +1857,7 @@ const applyMyModel = (item) => {
 const applyMyCloth = (item) => {
   if (!item?.url || !uploadTarget.value) return
   assignImageToTarget(uploadTarget.value, item.url, true)
+  applyRemoteSizeForTarget(uploadTarget.value, item.url)
   showUploadDrawer.value = false
   uni.showToast({ title: $t.value('autoFillApplied'), icon: 'none' })
 }
@@ -1745,14 +1904,18 @@ const applySelectedClothes = () => {
   const selected = getSelectedClothes()
   if (!selected || typeof selected !== 'object') return
   if (selected.upperImage) {
-    upperRemote.value = selected.upperImage
-    upperLocal.value = ''
-    upperSizeBytes.value = 0
+    const upperSizeBytes = Number(selected.upperSizeBytes || 0)
+    assignImageToTarget('upper', selected.upperImage, true, upperSizeBytes)
+    if (upperSizeBytes <= 0) {
+      applyRemoteSizeForTarget('upper', selected.upperImage)
+    }
   }
   if (selected.lowerImage) {
-    lowerRemote.value = selected.lowerImage
-    lowerLocal.value = ''
-    lowerSizeBytes.value = 0
+    const lowerSizeBytes = Number(selected.lowerSizeBytes || 0)
+    assignImageToTarget('lower', selected.lowerImage, true, lowerSizeBytes)
+    if (lowerSizeBytes <= 0) {
+      applyRemoteSizeForTarget('lower', selected.lowerImage)
+    }
   }
   clearSelectedClothes()
 }
@@ -1763,9 +1926,8 @@ const applySelectedModel = () => {
   if (selectedModel.roomType && selectedModel.roomType !== 'tryon') return
 
   if (selectedModel.remoteUrl) {
-    personRemote.value = selectedModel.remoteUrl
-    personLocal.value = ''
-    personSizeBytes.value = 0
+    assignImageToTarget('person', selectedModel.remoteUrl, true, 0)
+    applyRemoteSizeForTarget('person', selectedModel.remoteUrl)
     clearSelectedTryonModel()
     return
   }
@@ -1908,6 +2070,13 @@ const goGenerate = () => {
   })
 }
 
+const tryAutoShowLangPicker = () => {
+  if (showLangPicker.value) return
+  if (!langStore.shouldAutoShowLanguagePicker()) return
+  showLangPicker.value = true
+  langStore.markLanguagePickerPrompted()
+}
+
 watch(
   [() => tryonConfig.value.tryon_models, () => tryonConfig.value.tryon_cost_points, () => langStore.locale],
   () => {
@@ -1934,6 +2103,7 @@ watch(showUpperOnlySplitSelector, (visible, prevVisible) => {
 })
 
 onShow(() => {
+  tryAutoShowLangPicker()
   appConfigStore.loadConfig()
   loadExampleDomain()
   loadAnnouncement()
@@ -1958,12 +2128,30 @@ page {
 }
 
 .room-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 20rpx;
 }
 
 .room-title {
   font-size: 38rpx;
   font-weight: 700;
+}
+
+.room-header-action {
+  min-width: 92rpx;
+  height: 52rpx;
+  border-radius: 999rpx;
+  padding: 0 18rpx;
+  border: 1rpx solid rgba(37, 99, 235, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2563eb;
+  font-size: 22rpx;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .room-tabs {
@@ -2121,6 +2309,21 @@ page {
   align-items: center;
   justify-content: space-between;
   background: rgba(239, 246, 255, 0.92);
+}
+
+.image-size-rule-card {
+  margin-top: 18rpx;
+  padding: 14rpx 18rpx;
+  border-radius: 14rpx;
+  border: 1rpx solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.image-size-rule-text {
+  display: block;
+  font-size: 22rpx;
+  line-height: 1.45;
+  color: rgba(15, 23, 42, 0.72);
 }
 
 .refiner-card.disabled {
@@ -2335,8 +2538,15 @@ page {
 }
 
 .popup-panel-help {
-  max-height: 60vh;
+  max-height: 72vh;
   min-height: 240rpx;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.popup-panel-tutorial {
+  height: 72vh;
 }
 
 .refiner-help-content {
@@ -2345,12 +2555,77 @@ page {
   font-size: 24rpx;
   line-height: 1.6;
   white-space: pre-wrap;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .refiner-help-actions {
   margin-top: 26rpx;
   display: flex;
   justify-content: flex-end;
+}
+
+.tutorial-list {
+  margin-top: 8rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.tutorial-popup-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-bottom: 8rpx;
+}
+
+.tutorial-popup-title {
+  margin-bottom: 0;
+}
+
+.tutorial-popup-close {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.06);
+  color: rgba(15, 23, 42, 0.68);
+  font-size: 44rpx;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.tutorial-scroll {
+  flex: 1;
+  height: 0;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+
+.tutorial-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8rpx;
+}
+
+.tutorial-index {
+  width: 30rpx;
+  flex-shrink: 0;
+  font-size: 23rpx;
+  line-height: 1.55;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.tutorial-text {
+  flex: 1;
+  font-size: 23rpx;
+  line-height: 1.55;
+  color: rgba(15, 23, 42, 0.76);
 }
 
 .popup-title {

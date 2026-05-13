@@ -151,11 +151,42 @@
           width="200"
         >
           <template #default="scope">
+            <div class="good-image-wrap">
+              <el-image
+                class="good-image"
+                :src="getPrimaryImageLink(scope.row)"
+                fit="cover"
+              />
+              <span v-if="getImageSizeText(scope.row)" class="good-image-size-badge">{{ getImageSizeText(scope.row) }}</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="上装图"
+          width="120"
+        >
+          <template #default="scope">
             <el-image
-              style="width: 100px; height: 100px"
-              :src="scope.row.externalImagePath ? resolveExtUrl(scope.row.externalImagePath) : getUrl(scope.row.imageUrl)"
+              v-if="scope.row.upperImage"
+              style="width: 60px; height: 60px"
+              :src="getUrl(scope.row.upperImage)"
               fit="cover"
             />
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="下装图"
+          width="120"
+        >
+          <template #default="scope">
+            <el-image
+              v-if="scope.row.lowerImage"
+              style="width: 60px; height: 60px"
+              :src="getUrl(scope.row.lowerImage)"
+              fit="cover"
+            />
+            <span v-else>-</span>
           </template>
         </el-table-column>
         <el-table-column
@@ -416,6 +447,30 @@
           <SelectImage
             v-model="formData.imageUrl"
             file-type="image"
+            :default-folder="GOOD_UPLOAD_FOLDER"
+            :fixed-upload-folder="true"
+          />
+        </el-form-item>
+        <el-form-item
+          label="上装图(上传):"
+          prop="upperImage"
+        >
+          <SelectImage
+            v-model="formData.upperImage"
+            file-type="image"
+            :default-folder="GOOD_UPLOAD_FOLDER"
+            :fixed-upload-folder="true"
+          />
+        </el-form-item>
+        <el-form-item
+          label="下装图(上传):"
+          prop="lowerImage"
+        >
+          <SelectImage
+            v-model="formData.lowerImage"
+            file-type="image"
+            :default-folder="GOOD_UPLOAD_FOLDER"
+            :fixed-upload-folder="true"
           />
         </el-form-item>
         <el-form-item label="商品图片外链(优先于上传):" prop="externalImagePath">
@@ -438,7 +493,12 @@
                 </el-col>
                 <el-col :span="16">
                   <el-form-item label="资源(上传):" class="mb-0" label-width="auto">
-                    <SelectImage v-model="item.url" :file-type="item.type === 'video' ? 'video' : 'image'" />
+                    <SelectImage
+                      v-model="item.url"
+                      :file-type="item.type === 'video' ? 'video' : 'image'"
+                      :default-folder="GOOD_UPLOAD_FOLDER"
+                      :fixed-upload-folder="true"
+                    />
                   </el-form-item>
                 </el-col>
                 <el-col :span="4" class="text-right">
@@ -835,6 +895,7 @@ defineOptions({
 })
 
 const router = useRouter()
+const GOOD_UPLOAD_FOLDER = 'Moffuu/cloth-on/goods'
 
 // === 外部链接域名 ===
 const extDomain = ref('')
@@ -854,6 +915,74 @@ const resolveExtUrl = (path) => {
     return extDomain.value + sep + path
   }
   return path
+}
+
+const imageSizeTextMap = ref({})
+const imageSizeCache = new Map()
+const imageSizePromiseCache = new Map()
+
+const getPrimaryImageLink = (row) => {
+  if (row?.externalImagePath) return resolveExtUrl(row.externalImagePath)
+  return getUrl(row?.imageUrl)
+}
+
+const formatFileSize = (bytes) => {
+  const value = Number(bytes)
+  if (!Number.isFinite(value) || value <= 0) return ''
+  if (value < 1024) return `${Math.round(value)} B`
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(2)} KB`
+  return `${(value / (1024 * 1024)).toFixed(2)} MB`
+}
+
+const loadImageSizeText = (url) => {
+  const target = String(url || '').trim()
+  if (!target) return Promise.resolve('')
+
+  if (imageSizeCache.has(target)) {
+    return Promise.resolve(imageSizeCache.get(target))
+  }
+
+  if (imageSizePromiseCache.has(target)) {
+    return imageSizePromiseCache.get(target)
+  }
+
+  const pending = fetch(target, { method: 'GET' })
+    .then((res) => {
+      if (!res.ok) return ''
+      return res.blob().then((blob) => formatFileSize(blob?.size))
+    })
+    .catch(() => '')
+    .then((text) => {
+      const finalText = text || ''
+      imageSizeCache.set(target, finalText)
+      imageSizePromiseCache.delete(target)
+      return finalText
+    })
+
+  imageSizePromiseCache.set(target, pending)
+  return pending
+}
+
+const warmImageSize = (row) => {
+  const id = row?.ID
+  if (!id) return
+  if (imageSizeTextMap.value[id]) return
+
+  const link = getPrimaryImageLink(row)
+  if (!link) return
+
+  loadImageSizeText(link).then((text) => {
+    if (!text) return
+    imageSizeTextMap.value[id] = text
+  })
+}
+
+const getImageSizeText = (row) => {
+  const id = row?.ID
+  if (!id) return ''
+  if (imageSizeTextMap.value[id]) return imageSizeTextMap.value[id]
+  warmImageSize(row)
+  return ''
 }
 
 // === SKU规格字典 ===
@@ -962,6 +1091,8 @@ getTags()
 const formData = ref({
   description: '',
   imageUrl: '',
+  upperImage: '',
+  lowerImage: '',
   externalImagePath: '',
   banner: [],
   price: 0,
@@ -1069,6 +1200,8 @@ const getTableData = async() => {
   const table = await getGoodList({ page: page.value, pageSize: pageSize.value, ...searchInfo.value })
   if (table.code === 0) {
     tableData.value = table.data.list
+    imageSizeTextMap.value = {}
+    tableData.value.forEach((row) => warmImageSize(row))
     total.value = table.data.total
     page.value = table.data.page
     pageSize.value = table.data.pageSize
@@ -1146,6 +1279,12 @@ const updateGoodFunc = async(row) => {
   type.value = 'update'
   if (res.code === 0) {
     formData.value = res.data.regood
+    if (!formData.value.upperImage) {
+      formData.value.upperImage = ''
+    }
+    if (!formData.value.lowerImage) {
+      formData.value.lowerImage = ''
+    }
     if (!formData.value.specs) {
       formData.value.specs = []
     }
@@ -1228,6 +1367,8 @@ const closeDialog = () => {
   formData.value = {
     description: '',
     imageUrl: '',
+    upperImage: '',
+    lowerImage: '',
     externalImagePath: '',
     banner: [],
     price: 0,
@@ -1332,5 +1473,27 @@ const onStatusChange = async(row) => {
 </script>
 
 <style>
+.good-image-wrap {
+  position: relative;
+  width: 100px;
+  height: 100px;
+}
+
+.good-image {
+  width: 100px;
+  height: 100px;
+}
+
+.good-image-size-badge {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.7);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.2;
+}
 
 </style>

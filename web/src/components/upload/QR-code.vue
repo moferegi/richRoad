@@ -43,6 +43,10 @@ const props = defineProps({
   classId: {
     type: Number,
     default: 0
+  },
+  folder: {
+    type: String,
+    default: ''
   }
 })
 
@@ -52,7 +56,8 @@ const codeUrl = ref('')
 
 const createQrCode = () => {
   const local = window.location
-  codeUrl.value = local.protocol + '//' + local.host + '/#/scanUpload?id=' + props.classId + '&token=' + userStore.token + '&t=' + Date.now()
+  const folderQuery = props.folder ? '&folder=' + encodeURIComponent(props.folder) : ''
+  codeUrl.value = local.protocol + '//' + local.host + '/#/scanUpload?id=' + props.classId + '&token=' + userStore.token + folderQuery + '&t=' + Date.now()
   dialogVisible.value = true
   console.log(codeUrl.value)
 }

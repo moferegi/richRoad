@@ -8,7 +8,7 @@
         :show-file-list="false"
         :auto-upload="false"
         :headers="{ 'x-token': token }"
-        :data="{'classId': classId}"
+        :data="{ classId: classId, folder: uploadFolder }"
         :on-success="handleImageSuccess"
         :on-change="handleFileChange"
     >
@@ -92,6 +92,7 @@ defineOptions({
 
 const classId = ref(0)
 const token = ref('')
+const uploadFolder = ref('')
 const isCrop = ref(false)
 
 const windowWidth = ref(300)
@@ -113,6 +114,7 @@ router.isReady().then(() => {
   //console.log(query)
   classId.value = query.id
   token.value = query.token
+  uploadFolder.value = typeof query.folder === 'string' ? decodeURIComponent(query.folder) : ''
 }).catch((err) => {
   console.log(err)
 })

@@ -328,6 +328,25 @@ const resolveAvatar = (item) => {
   return getUrl(raw)
 }
 
+const resolveQrCode = (item) => {
+  const raw = String(item?.qrCode || '').trim()
+  if (!raw) return ''
+  if (/^(https?:)?\/\//i.test(raw) || /^data:/i.test(raw)) return raw
+  return getUrl(raw)
+}
+
+const openQrCodePreview = (imageUrl, item = {}) => {
+  if (!imageUrl) return
+  trackKefuGuideEvent('open_qrcode_preview', {
+    linkHost: extractLinkHost(item?.link || ''),
+    kefuName: String(item?.name || ''),
+  })
+  uni.previewImage({
+    current: imageUrl,
+    urls: [imageUrl],
+  })
+}
+
 const getStatusText = (status) => {
   const key = normalizeStatus(status)
   const map = {
@@ -398,9 +417,10 @@ const contactKefu = (item) => {
     uni.showToast({ title: $t.value('kefuOffline'), icon: 'none' })
     return
   }
-  if (item.link) {
+  const targetLink = String(item?.link || '').trim()
+  if (targetLink) {
     if (hasPaymentContext.value && paymentDraftText.value) {
-      trackKefuGuideEvent('external_prompt_show', { linkHost: extractLinkHost(item.link) })
+      trackKefuGuideEvent('external_prompt_show', { linkHost: extractLinkHost(targetLink) })
       uni.showModal({
         title: $t.value('kefuPaymentExternalTitle'),
         content: $t.value('kefuPaymentExternalHint'),
@@ -408,21 +428,42 @@ const contactKefu = (item) => {
         cancelText: $t.value('kefuPaymentExternalOpenOnly'),
         success: (res) => {
           if (res.confirm) {
-            trackKefuGuideEvent('external_prompt_confirm', { linkHost: extractLinkHost(item.link) })
-            copyDraftThenOpenExternal(item.link)
+            trackKefuGuideEvent('external_prompt_confirm', { linkHost: extractLinkHost(targetLink) })
+            copyDraftThenOpenExternal(targetLink)
             return
           }
-          trackKefuGuideEvent('external_prompt_cancel', { linkHost: extractLinkHost(item.link) })
-          openExternalLink(item.link, { openMode: 'open_only' })
+          trackKefuGuideEvent('external_prompt_cancel', { linkHost: extractLinkHost(targetLink) })
+          openExternalLink(targetLink, { openMode: 'open_only' })
         },
         fail: () => {
-          trackKefuGuideEvent('external_prompt_cancel', { linkHost: extractLinkHost(item.link), fail: true })
-          openExternalLink(item.link, { openMode: 'open_only' })
+          trackKefuGuideEvent('external_prompt_cancel', { linkHost: extractLinkHost(targetLink), fail: true })
+          openExternalLink(targetLink, { openMode: 'open_only' })
         },
       })
       return
     }
-    openExternalLink(item.link, { openMode: 'open_only' })
+    openExternalLink(targetLink, { openMode: 'open_only' })
+    return
+  }
+
+  const qrCodeUrl = resolveQrCode(item)
+  if (qrCodeUrl) {
+    if (hasPaymentContext.value && paymentDraftText.value) {
+      uni.setClipboardData({
+        data: paymentDraftText.value,
+        success: () => {
+          trackKefuGuideEvent('copy_qrcode_draft')
+          uni.showToast({ title: $t.value('kefuPaymentDraftCopied'), icon: 'none' })
+          setTimeout(() => openQrCodePreview(qrCodeUrl, item), 300)
+        },
+        fail: () => {
+          trackKefuGuideEvent('copy_qrcode_draft_fail')
+          openQrCodePreview(qrCodeUrl, item)
+        },
+      })
+      return
+    }
+    openQrCodePreview(qrCodeUrl, item)
   } else {
     uni.showToast({ title: $t.value('kefuContact'), icon: 'none' })
   }

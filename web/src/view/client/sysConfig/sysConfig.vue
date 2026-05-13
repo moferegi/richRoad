@@ -891,7 +891,7 @@ const booleanKeys = [
 const isBooleanConfig = (row) => booleanKeys.includes(row.configKey)
 
 // 颜色键列表
-const colorKeys = ['announcement_text_color', 'payment_tip_text_color']
+const colorKeys = ['announcement_text_color', 'payment_tip_text_color', 'invite_share_link_tip_text_color']
 const isColorConfig = (row) => colorKeys.includes(row.configKey)
 
 const isTryonModelsConfig = (row) => row?.configKey === 'tryon_models'
@@ -918,7 +918,8 @@ const jsonKeys = [
   'payment_tip_text', 'maintenance_popup_title', 'maintenance_popup_content',
   'announcement_content', 'maintenance_message',
   'username_regex_tip', 'password_regex_tip',
-  'tryon_parsing_failed_tip_text', 'tryon_refiner_failed_tip_text'
+  'tryon_parsing_failed_tip_text', 'tryon_refiner_failed_tip_text',
+  'app_name', 'invite_share_link_tip_text'
 ]
 const isJsonConfig = (row) => jsonKeys.includes(row.configKey)
 
@@ -2179,9 +2180,14 @@ const openEdit = (row) => {
     try {
       const parsed = JSON.parse(row.configValue || '{}')
       Object.keys(editJsonValue).forEach(k => delete editJsonValue[k])
-      Object.assign(editJsonValue, parsed)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        Object.assign(editJsonValue, parsed)
+      } else {
+        Object.assign(editJsonValue, buildMultilingualObject(parsed, row.configValue || ''))
+      }
     } catch {
       Object.keys(editJsonValue).forEach(k => delete editJsonValue[k])
+      Object.assign(editJsonValue, buildMultilingualObject(row.configValue, ''))
     }
   }
   newJsonLang.value = ''

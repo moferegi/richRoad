@@ -24,7 +24,7 @@
           <view v-else class="nf-logo nf-logo-fallback">{{ (appName || 'R').slice(0, 1).toUpperCase() }}</view>
           <view class="nf-brand-meta">
             <text class="nf-brand-name">{{ appName || 'RichRoad' }}</text>
-            <text class="nf-brand-subtitle">Premium AI Styling</text>
+            <text class="nf-brand-subtitle">{{ $t('wardrobeSlogan') }}</text>
           </view>
         </view>
         <text class="nf-title">{{ $t('registerBtn') }}</text>
@@ -87,9 +87,13 @@
       </view>
 
       <!-- 按钮 -->
-      <view class="nf-actions">
-        <button class="nf-btn nf-btn-primary" @tap="registerFunc()">{{ $t('registerBtn') }}</button>
-        <button class="nf-btn nf-btn-ghost" @tap="toLogin()">{{ $t('goToLogin') }}</button>
+      <view class="nf-actions" :key="`actions-${langStore.locale}`">
+        <button :key="`register-btn-${langStore.locale}`" class="nf-btn nf-btn-primary" @tap="registerFunc()">
+          <text>{{ $t('registerBtn') }}</text>
+        </button>
+        <button :key="`login-btn-${langStore.locale}`" class="nf-btn nf-btn-ghost" @tap="toLogin()">
+          <text>{{ $t('goToLogin') }}</text>
+        </button>
       </view>
     </view>
 
@@ -130,7 +134,6 @@
 	import { getEnabledPhoneAreaCodes } from "@/api/phoneAreaCode.js"
 	import { getLoginConfig } from "@/api/sysConfig.js"
 
-	import {useUserStore} from "@/pinia/modules/user.js"
 	import { useLangStore } from '@/pinia/modules/lang.js'
   import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 	import langSwitch from '@/components/lang-switch/lang-switch.vue'
@@ -148,15 +151,15 @@
 	})
 	const showLangPicker = ref(false)
 
+  const tryAutoShowLangPicker = () => {
+    if (showLangPicker.value) return
+    if (!langStore.shouldAutoShowLanguagePicker()) return
+    showLangPicker.value = true
+    langStore.markLanguagePickerPrompted()
+  }
+
 	const goBack = () => {
 	  uni.switchTab({ url: '/pages/tabBar/index' })
-	}
-
-	const userStore = useUserStore()
-	const token = userStore.token || ''
-
-	if(token){
-		uni.switchTab({ url: '/pages/tabBar/index' })
 	}
 
 	// 注册模式
@@ -262,11 +265,46 @@
 	}
 	const selectedAreaItem = ref(null)
 
+  const safeDecode = (value) => {
+    if (value === undefined || value === null) return ''
+    const raw = String(value).trim()
+    if (!raw) return ''
+    try {
+      return decodeURIComponent(raw)
+    } catch (e) {
+      return raw
+    }
+  }
+
+  const parseInviteCodeFromH5Location = () => {
+    // #ifdef H5
+    try {
+      const fromSearch = new URLSearchParams(window.location.search || '').get('inviteCode')
+      if (fromSearch) return safeDecode(fromSearch)
+      const hash = window.location.hash || ''
+      const hashQuery = hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : ''
+      const fromHashQuery = new URLSearchParams(hashQuery).get('inviteCode')
+      if (fromHashQuery) return safeDecode(fromHashQuery)
+    } catch (e) {
+      return ''
+    }
+    // #endif
+    return ''
+  }
+
+  const applyInviteCode = (options = {}) => {
+    const fromOptions = options?.inviteCode || options?.invite_code || options?.code || ''
+    const fromStorage = safeDecode(uni.getStorageSync('pendingInviteCode') || '')
+    const resolved = safeDecode(fromOptions) || parseInviteCodeFromH5Location() || fromStorage
+    if (resolved) {
+      form.inviteCode = resolved
+      uni.setStorageSync('pendingInviteCode', resolved)
+    }
+  }
+
 	// 从URL参数获取邀请码
 	onLoad((options) => {
-		if (options && options.inviteCode) {
-			form.inviteCode = options.inviteCode
-		}
+    applyInviteCode(options)
 	})
 
 	onMounted(() => {
@@ -274,6 +312,10 @@
 		loadConfig()
 		loadAreaCodes()
     appConfigStore.loadConfig()
+    if (!form.inviteCode) {
+      applyInviteCode()
+    }
+    tryAutoShowLangPicker()
 	})
 
 	const toLogin = () => {
@@ -334,6 +376,7 @@
 				inviteCode: form.inviteCode
 			})
 			if (res.code === 0) {
+        uni.removeStorageSync('pendingInviteCode')
 				uni.showToast({ title: $t.value('registerSuccess'), icon: 'none' })
 				toLogin()
 			} else {
@@ -391,6 +434,7 @@
 				inviteCode: form.inviteCode
 			})
 			if (res.code === 0) {
+        uni.removeStorageSync('pendingInviteCode')
 				uni.showToast({ title: $t.value('registerSuccess'), icon: 'none' })
 				toLogin()
 			} else {

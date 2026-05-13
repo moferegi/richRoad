@@ -3,7 +3,7 @@
 		{
 			"path": "pages/tabBar/index",
 			"style": {
-				"navigationBarTitleText": "极光商城",
+				"navigationBarTitleText": "",
 				"navigationStyle": "custom",
 				"navigationBarTextStyle": "white"
 			}
@@ -409,12 +409,6 @@
 			"text": "试衣间",
 				"iconPath": "static/images/tabBar/home.png",
 				"selectedIconPath": "static/images/tabBar/homes.png"
-			},
-			{
-				"pagePath": "pages/tabBar/shop/shop",
-				"text": "试鞋间",
-				"iconPath": "static/images/tabBar/cart.png",
-				"selectedIconPath": "static/images/tabBar/carts.png"
 			},
 			{
 				"pagePath": "pages/tabBar/clothes/index",

@@ -39,9 +39,9 @@
           <uni-icons type="image" size="24" color="#2563eb" />
           <text>{{ $t('tryonRoom') }}</text>
         </view>
-        <view class="quick-item" @tap="goShoeRoom">
+        <view class="quick-item" @tap="goInvite">
           <uni-icons type="star" size="24" color="#2563eb" />
-          <text>{{ $t('shoeRoom') }}</text>
+          <text>{{ $t('inviteFriends') }}</text>
         </view>
         <view class="quick-item" @tap="goHistory">
           <uni-icons type="reload" size="24" color="#2563eb" />
@@ -93,6 +93,10 @@
           <text class="menu-text">{{ $t('browseHistory') }}</text>
           <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
         </view>
+        <view class="menu-item" @tap="showAboutPopup = true">
+          <text class="menu-text">{{ $t('aboutUsMenu') }}</text>
+          <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
+        </view>
         <view class="menu-item" @tap="openLangSwitch">
           <text class="menu-text">{{ $t('switchLang') }}</text>
           <uni-icons type="right" size="14" color="rgba(15,23,42,0.35)" />
@@ -120,6 +124,38 @@
       </view>
     </view>
 
+    <view class="popup-mask" v-if="showAboutPopup" @tap="showAboutPopup = false" @touchmove.stop>
+      <view class="popup-panel popup-panel-help about-popup-panel" @tap.stop @touchmove.stop>
+        <view class="about-popup-head">
+          <view class="popup-title about-popup-title">{{ $t('aboutUsTitle') }}</view>
+          <view class="about-popup-close" @tap="showAboutPopup = false">
+            <text>×</text>
+          </view>
+        </view>
+
+        <scroll-view class="about-popup-scroll" :scroll-y="true" enable-flex @touchmove.stop>
+          <view class="about-popup-content">
+            <view class="about-section">
+              <text class="about-section-title">{{ $t('aboutUsWhatTitle') }}</text>
+              <text class="about-section-text">{{ $t('aboutUsWhatContent') }}</text>
+            </view>
+
+            <view class="about-section">
+              <text class="about-section-title">{{ $t('aboutUsWhyTitle') }}</text>
+              <text class="about-section-text">{{ $t('aboutUsWhyLeadModel') }}</text>
+              <text class="about-section-text">{{ $t('aboutUsWhySimpleExperience') }}</text>
+              <text class="about-section-text">{{ $t('aboutUsWhySecurity') }}</text>
+            </view>
+
+            <view class="about-section">
+              <text class="about-section-title">{{ $t('aboutUsTipTitle') }}</text>
+              <text class="about-section-text">{{ $t('aboutUsTipContent') }}</text>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
+
     <lang-switch v-model="showLangPicker" />
   </view>
 </template>
@@ -134,6 +170,7 @@ import { getTryonRechargePlans } from '@/api/sysConfig.js'
 import { getPaymentConfig } from '@/api/sysConfig.js'
 import { createTryonRechargeOrder } from '@/api/tryonRechargeOrder.js'
 import { localText, resolveApiMessage } from '@/utils/i18n.js'
+import { getExternalUrl } from '@/utils/url.js'
 
 const userStore = useUserStore()
 const langStore = useLangStore()
@@ -142,6 +179,7 @@ const $t = computed(() => langStore.$t)
 const cs = computed(() => appConfigStore.currencySymbol || '¥')
 
 const showRecharge = ref(false)
+const showAboutPopup = ref(false)
 const showLangPicker = ref(false)
 const userInfo = ref({})
 const paymentMethods = ref([])
@@ -283,7 +321,11 @@ const userName = computed(() => {
 })
 
 const avatarUrl = computed(() => {
-  return userInfo.value.avatar || 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0'
+  const appLogo = getExternalUrl(appConfigStore.appLogo || '')
+  if (appLogo) {
+    return appLogo
+  }
+  return 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0'
 })
 
 const userPoints = computed(() => Number((userInfo.value.tryonPoint ?? userInfo.value.point) || 0))
@@ -392,10 +434,6 @@ const goTryonRoom = () => {
   uni.switchTab({ url: '/pages/tabBar/index' })
 }
 
-const goShoeRoom = () => {
-  uni.switchTab({ url: '/pages/tabBar/shop/shop' })
-}
-
 const goHistory = () => {
   if (!isLogin.value) {
     goLogin()
@@ -465,6 +503,13 @@ const openLangSwitch = async () => {
   showLangPicker.value = true
 }
 
+const tryAutoShowLangPicker = () => {
+  if (showLangPicker.value) return
+  if (!langStore.shouldAutoShowLanguagePicker()) return
+  showLangPicker.value = true
+  langStore.markLanguagePickerPrompted()
+}
+
 const logoutDevice = () => {
   uni.showModal({
     title: $t.value('pendingOrderTitle'),
@@ -482,6 +527,7 @@ const logoutDevice = () => {
 
 onShow(() => {
   langStore.initLangs()
+  tryAutoShowLangPicker()
   appConfigStore.loadConfig()
   loadRechargePlans()
   loadPaymentMethods()
@@ -705,6 +751,14 @@ page {
   padding: 24rpx;
 }
 
+.popup-panel-help {
+  max-height: 72vh;
+  min-height: 240rpx;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .popup-title {
   text-align: center;
   font-size: 30rpx;
@@ -752,5 +806,76 @@ page {
   align-items: center;
   justify-content: center;
   font-size: 24rpx;
+}
+
+.about-popup-panel {
+  height: 72vh;
+}
+
+.about-popup-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-bottom: 8rpx;
+}
+
+.about-popup-title {
+  margin-bottom: 0;
+  text-align: left;
+}
+
+.about-popup-close {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.06);
+  color: rgba(15, 23, 42, 0.68);
+  font-size: 44rpx;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.about-popup-scroll {
+  flex: 1;
+  height: 0;
+  min-height: 0;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.about-popup-content {
+  margin-top: 8rpx;
+}
+
+.about-section {
+  margin-bottom: 20rpx;
+}
+
+.about-section:last-child {
+  margin-bottom: 0;
+}
+
+.about-section-title {
+  display: block;
+  margin-bottom: 10rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.about-section-text {
+  display: block;
+  margin-bottom: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.62;
+  color: rgba(15, 23, 42, 0.78);
+}
+
+.about-section-text:last-child {
+  margin-bottom: 0;
 }
 </style>

@@ -15,12 +15,14 @@
     <scroll-view class="list-wrap" scroll-y>
       <view class="grid">
         <view class="card" v-for="item in modelList" :key="item.id">
-          <image class="card-image" :src="getUrl(item.url)" mode="aspectFit" @tap="preview(item)" />
+          <view class="card-image-wrap">
+            <image class="card-image" :src="getUrl(item.url)" mode="aspectFit" @tap="preview(item)" />
+            <view v-if="item.sizeText" class="card-size-badge">{{ item.sizeText }}</view>
+          </view>
           <view class="card-foot">
             <text class="card-name">{{ item.name || $t('unnamedModel') }}</text>
             <view class="card-actions">
               <view class="mini-btn use" @tap.stop="useForRoom(item, 'tryon')">{{ $t('tryonRoom') }}</view>
-              <view class="mini-btn use" @tap.stop="useForRoom(item, 'shoe')">{{ $t('shoeRoom') }}</view>
             </view>
             <view class="card-actions card-actions-secondary">
               <view class="mini-btn" @tap.stop="renameModel(item)">{{ $t('rename') }}</view>
@@ -91,6 +93,21 @@
       </view>
     </view>
 
+    <view class="mode-popup-mask" v-if="modePopupVisible" @tap="closeModePopup('')">
+      <view class="mode-popup-panel" @tap.stop>
+        <text v-if="modePopupTitle" class="mode-popup-title">{{ modePopupTitle }}</text>
+        <view
+          v-for="item in modePopupOptions"
+          :key="item.key"
+          class="mode-popup-item"
+          @tap="closeModePopup(item.key)"
+        >
+          {{ item.label }}
+        </view>
+        <view class="mode-popup-cancel" @tap="closeModePopup('')">{{ $t('cancel') }}</view>
+      </view>
+    </view>
+
     <canvas
       canvas-id="myModelCropCanvas"
       id="myModelCropCanvas"
@@ -118,6 +135,9 @@ const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 
 const modelList = ref([])
+const modePopupVisible = ref(false)
+const modePopupTitle = ref('')
+const modePopupOptions = ref([])
 const cropCanvasSize = ref({ width: 1, height: 1 })
 const cropEditorVisible = ref(false)
 const cropSourcePath = ref('')
@@ -149,6 +169,26 @@ const isTempLocalPath = (value) => {
 
 const waitFrame = (delay = 30) => new Promise((resolve) => setTimeout(resolve, delay))
 
+let modePopupResolve = null
+
+const openModePopup = ({ title = '', options = [] } = {}) => {
+  return new Promise((resolve) => {
+    modePopupTitle.value = String(title || '').trim()
+    modePopupOptions.value = Array.isArray(options) ? options.filter((item) => item && item.key && item.label) : []
+    modePopupVisible.value = true
+    modePopupResolve = resolve
+  })
+}
+
+const closeModePopup = (selectedKey = '') => {
+  modePopupVisible.value = false
+  const resolver = modePopupResolve
+  modePopupResolve = null
+  if (typeof resolver === 'function') {
+    resolver(String(selectedKey || ''))
+  }
+}
+
 const chooseImageAsync = (sizeType = ['original']) => {
   return new Promise((resolve, reject) => {
     uni.chooseImage({
@@ -178,6 +218,68 @@ const getFileSizeAsync = (filePath) => {
       success: (res) => resolve(Number(res.size || 0)),
       fail: () => resolve(0),
     })
+  })
+}
+
+const downloadFileAsync = (url) => {
+  return new Promise((resolve, reject) => {
+    uni.downloadFile({
+      url,
+      success: resolve,
+      fail: reject,
+    })
+  })
+}
+
+const sizeTextCache = Object.create(null)
+
+const formatBadgeSize = (bytes) => {
+  const size = Number(bytes || 0)
+  if (!Number.isFinite(size) || size <= 0) return ''
+
+  const kb = size / 1024
+  if (kb < 1024) {
+    const value = kb >= 10 ? kb.toFixed(0) : kb.toFixed(1)
+    return `${value}KB`
+  }
+
+  const mb = kb / 1024
+  const value = mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)
+  return `${value}MB`
+}
+
+const resolveRemoteFileSizeText = async (rawUrl) => {
+  const normalizedUrl = String(getUrl(rawUrl) || '').trim()
+  if (!normalizedUrl) return ''
+
+  if (Object.prototype.hasOwnProperty.call(sizeTextCache, normalizedUrl)) {
+    return sizeTextCache[normalizedUrl]
+  }
+
+  try {
+    const downloadRes = await downloadFileAsync(normalizedUrl)
+    const tempPath = String(downloadRes?.tempFilePath || '').trim()
+    if (!tempPath) {
+      sizeTextCache[normalizedUrl] = ''
+      return ''
+    }
+    const bytes = await getFileSizeAsync(tempPath)
+    const text = formatBadgeSize(bytes)
+    sizeTextCache[normalizedUrl] = text
+    return text
+  } catch (e) {
+    sizeTextCache[normalizedUrl] = ''
+    return ''
+  }
+}
+
+const fillModelItemSizeText = (item) => {
+  if (!item?.url || item.sizeText) return
+  const currentUrl = String(item.url || '').trim()
+  resolveRemoteFileSizeText(currentUrl).then((text) => {
+    if (!text) return
+    if (String(item.url || '').trim() !== currentUrl) return
+    item.sizeText = text
   })
 }
 
@@ -564,20 +666,13 @@ const pickAndProcessImage = async (mode = 'original') => {
 }
 
 const chooseUploadMode = () => {
-  return new Promise((resolve) => {
-    uni.showActionSheet({
-      itemList: [
-        $t.value('uploadModeOriginal'),
-        $t.value('uploadModeCrop'),
-        $t.value('uploadModeCompress'),
-      ],
-      success: (res) => {
-        if (res.tapIndex === 0) resolve('original')
-        else if (res.tapIndex === 1) resolve('crop')
-        else resolve('compress')
-      },
-      fail: () => resolve(''),
-    })
+  return openModePopup({
+    title: '',
+    options: [
+      { key: 'original', label: $t.value('uploadModeOriginal') },
+      { key: 'crop', label: $t.value('uploadModeCrop') },
+      { key: 'compress', label: $t.value('uploadModeCompress') },
+    ],
   })
 }
 
@@ -588,6 +683,7 @@ const normalizeModelItem = (item) => {
     name: item?.name || '',
     url: item?.image || item?.url || '',
     createdAt: item?.CreatedAt || item?.createdAt || '',
+    sizeText: '',
   }
 }
 
@@ -598,6 +694,7 @@ const loadModels = async () => {
   }
   const list = Array.isArray(res?.data?.list) ? res.data.list : []
   modelList.value = list.map(normalizeModelItem).filter(item => item.id)
+  modelList.value.forEach((item) => fillModelItemSizeText(item))
 }
 
 const addModel = async () => {
@@ -705,9 +802,11 @@ const useForRoom = (item, roomType) => {
     remoteUrl: isRemote ? getUrl(value) : '',
   })
 
-  uni.switchTab({
-    url: roomType === 'shoe' ? '/pages/tabBar/shop/shop' : '/pages/tabBar/index',
-  })
+  if (roomType === 'shoe') {
+    uni.navigateTo({ url: '/pages/tabBar/shop/shop' })
+    return
+  }
+  uni.switchTab({ url: '/pages/tabBar/index' })
 }
 
 const goBack = () => {
@@ -779,6 +878,23 @@ page {
 .card-image {
   width: 100%;
   height: 260rpx;
+}
+
+.card-image-wrap {
+  position: relative;
+}
+
+.card-size-badge {
+  position: absolute;
+  top: 8rpx;
+  right: 8rpx;
+  z-index: 2;
+  padding: 4rpx 10rpx;
+  border-radius: 999rpx;
+  background: rgba(15, 23, 42, 0.68);
+  color: #ffffff;
+  font-size: 18rpx;
+  line-height: 1.2;
 }
 
 .card-foot {
@@ -1022,5 +1138,55 @@ page {
   top: -9999px;
   opacity: 0;
   pointer-events: none;
+}
+
+.mode-popup-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  background: rgba(15, 23, 42, 0.48);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 24rpx;
+}
+
+.mode-popup-panel {
+  width: 100%;
+  max-width: 700rpx;
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 20rpx;
+  box-shadow: 0 20rpx 48rpx rgba(15, 23, 42, 0.2);
+}
+
+.mode-popup-title {
+  display: block;
+  margin-bottom: 12rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: rgba(15, 23, 42, 0.62);
+}
+
+.mode-popup-item,
+.mode-popup-cancel {
+  height: 76rpx;
+  border-radius: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+}
+
+.mode-popup-item {
+  margin-bottom: 10rpx;
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+}
+
+.mode-popup-cancel {
+  margin-top: 6rpx;
+  background: rgba(15, 23, 42, 0.08);
+  color: rgba(15, 23, 42, 0.72);
 }
 </style>
