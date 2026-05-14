@@ -22,7 +22,17 @@ func InitIPSearcher(dbPath string) error {
 			ipSearcherErr = fmt.Errorf("load ip2region xdb failed: %w", err)
 			return
 		}
-		ipSearcher, ipSearcherErr = xdb.NewWithBuffer(xdb.IPvx, cBuff)
+		header, err := xdb.LoadHeaderFromBuff(cBuff)
+		if err != nil {
+			ipSearcherErr = fmt.Errorf("load ip2region header failed: %w", err)
+			return
+		}
+		version, err := xdb.VersionFromHeader(header)
+		if err != nil {
+			ipSearcherErr = fmt.Errorf("detect ip2region version failed: %w", err)
+			return
+		}
+		ipSearcher, ipSearcherErr = xdb.NewWithBuffer(version, cBuff)
 	})
 	return ipSearcherErr
 }

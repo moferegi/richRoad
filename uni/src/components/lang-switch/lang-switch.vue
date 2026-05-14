@@ -124,12 +124,15 @@ const close = () => {
 .lang-dialog {
   width: 100%;
   max-width: 750rpx;
+  max-height: 92vh;
   background:
     radial-gradient(120% 100% at 100% 0%, rgba(37, 99, 235, 0.14) 0%, transparent 56%),
     #f8fbff;
   border-radius: 32rpx 32rpx 0 0;
   border: 1rpx solid rgba(15, 23, 42, 0.08);
   padding: 0 0 env(safe-area-inset-bottom, 0);
+  display: flex;
+  flex-direction: column;
   transform: translateY(100%);
   transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   box-shadow: 0 -12rpx 36rpx rgba(15, 23, 42, 0.12);
@@ -161,6 +164,10 @@ const close = () => {
 
 .lang-options {
   padding: 32rpx 32rpx 0;
+  max-height: 50vh;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .lang-option {
