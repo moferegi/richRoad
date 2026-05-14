@@ -38,13 +38,13 @@ cors:
     mode: strict-whitelist
     whitelist:
         - allow-origin: https://235235.vip
-          allow-methods: POST, GET
-          allow-headers: Content-Type,AccessToken,X-CSRF-Token, Authorization, Token,X-Token,X-User-Id
+                    allow-methods: POST, GET, OPTIONS, PUT, DELETE
+                    allow-headers: Content-Type,AccessToken,X-CSRF-Token, Authorization, Token,X-Token,X-User-Id,Accept-Language
           expose-headers: Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Content-Type
           allow-credentials: true
         - allow-origin: https://clothweb.235235.vip
-          allow-methods: POST, GET
-          allow-headers: Content-Type,AccessToken,X-CSRF-Token, Authorization, Token,X-Token,X-User-Id
+                    allow-methods: POST, GET, OPTIONS, PUT, DELETE
+                    allow-headers: Content-Type,AccessToken,X-CSRF-Token, Authorization, Token,X-Token,X-User-Id,Accept-Language
           expose-headers: Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Content-Type
           allow-credentials: true
 db-list:
