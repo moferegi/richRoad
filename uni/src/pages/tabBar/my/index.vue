@@ -150,6 +150,7 @@
             <view class="about-section">
               <text class="about-section-title">{{ $t('aboutUsTipTitle') }}</text>
               <text class="about-section-text">{{ $t('aboutUsTipContent') }}</text>
+              <text class="about-section-text">{{ $t('aboutUsBusinessContact') }}</text>
             </view>
           </view>
         </scroll-view>

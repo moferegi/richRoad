@@ -70,13 +70,13 @@
             </template>
           <el-form :model="formData" label-position="top" ref="elFormRef" :rules="rule" label-width="80px">
             <el-form-item label="语言代码:" prop="code">
-              <el-input v-model="formData.code" placeholder="如: zh, en, mn" />
+              <el-input v-model="formData.code" placeholder="如: zh, en, mn, ja, ko, ms" />
             </el-form-item>
             <el-form-item label="语言名称:" prop="name">
               <el-input v-model="formData.name" placeholder="如: 中文, English" />
             </el-form-item>
             <el-form-item label="原生名称:" prop="nativeName">
-              <el-input v-model="formData.nativeName" placeholder="如: 中文, Монгол" />
+              <el-input v-model="formData.nativeName" placeholder="如: 中文, Монгол, 日本語, 한국어, Bahasa Melayu" />
             </el-form-item>
             <el-form-item label="排序:" prop="sort">
               <el-input-number v-model="formData.sort" :min="0" />

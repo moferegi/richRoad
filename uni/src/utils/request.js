@@ -13,9 +13,31 @@ const BACKEND_ERROR_KEYS = [
     'loginLocked',
     'registerIPLimit',
     'alreadySigned',
+    'aliyunBeautifyAccessKeyMissing',
+    'modelAliyunRetouchNeedStandardOSS',
+    'reason_tryonBeautifyDeduct',
+    'reason_tryonBeautifyRefund',
+    'tryonBeautifyAlreadyUsed',
+    'tryonBeautifyEndpointInvalid',
+    'tryonBeautifyRefundFailedContactAdmin',
+    'tryonBeautifyRequestFailed',
+    'tryonBeautifyResponseInvalid',
+    'tryonBeautifyResultEmpty',
+    'tryonBeautifyStatusConflict',
+    'tryonBeautifyUnsupported',
+    'tryonClothCategoryInvalid',
+    'tryonClothNameRequired',
+    'tryonClothNotFoundOrNoPermission',
+    'aliyunParsingModelUnavailable',
+    'dbNotInitialized',
+    'modelTokenQuotaExhausted',
+    'pointRecordIDMissing',
+    'tryonParsingRefundFailedContactAdmin',
+    'tryonRefinerModelUnavailable',
+    'tryonResultImageRequired',
 ]
 
-const BACKEND_ERROR_ALIAS_LANGS = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id']
+const BACKEND_ERROR_ALIAS_LANGS = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id', 'vi', 'ar', 'ja', 'ko', 'ms']
 
 const buildBackendErrorAliasMap = () => {
     const aliasMap = {}

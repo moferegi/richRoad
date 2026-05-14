@@ -405,7 +405,7 @@ func (s *TryonRechargeOrderService) ConfirmTryonRechargeOrderPayment(ctx context
 		}
 
 		txCtx := context.WithValue(ctx, "tx", tx)
-		reason := `{"zh":"试衣币充值到账","en":"Try-on coins recharge credited","mn":"Туршилтын зоос дансанд орлоо"}`
+		reason := `{"zh":"试衣币充值到账","en":"Try-on coins recharge credited","mn":"Туршилтын зоос дансанд орлоо","ja":"試着コインのチャージが入金されました","ko":"피팅 코인 충전이 반영되었습니다","ms":"Tambah nilai syiling cuba pakaian telah dikreditkan"}`
 		pointRecord := buildPointRecord(order.UserID, client.AssetTypeTryonPoint, "increase", order.Points, "tryon_recharge", reason, strings.TrimSpace(order.PayMethod))
 		relatedOrderID := int(order.ID)
 		pointRecord.RelatedOrderId = &relatedOrderID

@@ -2,6 +2,7 @@ package initialize
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	clientModel "github.com/flipped-aurora/gin-vue-admin/server/model/client"
@@ -365,14 +366,8 @@ func initNewModulesCasbin(db *gorm.DB) {
 	}
 }
 
-// initLanguageSeedData 初始化默认语言数据（幂等，仅在表为空时插入）
+// initLanguageSeedData 初始化默认语言数据（幂等，缺失语言自动补齐）
 func initLanguageSeedData(db *gorm.DB) {
-	var count int64
-	db.Model(&clientModel.SysLanguage{}).Count(&count)
-	if count > 0 {
-		return // 已有数据，不重复插入
-	}
-
 	boolTrue := true
 	boolFalse := false
 	sort := func(n int) *int { return &n }
@@ -385,12 +380,46 @@ func initLanguageSeedData(db *gorm.DB) {
 		{Code: "hi", Name: "印度语", NativeName: "हिन्दी", IsEnabled: &boolTrue, IsDefault: &boolFalse, Sort: sort(4)},
 		{Code: "zh-TW", Name: "中文繁体", NativeName: "繁體中文", IsEnabled: &boolTrue, IsDefault: &boolFalse, Sort: sort(5)},
 		{Code: "id", Name: "印度尼西亚语", NativeName: "Bahasa Indonesia", IsEnabled: &boolTrue, IsDefault: &boolFalse, Sort: sort(6)},
+		{Code: "vi", Name: "越南语", NativeName: "Tiếng Việt", IsEnabled: &boolTrue, IsDefault: &boolFalse, Sort: sort(7)},
+		{Code: "ar", Name: "阿拉伯语", NativeName: "العربية", IsEnabled: &boolTrue, IsDefault: &boolFalse, Sort: sort(8)},
+		{Code: "ja", Name: "日语", NativeName: "日本語", IsEnabled: &boolTrue, IsDefault: &boolFalse, Sort: sort(9)},
+		{Code: "ko", Name: "韩语", NativeName: "한국어", IsEnabled: &boolTrue, IsDefault: &boolFalse, Sort: sort(10)},
+		{Code: "ms", Name: "马来语", NativeName: "Bahasa Melayu", IsEnabled: &boolTrue, IsDefault: &boolFalse, Sort: sort(11)},
 	}
 
+	existingRows := make([]clientModel.SysLanguage, 0)
+	if err := db.Model(&clientModel.SysLanguage{}).Select("code").Find(&existingRows).Error; err != nil {
+		global.GVA_LOG.Error("查询已存在语言失败", zap.Error(err))
+		return
+	}
+
+	existingCodes := make(map[string]struct{}, len(existingRows))
+	for _, row := range existingRows {
+		code := strings.ToLower(strings.TrimSpace(row.Code))
+		if code == "" {
+			continue
+		}
+		existingCodes[code] = struct{}{}
+	}
+
+	insertedCount := 0
+
 	for _, lang := range langs {
+		code := strings.ToLower(strings.TrimSpace(lang.Code))
+		if _, exists := existingCodes[code]; exists {
+			continue
+		}
 		if err := db.Create(&lang).Error; err != nil {
 			global.GVA_LOG.Error("初始化语言数据失败: "+lang.Code, zap.Error(err))
+			continue
 		}
+		insertedCount++
+		existingCodes[code] = struct{}{}
 	}
-	global.GVA_LOG.Info("语言数据初始化成功（7种语言，默认蒙古国语）")
+
+	if insertedCount > 0 {
+		global.GVA_LOG.Info(fmt.Sprintf("语言数据初始化完成，新增 %d 种语言", insertedCount))
+	} else {
+		global.GVA_LOG.Info("语言数据初始化完成，未发现缺失语言")
+	}
 }

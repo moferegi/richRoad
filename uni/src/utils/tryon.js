@@ -414,6 +414,8 @@ export const parseTryonModels = (modelsRaw, sceneType, fallbackCost = 1, lang = 
       th: 'Default AI try-on model for common try-on scenes',
       hi: 'Default AI try-on model for common try-on scenes',
       id: 'Default AI try-on model for common try-on scenes',
+      vi: 'Default AI try-on model for common try-on scenes',
+      ar: 'Default AI try-on model for common try-on scenes',
     },
   }]
 }

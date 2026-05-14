@@ -97,7 +97,7 @@ const OPERATION_REASON_KEY_MAP = {
   tryon_invite_register_reward: 'reason_tryonInviteReward',
 }
 
-const REASON_ALIAS_LANGS = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id']
+const REASON_ALIAS_LANGS = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id', 'vi', 'ar', 'ja', 'ko', 'ms']
 
 const buildReasonAliasMap = () => {
   const aliasMap = {}

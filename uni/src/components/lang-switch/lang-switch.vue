@@ -65,6 +65,11 @@ const fallbackLangs = [
   { value: 'th', label: 'ไทย', native: 'ภาษาไทย', flag: '🇹🇭' },
   { value: 'hi', label: 'हिन्दी', native: 'हिन्दी', flag: '🇮🇳' },
   { value: 'id', label: 'Bahasa', native: 'Bahasa Indonesia', flag: '🇮🇩' },
+  { value: 'vi', label: 'VI', native: 'Tiếng Việt', flag: '🇻🇳' },
+  { value: 'ar', label: 'AR', native: 'العربية', flag: '🇸🇦' },
+  { value: 'ja', label: 'JA', native: '日本語', flag: '🇯🇵' },
+  { value: 'ko', label: 'KO', native: '한국어', flag: '🇰🇷' },
+  { value: 'ms', label: 'MS', native: 'Bahasa Melayu', flag: '🇲🇾' },
 ]
 
 // 优先使用后端启用的语言列表
@@ -110,7 +115,7 @@ const close = () => {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   z-index: 9999;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(15, 23, 42, 0.36);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -119,12 +124,15 @@ const close = () => {
 .lang-dialog {
   width: 100%;
   max-width: 750rpx;
-  background: linear-gradient(180deg, #1e1e1e 0%, #141414 100%);
+  background:
+    radial-gradient(120% 100% at 100% 0%, rgba(37, 99, 235, 0.14) 0%, transparent 56%),
+    #f8fbff;
   border-radius: 32rpx 32rpx 0 0;
+  border: 1rpx solid rgba(15, 23, 42, 0.08);
   padding: 0 0 env(safe-area-inset-bottom, 0);
   transform: translateY(100%);
   transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-  box-shadow: 0 -8rpx 40rpx rgba(229, 9, 20, 0.15);
+  box-shadow: 0 -12rpx 36rpx rgba(15, 23, 42, 0.12);
 }
 
 .lang-dialog-show {
@@ -139,15 +147,15 @@ const close = () => {
 .lang-header-title {
   font-size: 34rpx;
   font-weight: 700;
-  color: #fff;
-  letter-spacing: 2rpx;
+  color: #0f172a;
+  letter-spacing: 1rpx;
 }
 
 .lang-header-line {
   width: 60rpx;
   height: 6rpx;
   border-radius: 3rpx;
-  background: linear-gradient(90deg, #e50914, #ff6b6b);
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
   margin: 20rpx auto 0;
 }
 
@@ -161,20 +169,20 @@ const close = () => {
   padding: 28rpx 24rpx;
   margin-bottom: 16rpx;
   border-radius: 20rpx;
-  background: rgba(255, 255, 255, 0.04);
-  border: 2rpx solid rgba(255, 255, 255, 0.06);
+  background: rgba(219, 234, 254, 0.52);
+  border: 2rpx solid rgba(37, 99, 235, 0.08);
   transition: all 0.25s ease;
 
   &:active {
     transform: scale(0.97);
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(191, 219, 254, 0.65);
   }
 }
 
 .lang-option-active {
-  background: rgba(229, 9, 20, 0.12);
-  border-color: rgba(229, 9, 20, 0.4);
-  box-shadow: 0 4rpx 20rpx rgba(229, 9, 20, 0.15);
+  background: rgba(37, 99, 235, 0.14);
+  border-color: rgba(37, 99, 235, 0.36);
+  box-shadow: 0 4rpx 18rpx rgba(37, 99, 235, 0.16);
 }
 
 .lang-flag {
@@ -191,12 +199,12 @@ const close = () => {
 .lang-option-name {
   font-size: 30rpx;
   font-weight: 600;
-  color: #fff;
+  color: #0f172a;
 }
 
 .lang-option-native {
   font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(15, 23, 42, 0.55);
   margin-top: 4rpx;
 }
 
@@ -204,11 +212,11 @@ const close = () => {
   width: 48rpx;
   height: 48rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #e50914, #ff4d4d);
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4rpx 12rpx rgba(229, 9, 20, 0.4);
+  box-shadow: 0 4rpx 12rpx rgba(37, 99, 235, 0.35);
 }
 
 .lang-check-icon {
@@ -226,14 +234,15 @@ const close = () => {
   display: inline-block;
   padding: 18rpx 120rpx;
   font-size: 28rpx;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(15, 23, 42, 0.65);
   border-radius: 40rpx;
-  border: 2rpx solid rgba(255, 255, 255, 0.1);
+  border: 2rpx solid rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.78);
   transition: all 0.25s ease;
 
   &:active {
-    background: rgba(255, 255, 255, 0.05);
-    color: #fff;
+    background: rgba(219, 234, 254, 0.8);
+    color: #0f172a;
   }
 }
 </style>

@@ -145,8 +145,8 @@
 	const $lt = computed(() => langStore.$lt)
   const appName = computed(() => appConfigStore.appName || 'RichRoad')
   const appLogoUrl = computed(() => getExternalUrl(appConfigStore.appLogo || ''))
-	const langLabel = computed(() => {
-    const map = { zh: 'ZH', en: 'EN', mn: 'MN', 'zh-TW': 'TW', th: 'TH', hi: 'HI', id: 'ID' }
+  const langLabel = computed(() => {
+    const map = { zh: 'ZH', en: 'EN', mn: 'MN', 'zh-TW': 'TW', th: 'TH', hi: 'HI', id: 'ID', vi: 'VI', ar: 'AR', ja: 'JA', ko: 'KO', ms: 'MS' }
 	  return map[langStore.locale] || langStore.locale.slice(0, 2).toUpperCase()
 	})
 	const showLangPicker = ref(false)

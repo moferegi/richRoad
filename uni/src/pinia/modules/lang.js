@@ -7,7 +7,7 @@ import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 // 国旗映射
 const flagMap = {
   zh: '🇨🇳', 'zh-TW': '🇹🇼', en: '🇬🇧', mn: '🇲🇳',
-  th: '🇹🇭', hi: '🇮🇳', id: '🇮🇩', ja: '🇯🇵', ko: '🇰🇷',
+  th: '🇹🇭', hi: '🇮🇳', id: '🇮🇩', vi: '🇻🇳', ar: '🇸🇦', ja: '🇯🇵', ko: '🇰🇷', ms: '🇲🇾',
   ru: '🇷🇺', fr: '🇫🇷', de: '🇩🇪', es: '🇪🇸', pt: '🇧🇷',
 }
 

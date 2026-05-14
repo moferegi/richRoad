@@ -60,6 +60,8 @@ var publicConfigKeyAllowlist = map[string]struct{}{
 	"tryon_register_reward_points":        {},
 }
 
+var i18nLocalePriority = []string{"zh", "en", "mn", "zh-TW", "th", "hi", "id", "vi", "ar", "ja", "ko", "ms"}
+
 func isPublicConfigKeyAllowed(key string) bool {
 	_, ok := publicConfigKeyAllowlist[key]
 	return ok
@@ -292,17 +294,20 @@ func (s *SysConfigApi) GetTryonConfig(c *gin.Context) {
 		appendParsingFailedTip = "false"
 	}
 	if strings.TrimSpace(parsingFailedTipText) == "" {
-		parsingFailedTipText = `{"zh":"试衣成功，但分割增强失败，相关金币已退回","en":"Try-on succeeded, but parsing enhancement failed. Related coins have been refunded.","mn":"Туршилт амжилттай боловч segmentation enhancement амжилтгүй боллоо. Холбогдох зоос буцаан олгогдлоо."}`
+		parsingFailedTipText = `{"zh":"试衣成功，但分割增强失败，相关金币已退回","en":"Try-on succeeded, but parsing enhancement failed. Related coins have been refunded.","mn":"Туршилт амжилттай боловч segmentation enhancement амжилтгүй боллоо. Холбогдох зоос буцаан олгогдлоо.","vi":"Try-on succeeded, but parsing enhancement failed. Related coins have been refunded.","ar":"نجحت التجربة، لكن فشل تحسين التقسيم. تم استرداد العملات ذات الصلة.","ja":"試着は成功しましたが、セグメンテーション強化に失敗しました。関連コインは返還されました。","ko":"가상 착용은 성공했지만 분할 강화에 실패했습니다. 관련 코인은 환급되었습니다.","ms":"Cuba pakaian berjaya, tetapi penambahbaikan pemisahan gagal. Syiling berkaitan telah dipulangkan."}`
 	}
 	if strings.TrimSpace(appendRefinerFailedTip) == "" {
 		appendRefinerFailedTip = "true"
 	}
 	if strings.TrimSpace(refinerFailedTipText) == "" {
-		refinerFailedTipText = `{"zh":"试衣成功，但精修失败，金币已退回","en":"Try-on succeeded, but refiner failed. Coins have been refunded.","mn":"Туршилт амжилттай боловч нарийвчлал амжилтгүй боллоо. Зоос буцаан олгогдсон."}`
+		refinerFailedTipText = `{"zh":"试衣成功，但精修失败，金币已退回","en":"Try-on succeeded, but refiner failed. Coins have been refunded.","mn":"Туршилт амжилттай боловч нарийвчлал амжилтгүй боллоо. Зоос буцаан олгогдсон.","vi":"Try-on succeeded, but refiner failed. Coins have been refunded.","ar":"نجحت التجربة، لكن فشلت المعالجة الدقيقة. تم استرداد العملات.","ja":"試着は成功しましたが、画像精修に失敗しました。コインは返還されました。","ko":"가상 착용은 성공했지만 이미지 보정에 실패했습니다. 코인은 환급되었습니다.","ms":"Cuba pakaian berjaya, tetapi penambahbaikan imej gagal. Syiling telah dipulangkan."}`
 	}
+	parsingFailedTipText = normalizeI18nJSONString(parsingFailedTipText)
+	refinerFailedTipText = normalizeI18nJSONString(refinerFailedTipText)
 	if strings.TrimSpace(tryonModels) == "" {
 		tryonModels = defaultTryonModelsConfig()
 	}
+	tryonModels = normalizeTryonModelsConfigLocales(tryonModels)
 
 	response.OkWithDetailed(map[string]string{
 		"tryon_guest_init_points":             guestInit,
@@ -392,30 +397,64 @@ func getConfigBoolOrDefault(key string, defaultVal bool) bool {
 	return parseBoolConfig(val, defaultVal)
 }
 
+func ensureI18nMapLocales(data map[string]string) map[string]string {
+	if data == nil {
+		return map[string]string{}
+	}
+
+	fallback := ""
+	for _, key := range []string{"en", "zh", "mn"} {
+		if text := strings.TrimSpace(data[key]); text != "" {
+			fallback = text
+			break
+		}
+	}
+	if fallback == "" {
+		for _, text := range data {
+			if text = strings.TrimSpace(text); text != "" {
+				fallback = text
+				break
+			}
+		}
+	}
+
+	if fallback == "" {
+		return data
+	}
+
+	for _, key := range i18nLocalePriority {
+		if strings.TrimSpace(data[key]) == "" {
+			data[key] = fallback
+		}
+	}
+
+	return data
+}
+
 func defaultPaymentMethodName(key string) map[string]string {
 	switch key {
 	case "qrcode":
-		return map[string]string{"zh": "二维码支付", "en": "QR Payment", "mn": "QR төлбөр"}
+		return ensureI18nMapLocales(map[string]string{"zh": "二维码支付", "en": "QR Payment", "mn": "QR төлбөр"})
 	case "contact":
-		return map[string]string{"zh": "联系客服", "en": "Contact Support", "mn": "Хэрэглэгчийн дэмжлэг"}
+		return ensureI18nMapLocales(map[string]string{"zh": "联系客服", "en": "Contact Support", "mn": "Хэрэглэгчийн дэмжлэг"})
 	case "wechat":
-		return map[string]string{"zh": "微信支付", "en": "WeChat Pay", "mn": "WeChat Pay"}
+		return ensureI18nMapLocales(map[string]string{"zh": "微信支付", "en": "WeChat Pay", "mn": "WeChat Pay"})
 	case "alipay":
-		return map[string]string{"zh": "支付宝", "en": "Alipay", "mn": "Alipay"}
+		return ensureI18nMapLocales(map[string]string{"zh": "支付宝", "en": "Alipay", "mn": "Alipay"})
 	case "bank_card_cn":
-		return map[string]string{"zh": "银行卡(国内)", "en": "Bank Card (CN)", "mn": "Банкны карт (CN)"}
+		return ensureI18nMapLocales(map[string]string{"zh": "银行卡(国内)", "en": "Bank Card (CN)", "mn": "Банкны карт (CN)"})
 	case "bank_card_us":
-		return map[string]string{"zh": "银行卡(美国)", "en": "Bank Card (US)", "mn": "Банкны карт (US)"}
+		return ensureI18nMapLocales(map[string]string{"zh": "银行卡(美国)", "en": "Bank Card (US)", "mn": "Банкны карт (US)"})
 	case "bank_card_mn":
-		return map[string]string{"zh": "银行卡(蒙古)", "en": "Bank Card (MN)", "mn": "Банкны карт (MN)"}
+		return ensureI18nMapLocales(map[string]string{"zh": "银行卡(蒙古)", "en": "Bank Card (MN)", "mn": "Банкны карт (MN)"})
 	case "paypal":
-		return map[string]string{"zh": "PayPal", "en": "PayPal", "mn": "PayPal"}
+		return ensureI18nMapLocales(map[string]string{"zh": "PayPal", "en": "PayPal", "mn": "PayPal"})
 	default:
 		fallback := strings.TrimSpace(key)
 		if fallback == "" {
 			fallback = "Payment"
 		}
-		return map[string]string{"zh": fallback, "en": fallback, "mn": fallback}
+		return ensureI18nMapLocales(map[string]string{"zh": fallback, "en": fallback, "mn": fallback})
 	}
 }
 
@@ -473,10 +512,10 @@ func extractI18nMap(value interface{}) map[string]string {
 		if text == "" {
 			return result
 		}
-		result["zh"] = text
-		result["en"] = text
-		result["mn"] = text
-		return result
+		for _, key := range i18nLocalePriority {
+			result[key] = text
+		}
+		return ensureI18nMapLocales(result)
 	}
 
 	switch typed := value.(type) {
@@ -506,7 +545,7 @@ func extractI18nMap(value interface{}) map[string]string {
 			}
 			result[key] = valueText
 		}
-		return result
+		return ensureI18nMapLocales(result)
 	case map[string]string:
 		for k, v := range typed {
 			key := strings.TrimSpace(k)
@@ -516,14 +555,26 @@ func extractI18nMap(value interface{}) map[string]string {
 			}
 			result[key] = valueText
 		}
-		return result
+		return ensureI18nMapLocales(result)
 	default:
 		return appendFallback(extractStringValue(typed))
 	}
 }
 
+func normalizeI18nJSONString(raw string) string {
+	normalized := extractI18nMap(raw)
+	if len(normalized) == 0 {
+		return strings.TrimSpace(raw)
+	}
+	bytes, err := json.Marshal(normalized)
+	if err != nil {
+		return strings.TrimSpace(raw)
+	}
+	return string(bytes)
+}
+
 func pickMethodLabel(name map[string]string, fallback string) string {
-	for _, key := range []string{"zh", "en", "mn"} {
+	for _, key := range i18nLocalePriority {
 		if text := strings.TrimSpace(name[key]); text != "" {
 			return text
 		}
@@ -571,11 +622,14 @@ func appendLegacyPaymentMethod(methods []gin.H, key string, manual bool, sortVal
 }
 
 func defaultUniPreferredPayMethodCopyText() map[string]string {
-	return map[string]string{
+	return ensureI18nMapLocales(map[string]string{
 		"zh": "您好，我的订单号是 {orderID}，期望使用 {payMethod} 支付，请协助提供收款方式并处理订单。",
 		"en": "Hi, my order number is {orderID}. I expect to pay via {payMethod}. Please provide the receiving method and help process this order.",
 		"mn": "Сайн байна уу, миний захиалгын дугаар {orderID}. Би {payMethod} аргаар төлөхийг хүсэж байна. Хүлээн авах мэдээлэл өгч, захиалгыг боловсруулж өгнө үү.",
-	}
+		"ja": "こんにちは。注文番号は {orderID} です。{payMethod} で支払いたいので、受取方法の案内と注文処理をお願いします。",
+		"ko": "안녕하세요. 제 주문번호는 {orderID}이며, {payMethod}로 결제하고 싶습니다. 수금 방법 안내와 주문 처리를 부탁드립니다.",
+		"ms": "Hai, nombor pesanan saya ialah {orderID}. Saya ingin membayar melalui {payMethod}. Sila berikan kaedah penerimaan dan bantu proses pesanan ini.",
+	})
 }
 
 func defaultUniPreferredPayMethods() []gin.H {
@@ -781,6 +835,44 @@ func defaultTryonModelsConfig() string {
 		"supportsBeautify": true
 	}
 ]`
+}
+
+func normalizeTryonModelsConfigLocales(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return raw
+	}
+
+	var models []map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &models); err != nil {
+		return raw
+	}
+
+	changed := false
+	for _, modelItem := range models {
+		for _, field := range []string{"name", "desc", "beautifyDesc"} {
+			value, ok := modelItem[field]
+			if !ok {
+				continue
+			}
+			normalized := extractI18nMap(value)
+			if len(normalized) == 0 {
+				continue
+			}
+			modelItem[field] = normalized
+			changed = true
+		}
+	}
+
+	if !changed {
+		return raw
+	}
+
+	bytes, err := json.Marshal(models)
+	if err != nil {
+		return raw
+	}
+	return string(bytes)
 }
 
 // GetPaymentConfig 获取支付方式配置（公开接口）

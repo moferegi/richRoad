@@ -276,7 +276,7 @@ const STATUS_KEY_TO_I18N = {
   offline: 'kefuOffline',
   busy: 'kefuBusy',
 }
-const STATUS_ALIAS_LANGS = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id']
+const STATUS_ALIAS_LANGS = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id', 'vi', 'ar', 'ja', 'ko', 'ms']
 
 const buildStatusAliasMap = () => {
   const aliasMap = {

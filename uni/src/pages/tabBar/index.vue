@@ -515,6 +515,7 @@ const $t = computed(() => langStore.$t)
 const roomTitle = computed(() => appConfigStore.appName || $t.value('tryonRoom'))
 const tutorialItems = computed(() => {
   return [
+    $t.value('tryonTutorialWebBrowserTip'),
     $t.value('tryonTutorialItem1'),
     $t.value('tryonTutorialItem2'),
     $t.value('tryonTutorialItem3'),

@@ -62,7 +62,7 @@ const goKefu = () => {
 }
 
 const ERROR_KEYS = ['oldPasswordWrong', 'userNotFound', 'captchaRateLimit', 'passwordWrong']
-const ERROR_ALIAS_LANGS = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id']
+const ERROR_ALIAS_LANGS = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id', 'vi', 'ar', 'ja', 'ko', 'ms']
 
 const buildErrorAliasMap = () => {
   const aliasMap = {}

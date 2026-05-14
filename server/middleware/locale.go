@@ -13,6 +13,11 @@ func Locale() gin.HandlerFunc {
 		i18n.LangZh: true,
 		i18n.LangEn: true,
 		i18n.LangMn: true,
+		i18n.LangVi: true,
+		i18n.LangAr: true,
+		i18n.LangJa: true,
+		i18n.LangKo: true,
+		i18n.LangMs: true,
 	}
 	return func(c *gin.Context) {
 		lang := strings.TrimSpace(c.GetHeader("Accept-Language"))

@@ -80,7 +80,7 @@ const categoryList = ref([])
 const activeCategoryID = ref(0)
 const categoryScrollLeft = ref(0)
 
-const TRYON_LOWER_KEYWORD_LANGS = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id']
+const TRYON_LOWER_KEYWORD_LANGS = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id', 'vi', 'ar', 'ja', 'ko', 'ms']
 const DEFAULT_TRYON_LOWER_KEYWORDS = ['pants', 'skirt', 'bottom', 'lower', 'trousers', 'jeans']
 
 const normalizeKeyword = (value) => String(value || '').trim().toLowerCase()
