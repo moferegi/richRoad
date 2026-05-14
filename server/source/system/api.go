@@ -218,6 +218,10 @@ func (i *initApi) InitializeData(ctx context.Context) (context.Context, error) {
 		{ApiGroup: "错误日志", Method: "GET", Path: "/sysError/getSysErrorList", Description: "获取错误日志列表"},
 		{ApiGroup: "错误日志", Method: "GET", Path: "/sysError/getSysErrorSolution", Description: "触发错误处理(异步)"},
 
+		{ApiGroup: "数据库巡检", Method: "GET", Path: "/dbInspector/getOverview", Description: "获取数据库巡检总览"},
+		{ApiGroup: "数据库巡检", Method: "POST", Path: "/dbInspector/autoFix", Description: "自动修复数据库或Redis连接"},
+		{ApiGroup: "数据库巡检", Method: "POST", Path: "/dbInspector/deleteRecordsByRange", Description: "按日期范围真删除记录并联动清理文件"},
+
 		{ApiGroup: "公告", Method: "POST", Path: "/info/createInfo", Description: "新建公告"},
 		{ApiGroup: "公告", Method: "DELETE", Path: "/info/deleteInfo", Description: "删除公告"},
 		{ApiGroup: "公告", Method: "DELETE", Path: "/info/deleteInfoByIds", Description: "批量删除公告"},

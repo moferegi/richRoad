@@ -4,6 +4,7 @@ import api "github.com/flipped-aurora/gin-vue-admin/server/api/v1"
 
 type RouterGroup struct {
 	ApiRouter
+	DBInspectorRouter
 	JwtRouter
 	SysRouter
 	BaseRouter
@@ -50,4 +51,5 @@ var (
 	sysVersionApi       = api.ApiGroupApp.SystemApiGroup.SysVersionApi
 	sysErrorApi         = api.ApiGroupApp.SystemApiGroup.SysErrorApi
 	skillsApi           = api.ApiGroupApp.SystemApiGroup.SkillsApi
+	dbInspectorApi      = api.ApiGroupApp.SystemApiGroup.DBInspectorApi
 )

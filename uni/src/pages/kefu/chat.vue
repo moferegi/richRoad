@@ -176,7 +176,7 @@ const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 
 // -------- WS 地址 --------
-let wsBase = 'wss://back.mnmovie.icu'
+let wsBase = 'wss://clothapi.235235.vip'
 // #ifdef H5
 if (process.env.NODE_ENV === 'development') wsBase = 'ws://localhost:8888'
 // #endif

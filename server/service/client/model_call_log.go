@@ -37,6 +37,8 @@ type modelCallTraceContext struct {
 	ParsingRefundPoints  int
 	BeautifyRefundPoints int
 	TotalRefundPoints    int
+	TokenValue           string
+	TokenSlot            string
 }
 
 type modelCallLogInput struct {
@@ -56,6 +58,8 @@ type modelCallLogInput struct {
 	ErrorMessage    string
 	StartedAt       time.Time
 	FinishedAt      time.Time
+	TokenValue      string
+	TokenSlot       string
 }
 
 // GetModelCallLogList 分页获取模型调用日志
@@ -248,6 +252,16 @@ func cloneTraceContext(ctx *modelCallTraceContext) *modelCallTraceContext {
 	}
 	copyCtx := *ctx
 	return &copyCtx
+}
+
+func attachTokenTraceContext(traceCtx *modelCallTraceContext, token string, tokenSlot string) *modelCallTraceContext {
+	ctx := cloneTraceContext(traceCtx)
+	if ctx == nil {
+		ctx = &modelCallTraceContext{}
+	}
+	ctx.TokenValue = normalizeTokenValue(token)
+	ctx.TokenSlot = strings.TrimSpace(tokenSlot)
+	return ctx
 }
 
 func errorToString(err error) string {
@@ -550,6 +564,15 @@ func saveModelCallLog(input modelCallLogInput) {
 	usage := normalizeModelUsageForLog(input.ModelUsage, input.CallStage, trace)
 	costPoints, refundPoints := modelCallPointsByUsage(trace, usage)
 	modelKey, modelName, provider := resolveModelIdentityFromRecentLog(trace.TaskID, usage, input.ModelKey, input.ModelName, input.Provider)
+	tokenValue := normalizeTokenValue(input.TokenValue)
+	if tokenValue == "" {
+		tokenValue = normalizeTokenValue(trace.TokenValue)
+	}
+	tokenSlot := strings.TrimSpace(input.TokenSlot)
+	if tokenSlot == "" {
+		tokenSlot = strings.TrimSpace(trace.TokenSlot)
+	}
+	tokenFingerprint := buildTokenFingerprint(tokenValue)
 
 	relatedModels := ""
 	if len(input.RelatedModels) > 0 {
@@ -557,32 +580,34 @@ func saveModelCallLog(input modelCallLogInput) {
 	}
 
 	logRow := client.ModelCallLog{
-		UserID:          trace.UserID,
-		TaskID:          trace.TaskID,
-		TaskNo:          truncateLogText(trace.TaskNo, 40),
-		RequestID:       truncateLogText(trace.RequestID, 80),
-		SceneType:       truncateLogText(trace.SceneType, 20),
-		TemplatePart:    truncateLogText(trace.TemplatePart, 20),
-		EntrySource:     truncateLogText(trace.EntrySource, 80),
-		Behavior:        truncateLogText(trace.Behavior, 80),
-		CallStage:       truncateLogText(input.CallStage, 80),
-		ModelKey:        truncateLogText(modelKey, 120),
-		ModelUsage:      truncateLogText(usage, 20),
-		ModelName:       truncateLogText(modelName, 120),
-		Provider:        truncateLogText(provider, 80),
-		EndpointURL:     truncateLogText(input.EndpointURL, 500),
-		QueryURL:        truncateLogText(input.QueryURL, 500),
-		RelatedModels:   relatedModels,
-		SourceImage:     truncateLogText(trace.SourceImage, 1024),
-		TemplateImage:   truncateLogText(trace.TemplateImage, 1024),
-		ResultImage:     truncateLogText(input.ResultImage, 1024),
-		RequestPayload:  marshalLogPayload(input.RequestPayload),
-		ResponsePayload: marshalLogPayload(input.ResponsePayload),
-		Status:          truncateLogText(status, 32),
-		ErrorMessage:    truncateLogText(strings.TrimSpace(input.ErrorMessage), 1000),
-		CostPoints:      costPoints,
-		RefundPoints:    refundPoints,
-		DurationMs:      durationMs,
+		UserID:           trace.UserID,
+		TaskID:           trace.TaskID,
+		TaskNo:           truncateLogText(trace.TaskNo, 40),
+		RequestID:        truncateLogText(trace.RequestID, 80),
+		SceneType:        truncateLogText(trace.SceneType, 20),
+		TemplatePart:     truncateLogText(trace.TemplatePart, 20),
+		EntrySource:      truncateLogText(trace.EntrySource, 80),
+		Behavior:         truncateLogText(trace.Behavior, 80),
+		CallStage:        truncateLogText(input.CallStage, 80),
+		ModelKey:         truncateLogText(modelKey, 120),
+		ModelUsage:       truncateLogText(usage, 20),
+		ModelName:        truncateLogText(modelName, 120),
+		Provider:         truncateLogText(provider, 80),
+		EndpointURL:      truncateLogText(input.EndpointURL, 500),
+		QueryURL:         truncateLogText(input.QueryURL, 500),
+		RelatedModels:    relatedModels,
+		SourceImage:      truncateLogText(trace.SourceImage, 1024),
+		TemplateImage:    truncateLogText(trace.TemplateImage, 1024),
+		ResultImage:      truncateLogText(input.ResultImage, 1024),
+		RequestPayload:   marshalLogPayload(input.RequestPayload),
+		ResponsePayload:  marshalLogPayload(input.ResponsePayload),
+		Status:           truncateLogText(status, 32),
+		ErrorMessage:     truncateLogText(strings.TrimSpace(input.ErrorMessage), 1000),
+		CostPoints:       costPoints,
+		RefundPoints:     refundPoints,
+		DurationMs:       durationMs,
+		TokenFingerprint: truncateLogText(tokenFingerprint, 64),
+		TokenSlot:        truncateLogText(tokenSlot, 32),
 	}
 
 	if err := global.GVA_DB.Create(&logRow).Error; err != nil {

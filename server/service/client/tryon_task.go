@@ -268,58 +268,65 @@ type TryonTaskStatsData struct {
 	ModelStats          []TryonTaskModelStatsItem `json:"modelStats"`
 }
 
+type tryonModelTokenQuota struct {
+	Token            string `json:"token"`
+	TokenFingerprint string `json:"tokenFingerprint"`
+	FreeQuotaTotal   int    `json:"freeQuotaTotal"`
+}
+
 type tryonModelConfig struct {
-	Key                   string   `json:"key"`
-	ModelUsage            string   `json:"modelUsage"`
-	BeautifyModelKey      string   `json:"beautifyModelKey"`
-	ParsingModelKey       string   `json:"parsingModelKey"`
-	Enabled               *bool    `json:"enabled"`
-	SupportsRefiner       *bool    `json:"supportsRefiner"`
-	SupportsBeautify      *bool    `json:"supportsBeautify"`
-	SceneType             string   `json:"sceneType"`
-	Scenes                []string `json:"scenes"`
-	Model                 string   `json:"model"`
-	Cost                  int      `json:"cost"`
-	Provider              string   `json:"provider"`
-	Mode                  string   `json:"mode"`
-	URL                   string   `json:"url"`
-	Token                 string   `json:"token"`
-	TokenBackups          []string `json:"tokenBackups"`
-	BackupTokens          []string `json:"backupTokens"`
-	ProviderURL           string   `json:"providerUrl"`
-	ProviderToken         string   `json:"providerToken"`
-	TaskQueryURL          string   `json:"taskQueryUrl"`
-	FreeQuotaTotal        int      `json:"freeQuotaTotal"`
-	RefinerFreeQuotaTotal int      `json:"refinerFreeQuotaTotal"`
-	RefinerModel          string   `json:"refinerModel"`
-	RefinerModelKey       string   `json:"refinerModelKey"`
-	RefinerExtraCost      int      `json:"refinerExtraCost"`
-	RefinerExtraPoints    int      `json:"refinerExtraPoints"`
-	ParsingExtraCost      int      `json:"parsingExtraCost"`
-	ParsingExtraPoints    int      `json:"parsingExtraPoints"`
-	RefinerURL            string   `json:"refinerUrl"`
-	RefinerToken          string   `json:"refinerToken"`
-	RefinerTaskQueryURL   string   `json:"refinerTaskQueryUrl"`
-	BeautifyModel         string   `json:"beautifyModel"`
-	BeautifyExtraCost     int      `json:"beautifyExtraCost"`
-	BeautifyExtraPoints   int      `json:"beautifyExtraPoints"`
-	BeautifyURL           string   `json:"beautifyUrl"`
-	BeautifyToken         string   `json:"beautifyToken"`
-	BeautifyAccessKeyID   string   `json:"beautifyAccessKeyId"`
-	BeautifyAccessKeySec  string   `json:"beautifyAccessKeySecret"`
-	BeautifySecurityToken string   `json:"beautifySecurityToken"`
-	BeautifyRetouch       float64  `json:"beautifyRetouchDegree"`
-	BeautifyWhitening     float64  `json:"beautifyWhiteningDegree"`
-	RefinerGender         string   `json:"refinerGender"`
-	ApiName               string   `json:"apiName"`
-	GarmentDes            string   `json:"garmentDes"`
-	IsChecked             *bool    `json:"isChecked"`
-	IsCheckedCrop         *bool    `json:"isCheckedCrop"`
-	DenoiseSteps          int      `json:"denoiseSteps"`
-	Seed                  int      `json:"seed"`
-	Resolution            int      `json:"resolution"`
-	RestoreFace           *bool    `json:"restoreFace"`
-	ClothesType           []string `json:"clothesType"`
+	Key                   string                 `json:"key"`
+	ModelUsage            string                 `json:"modelUsage"`
+	BeautifyModelKey      string                 `json:"beautifyModelKey"`
+	ParsingModelKey       string                 `json:"parsingModelKey"`
+	Enabled               *bool                  `json:"enabled"`
+	SupportsRefiner       *bool                  `json:"supportsRefiner"`
+	SupportsBeautify      *bool                  `json:"supportsBeautify"`
+	SceneType             string                 `json:"sceneType"`
+	Scenes                []string               `json:"scenes"`
+	Model                 string                 `json:"model"`
+	Cost                  int                    `json:"cost"`
+	Provider              string                 `json:"provider"`
+	Mode                  string                 `json:"mode"`
+	URL                   string                 `json:"url"`
+	Token                 string                 `json:"token"`
+	TokenBackups          []string               `json:"tokenBackups"`
+	BackupTokens          []string               `json:"backupTokens"`
+	TokenQuotas           []tryonModelTokenQuota `json:"tokenQuotas"`
+	ProviderURL           string                 `json:"providerUrl"`
+	ProviderToken         string                 `json:"providerToken"`
+	TaskQueryURL          string                 `json:"taskQueryUrl"`
+	FreeQuotaTotal        int                    `json:"freeQuotaTotal"`
+	RefinerFreeQuotaTotal int                    `json:"refinerFreeQuotaTotal"`
+	RefinerModel          string                 `json:"refinerModel"`
+	RefinerModelKey       string                 `json:"refinerModelKey"`
+	RefinerExtraCost      int                    `json:"refinerExtraCost"`
+	RefinerExtraPoints    int                    `json:"refinerExtraPoints"`
+	ParsingExtraCost      int                    `json:"parsingExtraCost"`
+	ParsingExtraPoints    int                    `json:"parsingExtraPoints"`
+	RefinerURL            string                 `json:"refinerUrl"`
+	RefinerToken          string                 `json:"refinerToken"`
+	RefinerTaskQueryURL   string                 `json:"refinerTaskQueryUrl"`
+	BeautifyModel         string                 `json:"beautifyModel"`
+	BeautifyExtraCost     int                    `json:"beautifyExtraCost"`
+	BeautifyExtraPoints   int                    `json:"beautifyExtraPoints"`
+	BeautifyURL           string                 `json:"beautifyUrl"`
+	BeautifyToken         string                 `json:"beautifyToken"`
+	BeautifyAccessKeyID   string                 `json:"beautifyAccessKeyId"`
+	BeautifyAccessKeySec  string                 `json:"beautifyAccessKeySecret"`
+	BeautifySecurityToken string                 `json:"beautifySecurityToken"`
+	BeautifyRetouch       float64                `json:"beautifyRetouchDegree"`
+	BeautifyWhitening     float64                `json:"beautifyWhiteningDegree"`
+	RefinerGender         string                 `json:"refinerGender"`
+	ApiName               string                 `json:"apiName"`
+	GarmentDes            string                 `json:"garmentDes"`
+	IsChecked             *bool                  `json:"isChecked"`
+	IsCheckedCrop         *bool                  `json:"isCheckedCrop"`
+	DenoiseSteps          int                    `json:"denoiseSteps"`
+	Seed                  int                    `json:"seed"`
+	Resolution            int                    `json:"resolution"`
+	RestoreFace           *bool                  `json:"restoreFace"`
+	ClothesType           []string               `json:"clothesType"`
 }
 
 func (m *tryonModelConfig) isEnabled() bool {
@@ -2421,6 +2428,11 @@ func (s *TryonTaskService) invokeTryonProvider(req clientReq.CreateTryonTaskReq,
 	}
 
 	tokenCandidates := modelCfg.authTokenCandidates()
+	filteredCandidates, allExhausted := s.filterTokenCandidatesByQuota(modelCfg, modelCfg.usageValue(), tokenCandidates)
+	if allExhausted {
+		return tryonInvokeResult{}, errors.New("modelTokenQuotaExhausted")
+	}
+	tokenCandidates = filteredCandidates
 	if len(tokenCandidates) == 0 {
 		return s.invokeTryonProviderWithToken(req, modelCfg, traceCtx, "")
 	}
@@ -2457,6 +2469,7 @@ func (s *TryonTaskService) invokeTryonProviderWithToken(req clientReq.CreateTryo
 	if providerToken == "" {
 		providerToken = strings.TrimSpace(modelCfg.authToken())
 	}
+	callTraceCtx := attachTokenTraceContext(traceCtx, providerToken, "")
 
 	if strings.EqualFold(providerMode, "mock_success") {
 		return tryonInvokeResult{
@@ -2499,7 +2512,7 @@ func (s *TryonTaskService) invokeTryonProviderWithToken(req clientReq.CreateTryo
 	}
 
 	if isAliyunParsing {
-		return s.invokeAliyunParsing(resolvedReq, modelCfg, providerToken, providerURL, modelName, false, traceCtx)
+		return s.invokeAliyunParsing(resolvedReq, modelCfg, providerToken, providerURL, modelName, false, callTraceCtx)
 	}
 
 	parsedCompanionGarmentImage := ""
@@ -2509,7 +2522,7 @@ func (s *TryonTaskService) invokeTryonProviderWithToken(req clientReq.CreateTryo
 	parsingModelKey := strings.TrimSpace(modelCfg.ParsingModelKey)
 	if isAliyunTryon && shouldEnableAliyunParsingForSinglePart(resolvedReq.SceneType, modelName, resolvedReq.TemplatePart, req.EnableParsing) {
 		parsingAttempted = true
-		parsedCompanionGarment, resolvedParsingModelKey, parseErr := s.tryBuildAliyunParsedCompanionGarment(resolvedReq, providerToken, modelCfg, traceCtx)
+		parsedCompanionGarment, resolvedParsingModelKey, parseErr := s.tryBuildAliyunParsedCompanionGarment(resolvedReq, providerToken, modelCfg, callTraceCtx)
 		if strings.TrimSpace(resolvedParsingModelKey) != "" {
 			parsingModelKey = strings.TrimSpace(resolvedParsingModelKey)
 		}
@@ -2528,7 +2541,7 @@ func (s *TryonTaskService) invokeTryonProviderWithToken(req clientReq.CreateTryo
 	}
 
 	if isAliyunTryon {
-		result, invokeErr := s.invokeAliyunTryonAsync(resolvedReq, modelCfg, providerToken, providerURL, modelName, parsedCompanionGarmentImage, traceCtx)
+		result, invokeErr := s.invokeAliyunTryonAsync(resolvedReq, modelCfg, providerToken, providerURL, modelName, parsedCompanionGarmentImage, callTraceCtx)
 		if invokeErr != nil {
 			return tryonInvokeResult{}, invokeErr
 		}
@@ -2540,7 +2553,7 @@ func (s *TryonTaskService) invokeTryonProviderWithToken(req clientReq.CreateTryo
 	}
 
 	if isGradioTryon {
-		return s.invokeGradioTryon(resolvedReq, modelCfg, providerToken, providerURL, traceCtx)
+		return s.invokeGradioTryon(resolvedReq, modelCfg, providerToken, providerURL, callTraceCtx)
 	}
 
 	if strings.TrimSpace(providerURL) == "" {
@@ -2573,7 +2586,7 @@ func (s *TryonTaskService) invokeTryonProviderWithToken(req clientReq.CreateTryo
 	})
 	if err != nil {
 		saveModelCallLog(modelCallLogInput{
-			TraceContext:   traceCtx,
+			TraceContext:   callTraceCtx,
 			CallStage:      "tryon_custom_provider",
 			ModelKey:       strings.TrimSpace(modelCfg.Key),
 			ModelUsage:     modelCfg.usageValue(),
@@ -2591,7 +2604,7 @@ func (s *TryonTaskService) invokeTryonProviderWithToken(req clientReq.CreateTryo
 	}
 	if resp == nil {
 		saveModelCallLog(modelCallLogInput{
-			TraceContext:   traceCtx,
+			TraceContext:   callTraceCtx,
 			CallStage:      "tryon_custom_provider",
 			ModelKey:       strings.TrimSpace(modelCfg.Key),
 			ModelUsage:     modelCfg.usageValue(),
@@ -2619,7 +2632,7 @@ func (s *TryonTaskService) invokeTryonProviderWithToken(req clientReq.CreateTryo
 	if resultImage == "" {
 		if strings.TrimSpace(resp.Msg) != "" {
 			saveModelCallLog(modelCallLogInput{
-				TraceContext:    traceCtx,
+				TraceContext:    callTraceCtx,
 				CallStage:       "tryon_custom_provider",
 				ModelKey:        strings.TrimSpace(modelCfg.Key),
 				ModelUsage:      modelCfg.usageValue(),
@@ -2637,7 +2650,7 @@ func (s *TryonTaskService) invokeTryonProviderWithToken(req clientReq.CreateTryo
 			return tryonInvokeResult{}, errors.New(strings.TrimSpace(resp.Msg))
 		}
 		saveModelCallLog(modelCallLogInput{
-			TraceContext:    traceCtx,
+			TraceContext:    callTraceCtx,
 			CallStage:       "tryon_custom_provider",
 			ModelKey:        strings.TrimSpace(modelCfg.Key),
 			ModelUsage:      modelCfg.usageValue(),
@@ -2656,7 +2669,7 @@ func (s *TryonTaskService) invokeTryonProviderWithToken(req clientReq.CreateTryo
 	}
 
 	saveModelCallLog(modelCallLogInput{
-		TraceContext:    traceCtx,
+		TraceContext:    callTraceCtx,
 		CallStage:       "tryon_custom_provider",
 		ModelKey:        strings.TrimSpace(modelCfg.Key),
 		ModelUsage:      modelCfg.usageValue(),
@@ -3532,7 +3545,7 @@ func (s *TryonTaskService) invokeAliyunTryonAsync(req clientReq.CreateTryonTaskR
 	}
 	if status == tryonTaskStatusSuccess {
 		queryTokenCandidates := append([]string{strings.TrimSpace(providerToken)}, modelCfg.authTokenCandidates()...)
-		queryResult, queryErr := s.queryAliyunTryonTaskWithTokenFallback(taskID, queryTokenCandidates, createURL, modelCfg.queryTaskURL(), traceCtx, "tryon_aliyun_query", strings.TrimSpace(modelCfg.Key))
+		queryResult, queryErr := s.queryAliyunTryonTaskWithTokenFallback(taskID, queryTokenCandidates, createURL, modelCfg.queryTaskURL(), traceCtx, "tryon_aliyun_query", strings.TrimSpace(modelCfg.Key), modelCfg, modelCfg.usageValue())
 		if queryErr != nil {
 			return tryonInvokeResult{}, queryErr
 		}
@@ -3550,6 +3563,7 @@ func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTas
 	var requestPayload interface{}
 	var responsePayload interface{}
 	var resolvedRefinerModelCfg *tryonModelConfig
+	activeTraceCtx := traceCtx
 	defer func() {
 		modelKey := ""
 		modelUsage := "refiner"
@@ -3582,7 +3596,7 @@ func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTas
 		}
 
 		saveModelCallLog(modelCallLogInput{
-			TraceContext:    traceCtx,
+			TraceContext:    activeTraceCtx,
 			CallStage:       "refiner_aliyun_async",
 			ModelKey:        modelKey,
 			ModelUsage:      modelUsage,
@@ -3647,6 +3661,11 @@ func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTas
 	providerURL := strings.TrimSpace(refinerModelCfg.endpointURL())
 	refinerURL := refinerModelCfg.refinerEndpointURL(providerURL)
 	refinerTokenCandidates := refinerModelCfg.refinerAuthTokenCandidates(strings.TrimSpace(refinerModelCfg.authToken()))
+	filteredRefinerTokenCandidates, allExhausted := s.filterTokenCandidatesByQuota(refinerModelCfg, "refiner", refinerTokenCandidates)
+	if allExhausted {
+		return tryonInvokeResult{}, errors.New("modelTokenQuotaExhausted")
+	}
+	refinerTokenCandidates = filteredRefinerTokenCandidates
 	if len(refinerTokenCandidates) == 0 {
 		return tryonInvokeResult{}, errors.New("aliyunRefinerApiKeyMissing")
 	}
@@ -3676,6 +3695,7 @@ func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTas
 	requestPayload = body
 
 	for index, refinerToken := range refinerTokenCandidates {
+		activeTraceCtx = attachTokenTraceContext(traceCtx, refinerToken, fmt.Sprintf("candidate_%d", index+1))
 		resp, callErr := external.HttpRequest[dashscopeTryonCreateResponse](external.RequestParams{
 			URL:    refinerURL,
 			Method: "POST",
@@ -3760,7 +3780,7 @@ func (s *TryonTaskService) invokeAliyunRefinerAsync(req clientReq.CreateTryonTas
 		}
 		if status == tryonTaskStatusSuccess {
 			queryTokenCandidates := append([]string{strings.TrimSpace(refinerToken)}, refinerTokenCandidates...)
-			queryResult, queryErr := s.queryAliyunTryonTaskWithTokenFallback(taskID, queryTokenCandidates, refinerURL, refinerModelCfg.refinerTaskQueryURL(), traceCtx, "refiner_aliyun_query", strings.TrimSpace(refinerModelCfg.Key))
+			queryResult, queryErr := s.queryAliyunTryonTaskWithTokenFallback(taskID, queryTokenCandidates, refinerURL, refinerModelCfg.refinerTaskQueryURL(), activeTraceCtx, "refiner_aliyun_query", strings.TrimSpace(refinerModelCfg.Key), refinerModelCfg, "refiner")
 			if queryErr != nil {
 				return tryonInvokeResult{}, queryErr
 			}
@@ -4170,6 +4190,7 @@ func (s *TryonTaskService) invokeTryonBeautifyProvider(sceneType string, resultI
 	startedAt := time.Now()
 	var requestPayload interface{}
 	var responsePayload interface{}
+	activeTraceCtx := traceCtx
 	defer func() {
 		modelKey := ""
 		modelUsage := "beautify"
@@ -4189,7 +4210,7 @@ func (s *TryonTaskService) invokeTryonBeautifyProvider(sceneType string, resultI
 		}
 
 		saveModelCallLog(modelCallLogInput{
-			TraceContext:    traceCtx,
+			TraceContext:    activeTraceCtx,
 			CallStage:       "beautify_provider",
 			ModelKey:        modelKey,
 			ModelUsage:      modelUsage,
@@ -4216,6 +4237,7 @@ func (s *TryonTaskService) invokeTryonBeautifyProvider(sceneType string, resultI
 	}
 	providerURL := strings.TrimSpace(modelCfg.endpointURL())
 	providerToken := strings.TrimSpace(modelCfg.authToken())
+	activeTraceCtx = attachTokenTraceContext(traceCtx, providerToken, "")
 
 	if strings.EqualFold(strings.TrimSpace(providerMode), "mock_success") {
 		outputImage = strings.TrimSpace(resultImage)
@@ -4229,7 +4251,7 @@ func (s *TryonTaskService) invokeTryonBeautifyProvider(sceneType string, resultI
 	hasAliyunCredentials := strings.TrimSpace(accessKeyID) != "" && strings.TrimSpace(accessKeySecret) != ""
 
 	if isAliyunBeautifyModel(providerName, modelName, providerURL) || hasAliyunCredentials {
-		return s.invokeAliyunRetouchSkin(resultImage, modelCfg, providerToken, req, traceCtx)
+		return s.invokeAliyunRetouchSkin(resultImage, modelCfg, providerToken, req, activeTraceCtx)
 	}
 
 	normalizedImage, normalizeErr := s.normalizeAliyunMediaURL(resultImage)
@@ -4314,6 +4336,7 @@ func (s *TryonTaskService) invokeAliyunRetouchSkin(resultImage string, modelCfg 
 	startedAt := time.Now()
 	var requestPayload interface{}
 	var responsePayload interface{}
+	activeTraceCtx := attachTokenTraceContext(traceCtx, fallbackToken, "")
 	defer func() {
 		modelKey := ""
 		modelUsage := "beautify"
@@ -4333,7 +4356,7 @@ func (s *TryonTaskService) invokeAliyunRetouchSkin(resultImage string, modelCfg 
 		}
 
 		saveModelCallLog(modelCallLogInput{
-			TraceContext:    traceCtx,
+			TraceContext:    activeTraceCtx,
 			CallStage:       "beautify_aliyun_rpc",
 			ModelKey:        modelKey,
 			ModelUsage:      modelUsage,
@@ -4700,18 +4723,24 @@ func tryonTokenSwitchReason(err error, result tryonInvokeResult) string {
 	return "tokenInvalid"
 }
 
-func (s *TryonTaskService) queryAliyunTryonTaskWithTokenFallback(taskID string, tokenCandidates []string, createURL string, taskQueryURL string, traceCtx *modelCallTraceContext, callStage string, modelKey string) (tryonInvokeResult, error) {
+func (s *TryonTaskService) queryAliyunTryonTaskWithTokenFallback(taskID string, tokenCandidates []string, createURL string, taskQueryURL string, traceCtx *modelCallTraceContext, callStage string, modelKey string, modelCfg *tryonModelConfig, modelUsage string) (tryonInvokeResult, error) {
 	normalizedCandidates := make([]string, 0, len(tokenCandidates))
 	for _, token := range tokenCandidates {
 		normalizedCandidates = appendUniqueTokenCandidate(normalizedCandidates, token)
 	}
+	filteredCandidates, allExhausted := s.filterTokenCandidatesByQuota(modelCfg, modelUsage, normalizedCandidates)
+	if allExhausted {
+		return tryonInvokeResult{Status: tryonTaskStatusFailed, ProviderTaskID: strings.TrimSpace(taskID), ErrorMessage: "modelTokenQuotaExhausted"}, nil
+	}
+	normalizedCandidates = filteredCandidates
 
 	if len(normalizedCandidates) == 0 {
 		return s.queryAliyunTryonTask(taskID, "", createURL, taskQueryURL, traceCtx, callStage)
 	}
 
 	for index, token := range normalizedCandidates {
-		result, err := s.queryAliyunTryonTask(taskID, token, createURL, taskQueryURL, traceCtx, callStage)
+		attemptTraceCtx := attachTokenTraceContext(traceCtx, token, fmt.Sprintf("candidate_%d", index+1))
+		result, err := s.queryAliyunTryonTask(taskID, token, createURL, taskQueryURL, attemptTraceCtx, callStage)
 		if shouldSwitchTryonModelToken(err, result) && index < len(normalizedCandidates)-1 {
 			global.GVA_LOG.Warn("查询阿里任务鉴权失败，自动切换备用token重试",
 				zap.String("modelKey", strings.TrimSpace(modelKey)),
@@ -4726,7 +4755,9 @@ func (s *TryonTaskService) queryAliyunTryonTaskWithTokenFallback(taskID string, 
 		return result, err
 	}
 
-	return s.queryAliyunTryonTask(taskID, normalizedCandidates[len(normalizedCandidates)-1], createURL, taskQueryURL, traceCtx, callStage)
+	lastToken := normalizedCandidates[len(normalizedCandidates)-1]
+	lastTraceCtx := attachTokenTraceContext(traceCtx, lastToken, fmt.Sprintf("candidate_%d", len(normalizedCandidates)))
+	return s.queryAliyunTryonTask(taskID, lastToken, createURL, taskQueryURL, lastTraceCtx, callStage)
 }
 
 func (s *TryonTaskService) normalizeAliyunRetouchImageURL(rawURL string) (string, error) {
@@ -5065,7 +5096,7 @@ func (s *TryonTaskService) refreshTryonTaskStatus(ctx context.Context, task *cli
 			return nil
 		}
 
-		result, err := s.queryAliyunTryonTaskWithTokenFallback(refinerTaskID, refinerTokenCandidates, refinerURL, refinerTaskQueryURL, traceCtx, "refiner_aliyun_query", strings.TrimSpace(refinerModelCfg.Key))
+		result, err := s.queryAliyunTryonTaskWithTokenFallback(refinerTaskID, refinerTokenCandidates, refinerURL, refinerTaskQueryURL, traceCtx, "refiner_aliyun_query", strings.TrimSpace(refinerModelCfg.Key), refinerModelCfg, "refiner")
 		if err != nil {
 			return err
 		}
@@ -5111,7 +5142,7 @@ func (s *TryonTaskService) refreshTryonTaskStatus(ctx context.Context, task *cli
 		}
 	}
 
-	result, err := s.queryAliyunTryonTaskWithTokenFallback(task.ProviderTaskID, providerTokenCandidates, providerURL, taskQueryURL, traceCtx, "tryon_aliyun_query", strings.TrimSpace(modelCfg.Key))
+	result, err := s.queryAliyunTryonTaskWithTokenFallback(task.ProviderTaskID, providerTokenCandidates, providerURL, taskQueryURL, traceCtx, "tryon_aliyun_query", strings.TrimSpace(modelCfg.Key), modelCfg, modelCfg.usageValue())
 	if err != nil {
 		return err
 	}

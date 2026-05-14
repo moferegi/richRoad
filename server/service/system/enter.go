@@ -3,6 +3,7 @@ package system
 type ServiceGroup struct {
 	JwtService
 	ApiService
+	DBInspectorService
 	MenuService
 	UserService
 	CasbinService

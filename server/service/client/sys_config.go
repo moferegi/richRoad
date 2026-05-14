@@ -21,20 +21,33 @@ var deprecatedSysConfigKeys = []string{
 }
 
 type AliyunTryonQuotaItem struct {
-	ModelKey                 string `json:"modelKey"`
-	ModelUsage               string `json:"modelUsage"`
-	Model                    string `json:"model"`
-	Provider                 string `json:"provider"`
-	FreeQuotaTotal           int    `json:"freeQuotaTotal"`
-	UsedSuccessCount         int64  `json:"usedSuccessCount"`
-	RemainingEstimate        int64  `json:"remainingEstimate"`
-	RefinerEnabled           bool   `json:"refinerEnabled"`
-	RefinerModel             string `json:"refinerModel"`
-	RefinerFreeQuotaTotal    int    `json:"refinerFreeQuotaTotal"`
-	RefinerUsedSuccessCount  int64  `json:"refinerUsedSuccessCount"`
-	RefinerRemainingEstimate int64  `json:"refinerRemainingEstimate"`
-	LastRefreshedAt          string `json:"lastRefreshedAt"`
-	EstimateDescription      string `json:"estimateDescription"`
+	ModelKey                 string                 `json:"modelKey"`
+	ModelUsage               string                 `json:"modelUsage"`
+	Model                    string                 `json:"model"`
+	Provider                 string                 `json:"provider"`
+	FreeQuotaTotal           int                    `json:"freeQuotaTotal"`
+	UsedSuccessCount         int64                  `json:"usedSuccessCount"`
+	RemainingEstimate        int64                  `json:"remainingEstimate"`
+	TokenQuotaList           []AliyunTokenQuotaItem `json:"tokenQuotaList"`
+	TokenConfigCount         int                    `json:"tokenConfigCount"`
+	TokenExhaustedCount      int                    `json:"tokenExhaustedCount"`
+	RefinerEnabled           bool                   `json:"refinerEnabled"`
+	RefinerModel             string                 `json:"refinerModel"`
+	RefinerFreeQuotaTotal    int                    `json:"refinerFreeQuotaTotal"`
+	RefinerUsedSuccessCount  int64                  `json:"refinerUsedSuccessCount"`
+	RefinerRemainingEstimate int64                  `json:"refinerRemainingEstimate"`
+	LastRefreshedAt          string                 `json:"lastRefreshedAt"`
+	EstimateDescription      string                 `json:"estimateDescription"`
+}
+
+type AliyunTokenQuotaItem struct {
+	TokenMasked           string `json:"tokenMasked"`
+	TokenFingerprint      string `json:"tokenFingerprint"`
+	TokenFingerprintShort string `json:"tokenFingerprintShort"`
+	FreeQuotaTotal        int    `json:"freeQuotaTotal"`
+	UsedSuccessCount      int64  `json:"usedSuccessCount"`
+	RemainingEstimate     int64  `json:"remainingEstimate"`
+	Exhausted             bool   `json:"exhausted"`
 }
 
 // GetSysConfigList 分页获取系统参数列表
@@ -61,11 +74,25 @@ func (s *SysConfigService) GetSysConfigList(info clientReq.SysConfigSearch) (lis
 
 // UpdateSysConfig 更新参数值（只允许改value和remark）
 func (s *SysConfigService) UpdateSysConfig(id uint, configValue string, remark string) error {
-	return global.GVA_DB.Model(&client.SysConfig{}).Where("id = ?", id).
+	var existed client.SysConfig
+	if err := global.GVA_DB.Select("config_key").Where("id = ?", id).First(&existed).Error; err != nil {
+		return err
+	}
+
+	err := global.GVA_DB.Model(&client.SysConfig{}).Where("id = ?", id).
 		Updates(map[string]interface{}{
 			"config_value": configValue,
 			"remark":       remark,
 		}).Error
+	if err != nil {
+		return err
+	}
+
+	if strings.EqualFold(strings.TrimSpace(existed.ConfigKey), "tryon_models") {
+		resetTryonTokenQuotaExhaustedCache()
+	}
+
+	return nil
 }
 
 // GetConfigByKey 根据key获取配置值
@@ -140,28 +167,74 @@ func (s *SysConfigService) GetAliyunTryonQuotaEstimate(modelKey string) (list []
 		}
 		modelUsage := item.usageValue()
 
-		freeQuotaTotal := item.FreeQuotaTotal
-		if freeQuotaTotal <= 0 {
-			freeQuotaTotal = 400
-		}
+		tokenCandidates := resolveAliyunModelQuotaTokenCandidates(item, modelUsage)
+		quotaCandidates := buildTokenQuotaCandidates(item, modelUsage, tokenCandidates)
+		tokenQuotaList := make([]AliyunTokenQuotaItem, 0, len(quotaCandidates))
 
-		var usedSuccessCount int64
-		usedQuery := global.GVA_DB.Model(&client.TryonTask{})
-		switch modelUsage {
-		case "refiner":
-			usedQuery = usedQuery.Where("enable_refiner = ? AND refiner_status = ?", true, tryonRefinerStatusSuccess).
-				Where("refiner_model_key = ? OR ((refiner_model_key = '' OR refiner_model_key IS NULL) AND provider = ?)", key, key)
-		default:
-			usedQuery = usedQuery.Where("provider = ? AND status = ?", key, tryonTaskStatusSuccess)
-		}
-		err = usedQuery.Count(&usedSuccessCount).Error
-		if err != nil {
-			return nil, err
-		}
+		usedSuccessCount := int64(0)
+		remainingEstimate := int64(0)
+		freeQuotaTotal := resolveDefaultModelQuotaTotal(item, modelUsage)
+		tokenExhaustedCount := 0
 
-		remainingEstimate := int64(freeQuotaTotal) - usedSuccessCount
-		if remainingEstimate < 0 {
-			remainingEstimate = 0
+		if len(quotaCandidates) > 0 {
+			fingerprints := make([]string, 0, len(quotaCandidates))
+			for _, candidate := range quotaCandidates {
+				if strings.TrimSpace(candidate.Fingerprint) != "" {
+					fingerprints = append(fingerprints, candidate.Fingerprint)
+				}
+			}
+
+			usedCountByFingerprint, queryErr := queryModelTokenUsedSuccessCount(key, modelUsage, fingerprints)
+			if queryErr != nil {
+				return nil, queryErr
+			}
+
+			freeQuotaTotal = 0
+			for _, candidate := range quotaCandidates {
+				usedCount := usedCountByFingerprint[candidate.Fingerprint]
+				remaining := int64(candidate.QuotaTotal) - usedCount
+				if remaining < 0 {
+					remaining = 0
+				}
+
+				if strings.TrimSpace(candidate.Fingerprint) != "" {
+					if remaining <= 0 {
+						markTokenQuotaExhausted(key, modelUsage, candidate.Fingerprint)
+					} else {
+						clearTokenQuotaExhausted(key, modelUsage, candidate.Fingerprint)
+					}
+				}
+
+				if remaining <= 0 {
+					tokenExhaustedCount++
+				}
+
+				freeQuotaTotal += candidate.QuotaTotal
+				usedSuccessCount += usedCount
+				remainingEstimate += remaining
+
+				tokenQuotaList = append(tokenQuotaList, AliyunTokenQuotaItem{
+					TokenMasked:           maskTokenForDisplay(candidate.Token),
+					TokenFingerprint:      candidate.Fingerprint,
+					TokenFingerprintShort: shortTokenFingerprint(candidate.Fingerprint),
+					FreeQuotaTotal:        candidate.QuotaTotal,
+					UsedSuccessCount:      usedCount,
+					RemainingEstimate:     remaining,
+					Exhausted:             remaining <= 0,
+				})
+			}
+		} else {
+			err = global.GVA_DB.Model(&client.ModelCallLog{}).
+				Where("status = ? AND COALESCE(NULLIF(TRIM(model_key), ''), '') = ? AND COALESCE(NULLIF(TRIM(model_usage), ''), 'tryon') = ?", tryonTaskStatusSuccess, key, modelUsage).
+				Count(&usedSuccessCount).Error
+			if err != nil {
+				return nil, err
+			}
+
+			remainingEstimate = int64(freeQuotaTotal) - usedSuccessCount
+			if remainingEstimate < 0 {
+				remainingEstimate = 0
+			}
 		}
 
 		list = append(list, AliyunTryonQuotaItem{
@@ -172,24 +245,45 @@ func (s *SysConfigService) GetAliyunTryonQuotaEstimate(modelKey string) (list []
 			FreeQuotaTotal:           freeQuotaTotal,
 			UsedSuccessCount:         usedSuccessCount,
 			RemainingEstimate:        remainingEstimate,
+			TokenQuotaList:           tokenQuotaList,
+			TokenConfigCount:         len(tokenQuotaList),
+			TokenExhaustedCount:      tokenExhaustedCount,
 			RefinerEnabled:           modelUsage == "refiner",
 			RefinerModel:             "",
 			RefinerFreeQuotaTotal:    0,
 			RefinerUsedSuccessCount:  0,
 			RefinerRemainingEstimate: 0,
 			LastRefreshedAt:          nowText,
-			EstimateDescription:      "本地估算值（按模型用途分别统计成功任务数），官方免费额度请以百炼控制台为准",
+			EstimateDescription:      "本地估算值（按 token 指纹统计成功调用并从各 token 原始额度扣减），官方免费额度请以百炼控制台为准",
 		})
 	}
 
 	return list, nil
 }
 
+func resolveAliyunModelQuotaTokenCandidates(item *tryonModelConfig, modelUsage string) []string {
+	if item == nil {
+		return nil
+	}
+
+	modelUsage = normalizeTryonModelUsageValue(modelUsage)
+	switch modelUsage {
+	case "refiner":
+		return item.refinerAuthTokenCandidates(strings.TrimSpace(item.authToken()))
+	case "beautify":
+		candidates := make([]string, 0, 4)
+		candidates = appendUniqueTokenCandidate(candidates, item.BeautifyToken)
+		for _, token := range item.authTokenCandidates() {
+			candidates = appendUniqueTokenCandidate(candidates, token)
+		}
+		return candidates
+	default:
+		return item.authTokenCandidates()
+	}
+}
+
 func isAliyunQuotaSupportedModel(item *tryonModelConfig) bool {
 	if item == nil {
-		return false
-	}
-	if !item.isTryonModelUsage() && !item.isRefinerModelUsage() {
 		return false
 	}
 	provider := strings.ToLower(strings.TrimSpace(item.Provider))
@@ -200,6 +294,18 @@ func isAliyunQuotaSupportedModel(item *tryonModelConfig) bool {
 	if strings.HasPrefix(model, "aitryon") {
 		return true
 	}
+	if strings.Contains(model, "retouch") || strings.Contains(model, "facebody") {
+		return true
+	}
 	key := strings.ToLower(strings.TrimSpace(item.Key))
-	return strings.Contains(key, "aliyun") || strings.Contains(key, "aitryon")
+	if strings.Contains(key, "aliyun") || strings.Contains(key, "aitryon") {
+		return true
+	}
+
+	endpoint := strings.ToLower(strings.TrimSpace(item.endpointURL()))
+	if strings.Contains(endpoint, "dashscope.aliyuncs.com") || strings.Contains(endpoint, "facebody") {
+		return true
+	}
+
+	return false
 }

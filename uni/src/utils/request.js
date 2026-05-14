@@ -211,7 +211,7 @@ if (process.env.NODE_ENV === 'development') {
 } else {
     // 生产环境：直接指向你的公网后端域名
     // 注意：由于你之前配置的 Nginx 已经处理了转发，这里不需要加端口号
-    baseUrl = 'https://back.mnmovie.icu'
+    baseUrl = 'https://clothapi.235235.vip'
 }
 
 export const request = ({url, data, header, method, params}) => {

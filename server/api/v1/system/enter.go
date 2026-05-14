@@ -4,6 +4,7 @@ import "github.com/flipped-aurora/gin-vue-admin/server/service"
 
 type ApiGroup struct {
 	DBApi
+	DBInspectorApi
 	JwtApi
 	BaseApi
 	SystemApi
@@ -55,4 +56,5 @@ var (
 	loginLogService         = service.ServiceGroupApp.SystemServiceGroup.LoginLogService
 	apiTokenService         = service.ServiceGroupApp.SystemServiceGroup.ApiTokenService
 	skillsService           = service.ServiceGroupApp.SystemServiceGroup.SkillsService
+	dbInspectorService      = service.ServiceGroupApp.SystemServiceGroup.DBInspectorService
 )

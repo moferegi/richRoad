@@ -399,7 +399,7 @@ const filteredConversations = computed(() => {
 function buildWsUrl(path) {
   const baseApi = import.meta.env.VITE_BASE_API || ''
   if (/^https?:\/\//.test(baseApi)) {
-    // 生产：VITE_BASE_API 是绝对 URL，如 https://back.mnmovie.icu
+    // 生产：VITE_BASE_API 是绝对 URL，如 https://clothapi.235235.vip
     return baseApi.replace(/^http/, 'ws') + path
   }
   // 开发：VITE_BASE_API 是相对路径，如 /api，通过 vite proxy 转发

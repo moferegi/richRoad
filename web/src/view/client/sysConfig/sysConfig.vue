@@ -171,6 +171,7 @@
         <el-table-column prop="modelKey" label="模型key" min-width="170" show-overflow-tooltip />
         <el-table-column prop="modelUsage" label="用途" width="90" />
         <el-table-column prop="provider" label="provider" width="110" show-overflow-tooltip />
+        <el-table-column prop="tokenFingerprint" label="token指纹" min-width="150" show-overflow-tooltip />
         <el-table-column label="耗时" width="90">
           <template #default="scope">
             {{ Number(scope.row.durationMs || 0) }}ms
@@ -286,8 +287,18 @@
                           {{ formatQuotaRefreshTime(getAliyunQuotaItem(model).lastRefreshedAt) }}
                         </span>
                       </div>
+                      <div class="tryon-model-token-quota-list" v-if="getAliyunQuotaItem(model)?.tokenQuotaList?.length">
+                        <div class="tryon-model-token-quota-item" v-for="tokenItem in getAliyunQuotaItem(model).tokenQuotaList" :key="tokenItem.tokenFingerprint || tokenItem.tokenMasked">
+                          <span class="tryon-model-token-label">{{ tokenItem.tokenMasked || 'token' }} ({{ tokenItem.tokenFingerprintShort || '-' }})</span>
+                          <el-tag size="small" :type="tokenItem.exhausted ? 'danger' : 'success'">
+                            剩余 {{ tokenItem.remainingEstimate }} / {{ tokenItem.freeQuotaTotal }}
+                          </el-tag>
+                          <span class="tryon-model-summary-text">已用 {{ tokenItem.usedSuccessCount }}</span>
+                        </div>
+                      </div>
                       <div class="tryon-model-quota-tip">
-                        本地估算值（按当前系统成功任务数统计），官方免费额度请以百炼控制台为准
+                        本地估算值（按 token 指纹统计成功调用并扣减原始额度），官方免费额度请以百炼控制台为准；
+                        可在此处查看每个 token 的已用/剩余额度，也可在页面上方“模型调用日志”按 token 指纹追踪明细。
                       </div>
                       <div class="tryon-model-quota-error" v-if="getAliyunQuotaError(model)">
                         {{ getAliyunQuotaError(model) }}
@@ -364,6 +375,36 @@
                           placeholder="每行一个备用 token；主 token 失效或额度不足时自动切换"
                         />
                         <div class="tryon-model-hint">按顺序回退，直到找到可用 token；全部不可用时才返回失败。</div>
+                      </div>
+                      <div class="tryon-model-field full">
+                        <span class="tryon-model-label">每 token 原始额度 tokenQuotas</span>
+                        <div class="tryon-model-token-quota-editor">
+                          <div
+                            class="tryon-model-token-quota-edit-row"
+                            v-for="tokenRow in getTokenQuotaRows(model)"
+                            :key="`quota-${model.__uid}-${tokenRow.token}`"
+                          >
+                            <el-input
+                              class="tryon-model-token-input"
+                              :model-value="tokenRow.token"
+                              type="password"
+                              show-password
+                              readonly
+                              placeholder="token"
+                            />
+                            <el-input-number
+                              :model-value="tokenRow.freeQuotaTotal"
+                              :min="0"
+                              :step="1"
+                              controls-position="right"
+                              @change="updateTokenQuotaValue(model, tokenRow.token, $event)"
+                            />
+                          </div>
+                          <div v-if="!hasTokenQuotaRows(model)" class="tryon-model-hint">
+                            请先填写“模型 token”或“备用 token 列表”，这里会自动生成一对一额度输入。
+                          </div>
+                        </div>
+                        <div class="tryon-model-hint">按 token 值绑定额度，调换 token 顺序不会影响历史已用统计。</div>
                       </div>
 
                       <div class="tryon-model-subtitle" v-if="isTryonUsageModel(model)">Gradio / HuggingFace Space 参数</div>
@@ -782,6 +823,8 @@
         <el-descriptions-item label="阶段">{{ modelLogDetail.callStage || '-' }}</el-descriptions-item>
         <el-descriptions-item label="模型">{{ `${modelLogDetail.modelKey || '-'} (${modelLogDetail.modelUsage || '-'})` }}</el-descriptions-item>
         <el-descriptions-item label="Provider">{{ modelLogDetail.provider || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="token指纹">{{ modelLogDetail.tokenFingerprint || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="token槽位">{{ modelLogDetail.tokenSlot || '-' }}</el-descriptions-item>
         <el-descriptions-item label="调用地址" :span="2">{{ modelLogDetail.endpointURL || '-' }}</el-descriptions-item>
         <el-descriptions-item label="查询地址" :span="2">{{ modelLogDetail.queryURL || '-' }}</el-descriptions-item>
         <el-descriptions-item label="输入图" :span="2">{{ modelLogDetail.sourceImage || '-' }}</el-descriptions-item>
@@ -1123,6 +1166,122 @@ const joinTokenBackups = (value) => {
   return normalizeTokenBackups(value).join('\n')
 }
 
+const splitTokenQuotaInput = (value) => {
+  return String(value || '')
+    .split(/\r?\n/g)
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+const normalizeTokenQuotas = (value) => {
+  const result = []
+  const quotaByToken = new Map()
+
+  const appendQuota = (token, freeQuotaTotal) => {
+    const normalizedToken = String(token || '').trim()
+    if (!normalizedToken) {
+      return
+    }
+    const normalizedQuota = Math.max(0, toInt(freeQuotaTotal, 0))
+    if (quotaByToken.has(normalizedToken)) {
+      quotaByToken.set(normalizedToken, normalizedQuota)
+      return
+    }
+    quotaByToken.set(normalizedToken, normalizedQuota)
+    result.push(normalizedToken)
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => {
+      if (!item || typeof item !== 'object') {
+        return
+      }
+      appendQuota(item.token, item.freeQuotaTotal)
+    })
+  } else {
+    splitTokenQuotaInput(value).forEach((line) => {
+      const parts = line.split('|')
+      const token = String(parts[0] || '').trim()
+      const quota = parts.length > 1 ? parts.slice(1).join('|') : '0'
+      appendQuota(token, quota)
+    })
+  }
+
+  return result.map(token => ({
+    token,
+    freeQuotaTotal: quotaByToken.get(token) || 0,
+  }))
+}
+
+const joinTokenQuotas = (value) => {
+  return normalizeTokenQuotas(value)
+    .map(item => `${item.token}|${item.freeQuotaTotal}`)
+    .join('\n')
+}
+
+const collectConfiguredTokens = (model = {}) => {
+  const uniqueTokens = []
+  const tokenSet = new Set()
+  const appendToken = (value) => {
+    const normalized = String(value || '').trim()
+    if (!normalized || tokenSet.has(normalized)) {
+      return
+    }
+    tokenSet.add(normalized)
+    uniqueTokens.push(normalized)
+  }
+
+  appendToken(model.token)
+  appendToken(model.providerToken)
+  appendToken(model.refinerToken)
+  appendToken(model.beautifyToken)
+  normalizeTokenBackups(model.tokenBackupText || model.tokenBackups || model.backupTokens).forEach(appendToken)
+  return uniqueTokens
+}
+
+const getTokenQuotaRows = (model = {}) => {
+  const configuredTokens = collectConfiguredTokens(model)
+  const defaultQuota = Math.max(0, toInt(model.freeQuotaTotal, 0))
+  const quotaMap = new Map(
+    normalizeTokenQuotas(model.tokenQuotaText || model.tokenQuotas)
+      .map(item => [item.token, Math.max(0, toInt(item.freeQuotaTotal, 0))])
+  )
+
+  return configuredTokens.map(token => ({
+    token,
+    freeQuotaTotal: quotaMap.has(token) ? quotaMap.get(token) : defaultQuota,
+  }))
+}
+
+const hasTokenQuotaRows = (model = {}) => getTokenQuotaRows(model).length > 0
+
+const updateTokenQuotaValue = (model = {}, token = '', value = 0) => {
+  if (!model || typeof model !== 'object') {
+    return
+  }
+  const normalizedToken = String(token || '').trim()
+  if (!normalizedToken) {
+    return
+  }
+
+  const rows = getTokenQuotaRows(model)
+  if (!rows.some(item => item.token === normalizedToken)) {
+    return
+  }
+
+  const normalizedValue = Math.max(0, toInt(value, 0))
+  const nextRows = rows.map((item) => {
+    if (item.token !== normalizedToken) {
+      return item
+    }
+    return {
+      ...item,
+      freeQuotaTotal: normalizedValue,
+    }
+  })
+  model.tokenQuotaText = joinTokenQuotas(nextRows)
+}
+
 const normalizeGender = (value, fallback = 'woman') => {
   const text = String(value || '').trim().toLowerCase()
   if (text === 'woman' || text === 'man') {
@@ -1230,7 +1389,7 @@ const parsingModelKeyOptions = computed(() => {
 })
 
 const isAliyunModelForQuota = (model = {}) => {
-  if (!isTryonUsageModel(model) && !isRefinerUsageModel(model)) {
+  if (!isTryonUsageModel(model) && !isRefinerUsageModel(model) && !isParsingUsageModel(model)) {
     return false
   }
   const key = String(model.key || '').trim().toLowerCase()
@@ -1677,6 +1836,7 @@ const createDefaultTryonModel = () => ({
   taskQueryUrl: '',
   token: '',
   tokenBackupText: '',
+  tokenQuotaText: '',
 
   apiName: '/tryon',
   garmentDes: 'clothing item',
@@ -1718,6 +1878,7 @@ const normalizeTryonModel = (item = {}, index = 0) => {
   const defaultRefinerKey = inferredSupportsRefiner ? 'aliyun_aitryon_refiner' : ''
   const defaultParsingKey = inferredAutoAliyunParsing ? 'aliyun_aitryon_parsing' : ''
   const tokenBackups = normalizeTokenBackups(item.tokenBackups || item.backupTokens)
+  const tokenQuotas = normalizeTokenQuotas(item.tokenQuotas || item.tokenQuotaText)
 
   const normalized = {
     __uid: createTryonModelUid(),
@@ -1735,6 +1896,7 @@ const normalizeTryonModel = (item = {}, index = 0) => {
     taskQueryUrl: String(item.taskQueryUrl || ''),
     token: String(item.token || item.providerToken || ''),
     tokenBackupText: joinTokenBackups(tokenBackups),
+    tokenQuotaText: joinTokenQuotas(tokenQuotas),
 
     parsingModelKey: '',
     refinerModelKey: '',
@@ -1830,6 +1992,7 @@ const buildTryonModelsPayload = () => {
   return tryonModels.value.map((item) => {
     const modelUsage = normalizeModelUsage(item.modelUsage, 'tryon', item)
     const tokenBackups = normalizeTokenBackups(item.tokenBackupText || item.tokenBackups || item.backupTokens)
+    const tokenQuotas = getTokenQuotaRows(item)
     const payload = {
       key: String(item.key || '').trim(),
       modelUsage,
@@ -1845,6 +2008,7 @@ const buildTryonModelsPayload = () => {
       taskQueryUrl: String(item.taskQueryUrl || '').trim(),
       token: String(item.token || '').trim(),
       tokenBackups,
+      tokenQuotas,
     }
 
     if (modelUsage === 'tryon') {
@@ -1945,6 +2109,22 @@ const validateTryonModels = () => {
     if (!Array.isArray(item.scenes) || item.scenes.length === 0) {
       ElMessage.warning(`第 ${modelIndex} 个模型至少要选择一个场景`)
       return false
+    }
+    const configuredTokens = [
+      String(item.token || '').trim(),
+      String(item.providerToken || '').trim(),
+      String(item.refinerToken || '').trim(),
+      String(item.beautifyToken || '').trim(),
+      ...normalizeTokenBackups(item.tokenBackupText || item.tokenBackups || item.backupTokens)
+    ]
+      .filter(Boolean)
+    const configuredTokenSet = new Set(configuredTokens)
+    const tokenQuotas = getTokenQuotaRows(item)
+    for (const quotaItem of tokenQuotas) {
+      if (!configuredTokenSet.has(quotaItem.token)) {
+        ElMessage.warning(`第 ${modelIndex} 个模型的 tokenQuotas 存在未配置在主/备用列表中的 token: ${quotaItem.token}`)
+        return false
+      }
     }
     if (modelUsage === 'tryon') {
       const refinerModelKey = String(item.refinerModelKey || '').trim()
@@ -2378,6 +2558,43 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
+.tryon-model-token-quota-list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tryon-model-token-quota-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tryon-model-token-label {
+  color: #606266;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.tryon-model-token-input :deep(.el-input__inner) {
+  font-family: monospace;
+}
+
+.tryon-model-token-quota-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tryon-model-token-quota-edit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 8px;
+  align-items: center;
+}
+
 .tryon-model-quota-tip {
   margin-top: 6px;
   color: #909399;
@@ -2491,6 +2708,10 @@ onMounted(() => {
 
 @media (max-width: 900px) {
   .tryon-model-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tryon-model-token-quota-edit-row {
     grid-template-columns: 1fr;
   }
 

@@ -349,9 +349,9 @@ func (s *SysConfigApi) GetAliyunTryonQuotaEstimate(c *gin.Context) {
 	response.OkWithDetailed(gin.H{
 		"list": list,
 		"meta": gin.H{
-			"source":               "local_success_count_estimate",
+			"source":               "local_token_fingerprint_estimate",
 			"officialApiAvailable": false,
-			"officialHint":         "阿里云百炼当前未提供可由 API-Key 直接查询免费额度余量的公开HTTP接口，请以控制台数据为准。",
+			"officialHint":         "阿里云百炼当前未提供可由 API-Key 直接查询免费额度余量的公开HTTP接口，请以控制台数据为准。已支持按 token 指纹统计本地已用额度。",
 		},
 	}, i18n.T(c, "getSuccess"), c)
 }

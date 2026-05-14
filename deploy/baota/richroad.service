@@ -1,0 +1,15 @@
+[Unit]
+Description=RichRoad Gin Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/www/wwwroot/richRoad/server
+ExecStart=/www/wwwroot/richRoad/server/richroad-server
+Restart=always
+RestartSec=5
+User=root
+Environment=GIN_MODE=release
+
+[Install]
+WantedBy=multi-user.target

@@ -117,6 +117,10 @@ func initNewModulesApis(db *gorm.DB) {
 		{ApiGroup: "系统配置", Method: "GET", Path: "/sysConfig/getAliyunTryonQuotaEstimate", Description: "获取阿里试衣模型额度估算"},
 		// 访客统计扩展
 		{ApiGroup: "访客统计", Method: "GET", Path: "/visitor/getKefuGuideStats", Description: "获取客服引导漏斗统计"},
+		// 数据库巡检
+		{ApiGroup: "数据库巡检", Method: "GET", Path: "/dbInspector/getOverview", Description: "获取数据库巡检总览"},
+		{ApiGroup: "数据库巡检", Method: "POST", Path: "/dbInspector/autoFix", Description: "自动修复数据库或Redis连接"},
+		{ApiGroup: "数据库巡检", Method: "POST", Path: "/dbInspector/deleteRecordsByRange", Description: "按日期范围真删除记录并联动清理文件"},
 	}
 	for _, api := range apis {
 		var count int64
@@ -137,6 +141,10 @@ func initNewModulesMenus(db *gorm.DB) {
 	// 查找"客户端"父菜单
 	var clientParent sysModel.SysBaseMenu
 	clientParentFound := db.Where("name = ?", "client").First(&clientParent).Error == nil
+
+	// 查找"系统工具"父菜单
+	var systemToolsParent sysModel.SysBaseMenu
+	systemToolsParentFound := db.Where("name = ?", "systemTools").First(&systemToolsParent).Error == nil
 
 	type menuDef struct {
 		name      string
@@ -174,6 +182,12 @@ func initNewModulesMenus(db *gorm.DB) {
 			menuDef{"tryonClothManage", "tryonClothManage", "view/client/tryonCloth/tryonCloth.vue", "我的衣橱管理", "goods", clientParent.ID, 19},
 			menuDef{"tryonPointRecord", "tryonPointRecord", "view/client/tryonPointRecord/tryonPointRecord.vue", "试衣币记录", "coin", clientParent.ID, 20},
 			menuDef{"tryonRechargeOrder", "tryonRechargeOrder", "view/client/tryonRechargeOrder/tryonRechargeOrder.vue", "试衣币充值订单", "wallet", clientParent.ID, 21},
+		)
+	}
+
+	if systemToolsParentFound {
+		menus = append(menus,
+			menuDef{"dbInspector", "dbInspector", "view/systemTools/dbInspector/index.vue", "数据库巡检与清理", "cpu", systemToolsParent.ID, 10},
 		)
 	}
 
@@ -309,6 +323,10 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/sysConfig/getUniPreferredPayConfig", "GET"},
 		// 访客统计扩展
 		{"/visitor/getKefuGuideStats", "GET"},
+		// 数据库巡检
+		{"/dbInspector/getOverview", "GET"},
+		{"/dbInspector/autoFix", "POST"},
+		{"/dbInspector/deleteRecordsByRange", "POST"},
 	}
 
 	for _, auth := range authorities {
@@ -331,6 +349,9 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/sysConfig/getSysConfigList", "GET"},
 		{"/sysConfig/getAliyunTryonQuotaEstimate", "GET"},
 		{"/sysConfig/updateSysConfig", "PUT"},
+		{"/dbInspector/getOverview", "GET"},
+		{"/dbInspector/autoFix", "POST"},
+		{"/dbInspector/deleteRecordsByRange", "POST"},
 		{"/clientUser/adjustTryonPoint", "POST"},
 		{"/tryonRechargeOrder/confirmTryonRechargeOrderPayment", "POST"},
 		{"/tryonRechargeOrder/findTryonRechargeOrder", "GET"},
