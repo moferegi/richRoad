@@ -736,6 +736,7 @@ export default {
   totalText: '合計',
   trackingNo: '追跡番号',
   tryOnAction: '試着',
+  tryOnThis: 'これを試着',
   tryOnShoesWithCost: '靴を試着してください ({cost} コイン)',
   tryonArea: '試着エリア',
   tryonBeautifyAction: 'スマート肌美化',

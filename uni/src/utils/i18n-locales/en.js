@@ -589,6 +589,7 @@ export default {
   clothesGenderMale: 'Men',
   unnamedGoods: 'Unnamed Item',
   tryOnAction: 'Try On',
+  tryOnThis: 'Try This On',
   buyAction: 'Buy',
   loadMoreAction: 'Load More',
   allLoadedText: 'All Loaded',

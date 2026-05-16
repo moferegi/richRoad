@@ -331,12 +331,27 @@ const maxDeductDisplay = computed(() => {
   return (Math.min(userPoints.value, max) / 100).toFixed(2)
 })
 
+const parseSpecItems = (payload) => {
+  if (Array.isArray(payload)) {
+    return payload
+  }
+  if (typeof payload === 'string' && payload.trim()) {
+    try {
+      const parsed = JSON.parse(payload)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 const formatSpecs = (specs, attrs) => {
-  const arr = [...(Array.isArray(specs) ? specs : []), ...(Array.isArray(attrs) ? attrs : [])]
+  const arr = [...parseSpecItems(specs), ...parseSpecItems(attrs)]
   if (!arr.length) return ''
   return arr.map(s => {
-    const label = $lt.value(s.labelI18n || s.nameI18n) || $lt.value(s.label || s.name) || s.label || s.name || ''
-    const value = $lt.value(s.valueI18n) || $lt.value(s.value) || s.value || ''
+    const label = localText(s.labelI18n || s.nameI18n || s.label || s.name, locale.value) || s.label || s.name || ''
+    const value = localText(s.valueI18n || s.value, locale.value) || s.value || ''
     return label ? `${label}: ${value}` : value
   }).join('  ')
 }

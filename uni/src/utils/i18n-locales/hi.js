@@ -568,6 +568,7 @@ export default {
   clothesGenderMale: 'पुरुष',
   unnamedGoods: 'बिना नाम का उत्पाद',
   tryOnAction: 'ट्राय करें',
+  tryOnThis: 'इसे ट्राई करें',
   buyAction: 'खरीदें',
   loadMoreAction: 'और लोड करें',
   allLoadedText: 'सभी लोड हो गए',

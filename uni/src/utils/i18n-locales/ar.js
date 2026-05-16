@@ -736,6 +736,7 @@ export default {
   totalText: 'الإجمالي',
   trackingNo: 'رقم التتبع.',
   tryOnAction: 'حاول',
+  tryOnThis: 'جرّب هذا',
   tryOnShoesWithCost: 'جرّب الأحذية ({cost} عملات معدنية)',
   tryonArea: 'منطقة التجربة',
   tryonBeautifyAction: 'تجميل البشرة الذكية',

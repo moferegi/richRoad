@@ -736,6 +736,7 @@ export default {
   totalText: '총',
   trackingNo: '추적 번호',
   tryOnAction: '입어보세요',
+  tryOnThis: '이거 입어보기',
   tryOnShoesWithCost: '신발을 신어보세요({cost} 동전)',
   tryonArea: '시착 장소',
   tryonBeautifyAction: '스마트 스킨 뷰티파이',

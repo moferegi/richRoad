@@ -51,6 +51,11 @@
 
     <!-- 底部按钮 -->
     <view class="nf-sku-footer">
+      <view
+        v-if="matchedSku && matchedSku.inventory > 0"
+        class="nf-sku-btn-tryon"
+        @tap="handleTryOn"
+      >{{ $t('tryOnThis') }}</view>
       <view class="nf-sku-btn-cart" @tap="handleAddCart">{{ $t('addToCart') }}</view>
       <view class="nf-sku-btn-buy" @tap="handleCheckout">{{ $t('goCheckout') }}</view>
     </view>
@@ -63,6 +68,7 @@ import { useUserStore } from '@/pinia/modules/user'
 import { addCart } from '@/api/cart.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { formatLocalizedPrice } from '@/utils/price-i18n.js'
+import { setSelectedClothes } from '@/utils/tryon.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import LazyImage from '@/components/lazy-image/lazy-image.vue'
@@ -80,6 +86,8 @@ const props = defineProps({
   selectedCoupon: { type: Object, default: () => ({}) }
 })
 
+const emit = defineEmits(['skuVisibleChange', 'matchedSkuChange'])
+
 const userStore = useUserStore()
 const token = userStore.token || ''
 
@@ -94,6 +102,10 @@ const showTip = (msg) => {
   tipMsg.value = msg
   if (tipTimer) clearTimeout(tipTimer)
   tipTimer = setTimeout(() => { tipMsg.value = '' }, 2500)
+}
+
+const emitMatchedSku = () => {
+  emit('matchedSkuChange', matchedSku.value || null)
 }
 
 // 辅助：判断 i18n 对象是否有实际内容
@@ -123,7 +135,12 @@ const getSpecVal = (spec) => {
 
 // 构建规格分组（使用 specs 即规格配置）
 const buildSpecGroups = () => {
-  if (!props.good.skus || props.good.skus.length === 0) return
+  if (!props.good.skus || props.good.skus.length === 0) {
+    specGroups.value = []
+    matchedSku.value = null
+    emitMatchedSku()
+    return
+  }
   const groupMap = {}
   const groupOrder = []
   props.good.skus.forEach(sku => {
@@ -196,6 +213,7 @@ const matchSku = () => {
   if (matchedSku.value && quantity.value > matchedSku.value.inventory) {
     quantity.value = Math.max(1, matchedSku.value.inventory)
   }
+  emitMatchedSku()
 }
 
 // 更新不可选状态（按 label 匹配）
@@ -311,7 +329,24 @@ const handleCheckout = () => {
   uni.navigateTo({ url: `/pages/orderInfo/orderInfo?${query}` })
 }
 
-const emit = defineEmits(['skuVisibleChange'])
+const pickSkuImage = (sku, keys = []) => {
+  for (const key of keys) {
+    const value = String(sku?.[key] || '').trim()
+    if (value) {
+      return value
+    }
+  }
+  return ''
+}
+
+const handleTryOn = () => {
+  if (!validateSelection()) return
+  const upperImage = pickSkuImage(matchedSku.value, ['upperImage', 'upper_image', 'tryonUpperImage'])
+  const lowerImage = pickSkuImage(matchedSku.value, ['lowerImage', 'lower_image', 'tryonLowerImage'])
+  closeSku()
+  setSelectedClothes({ upperImage, lowerImage })
+  uni.switchTab({ url: '/pages/tabBar/index' })
+}
 
 const showSku = () => {
   quantity.value = 1
@@ -402,9 +437,13 @@ defineExpose({ showSku, closeSku })
   display: flex; padding: 20rpx 32rpx; gap: 20rpx;
   border-top: 1rpx solid rgba(15, 23, 42, 0.08);
 }
-.nf-sku-btn-cart, .nf-sku-btn-buy {
+.nf-sku-btn-cart, .nf-sku-btn-buy, .nf-sku-btn-tryon {
   flex: 1; height: 88rpx; display: flex; align-items: center; justify-content: center;
   border-radius: 12rpx; font-size: 30rpx; font-weight: 700;
+}
+.nf-sku-btn-tryon {
+  background: linear-gradient(90deg, #0ea5e9, #2563eb);
+  color: #fff;
 }
 .nf-sku-btn-cart {
   background: rgba(219, 234, 254, 0.9);

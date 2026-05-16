@@ -155,7 +155,12 @@
 
             <!-- 弹窗图片 -->
             <el-form-item label="弹窗图片(上传):" prop="image">
-              <SelectImage v-model="formData.image" file-type="image" />
+              <SelectImage
+                v-model="formData.image"
+                file-type="image"
+                :default-folder="POPUP_UPLOAD_FOLDER"
+                :fixed-upload-folder="true"
+              />
             </el-form-item>
 
             <el-form-item label="外部图片路径(优先于上传):" prop="externalPath">
@@ -172,7 +177,10 @@
               >
                 <template #editor="{ lang }">
                   <div class="h-[460px]">
-                    <RichEdit v-model="contentI18n[lang.code]" />
+                    <RichEdit
+                      v-model="contentI18n[lang.code]"
+                      :upload-folder="POPUP_DETAIL_UPLOAD_FOLDER"
+                    />
                   </div>
                 </template>
               </MultiLangEditor>
@@ -267,6 +275,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive, onMounted, watch } from 'vue'
 
 defineOptions({ name: 'Popup' })
+
+const POPUP_UPLOAD_FOLDER = 'cloth-on/web-else/popup'
+const POPUP_DETAIL_UPLOAD_FOLDER = 'cloth-on/web-else/popup/detail'
 
 const btnLoading = ref(false)
 const clientTypeMap = { uni: 'uni端', web: 'web端', all: '全部' }

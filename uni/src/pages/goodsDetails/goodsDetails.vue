@@ -15,7 +15,7 @@
     </view>
 
     <!-- 商品轮播图 -->
-    <goods-swiper :list="data.banner"></goods-swiper>
+    <goods-swiper class="nf-top-swiper" :list="data.banner"></goods-swiper>
 
     <!-- 商品基本信息 -->
     <view class="nf-product-info">
@@ -276,20 +276,7 @@ const parsedAttrs = computed(() => {
 
 // 解析商品详情（多语言JSON字段 → HTML字符串）
 const localDetail = computed(() => {
-  if (!data.value.detail) return ''
-  const raw = data.value.detail
-  if (typeof raw === 'object') {
-    const locale = uni.getStorageSync('app-lang') || 'zh'
-    return raw[locale] || raw['zh'] || Object.values(raw)[0] || ''
-  }
-  if (typeof raw === 'string' && raw.charAt(0) === '{') {
-    try {
-      const obj = JSON.parse(raw)
-      const locale = uni.getStorageSync('app-lang') || 'zh'
-      return obj[locale] || obj['zh'] || Object.values(obj)[0] || raw
-    } catch { return raw }
-  }
-  return raw
+  return localText(data.value.detail, locale.value) || ''
 })
 
 const formatDate = (d) => {
@@ -479,9 +466,15 @@ page { background-color: #f4f7fb; }
   --nf-text-weak: rgba(15, 23, 42, 0.45);
   min-height: 100vh;
   background: #f4f7fb;
-  padding-bottom: 120rpx;
+  padding-bottom: calc(220rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(220rpx + env(safe-area-inset-bottom));
 }
 .nf-goods-detail.lock-scroll { height: 100vh; overflow: hidden; }
+
+.nf-top-swiper {
+  display: block;
+  margin-top: calc(var(--status-bar-height, 0px) + 88rpx);
+}
 
 /* 导航栏 */
 .nf-navbar {

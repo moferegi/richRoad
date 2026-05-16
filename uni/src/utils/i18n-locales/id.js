@@ -568,6 +568,7 @@ export default {
   clothesGenderMale: 'Pria',
   unnamedGoods: 'Produk tanpa nama',
   tryOnAction: 'Coba',
+  tryOnThis: 'Coba yang ini',
   buyAction: 'Beli',
   loadMoreAction: 'Muat lebih banyak',
   allLoadedText: 'Semua sudah dimuat',

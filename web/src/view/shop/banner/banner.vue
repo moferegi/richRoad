@@ -132,6 +132,8 @@
                 <SelectImage
                  v-model="formData.src"
                  file-type="image"
+               :default-folder="BANNER_UPLOAD_FOLDER"
+               :fixed-upload-folder="true"
                 />
             </el-form-item>
             <el-form-item label="外部图片路径(优先于上传图片):" prop="externalPath">
@@ -254,6 +256,8 @@ import { ref, reactive, onMounted } from 'vue'
 defineOptions({
     name: 'Banner'
 })
+
+const BANNER_UPLOAD_FOLDER = 'cloth-on/web-else/sy-lunbotu'
 
 // === i18n 多语言支持 ===
 const enabledLangs = ref([])

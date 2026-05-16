@@ -76,7 +76,7 @@ const router = useRouter()
 
 // 提交按钮loading
 const btnLoading = ref(false)
-const KEFU_UPLOAD_FOLDER = 'Moffuu/cloth-on/uni-set'
+const KEFU_UPLOAD_FOLDER = 'cloth-on/web-else/uni-kefu'
 
 const type = ref('')
 const formData = ref({

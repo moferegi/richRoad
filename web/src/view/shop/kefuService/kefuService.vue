@@ -229,7 +229,7 @@ defineOptions({
 // 提交按钮loading
 const btnLoading = ref(false)
 const appStore = useAppStore()
-const KEFU_UPLOAD_FOLDER = 'Moffuu/cloth-on/uni-set'
+const KEFU_UPLOAD_FOLDER = 'cloth-on/web-else/uni-kefu'
 
 // 控制更多查询条件显示/隐藏状态
 const showAllQuery = ref(false)

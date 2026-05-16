@@ -736,6 +736,7 @@ export default {
   totalText: 'Jumlah',
   trackingNo: 'Nombor Penjejakan',
   tryOnAction: 'Cuba Hidup',
+  tryOnThis: 'Cuba yang ini',
   tryOnShoesWithCost: 'Cuba kasut ({cost} syiling)',
   tryonArea: 'Kawasan Cubaan',
   tryonBeautifyAction: 'Mencantikkan Kulit Pintar',

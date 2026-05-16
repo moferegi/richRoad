@@ -243,7 +243,11 @@
           />
         </el-form-item>
         <el-form-item label="头像" label-width="80px">
-          <SelectImage v-model="userInfo.headerImg" />
+          <SelectImage
+            v-model="userInfo.headerImg"
+            :default-folder="ADMIN_USER_UPLOAD_FOLDER"
+            :fixed-upload-folder="true"
+          />
         </el-form-item>
       </el-form>
     </el-drawer>
@@ -271,6 +275,8 @@
   defineOptions({
     name: 'User'
   })
+
+  const ADMIN_USER_UPLOAD_FOLDER = 'cloth-on/web-else/admin-user'
 
   const appStore = useAppStore()
 

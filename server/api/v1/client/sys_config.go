@@ -608,15 +608,14 @@ func appendLegacyPaymentMethod(methods []gin.H, key string, manual bool, sortVal
 	name := defaultPaymentMethodName(key)
 	label := pickMethodLabel(name, key)
 	methods = append(methods, gin.H{
-		"key":          key,
-		"label":        label,
-		"name":         name,
-		"manual":       manual,
-		"enabled":      true,
-		"sort":         sortValue,
-		"image":        "",
-		"externalPath": "",
-		"copyText":     map[string]string{},
+		"key":      key,
+		"label":    label,
+		"name":     name,
+		"manual":   manual,
+		"enabled":  true,
+		"sort":     sortValue,
+		"image":    "",
+		"copyText": map[string]string{},
 	})
 	return methods
 }
@@ -636,34 +635,31 @@ func defaultUniPreferredPayMethods() []gin.H {
 	copyText := defaultUniPreferredPayMethodCopyText()
 	methods := []gin.H{
 		{
-			"key":          "wechat",
-			"label":        "微信支付",
-			"name":         defaultPaymentMethodName("wechat"),
-			"enabled":      true,
-			"sort":         10,
-			"image":        "cloth-on/up/wechat.png",
-			"externalPath": "",
-			"copyText":     copyText,
+			"key":      "wechat",
+			"label":    "微信支付",
+			"name":     defaultPaymentMethodName("wechat"),
+			"enabled":  true,
+			"sort":     10,
+			"image":    "cloth-on/web-else/hope-pay/wechat.png",
+			"copyText": copyText,
 		},
 		{
-			"key":          "alipay",
-			"label":        "支付宝",
-			"name":         defaultPaymentMethodName("alipay"),
-			"enabled":      true,
-			"sort":         20,
-			"image":        "cloth-on/up/alipay.png",
-			"externalPath": "",
-			"copyText":     copyText,
+			"key":      "alipay",
+			"label":    "支付宝",
+			"name":     defaultPaymentMethodName("alipay"),
+			"enabled":  true,
+			"sort":     20,
+			"image":    "cloth-on/web-else/hope-pay/alipay.png",
+			"copyText": copyText,
 		},
 		{
-			"key":          "bank_card_cn",
-			"label":        "银行卡(国内)",
-			"name":         defaultPaymentMethodName("bank_card_cn"),
-			"enabled":      true,
-			"sort":         30,
-			"image":        "cloth-on/up/bank-card-cn.png",
-			"externalPath": "",
-			"copyText":     copyText,
+			"key":      "bank_card_cn",
+			"label":    "银行卡(国内)",
+			"name":     defaultPaymentMethodName("bank_card_cn"),
+			"enabled":  true,
+			"sort":     30,
+			"image":    "cloth-on/web-else/hope-pay/bank-card-cn.png",
+			"copyText": copyText,
 		},
 	}
 	return methods
@@ -704,15 +700,19 @@ func parseUniPreferredPayMethods(raw string) []gin.H {
 			copyText = defaultUniPreferredPayMethodCopyText()
 		}
 
+		imagePath := strings.TrimSpace(extractStringValue(item["image"]))
+		if imagePath == "" {
+			imagePath = strings.TrimSpace(extractStringValue(item["externalPath"]))
+		}
+
 		methods = append(methods, gin.H{
-			"key":          key,
-			"label":        label,
-			"name":         name,
-			"enabled":      true,
-			"sort":         extractIntValue(item["sort"], 999),
-			"image":        strings.TrimSpace(extractStringValue(item["image"])),
-			"externalPath": strings.TrimSpace(extractStringValue(item["externalPath"])),
-			"copyText":     copyText,
+			"key":      key,
+			"label":    label,
+			"name":     name,
+			"enabled":  true,
+			"sort":     extractIntValue(item["sort"], 999),
+			"image":    imagePath,
+			"copyText": copyText,
 		})
 	}
 
@@ -942,16 +942,20 @@ func (s *SysConfigApi) GetPaymentConfig(c *gin.Context) {
 					label = pickMethodLabel(name, key)
 				}
 
+				imagePath := strings.TrimSpace(extractStringValue(item["image"]))
+				if imagePath == "" {
+					imagePath = strings.TrimSpace(extractStringValue(item["externalPath"]))
+				}
+
 				methods = append(methods, gin.H{
-					"key":          key,
-					"label":        label,
-					"name":         name,
-					"manual":       manual,
-					"enabled":      true,
-					"sort":         extractIntValue(item["sort"], 999),
-					"image":        strings.TrimSpace(extractStringValue(item["image"])),
-					"externalPath": strings.TrimSpace(extractStringValue(item["externalPath"])),
-					"copyText":     extractI18nMap(item["copyText"]),
+					"key":      key,
+					"label":    label,
+					"name":     name,
+					"manual":   manual,
+					"enabled":  true,
+					"sort":     extractIntValue(item["sort"], 999),
+					"image":    imagePath,
+					"copyText": extractI18nMap(item["copyText"]),
 				})
 			}
 		}

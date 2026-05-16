@@ -268,11 +268,35 @@
           <SelectImage
             v-model="formData.picture"
             file-type="image"
+            :default-folder="SKU_UPLOAD_FOLDER"
+            :fixed-upload-folder="true"
           />
         </el-form-item>
         <el-form-item label="图片外链(优先于上传):" prop="externalPicturePath">
           <el-input v-model="formData.externalPicturePath" placeholder="相对路径如 /images/sku.jpg 自动拼接外部域名" clearable />
           <div v-if="extDomain" class="text-xs text-gray-400 mt-1">当前外部域名: {{ extDomain }}</div>
+        </el-form-item>
+        <el-form-item
+          label="上装图(上传):"
+          prop="upperImage"
+        >
+          <SelectImage
+            v-model="formData.upperImage"
+            file-type="image"
+            :default-folder="SKU_UPLOAD_FOLDER"
+            :fixed-upload-folder="true"
+          />
+        </el-form-item>
+        <el-form-item
+          label="下装图(上传):"
+          prop="lowerImage"
+        >
+          <SelectImage
+            v-model="formData.lowerImage"
+            file-type="image"
+            :default-folder="SKU_UPLOAD_FOLDER"
+            :fixed-upload-folder="true"
+          />
         </el-form-item>
         <el-form-item
           label="介绍(默认):"
@@ -544,6 +568,26 @@
             fit="cover"
           />
         </el-descriptions-item>
+        <el-descriptions-item label="上装图">
+          <el-image
+            v-if="formData.upperImage"
+            style="width: 50px; height: 50px"
+            :preview-src-list="ReturnArrImg(formData.upperImage)"
+            :src="getUrl(formData.upperImage)"
+            fit="cover"
+          />
+          <span v-else>-</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="下装图">
+          <el-image
+            v-if="formData.lowerImage"
+            style="width: 50px; height: 50px"
+            :preview-src-list="ReturnArrImg(formData.lowerImage)"
+            :src="getUrl(formData.lowerImage)"
+            fit="cover"
+          />
+          <span v-else>-</span>
+        </el-descriptions-item>
         <el-descriptions-item label="介绍">
           {{ formData.description }}
         </el-descriptions-item>
@@ -598,6 +642,8 @@ import { ref, reactive, onMounted } from 'vue'
 defineOptions({
   name: 'Sku'
 })
+
+const SKU_UPLOAD_FOLDER = 'cloth-on/web-cloth/sku'
 
 // === 外部链接域名 ===
 const extDomain = ref('')
@@ -691,7 +737,20 @@ const loadLangs = async () => {
 
 const parseI18nJson = (jsonStr) => {
   if (!jsonStr) return {}
-  try { return JSON.parse(jsonStr) } catch { return {} }
+  if (typeof jsonStr === 'object') {
+    return { ...jsonStr }
+  }
+  if (typeof jsonStr === 'string') {
+    try { return JSON.parse(jsonStr) } catch { return {} }
+  }
+  return {}
+}
+
+const pickI18nFallbackText = (payload, fallback = '') => {
+  if (payload && typeof payload === 'object') {
+    return String(payload.zh || payload.en || Object.values(payload)[0] || fallback || '')
+  }
+  return String(fallback || '')
 }
 
 const serializeI18nJson = (obj) => {
@@ -962,6 +1021,12 @@ const route = useRoute()
 
 const attrs = ref([])
 const specs = ref([])
+const goodPrefill = ref({
+  name: '',
+  description: '',
+  nameI18n: {},
+  descI18n: {},
+})
 
 const getAttr = async() => {
   const res = await findGood({ ID: Number(route.query.id) })
@@ -982,8 +1047,18 @@ const getAttr = async() => {
       })
       return arr
     }
-    attrs.value = parseGoodItems(res.data.regood.attrs)
-    specs.value = parseGoodItems(res.data.regood.specs)
+    const goodData = res.data.regood || {}
+    attrs.value = parseGoodItems(goodData.attrs)
+    specs.value = parseGoodItems(goodData.specs)
+
+    const parsedNameI18n = parseI18nJson(goodData.title)
+    const parsedDescI18n = parseI18nJson(goodData.description)
+    goodPrefill.value = {
+      name: pickI18nFallbackText(parsedNameI18n, goodData.title),
+      description: pickI18nFallbackText(parsedDescI18n, goodData.description),
+      nameI18n: parsedNameI18n,
+      descI18n: parsedDescI18n,
+    }
   }
 }
 getAttr()
@@ -992,6 +1067,8 @@ const formData = ref({
   name: '',
   picture: '',
   externalPicturePath: '',
+  upperImage: '',
+  lowerImage: '',
   description: '',
   price: 0,
   priceI18n: '',
@@ -1222,6 +1299,8 @@ const closeDetailShow = () => {
     name: '',
     picture: '',
     externalPicturePath: '',
+    upperImage: '',
+    lowerImage: '',
     description: '',
     price: 0,
     priceI18n: '',
@@ -1235,13 +1314,15 @@ const closeDetailShow = () => {
 // 打开弹窗
 const openDialog = () => {
   type.value = 'create'
-  nameI18n.value = {}
-  descI18n.value = {}
+  nameI18n.value = { ...(goodPrefill.value.nameI18n || {}) }
+  descI18n.value = { ...(goodPrefill.value.descI18n || {}) }
   priceI18n.value = {}
   priceRateRows.value = []
   priceAdjustPercent.value = 0
   exchangeRateSource.value = ''
   exchangeRateFetchedAt.value = ''
+  formData.value.name = String(goodPrefill.value.name || '')
+  formData.value.description = String(goodPrefill.value.description || '')
   formData.value.attrs = []
   formData.value.specs = []
   attrs.value.forEach(item => {
@@ -1293,7 +1374,10 @@ const closeDialog = () => {
   formData.value = {
     no: '',
     name: '',
+    picture: '',
     externalPicturePath: '',
+    upperImage: '',
+    lowerImage: '',
     description: '',
     price: 0,
     priceI18n: '',

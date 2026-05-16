@@ -202,6 +202,8 @@
           <SelectImage
               v-model="formData.icons"
               file-type="image"
+              :default-folder="CATEGORY_UPLOAD_FOLDER"
+              :fixed-upload-folder="true"
           />
         </el-form-item>
         <el-form-item label="外部图标路径(优先于上传图标):" prop="externalIconPath">
@@ -277,6 +279,8 @@ import {getUrl} from "@/utils/image";
 defineOptions({
   name: 'Category'
 })
+
+const CATEGORY_UPLOAD_FOLDER = 'cloth-on/web-else/fenlei'
 
 // === 多语言支持 ===
 const enabledLangs = ref([])

@@ -589,6 +589,7 @@ export default {
   clothesGenderMale: '男',
   unnamedGoods: '未命名商品',
   tryOnAction: '试衣',
+  tryOnThis: '试穿这个',
   buyAction: '购买',
   loadMoreAction: '点击加载更多',
   allLoadedText: '已全部加载',

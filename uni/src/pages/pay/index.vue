@@ -345,22 +345,32 @@ const normalizePreferredPayMethods = (methods) => {
       key: String(item.key || '').trim().toLowerCase(),
       label: getPaymentMethodLabel(String(item.key || '').trim().toLowerCase(), item.name, item.label),
       name: item.name || {},
-      image: String(item.image || '').trim(),
-      externalPath: String(item.externalPath || '').trim(),
+      image: String(item.image || item.externalPath || '').trim(),
       copyText: item.copyText || {}
     }))
     .filter(item => item.key && item.key !== 'qrcode' && item.key !== 'contact')
 }
 
+const parseSkuSpecItems = (payload) => {
+  if (Array.isArray(payload)) {
+    return payload
+  }
+  if (typeof payload === 'string' && payload.trim()) {
+    try {
+      const parsed = JSON.parse(payload)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 const getPreferredPayMethodImage = (method) => {
   if (!method) return ''
-  if (method.externalPath) {
-    return getExternalUrl(method.externalPath)
-  }
-  if (method.image) {
-    return getUrl(method.image)
-  }
-  return ''
+  const imagePath = String(method.image || method.externalPath || '').trim()
+  if (!imagePath) return ''
+  return getUrl(imagePath)
 }
 
 const selectPreferredPayMethod = (payMethod) => {
@@ -524,7 +534,6 @@ const loadPaymentMethods = async (preferredMethod, preferredLabel) => {
         label: preferredLabel || getPaymentMethodLabel(normalizedPreferredMethod),
         name: {},
         image: '',
-        externalPath: '',
         copyText: {}
       })
     }
@@ -640,7 +649,7 @@ const loadOrderCloseTime = async () => {
             const sku = item?.sku || {}
             const good = item?.good || {}
             const name = localText(sku?.nameI18n || sku?.name || good?.titleI18n || good?.title || good?.nameI18n || good?.name, langStore.locale) || ''
-            const specs = [...(Array.isArray(sku?.specs) ? sku.specs : []), ...(Array.isArray(sku?.attrs) ? sku.attrs : [])]
+            const specs = [...parseSkuSpecItems(sku?.specs), ...parseSkuSpecItems(sku?.attrs)]
               .map(spec => {
                 const label = localText(spec?.labelI18n || spec?.nameI18n || spec?.label || spec?.name, langStore.locale)
                 const value = localText(spec?.valueI18n || spec?.value, langStore.locale)

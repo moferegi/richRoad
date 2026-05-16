@@ -573,6 +573,7 @@ export default {
   clothesGenderMale: 'Эрэгтэй',
   unnamedGoods: 'Нэргүй бараа',
   tryOnAction: 'Турших',
+  tryOnThis: 'Үүнийг турших',
   buyAction: 'Худалдаж авах',
   loadMoreAction: 'Илүүг ачаалах',
   allLoadedText: 'Бүгд ачааллаа',

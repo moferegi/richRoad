@@ -22,7 +22,7 @@
 
   const basePath = import.meta.env.VITE_BASE_API
 
-  import { onBeforeUnmount, ref, shallowRef, watch } from 'vue'
+  import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
   import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 
   import { ElMessage } from 'element-plus'
@@ -41,7 +41,20 @@
     modelValue: {
       type: String,
       default: ''
+    },
+    uploadFolder: {
+      type: String,
+      default: ''
     }
+  })
+
+  const uploadServer = computed(() => {
+    const folder = String(props.uploadFolder || '').trim()
+    const query = new URLSearchParams({ noSave: '1' })
+    if (folder) {
+      query.set('folder', folder)
+    }
+    return `${basePath}/fileUploadAndDownload/upload?${query.toString()}`
   })
 
   const editorRef = shallowRef()
@@ -54,7 +67,7 @@
   }
   editorConfig.MENU_CONF['uploadImage'] = {
     fieldName: 'file',
-    server: basePath + '/fileUploadAndDownload/upload?noSave=1',
+    server: uploadServer.value,
     headers: {
       'x-token': userStore.token,
     },

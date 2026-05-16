@@ -79,7 +79,12 @@
               />
             </el-form-item>
             <el-form-item label="收款码图片:" prop="image">
-              <SelectImage v-model="formData.image" file-type="image" />
+              <SelectImage
+                v-model="formData.image"
+                file-type="image"
+                :default-folder="QRCODE_UPLOAD_FOLDER"
+                :fixed-upload-folder="true"
+              />
             </el-form-item>
             <el-form-item label="排序:" prop="sort">
               <el-input-number v-model="formData.sort" :min="0" />
@@ -119,6 +124,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive, onMounted } from 'vue'
 
 defineOptions({ name: 'QrcodePayment' })
+
+const QRCODE_UPLOAD_FOLDER = 'cloth-on/web-else/pay-shoukuanma'
 
 const btnLoading = ref(false)
 

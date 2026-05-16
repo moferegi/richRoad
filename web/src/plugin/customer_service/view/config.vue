@@ -41,8 +41,13 @@
           <span class="ml-3 text-xs text-gray-400">客户端和服务端都会按该配置校验</span>
         </el-form-item>
 
-        <el-form-item label="客服默认头像 URL">
-          <el-input v-model="form.defaultAvatarUrl" placeholder="https://example.com/avatar.png" clearable />
+        <el-form-item label="客服默认头像">
+          <SelectImage
+            v-model="form.defaultAvatarUrl"
+            file-type="image"
+            :default-folder="CUSTOMER_SERVICE_AVATAR_UPLOAD_FOLDER"
+            :fixed-upload-folder="true"
+          />
           <span class="ml-3 text-xs text-gray-400">留空时客户端会使用首字母随机底色头像</span>
         </el-form-item>
 
@@ -59,6 +64,9 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getCsConfig, updateCsConfig } from '@/api/customerService'
+import SelectImage from '@/components/selectImage/selectImage.vue'
+
+const CUSTOMER_SERVICE_AVATAR_UPLOAD_FOLDER = 'cloth-on/web-else'
 
 const loading = ref(false)
 const saving = ref(false)

@@ -57,14 +57,14 @@
             <template v-else-if="isPaymentManualMethodsConfig(scope.row)">
               <div class="tryon-model-summary">
                 <el-tag size="small" type="warning">{{ paymentMethodsCount(scope.row.configValue) }} 种方式</el-tag>
-                <span class="tryon-model-summary-text">支持多语言名称、图片、复制文案、开关与排序</span>
+                <span class="tryon-model-summary-text">支持多语言名称、上传图片、复制文案、开关与排序</span>
               </div>
             </template>
             <!-- Uni期望支付方式配置摘要 -->
             <template v-else-if="isPaymentUniPreferredMethodsConfig(scope.row)">
               <div class="tryon-model-summary">
                 <el-tag size="small" type="success">{{ paymentPreferredMethodsCount(scope.row.configValue) }} 种方式</el-tag>
-                <span class="tryon-model-summary-text">仅用于uni联系客服支付：多语言名称、图片、复制文案、开关与排序</span>
+                <span class="tryon-model-summary-text">仅用于uni联系客服支付：多语言名称、上传图片、复制文案、开关与排序</span>
               </div>
             </template>
             <!-- 颜色类型 -->
@@ -227,6 +227,15 @@
           <template v-else-if="isColorConfig(editForm)">
             <el-color-picker v-model="editForm.configValue" show-alpha />
             <el-input v-model="editForm.configValue" class="ml-2" style="width: 200px" />
+          </template>
+          <!-- 维护背景图上传 -->
+          <template v-else-if="isMaintenanceBgImageConfig(editForm)">
+            <SelectImage
+              v-model="editForm.configValue"
+              file-type="image"
+              :default-folder="MAINTENANCE_BG_UPLOAD_FOLDER"
+              :fixed-upload-folder="true"
+            />
           </template>
           <!-- 试衣模型可视化编辑 -->
           <template v-else-if="isTryonModelsConfig(editForm)">
@@ -734,12 +743,13 @@
                         <el-switch v-model="method.manual" active-text="是" inactive-text="否" />
                       </div>
                       <div class="tryon-model-field full">
-                        <span class="tryon-model-label">图片地址 image</span>
-                        <el-input v-model="method.image" placeholder="上传后的图片路径或URL" />
-                      </div>
-                      <div class="tryon-model-field full">
-                        <span class="tryon-model-label">外链地址 externalPath</span>
-                        <el-input v-model="method.externalPath" placeholder="外部图片地址(可选)" />
+                        <span class="tryon-model-label">方式图片(上传)</span>
+                        <SelectImage
+                          v-model="method.image"
+                          file-type="image"
+                          :default-folder="PAYMENT_MANUAL_METHOD_UPLOAD_FOLDER"
+                          :fixed-upload-folder="true"
+                        />
                       </div>
 
                       <div class="tryon-model-field full">
@@ -806,12 +816,13 @@
                         <el-switch v-model="method.enabled" active-text="开" inactive-text="关" />
                       </div>
                       <div class="tryon-model-field full">
-                        <span class="tryon-model-label">图片地址 image（建议 Backblaze: Moffuu/cloth-on/up/...）</span>
-                        <el-input v-model="method.image" placeholder="如 cloth-on/up/wechat.png" />
-                      </div>
-                      <div class="tryon-model-field full">
-                        <span class="tryon-model-label">外链地址 externalPath（可选）</span>
-                        <el-input v-model="method.externalPath" placeholder="https://..." />
+                        <span class="tryon-model-label">方式图片(上传)</span>
+                        <SelectImage
+                          v-model="method.image"
+                          file-type="image"
+                          :default-folder="PAYMENT_PREFERRED_METHOD_UPLOAD_FOLDER"
+                          :fixed-upload-folder="true"
+                        />
                       </div>
 
                       <div class="tryon-model-field full">
@@ -1059,6 +1070,7 @@ import { getSysConfigList, updateSysConfig, getAliyunTryonQuotaEstimate, getMode
 import { getEnabledLanguages, getLanguageList } from '@/api/client/language'
 import { ElMessage } from 'element-plus'
 import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
+import SelectImage from '@/components/selectImage/selectImage.vue'
 import {
   DEFAULT_LANG_CURRENCY_MAP,
   fetchExchangeRates,
@@ -1112,6 +1124,11 @@ const isTryonRechargePlansConfig = (row) => row?.configKey === 'tryon_recharge_p
 const isPaymentManualMethodsConfig = (row) => row?.configKey === 'payment_manual_methods'
 const isPaymentUniPreferredMethodsConfig = (row) => row?.configKey === 'payment_uni_preferred_methods'
 const isCurrencySymbolConfig = (row) => row?.configKey === 'currency_symbol'
+const isMaintenanceBgImageConfig = (row) => row?.configKey === 'maintenance_bg_image'
+
+const PAYMENT_MANUAL_METHOD_UPLOAD_FOLDER = 'cloth-on/web-else/pay-method'
+const PAYMENT_PREFERRED_METHOD_UPLOAD_FOLDER = 'cloth-on/web-else/hope-pay'
+const MAINTENANCE_BG_UPLOAD_FOLDER = 'cloth-on/web-else'
 
 // 密钥键列表
 const secretKeys = []
@@ -1887,7 +1904,6 @@ const createDefaultPaymentMethod = () => ({
   enabled: true,
   manual: true,
   image: '',
-  externalPath: '',
   name: defaultPaymentMethodNameByKey(''),
   copyText: normalizeRechargeI18nObject({}, ''),
 })
@@ -1903,8 +1919,7 @@ const normalizePaymentMethod = (item = {}) => {
     sort: toInt(item.sort, 99),
     enabled: toBool(item.enabled, true),
     manual: toBool(item.manual, key === 'qrcode' || key === 'contact'),
-    image: String(item.image || '').trim(),
-    externalPath: String(item.externalPath || '').trim(),
+    image: String(item.image || item.externalPath || '').trim(),
     name: {
       ...normalizedName,
       ...sourceName,
@@ -1929,7 +1944,6 @@ const buildPaymentMethodsPayload = () => paymentManualMethods.value.map(item => 
   enabled: !!item.enabled,
   manual: !!item.manual,
   image: String(item.image || '').trim(),
-  externalPath: String(item.externalPath || '').trim(),
   name: normalizeRechargeI18nObject(item.name, String(item.key || '').trim().toLowerCase()),
   copyText: normalizeRechargeI18nObject(item.copyText, ''),
 }))
@@ -1985,7 +1999,6 @@ const createDefaultPaymentPreferredMethod = () => ({
   sort: 99,
   enabled: true,
   image: '',
-  externalPath: '',
   name: defaultPaymentMethodNameByKey(''),
   copyText: normalizeRechargeI18nObject({}, ''),
 })
@@ -2000,8 +2013,7 @@ const normalizePaymentPreferredMethod = (item = {}) => {
     key,
     sort: toInt(item.sort, 99),
     enabled: toBool(item.enabled, true),
-    image: String(item.image || '').trim(),
-    externalPath: String(item.externalPath || '').trim(),
+    image: String(item.image || item.externalPath || '').trim(),
     name: {
       ...normalizedName,
       ...sourceName,
@@ -2025,7 +2037,6 @@ const buildPaymentPreferredMethodsPayload = () => paymentPreferredMethods.value.
   sort: toInt(item.sort, 99),
   enabled: !!item.enabled,
   image: String(item.image || '').trim(),
-  externalPath: String(item.externalPath || '').trim(),
   name: normalizeRechargeI18nObject(item.name, String(item.key || '').trim().toLowerCase()),
   copyText: normalizeRechargeI18nObject(item.copyText, ''),
 }))

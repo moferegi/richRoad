@@ -8,7 +8,11 @@
       :duration="500"
       indicator-active-color="#e50914"
       indicator-color="rgba(255,255,255,0.4)">
-    <swiper-item v-for="(item, index) in normalizedList" :key="index" class="swiper-item">
+    <swiper-item
+      v-for="(item, index) in normalizedList"
+      :key="index"
+      class="swiper-item"
+      @tap="handleSwiperItemTap(index, item)">
       <!-- 视频类型 -->
       <video
           v-if="item.type === 'video'"
@@ -16,11 +20,11 @@
           :src="item.src"
           :poster="item.src"
           controls
-          object-fit="cover"></video>
+          object-fit="contain"></video>
       <!-- 图片类型 -->
         <LazyImage
           v-else
-          mode="aspectFill"
+          mode="aspectFit"
           class="swiper-item-media"
           :src="item.src">
         </LazyImage>
@@ -72,6 +76,26 @@ const buildItem = (item) => {
   return { src: '', type: 'image', text: '' }
 }
 
+const handleSwiperItemTap = (index, item) => {
+  if (!item || item.type === 'video') {
+    return
+  }
+  const imageUrls = normalizedList.value
+    .filter((entry) => entry && entry.type !== 'video' && entry.src)
+    .map((entry) => entry.src)
+  if (!imageUrls.length) {
+    return
+  }
+  const currentSrc = normalizedList.value[index]?.src
+  const current = imageUrls.includes(currentSrc) ? currentSrc : imageUrls[0]
+  uni.previewImage({
+    current,
+    urls: imageUrls,
+    indicator: 'number',
+    loop: true,
+  })
+}
+
 watch(() => props.list, async (list) => {
   if (!list || list.length === 0) {
     normalizedList.value = []
@@ -104,7 +128,10 @@ watch(() => props.list, async (list) => {
 <style lang="scss" scoped>
 .goods-swiper {
   width: 100%;
-  height: 26rem;
+  height: 62vh;
+  min-height: 520rpx;
+  max-height: 860rpx;
+  background: #000;
 }
 
 .swiper-item {
@@ -116,7 +143,8 @@ watch(() => props.list, async (list) => {
 .swiper-item-media {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: #000;
 }
 
 .swiper-text-overlay {

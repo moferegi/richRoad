@@ -354,7 +354,7 @@ const avatarColor = (seed) => {
 }
 
 const resolveAvatar = (item) => {
-  const raw = item?.avatar || item?.externalAvatar || csDefaultAvatarUrl.value
+  const raw = String(item?.avatar || item?.externalAvatar || csDefaultAvatarUrl.value || '').trim()
   if (!raw) return ''
   if (/^(https?:)?\/\//i.test(raw) || /^data:/i.test(raw)) return raw
   return getUrl(raw)

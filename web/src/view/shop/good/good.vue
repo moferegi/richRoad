@@ -496,7 +496,7 @@
                     <SelectImage
                       v-model="item.url"
                       :file-type="item.type === 'video' ? 'video' : 'image'"
-                      :default-folder="GOOD_UPLOAD_FOLDER"
+                      :default-folder="GOOD_BANNER_UPLOAD_FOLDER"
                       :fixed-upload-folder="true"
                     />
                   </el-form-item>
@@ -862,6 +862,7 @@
                   v-model="detailI18n[lang.code]"
                   :clearable="true"
                   :placeholder="`请输入 ${(lang.name || lang.code)} 商品详情`"
+                  :upload-folder="GOOD_DETAIL_UPLOAD_FOLDER"
                 />
               </div>
             </template>
@@ -1003,7 +1004,9 @@ defineOptions({
 })
 
 const router = useRouter()
-const GOOD_UPLOAD_FOLDER = 'Moffuu/cloth-on/goods'
+const GOOD_UPLOAD_FOLDER = 'cloth-on/web-cloth/goods'
+const GOOD_BANNER_UPLOAD_FOLDER = 'cloth-on/web-cloth/goods/lunbo'
+const GOOD_DETAIL_UPLOAD_FOLDER = 'cloth-on/web-cloth/goods/detail'
 
 // === 外部链接域名 ===
 const extDomain = ref('')
@@ -1794,6 +1797,7 @@ const enterDialog = async() => {
           delete item.nameI18n
         }
         if (item.valueI18n) {
+          item.value = serializeI18nJson(item.valueI18n) || item.value
           delete item.valueI18n
         }
       })
@@ -1803,6 +1807,7 @@ const enterDialog = async() => {
           delete item.nameI18n
         }
         if (item.valueI18n) {
+          item.value = serializeI18nJson(item.valueI18n) || item.value
           delete item.valueI18n
         }
       })

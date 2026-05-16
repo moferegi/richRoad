@@ -736,6 +736,7 @@ export default {
   totalText: 'Tổng cộng',
   trackingNo: 'Số theo dõi',
   tryOnAction: 'Thử đi',
+  tryOnThis: 'Thử mẫu này',
   tryOnShoesWithCost: 'Thử giày ({cost} xu)',
   tryonArea: 'Khu vực thử đồ',
   tryonBeautifyAction: 'Làm đẹp da thông minh',

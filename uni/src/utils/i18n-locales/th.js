@@ -568,6 +568,7 @@ export default {
   clothesGenderMale: 'ชาย',
   unnamedGoods: 'สินค้าไม่มีชื่อ',
   tryOnAction: 'ลองชุด',
+  tryOnThis: 'ลองชิ้นนี้',
   buyAction: 'ซื้อ',
   loadMoreAction: 'โหลดเพิ่ม',
   allLoadedText: 'โหลดครบแล้ว',

@@ -568,6 +568,7 @@ export default {
   clothesGenderMale: '男',
   unnamedGoods: '未命名商品',
   tryOnAction: '試衣',
+  tryOnThis: '試穿這件',
   buyAction: '購買',
   loadMoreAction: '點擊載入更多',
   allLoadedText: '已全部載入',

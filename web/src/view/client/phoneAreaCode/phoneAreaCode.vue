@@ -86,7 +86,12 @@
               <el-input v-model="formData.phoneRegex" placeholder="例: ^[0-9]{8}$" />
             </el-form-item>
             <el-form-item label="国旗图标:" prop="flagIcon">
-              <SelectImage v-model="formData.flagIcon" file-type="image" />
+              <SelectImage
+                v-model="formData.flagIcon"
+                file-type="image"
+                :default-folder="PHONE_AREA_CODE_UPLOAD_FOLDER"
+                :fixed-upload-folder="true"
+              />
             </el-form-item>
             <el-form-item label="排序:" prop="sort">
               <el-input-number v-model="formData.sort" :min="0" />
@@ -115,6 +120,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive, computed, onMounted } from 'vue'
 
 defineOptions({ name: 'PhoneAreaCode' })
+
+const PHONE_AREA_CODE_UPLOAD_FOLDER = 'cloth-on/web-else/guojiquhao'
 
 const btnLoading = ref(false)
 
