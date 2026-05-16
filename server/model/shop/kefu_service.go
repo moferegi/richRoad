@@ -9,9 +9,11 @@ import (
 type Kefu struct {
 	global.GVA_MODEL
 	Name           *string `json:"name" form:"name" gorm:"comment:客服姓名;column:name;" binding:"required"`                                 //姓名
+	NameI18n       string  `json:"nameI18n" form:"nameI18n" gorm:"column:name_i18n;type:text;comment:客服姓名多语言JSON;"`                      //姓名多语言
 	Avatar         string  `json:"avatar" form:"avatar" gorm:"comment:客服头像;column:avatar;"`                                              //头像
 	ExternalAvatar string  `json:"externalAvatar" form:"externalAvatar" gorm:"column:external_avatar;size:500;comment:外部头像链接(优先);"`      //外部头像链接
 	QrCode         string  `json:"qrCode" form:"qrCode" gorm:"column:qr_code;size:500;comment:客服二维码(链接或上传路径);"`                          //二维码
+	ContactID      *string `json:"contactId" form:"contactId" gorm:"column:contact_id;size:128;comment:对应ID;"`                           //对应ID
 	Status         string  `json:"status" form:"status" gorm:"comment:客服状态;column:status;type:enum('在线','离线','忙碌');" binding:"required"` //状态
 	Link           *string `json:"link" form:"link" gorm:"column:link;"`                                                                 //链接
 }

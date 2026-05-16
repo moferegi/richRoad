@@ -56,8 +56,8 @@
         </view>
         <!-- 当前集信息 -->
         <view class="nf-theater-info">
-          <text class="nf-theater-title">{{ currentEpisode.name || $lt(data.title) }}</text>
-          <text class="nf-theater-sub" v-if="currentEpisode.description">{{ currentEpisode.description }}</text>
+          <text class="nf-theater-title">{{ $lt(currentEpisode.name) || $lt(data.title) }}</text>
+          <text class="nf-theater-sub" v-if="$lt(currentEpisode.description)">{{ $lt(currentEpisode.description) }}</text>
         </view>
         <!-- 集数快选 -->
         <view class="nf-theater-eps" v-if="episodes.length > 1">
@@ -366,7 +366,7 @@ const closeTheater = () => {
       episodeIndex: currentIndex.value,
       currentTime: currentTime.value,
       duration: duration.value,
-      episodeName: currentEpisode.value?.name || epLabel(currentIndex.value + 1),
+      episodeName: localText(currentEpisode.value?.name, langStore.locale) || epLabel(currentIndex.value + 1),
       imageUrl: data.value.imageUrl,
       title: data.value.title
     })
@@ -713,7 +713,7 @@ const vpTimeUpdate = () => {
       episodeIndex: currentIndex.value,
       currentTime: currentTime.value,
       duration: duration.value,
-      episodeName: currentEpisode.value?.name || epLabel(currentIndex.value + 1),
+      episodeName: localText(currentEpisode.value?.name, langStore.locale) || epLabel(currentIndex.value + 1),
       imageUrl: data.value.imageUrl,
       title: data.value.title
     })
@@ -1013,7 +1013,7 @@ const switchEpisode = async (idx) => {
       episodeIndex: currentIndex.value,
       currentTime: currentTime.value,
       duration: duration.value,
-      episodeName: currentEpisode.value?.name || epLabel(currentIndex.value + 1),
+      episodeName: localText(currentEpisode.value?.name, langStore.locale) || epLabel(currentIndex.value + 1),
       imageUrl: data.value.imageUrl,
       title: data.value.title
     })

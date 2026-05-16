@@ -107,21 +107,21 @@
           <el-input v-model="formData.name" :clearable="false" placeholder="请输入名称" />
         </el-form-item>
         <div v-if="enabledLangs.length" class="pl-2 mb-3">
-          <span class="text-xs text-gray-400">名称多语言:</span>
-          <div v-for="lang in enabledLangs" :key="'n'+lang.code" class="flex items-center mb-1 mt-1">
-            <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
-            <el-input v-model="nameI18n[lang.code]" :placeholder="`${lang.name}`" size="small" />
-          </div>
+          <MultiLangEditor
+            :model="nameI18n"
+            :languages="enabledLangs"
+            title="名称多语言"
+          />
         </div>
         <el-form-item label="描述:" prop="description">
           <el-input v-model="formData.description" :clearable="false" placeholder="请输入描述" />
         </el-form-item>
         <div v-if="enabledLangs.length" class="pl-2 mb-3">
-          <span class="text-xs text-gray-400">描述多语言:</span>
-          <div v-for="lang in enabledLangs" :key="'d'+lang.code" class="flex items-center mb-1 mt-1">
-            <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
-            <el-input v-model="descI18n[lang.code]" :placeholder="`${lang.name}`" size="small" />
-          </div>
+          <MultiLangEditor
+            :model="descI18n"
+            :languages="enabledLangs"
+            title="描述多语言"
+          />
         </div>
         <el-row :gutter="12">
           <el-col :span="12">
@@ -248,6 +248,7 @@ import { getDictFunc, formatDate, formatBoolean, filterDict, filterDataSource, r
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive, onMounted } from 'vue'
 import { useAppStore } from "@/pinia"
+import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 
 
 

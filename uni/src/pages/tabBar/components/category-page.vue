@@ -53,7 +53,7 @@
           <view class="nf-grid-info">
             <text class="nf-grid-title">{{ $lt(item.title) }}</text>
             <view class="nf-grid-price-row">
-              <text class="nf-grid-price">{{ cs }}{{ formatPrice(item.price) }}</text>
+              <text class="nf-grid-price">{{ cs }}{{ formatPrice(item) }}</text>
               <text class="nf-grid-sales">{{ $t('sold') }} {{ item.saleNum || 0 }}</text>
             </view>
             <view v-if="item.tags && item.tags.length > 0" class="nf-grid-tags">
@@ -62,7 +62,7 @@
                 :key="tag.ID"
                 class="nf-grid-tag"
                 :style="{ color: tag.color, borderColor: tag.color + '55', background: tag.color + '15' }"
-              >{{ tag.name }}</text>
+              >{{ $lt(tag.nameI18n || tag.name) }}</text>
             </view>
           </view>
         </view>
@@ -94,6 +94,7 @@ import { ref, computed } from 'vue'
 import { getCategoryMobile, getGoodList } from '@/api/homePage.js'
 import { onLoad } from '@dcloudio/uni-app'
 import { getUrl, getExternalUrl } from '@/utils/url'
+import { formatLocalizedPrice } from '@/utils/price-i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
@@ -102,6 +103,7 @@ const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const selectedIndex = ref(0)
 const currentCategoryID = ref('')
@@ -116,14 +118,7 @@ const goBack = () => {
   uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/tabBar/index' }) })
 }
 
-const formatPrice = (priceInCents) => {
-  if (!priceInCents && priceInCents !== 0) return '0.00'
-  const cents = parseInt(priceInCents)
-  if (isNaN(cents)) return '0.00'
-  const yuan = Math.floor(cents / 100)
-  const remainingCents = cents % 100
-  return `${yuan}.${remainingCents.toString().padStart(2, '0')}`
-}
+const formatPrice = (item) => formatLocalizedPrice(item?.price, item?.priceI18n, locale.value)
 
 onLoad((options) => {
   if (options.id) {

@@ -14,17 +14,35 @@ const normalizeString = (value) => {
   return String(value)
 }
 
+const normalizeRawConfig = (value) => {
+  if (value === undefined || value === null) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return ''
+    }
+  }
+  return String(value)
+}
+
 export const useAppConfigStore = defineStore('appConfig', () => {
-  const currencySymbol = ref(uni.getStorageSync('currency_symbol') || '¥')
+  const currencySymbolRaw = ref(uni.getStorageSync('currency_symbol_raw') || uni.getStorageSync('currency_symbol') || '¥')
+  const currencySymbol = ref(localText(currencySymbolRaw.value, getActiveLocale()) || normalizeString(currencySymbolRaw.value) || '¥')
   const appNameRaw = ref(uni.getStorageSync('app_name_raw') || uni.getStorageSync('app_name') || 'RichRoad')
   const appName = ref(uni.getStorageSync('app_name') || 'RichRoad')
   const appLogo = ref(uni.getStorageSync('app_logo') || '')
   const loaded = ref(false)
 
   const refreshLocalizedConfig = () => {
-    const localized = localText(appNameRaw.value, getActiveLocale()) || normalizeString(appNameRaw.value) || 'RichRoad'
-    appName.value = localized
-    uni.setStorageSync('app_name', localized)
+    const localizedName = localText(appNameRaw.value, getActiveLocale()) || normalizeString(appNameRaw.value) || 'RichRoad'
+    appName.value = localizedName
+    uni.setStorageSync('app_name', localizedName)
+
+    const localizedCurrency = localText(currencySymbolRaw.value, getActiveLocale()) || normalizeString(currencySymbolRaw.value) || '¥'
+    currencySymbol.value = localizedCurrency
+    uni.setStorageSync('currency_symbol', localizedCurrency)
   }
 
   const loadConfig = async () => {
@@ -41,12 +59,15 @@ export const useAppConfigStore = defineStore('appConfig', () => {
       ])
 
       if (symRes.code === 0 && symRes.data) {
-        const sym = resolveConfigValue(symRes.data)
-        if (sym) { currencySymbol.value = sym; uni.setStorageSync('currency_symbol', sym) }
+        const rawSymbol = normalizeRawConfig(resolveConfigValue(symRes.data))
+        if (rawSymbol) {
+          currencySymbolRaw.value = rawSymbol
+          uni.setStorageSync('currency_symbol_raw', rawSymbol)
+        }
       }
 
       if (nameRes.code === 0 && nameRes.data) {
-        const rawNameValue = resolveConfigValue(nameRes.data)
+        const rawNameValue = normalizeRawConfig(resolveConfigValue(nameRes.data))
         const rawText = normalizeString(rawNameValue).trim()
         if (rawText) {
           appNameRaw.value = rawText
@@ -78,6 +99,7 @@ export const useAppConfigStore = defineStore('appConfig', () => {
 
   return {
     currencySymbol,
+    currencySymbolRaw,
     appName,
     appNameRaw,
     appLogo,

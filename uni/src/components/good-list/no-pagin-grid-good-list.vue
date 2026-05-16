@@ -6,7 +6,7 @@
         <view class="goods-info">
           <text class="goods-name">{{ $lt(item.title) }}</text>
           <view class="price-container">
-            <text class="discount-price">{{ cs }}{{ item.price / 100 }}</text>
+            <text class="discount-price">{{ cs }}{{ formatPrice(item) }}</text>
             <text class="original-price">{{ cs }}{{ item.originalPrice }}</text>
             <text class="discount-tag">{{ getDiscountText(item.discount) }}</text>
           </view>
@@ -21,7 +21,7 @@
         }"
                 class="merchant-tag"
             >
-              {{ $lt(tag.name) }}
+              {{ $lt(tag.nameI18n || tag.name) }}
             </text>
           </view>
           <view class="goods-extra">
@@ -50,6 +50,7 @@
 <script setup>
 import {ref, computed, onMounted, onUnmounted} from 'vue'
 import {getUrl, getExternalUrl} from "@/utils/url";
+import { formatLocalizedPrice } from '@/utils/price-i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import LazyImage from '@/components/lazy-image/lazy-image.vue'
@@ -59,6 +60,7 @@ const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const props = defineProps({
   goodsList: {
@@ -87,6 +89,8 @@ const getDiscountText = (discount) => {
   if (discount >= 5.0) return $t.value('discountSpecial')
   return $t.value('discountDefault')
 }
+
+const formatPrice = (item) => formatLocalizedPrice(item?.price, item?.priceI18n, locale.value)
 
 // 根据评分生成星星
 const getRatingStars = (rating) => {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -27,7 +28,7 @@ const (
 	defaultTryonRechargeCloseMinutes = 20
 )
 
-var paymentMethodPriorityKeys = []string{"zh", "en", "mn", "zh-TW", "th", "hi", "id"}
+var paymentMethodPriorityKeys = []string{"zh", "en", "mn", "zh-TW", "th", "hi", "id", "vi", "ar", "ja", "ko", "ms"}
 
 // TryonRechargeOrderService 试衣币充值订单服务
 type TryonRechargeOrderService struct{}
@@ -38,6 +39,93 @@ func normalizePayMethod(payMethod string) string {
 		return "contact"
 	}
 	return method
+}
+
+func normalizeSettlementCurrency(value string) string {
+	normalized := strings.TrimSpace(value)
+	if normalized == "" {
+		return ""
+	}
+	return strings.ReplaceAll(normalized, "_", "-")
+}
+
+func buildSettlementLocaleCandidates(settlementCurrency string) []string {
+	normalized := normalizeSettlementCurrency(settlementCurrency)
+	candidates := make([]string, 0, len(paymentMethodPriorityKeys)+4)
+	if normalized != "" {
+		candidates = append(candidates, normalized)
+		if strings.Contains(normalized, "-") {
+			candidates = append(candidates, strings.SplitN(normalized, "-", 2)[0])
+		}
+	}
+	candidates = append(candidates, "default")
+	candidates = append(candidates, paymentMethodPriorityKeys...)
+
+	seen := make(map[string]struct{}, len(candidates))
+	result := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		if _, ok := seen[candidate]; ok {
+			continue
+		}
+		seen[candidate] = struct{}{}
+		result = append(result, candidate)
+	}
+	return result
+}
+
+func resolveCurrencySymbolByConfigValue(rawValue, settlementCurrency string) string {
+	trimmed := strings.TrimSpace(rawValue)
+	if trimmed == "" {
+		return ""
+	}
+
+	if strings.HasPrefix(trimmed, "{") {
+		var parsed map[string]interface{}
+		if err := json.Unmarshal([]byte(trimmed), &parsed); err == nil && len(parsed) > 0 {
+			for _, key := range buildSettlementLocaleCandidates(settlementCurrency) {
+				if value, ok := parsed[key]; ok {
+					resolved := strings.TrimSpace(fmt.Sprintf("%v", value))
+					if resolved != "" {
+						return resolved
+					}
+				}
+			}
+
+			for _, value := range parsed {
+				resolved := strings.TrimSpace(fmt.Sprintf("%v", value))
+				if resolved != "" {
+					return resolved
+				}
+			}
+		}
+	}
+
+	return trimmed
+}
+
+func (s *TryonRechargeOrderService) resolveSettlementCurrencyAndSymbol(tx *gorm.DB, req clientReq.CreateTryonRechargeOrderReq) (string, string) {
+	settlementCurrency := normalizeSettlementCurrency(req.SettlementCurrency)
+	settlementSymbol := strings.TrimSpace(req.SettlementCurrencySymbol)
+
+	if settlementSymbol == "" {
+		var sysConf client.SysConfig
+		if err := tx.Where("config_key = ?", "currency_symbol").First(&sysConf).Error; err == nil {
+			settlementSymbol = resolveCurrencySymbolByConfigValue(sysConf.ConfigValue, settlementCurrency)
+		}
+	}
+
+	if settlementCurrency == "" {
+		settlementCurrency = "default"
+	}
+	if settlementSymbol == "" {
+		settlementSymbol = "¥"
+	}
+
+	return settlementCurrency, settlementSymbol
 }
 
 func parsePriceToCents(raw string) (int, error) {
@@ -181,6 +269,92 @@ func parseCentsFromAny(value interface{}) (int, bool) {
 	return 0, false
 }
 
+func parseFenFromAny(value interface{}) (int, bool) {
+	switch typed := value.(type) {
+	case nil:
+		return 0, false
+	case int:
+		return typed, true
+	case int32:
+		return int(typed), true
+	case int64:
+		return int(typed), true
+	case float32:
+		return int(math.Round(float64(typed))), true
+	case float64:
+		return int(math.Round(typed)), true
+	case json.Number:
+		intValue, err := typed.Int64()
+		if err == nil {
+			return int(intValue), true
+		}
+		floatValue, ferr := typed.Float64()
+		if ferr == nil {
+			return int(math.Round(floatValue)), true
+		}
+		return 0, false
+	case string:
+		text := sanitizeNumericText(typed, false)
+		if text == "" {
+			return 0, false
+		}
+		intValue, err := strconv.Atoi(text)
+		if err != nil {
+			return 0, false
+		}
+		return intValue, true
+	}
+	return 0, false
+}
+
+func parseLocalizedIntFromAny(value interface{}, settlementCurrency string) (int, bool) {
+	if value == nil {
+		return 0, false
+	}
+	if typed, ok := value.(map[string]interface{}); ok {
+		for _, key := range buildSettlementLocaleCandidates(settlementCurrency) {
+			if field, exists := typed[key]; exists {
+				if result, parsed := parseIntFromAny(field); parsed {
+					return result, true
+				}
+			}
+		}
+	}
+	return parseIntFromAny(value)
+}
+
+func parseLocalizedCentsFromAny(value interface{}, settlementCurrency string) (int, bool) {
+	if value == nil {
+		return 0, false
+	}
+	if typed, ok := value.(map[string]interface{}); ok {
+		for _, key := range buildSettlementLocaleCandidates(settlementCurrency) {
+			if field, exists := typed[key]; exists {
+				if cents, parsed := parseCentsFromAny(field); parsed {
+					return cents, true
+				}
+			}
+		}
+	}
+	return parseCentsFromAny(value)
+}
+
+func parseLocalizedFenFromAny(value interface{}, settlementCurrency string) (int, bool) {
+	if value == nil {
+		return 0, false
+	}
+	if typed, ok := value.(map[string]interface{}); ok {
+		for _, key := range buildSettlementLocaleCandidates(settlementCurrency) {
+			if field, exists := typed[key]; exists {
+				if fen, parsed := parseFenFromAny(field); parsed {
+					return fen, true
+				}
+			}
+		}
+	}
+	return parseFenFromAny(value)
+}
+
 func (s *TryonRechargeOrderService) getOrderCloseMinutes(tx *gorm.DB) int {
 	var config client.SysConfig
 	err := tx.Where("config_key = ?", "order_close_minutes").First(&config).Error
@@ -213,29 +387,57 @@ func (s *TryonRechargeOrderService) generateUniqueTryonRechargeOrderNo(tx *gorm.
 	return "", errors.New("tryonRechargeOrderNoGenFail")
 }
 
-func (s *TryonRechargeOrderService) findMatchedRechargePlan(tx *gorm.DB, points int, amountCents int) (map[string]interface{}, error) {
+func (s *TryonRechargeOrderService) findMatchedRechargePlan(tx *gorm.DB, points int, amountCents int, settlementCurrency string) (map[string]interface{}, int, error) {
 	var config client.SysConfig
 	err := tx.Where("config_key = ?", "tryon_recharge_plans").First(&config).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("tryonRechargePlanNotConfigured")
+			return nil, 0, errors.New("tryonRechargePlanNotConfigured")
 		}
-		return nil, err
+		return nil, 0, err
 	}
 
 	var plans []map[string]interface{}
 	if unmarshalErr := json.Unmarshal([]byte(config.ConfigValue), &plans); unmarshalErr != nil {
-		return nil, errors.New("tryonRechargePlanConfigInvalid")
+		return nil, 0, errors.New("tryonRechargePlanConfigInvalid")
 	}
 
 	for _, plan := range plans {
-		planPoints, pointsParsed := parseIntFromAny(plan["points"])
-		planAmount, amountParsed := parseCentsFromAny(plan["price"])
-		if pointsParsed && amountParsed && planPoints == points && planAmount == amountCents {
-			return plan, nil
+		planPoints, pointsParsed := parseLocalizedIntFromAny(plan["points"], settlementCurrency)
+		if !pointsParsed || planPoints != points {
+			continue
+		}
+
+		planAmount := 0
+		amountParsed := false
+
+		if localizedFen, parsed := parseLocalizedFenFromAny(plan["priceI18n"], settlementCurrency); parsed {
+			planAmount = localizedFen
+			amountParsed = true
+		}
+
+		if !amountParsed {
+			switch plan["price"].(type) {
+			case int, int32, int64, float32, float64, json.Number:
+				if baseFen, parsed := parseFenFromAny(plan["price"]); parsed {
+					planAmount = baseFen
+					amountParsed = true
+				}
+			}
+		}
+
+		if !amountParsed {
+			if localizedCents, parsed := parseLocalizedCentsFromAny(plan["price"], settlementCurrency); parsed {
+				planAmount = localizedCents
+				amountParsed = true
+			}
+		}
+
+		if amountParsed && planAmount == amountCents {
+			return plan, planAmount, nil
 		}
 	}
-	return nil, errors.New("tryonRechargePlanChanged")
+	return nil, 0, errors.New("tryonRechargePlanChanged")
 }
 
 // CreateTryonRechargeOrder 创建充值订单
@@ -256,12 +458,23 @@ func (s *TryonRechargeOrderService) CreateTryonRechargeOrder(ctx context.Context
 
 	payMethod := normalizePayMethod(req.PayMethod)
 	err = global.GVA_DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		matchedPlan, matchErr := s.findMatchedRechargePlan(tx, req.Points, amountCents)
+		settlementCurrency, settlementCurrencySymbol := s.resolveSettlementCurrencyAndSymbol(tx, req)
+
+		matchedPlan, matchedPlanAmount, matchErr := s.findMatchedRechargePlan(tx, req.Points, amountCents, settlementCurrency)
 		if matchErr != nil {
 			return matchErr
 		}
 
-		snapshotBytes, marshalErr := json.Marshal(matchedPlan)
+		snapshotPlan := make(map[string]interface{}, len(matchedPlan)+4)
+		for key, value := range matchedPlan {
+			snapshotPlan[key] = value
+		}
+		snapshotPlan["selectedPriceFen"] = matchedPlanAmount
+		snapshotPlan["settlementCurrency"] = settlementCurrency
+		snapshotPlan["settlementCurrencySymbol"] = settlementCurrencySymbol
+		snapshotPlan["priceSnapshotVersion"] = 1
+
+		snapshotBytes, marshalErr := json.Marshal(snapshotPlan)
 		if marshalErr != nil {
 			return marshalErr
 		}
@@ -275,15 +488,17 @@ func (s *TryonRechargeOrderService) CreateTryonRechargeOrder(ctx context.Context
 		now := time.Now()
 
 		order = client.TryonRechargeOrder{
-			UserID:       userID,
-			Status:       tryonRechargeOrderStatusPending,
-			Points:       req.Points,
-			Amount:       amountCents,
-			Currency:     "CNY",
-			PayMethod:    payMethod,
-			PlanSnapshot: datatypes.JSON(snapshotBytes),
-			CloseTime:    now.Add(time.Duration(closeMinutes) * time.Minute),
-			OutTradeNo:   outTradeNo,
+			UserID:                   userID,
+			Status:                   tryonRechargeOrderStatusPending,
+			Points:                   req.Points,
+			Amount:                   amountCents,
+			Currency:                 "CNY",
+			SettlementCurrency:       settlementCurrency,
+			SettlementCurrencySymbol: settlementCurrencySymbol,
+			PayMethod:                payMethod,
+			PlanSnapshot:             datatypes.JSON(snapshotBytes),
+			CloseTime:                now.Add(time.Duration(closeMinutes) * time.Minute),
+			OutTradeNo:               outTradeNo,
 		}
 		if createErr := tx.Create(&order).Error; createErr != nil {
 			return createErr

@@ -15,10 +15,11 @@ func (s *LanguageRouter) InitLanguageRouter(Router *gin.RouterGroup, PublicRoute
 
 	var languageApi = v1.ApiGroupApp.ClientApiGroup.LanguageApi
 	{
-		languageRouter.POST("createLanguage", languageApi.CreateLanguage)       // 创建语言
-		languageRouter.DELETE("deleteLanguage", languageApi.DeleteLanguage)     // 删除语言
-		languageRouter.PUT("updateLanguage", languageApi.UpdateLanguage)        // 更新语言
-		languageRouter.GET("getLanguageList", languageApi.GetLanguageList)      // 获取语言列表（管理端）
+		languageRouter.POST("createLanguage", languageApi.CreateLanguage)   // 创建语言
+		languageRouter.DELETE("deleteLanguage", languageApi.DeleteLanguage) // 删除语言
+		languageRouter.PUT("updateLanguage", languageApi.UpdateLanguage)    // 更新语言
+		languageRouter.GET("getLanguageList", languageApi.GetLanguageList)  // 获取语言列表（管理端）
+		languageRouter.POST("translateI18n", languageApi.TranslateI18n)     // 翻译多语言文本
 	}
 	{
 		languageRouterWithoutAuth.GET("getEnabledLanguages", languageApi.GetEnabledLanguages) // 客户端获取启用的语言

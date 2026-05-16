@@ -67,7 +67,7 @@
                       }"
                       class="tag-badge"
                     >
-                      {{ $lt(tag.name) }}
+                      {{ $lt(tag.nameI18n || tag.name) }}
                     </text>
                   </view>
                 </view>
@@ -79,7 +79,7 @@
                   <view class="price-section">
                     <view class="current-price">
                       <text class="price-symbol">{{ cs }}</text>
-                      <text class="price-value">{{ (item.price / 100).toFixed(2) }}</text>
+                      <text class="price-value">{{ formatGoodsPrice(item) }}</text>
                     </view>
                     <view class="add-cart-btn">
                       <uni-icons type="plus" size="16" color="#fff"></uni-icons>
@@ -115,6 +115,7 @@
 import {ref, computed, onMounted} from 'vue'
 import {getUrl} from '@/utils/url'
 import {getCategoryMobile, getChildrenCategoryAndProduct} from '@/api/homePage.js'
+import { formatLocalizedPrice } from '@/utils/price-i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
@@ -123,6 +124,9 @@ const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+
+const formatGoodsPrice = (item) => formatLocalizedPrice(item?.price, item?.priceI18n, locale.value)
 
 // 分类数据
 const catelist = ref([])

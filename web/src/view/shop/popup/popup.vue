@@ -145,12 +145,12 @@
 
             <!-- 标题(多语言) -->
             <el-form-item label="标题(多语言):" prop="title">
-              <el-tabs v-if="enabledLangs.length" type="border-card" style="width:100%;">
-                <el-tab-pane v-for="lang in enabledLangs" :key="lang.code" :label="lang.name">
-                  <el-input v-model="titleI18n[lang.code]" :placeholder="`${lang.name} 标题`" />
-                </el-tab-pane>
-              </el-tabs>
-              <el-input v-else v-model="formData.title" placeholder='例: {"zh":"标题","en":"Title"}' />
+              <el-input v-model="formData.title" placeholder="默认标题" class="mb-2" />
+              <MultiLangEditor
+                :model="titleI18n"
+                :languages="enabledLangs"
+                title="弹窗标题多语言"
+              />
             </el-form-item>
 
             <!-- 弹窗图片 -->
@@ -164,12 +164,18 @@
 
             <!-- 富文本内容(多语言) - 仅 content 类型 -->
             <el-form-item v-if="formData.popupType === 'content'" label="弹窗内容(多语言):" prop="content">
-              <el-tabs v-if="enabledLangs.length" v-model="contentLangTab" type="border-card" style="width:100%;">
-                <el-tab-pane v-for="lang in enabledLangs" :key="lang.code" :label="lang.name" :name="lang.code">
-                  <RichEdit v-model="contentI18n[lang.code]" />
-                </el-tab-pane>
-              </el-tabs>
-              <RichEdit v-else v-model="formData.content" />
+              <MultiLangEditor
+                :model="contentI18n"
+                :languages="enabledLangs"
+                title="弹窗内容多语言"
+                :use-tabs="true"
+              >
+                <template #editor="{ lang }">
+                  <div class="h-[460px]">
+                    <RichEdit v-model="contentI18n[lang.code]" />
+                  </div>
+                </template>
+              </MultiLangEditor>
             </el-form-item>
 
             <!-- 跳转链接 -->
@@ -253,6 +259,7 @@ import {
 } from '@/api/shop/popup'
 import { getUrl } from '@/utils/image'
 import { getEnabledLanguages } from '@/api/client/language'
+import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 import SelectImage from '@/components/selectImage/selectImage.vue'
 import RichEdit from '@/components/richtext/rich-edit.vue'
 import { formatDate } from '@/utils/format'
@@ -280,16 +287,12 @@ const commonPages = [
 const enabledLangs = ref([])
 const titleI18n = ref({})
 const contentI18n = ref({})
-const contentLangTab = ref('')
 
 const loadLangs = async () => {
   try {
     const res = await getEnabledLanguages()
     if (res.code === 0) {
       enabledLangs.value = res.data || []
-      if (enabledLangs.value.length > 0) {
-        contentLangTab.value = enabledLangs.value[0].code
-      }
     }
   } catch (e) { /* ignore */ }
 }
@@ -487,9 +490,9 @@ const enterDialog = async () => {
     if (!valid) return btnLoading.value = false
     // 序列化多语言字段
     if (enabledLangs.value.length) {
-      formData.value.title = serializeI18nJson(titleI18n.value)
+      formData.value.title = serializeI18nJson(titleI18n.value) || formData.value.title
       if (formData.value.popupType === 'content') {
-        formData.value.content = serializeI18nJson(contentI18n.value)
+        formData.value.content = serializeI18nJson(contentI18n.value) || formData.value.content
       }
     }
     // pages 从 pagesList 同步（watch 已处理，这里确保）

@@ -4,7 +4,7 @@
       <view class="cart-status"></view>
       <view class="cart-navbar-inner">
         <view class="cart-back" @tap="goBack">
-          <uni-icons type="left" size="20" color="#fff" />
+          <uni-icons type="left" size="20" color="#0f172a" />
         </view>
         <text class="cart-title">{{ $t('cart') }}</text>
         <view class="cart-placeholder"></view>
@@ -37,12 +37,12 @@ const goBack = () => {
 
 <style lang="scss">
 page {
-  background: #000;
+  background: #f4f7fb;
 }
 
 .cart-page {
   min-height: 100vh;
-  background: #000;
+  background: radial-gradient(120% 80% at 100% -10%, #dbeafe 0%, transparent 60%), #f4f7fb;
 }
 
 .cart-navbar {
@@ -51,9 +51,9 @@ page {
   left: 0;
   right: 0;
   z-index: 99;
-  background: rgba(0, 0, 0, 0.82);
+  background: rgba(244, 247, 251, 0.86);
   backdrop-filter: blur(16px);
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1rpx solid rgba(15, 23, 42, 0.08);
 }
 
 .cart-status {
@@ -75,12 +75,14 @@ page {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.84);
+  border: 1rpx solid rgba(15, 23, 42, 0.1);
+  box-shadow: 0 8rpx 18rpx rgba(15, 23, 42, 0.08);
 }
 
 .cart-title {
   font-size: 32rpx;
-  color: #fff;
+  color: #0f172a;
   font-weight: 700;
 }
 
@@ -92,5 +94,6 @@ page {
 .cart-body {
   padding-top: 16rpx;
   padding-bottom: calc(env(safe-area-inset-bottom) + 132rpx);
+  background: transparent;
 }
 </style>

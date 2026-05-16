@@ -3,6 +3,7 @@
     <div class="gva-table-box">
       <div class="gva-btn-list">
         <el-button type="primary" icon="plus" @click="handleAdd({...geo,level:-1})">新增省会</el-button>
+        <span class="geo-tree-hint">当前展示国家及其子地区；点击左侧展开箭头可逐级查看，支持继续新增子地区</span>
       </div>
       <el-table
         ref="mainTable"
@@ -16,10 +17,17 @@
         :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
       >
         <el-table-column prop="id" label="编号" width="140" />
-        <el-table-column prop="name" label="城市名称" min-width="160" />
+        <el-table-column prop="name" label="城市名称" min-width="220">
+          <template #default="scope">
+            <div class="geo-name-cell" :class="`geo-name-cell--level-${scope.row.level}`">
+              <span class="geo-name-mark" />
+              <span class="geo-name-text">{{ displayGeoName(scope.row) }}</span>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column prop="level" label="城市等级" width="100">
           <template #default="scope">
-            <el-tag>{{ levelMap[scope.row.level] }}</el-tag>
+            <el-tag :type="levelTagType(scope.row.level)">{{ levelMap[scope.row.level] }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="code" label="城市编码" width="120" />
@@ -30,7 +38,7 @@
         <el-table-column width="220" label="操作">
           <template #default="scope">
             <el-button type="primary" link @click="handleEdit(scope.row)">编辑</el-button>
-            <el-button v-if="scope.row.level!=2" type="primary" link @click="handleAdd(scope.row)">新增子地区</el-button>
+            <el-button v-if="scope.row.level < 5" type="primary" link @click="handleAdd(scope.row)">新增子地区</el-button>
             <el-button type="primary" link @click="handleDelete(scope.row)">删除</el-button>
           </template>
         </el-table-column>
@@ -43,13 +51,11 @@
           <el-input v-model="geo.name" />
         </el-form-item>
         <el-form-item label="名称(多语言)">
-          <div style="width:100%">
-            <div v-for="lang in enabledLangs" :key="lang.code" style="display:flex;align-items:center;margin-bottom:8px;">
-              <el-tag size="small" style="margin-right:8px;min-width:50px;text-align:center;">{{ lang.code }}</el-tag>
-              <el-input v-model="nameI18nObj[lang.code]" :placeholder="lang.name" style="flex:1" />
-            </div>
-            <div v-if="!enabledLangs.length" style="color:#999;font-size:12px;">请先在语言管理中启用语言</div>
-          </div>
+          <MultiLangEditor
+            :model="nameI18nObj"
+            :languages="enabledLangs"
+            title="城市名称多语言"
+          />
         </el-form-item>
         <el-form-item label="城市编码">
           <el-input v-model="geo.code" :disabled="geo.id !== 0" />
@@ -80,6 +86,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { getGeos, getGeo, editGeo, createGeo, deleteGeo } from '@/plugin/geo/api/geo.js'
 import { getEnabledLanguages } from '@/api/client/language'
 import { ElMessageBox, ElMessage } from 'element-plus'
+import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 
 // 多语言编辑
 const nameI18nObj = reactive({})
@@ -104,12 +111,65 @@ const parseNameI18n = (jsonStr) => {
 
 const serializeNameI18n = () => {
   const obj = {}
-  for (const lang of enabledLangs.value) {
-    if (nameI18nObj[lang.code]) {
-      obj[lang.code] = nameI18nObj[lang.code]
+  Object.entries(nameI18nObj).forEach(([rawCode, rawText]) => {
+    const code = String(rawCode || '').trim()
+    if (!code) return
+    const text = String(rawText ?? '').trim()
+    if (!text) return
+    obj[code] = text
+  })
+  return JSON.stringify(obj)
+}
+
+const displayGeoName = (row) => {
+  const raw = row?.nameI18n
+  let parsed = null
+  if (raw && typeof raw === 'string') {
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      parsed = null
+    }
+  } else if (raw && typeof raw === 'object') {
+    parsed = raw
+  }
+
+  if (parsed && typeof parsed === 'object') {
+    const codes = []
+    const pushCode = (code) => {
+      if (!code || codes.includes(code)) {
+        return
+      }
+      codes.push(code)
+    }
+
+    pushCode('zh')
+    pushCode('zh-TW')
+    pushCode('ja')
+    pushCode('ko')
+    pushCode('th')
+    pushCode('ar')
+    pushCode('hi')
+    pushCode('mn')
+    pushCode('vi')
+    for (const lang of enabledLangs.value) {
+      pushCode(lang?.code)
+    }
+    pushCode('en')
+
+    for (const code of codes) {
+      const text = String(parsed[code] ?? '').trim()
+      if (text) {
+        return text
+      }
+    }
+    const firstText = Object.values(parsed).find(item => String(item ?? '').trim())
+    if (firstText) {
+      return String(firstText)
     }
   }
-  return JSON.stringify(obj)
+
+  return String(row?.name ?? '')
 }
 
 onMounted(() => {
@@ -136,11 +196,17 @@ const baseGeo = {
 }
 
 const levelMap = {
-  0: '省',
-  1: '市',
-  2: '区',
-  3: '街道',
-  4: '社区'
+  0: '国家',
+  1: '一级行政区',
+  2: '二级行政区',
+  3: '三级行政区',
+  4: '四级行政区',
+  5: '五级行政区'
+}
+
+const levelTagType = (level) => {
+  const typeMap = ['danger', 'warning', 'success', 'info', 'primary', '']
+  return typeMap[level] || 'info'
 }
 
 const tempObj = {}
@@ -208,8 +274,8 @@ const handleEdit = async(row) => {
 
 const getTreeData = async(level, code) => {
   const res = await getGeos({ level, code })
-  if (level !== 1) {
-    res.data.forEach(element => {
+  if ((level === '' || level === null || level === undefined) && Array.isArray(res.data)) {
+    res.data.forEach((element) => {
       element.hasChildren = true
     })
   }
@@ -240,3 +306,62 @@ const load = async(row, treeNode, resolve) => {
 }
 
 </script>
+
+<style scoped>
+.geo-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #1f2937 0%, #334155 100%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.geo-name-mark {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  background: #94a3b8;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.18);
+}
+
+.geo-name-text {
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.1px;
+  text-rendering: optimizeLegibility;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.geo-name-cell--level-0 .geo-name-mark { background: #ef4444; }
+.geo-name-cell--level-0 .geo-name-text {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.geo-name-cell--level-1 .geo-name-mark { background: #f59e0b; }
+.geo-name-cell--level-1 .geo-name-text { font-weight: 600; }
+
+.geo-name-cell--level-2 .geo-name-mark { background: #10b981; }
+.geo-name-cell--level-3 .geo-name-mark { background: #0ea5e9; }
+.geo-name-cell--level-4 .geo-name-mark { background: #8b5cf6; }
+.geo-name-cell--level-5 .geo-name-mark { background: #64748b; }
+
+.geo-tree-hint {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  align-self: center;
+  margin-left: 12px;
+}
+.geo-name-cell--level-3,
+.geo-name-cell--level-4,
+.geo-name-cell--level-5 {
+  margin-left: 2px;
+}
+</style>

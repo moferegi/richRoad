@@ -159,9 +159,10 @@
         <el-table-column
           align="left"
           label="价格"
-          prop="price"
           width="120"
-        />
+        >
+          <template #default="scope">{{ formatTablePrice(scope.row) }}</template>
+        </el-table-column>
         <el-table-column
           align="left"
           label="余量"
@@ -254,12 +255,12 @@
             placeholder="请输入名称"
           />
         </el-form-item>
-        <div v-if="enabledLangs.length" class="pl-2 mb-3">
-          <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
-            <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
-            <el-input v-model="nameI18n[lang.code]" :placeholder="lang.name" size="small" />
-          </div>
-        </div>
+        <MultiLangEditor
+          :model="nameI18n"
+          :languages="enabledLangs"
+          title="名称多语言"
+          input-type="input"
+        />
         <el-form-item
           label="图片(上传):"
           prop="picture"
@@ -283,21 +284,29 @@
             placeholder="请输入介绍"
           />
         </el-form-item>
-        <div v-if="enabledLangs.length" class="pl-2 mb-3">
-          <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
-            <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
-            <el-input v-model="descI18n[lang.code]" :placeholder="lang.name" size="small" />
-          </div>
-        </div>
+        <MultiLangEditor
+          :model="descI18n"
+          :languages="enabledLangs"
+          title="介绍多语言"
+          input-type="input"
+        />
         <el-form-item
-          label="价格:"
+          label="价格(单位：分):"
           prop="price"
         >
-          <el-input
-            v-model.number="formData.price"
-            :clearable="true"
-            placeholder="请输入价格"
-          />
+          <div class="w-full">
+            <el-input-number
+              v-model="formData.price"
+              :precision="0"
+              :step="1"
+              :min="0"
+              style="width: 100%"
+            />
+            <div class="mt-2 flex items-center justify-between gap-2">
+              <el-button type="primary" plain size="small" @click="openPriceRateDialog">汇率换算</el-button>
+              <span class="text-xs text-gray-500">多语言价格槽位：{{ Object.keys(priceI18n).length }}</span>
+            </div>
+          </div>
         </el-form-item>
         <el-form-item
           label="余量:"
@@ -346,20 +355,22 @@
               />
               <el-button type="danger" link @click="formData.attrs.splice(index,1)">删除</el-button>
             </div>
-            <el-collapse v-if="enabledLangs.length && attr.labelI18n && attr.valueI18n" style="margin-top:8px;border:none;">
-              <el-collapse-item>
-                <template #title>
-                  <span style="font-size:12px;color:#909399;">🌐 多语言翻译</span>
-                </template>
-                <div style="padding:4px 0;">
-                  <div v-for="lang in enabledLangs" :key="lang.code" style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
-                    <el-tag size="small" type="info" style="min-width:50px;text-align:center;">{{ lang.code }}</el-tag>
-                    <el-input v-model="attr.labelI18n[lang.code]" :placeholder="lang.name+' 名称'" size="small" style="width:140px;flex-shrink:0;" />
-                    <el-input v-model="attr.valueI18n[lang.code]" :placeholder="lang.name+' 值'" size="small" style="flex:1;" />
-                  </div>
-                </div>
-              </el-collapse-item>
-            </el-collapse>
+            <div class="mt-2">
+              <MultiLangEditor
+                :model="attr.labelI18n"
+                :languages="enabledLangs"
+                :title="'属性名称多语言 #' + (index + 1)"
+                input-type="input"
+              />
+            </div>
+            <div class="mt-2">
+              <MultiLangEditor
+                :model="attr.valueI18n"
+                :languages="enabledLangs"
+                :title="'属性值多语言 #' + (index + 1)"
+                input-type="input"
+              />
+            </div>
           </div>
         </el-form-item>
 
@@ -400,24 +411,111 @@
               />
               <el-button type="danger" link @click="formData.specs.splice(index,1)">删除</el-button>
             </div>
-            <el-collapse v-if="enabledLangs.length && spec.labelI18n && spec.valueI18n" style="margin-top:8px;border:none;">
-              <el-collapse-item>
-                <template #title>
-                  <span style="font-size:12px;color:#909399;">🌐 多语言翻译</span>
-                </template>
-                <div style="padding:4px 0;">
-                  <div v-for="lang in enabledLangs" :key="lang.code" style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
-                    <el-tag size="small" type="info" style="min-width:50px;text-align:center;">{{ lang.code }}</el-tag>
-                    <el-input v-model="spec.labelI18n[lang.code]" :placeholder="lang.name+' 名称'" size="small" style="width:140px;flex-shrink:0;" />
-                    <el-input v-model="spec.valueI18n[lang.code]" :placeholder="lang.name+' 值'" size="small" style="flex:1;" />
-                  </div>
-                </div>
-              </el-collapse-item>
-            </el-collapse>
+            <div class="mt-2">
+              <MultiLangEditor
+                :model="spec.labelI18n"
+                :languages="enabledLangs"
+                :title="'规格名称多语言 #' + (index + 1)"
+                input-type="input"
+              />
+            </div>
+            <div class="mt-2">
+              <MultiLangEditor
+                :model="spec.valueI18n"
+                :languages="enabledLangs"
+                :title="'规格值多语言 #' + (index + 1)"
+                input-type="input"
+              />
+            </div>
           </div>
         </el-form-item>
       </el-form>
     </el-drawer>
+
+    <el-dialog
+      v-model="priceRateDialogVisible"
+      title="SKU价格汇率换算"
+      width="980px"
+      destroy-on-close
+    >
+      <div class="mb-3 flex flex-wrap items-center gap-2">
+        <el-checkbox :model-value="isAllPriceRowsSelected()" @change="toggleSelectAllPriceRows">全选</el-checkbox>
+        <el-input-number
+          v-model="priceAdjustPercent"
+          :precision="2"
+          :step="0.5"
+          placeholder="增减百分比"
+          style="width: 140px"
+        />
+        <span class="text-xs text-gray-500">增加%（可负数），按人民币价格换算后叠加</span>
+      </div>
+
+      <div class="mb-3 flex flex-wrap gap-2">
+        <el-button type="primary" :loading="priceRateLoading" @click="refreshSelectedExchangeRates">更新汇率（选中）</el-button>
+        <el-button type="success" @click="applySelectedRateToPrices">补齐（更新选中价格）</el-button>
+        <el-button @click="fillMissingLangSlots">补齐多语言槽位</el-button>
+      </div>
+
+      <div class="mb-2 text-xs text-gray-500">
+        汇率来源：{{ exchangeRateSource || '-' }}
+        <span v-if="exchangeRateFetchedAt">，更新时间：{{ exchangeRateFetchedAt }}</span>
+      </div>
+
+      <el-table :data="priceRateRows" border max-height="420px">
+        <el-table-column label="选择" width="70">
+          <template #default="scope">
+            <el-checkbox v-model="scope.row.selected" />
+          </template>
+        </el-table-column>
+        <el-table-column label="语言" width="180">
+          <template #default="scope">
+            {{ scope.row.name }} ({{ scope.row.code }})
+          </template>
+        </el-table-column>
+        <el-table-column label="币种" width="140">
+          <template #default="scope">
+            <el-input v-model="scope.row.currency" maxlength="3" placeholder="USD" @change="normalizeRowCurrency(scope.row)" />
+          </template>
+        </el-table-column>
+        <el-table-column label="汇率(CNY->币种)" width="190">
+          <template #default="scope">
+            <el-input-number
+              v-model="scope.row.rate"
+              :precision="6"
+              :min="0"
+              :step="0.001"
+              controls-position="right"
+              style="width: 100%"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column label="目标价格(分)">
+          <template #default="scope">
+            <div class="flex items-center gap-2">
+              <el-input-number
+                v-model="scope.row.targetPriceFen"
+                :precision="0"
+                :step="1"
+                :min="0"
+                controls-position="right"
+                style="width: 160px"
+                @change="syncRowPriceToI18n(scope.row)"
+              />
+              <span class="text-xs text-gray-500">≈ {{ formatFen(scope.row.targetPriceFen) }}</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="120">
+          <template #default="scope">
+            <el-button link type="primary" @click="refreshSingleRate(scope.row)">更新汇率</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <template #footer>
+        <el-button @click="priceRateDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
 
     <el-drawer
       v-model="detailShow"
@@ -475,12 +573,22 @@ import {
   findSku,
   getSkuList
 } from '@/api/shop/sku'
-import { getEnabledLanguages } from '@/api/client/language'
+import { getEnabledLanguages, getLanguageList } from '@/api/client/language'
 import { getDefaultDomain } from '@/api/client/externalLinkDomain'
 import { getAllSkuSpecs } from '@/api/shop/skuSpec'
+import {
+  DEFAULT_LANG_CURRENCY_MAP,
+  fetchExchangeRates,
+  calcConvertedFenFromCny,
+  normalizePriceI18nMap,
+  ensurePriceSlots,
+  serializePriceI18nMap,
+  formatFen
+} from '@/utils/exchange-rate'
 import { getUrl } from '@/utils/image'
 // 图片选择组件
 import SelectImage from '@/components/selectImage/selectImage.vue'
+import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 import { useRoute } from 'vue-router'
 // 全量引入格式化工具 请按需保留
 import { getDictFunc, formatDate, formatBoolean, filterDict, ReturnArrImg, onDownloadFile } from '@/utils/format'
@@ -540,14 +648,43 @@ const selectSpecFromDict = (dictItem) => {
 
 // === i18n 多语言支持 ===
 const enabledLangs = ref([])
+const allLangs = ref([])
 const nameI18n = ref({})
 const descI18n = ref({})
 
+const uniqueLangItems = (items = []) => {
+  const map = new Map()
+  items.forEach((item) => {
+    const code = String(item?.code || '').trim()
+    if (!code || map.has(code)) return
+    map.set(code, {
+      ...item,
+      code
+    })
+  })
+  return Array.from(map.values())
+}
+
 const loadLangs = async () => {
   try {
-    const res = await getEnabledLanguages()
-    if (res.code === 0) {
-      enabledLangs.value = res.data || []
+    const [enabledRes, listRes] = await Promise.all([
+      getEnabledLanguages().catch(() => null),
+      getLanguageList({ page: 1, pageSize: 500 }).catch(() => null)
+    ])
+
+    if (enabledRes?.code === 0) {
+      enabledLangs.value = uniqueLangItems(enabledRes.data || [])
+    }
+
+    if (listRes?.code === 0) {
+      const listPayload = Array.isArray(listRes?.data?.list)
+        ? listRes.data.list
+        : (Array.isArray(listRes?.data) ? listRes.data : [])
+      allLangs.value = uniqueLangItems(listPayload)
+    }
+
+    if (!allLangs.value.length) {
+      allLangs.value = [...enabledLangs.value]
     }
   } catch (e) { /* ignore */ }
 }
@@ -565,6 +702,208 @@ const serializeI18nJson = (obj) => {
   return Object.keys(filtered).length ? JSON.stringify(filtered) : ''
 }
 
+const priceI18n = ref({})
+const priceRateDialogVisible = ref(false)
+const priceRateRows = ref([])
+const priceRateLoading = ref(false)
+const priceAdjustPercent = ref(0)
+const exchangeRateSource = ref('')
+const exchangeRateFetchedAt = ref('')
+
+const getEnabledLangCodes = () => {
+  const source = allLangs.value.length ? allLangs.value : enabledLangs.value
+  return source
+    .map((item) => String(item?.code || '').trim())
+    .filter(Boolean)
+}
+
+const normalizeCurrencyCode = (value) => {
+  return String(value || '').trim().toUpperCase().slice(0, 3)
+}
+
+const syncPriceI18nToForm = () => {
+  formData.value.priceI18n = serializePriceI18nMap(priceI18n.value)
+}
+
+const ensureTextLangSlots = (payload, fallbackValue = '') => {
+  const next = { ...(payload || {}) }
+  getEnabledLangCodes().forEach((code) => {
+    if (!Object.prototype.hasOwnProperty.call(next, code)) {
+      next[code] = fallbackValue
+    }
+  })
+  return next
+}
+
+const ensurePriceLangSlots = () => {
+  const fallbackFen = Math.round(Number(formData.value.price) || 0)
+  priceI18n.value = ensurePriceSlots(priceI18n.value, getEnabledLangCodes(), fallbackFen)
+  syncPriceI18nToForm()
+}
+
+const buildPriceRateRows = () => {
+  ensurePriceLangSlots()
+  const previousMap = {}
+  priceRateRows.value.forEach((row) => {
+    previousMap[row.code] = row
+  })
+
+  const fallbackFen = Math.round(Number(formData.value.price) || 0)
+  const source = allLangs.value.length ? allLangs.value : enabledLangs.value
+  priceRateRows.value = source.map((lang) => {
+    const code = String(lang?.code || '').trim()
+    const previous = previousMap[code] || {}
+    const currency = normalizeCurrencyCode(previous.currency || DEFAULT_LANG_CURRENCY_MAP[code] || 'USD')
+    const targetPriceFen = Number.isFinite(Number(priceI18n.value[code]))
+      ? Number(priceI18n.value[code])
+      : fallbackFen
+    const defaultRate = code === 'zh' ? 1 : 0
+
+    return {
+      code,
+      name: lang?.name || code,
+      currency,
+      rate: Number.isFinite(Number(previous.rate)) ? Number(previous.rate) : defaultRate,
+      selected: previous.selected !== false,
+      targetPriceFen
+    }
+  })
+}
+
+const openPriceRateDialog = () => {
+  if (!getEnabledLangCodes().length) {
+    ElMessage.warning('请先在语言管理中配置语言')
+    return
+  }
+  buildPriceRateRows()
+  priceRateDialogVisible.value = true
+}
+
+const isAllPriceRowsSelected = () => {
+  return priceRateRows.value.length > 0 && priceRateRows.value.every((row) => row.selected)
+}
+
+const toggleSelectAllPriceRows = (checked) => {
+  priceRateRows.value.forEach((row) => {
+    row.selected = !!checked
+  })
+}
+
+const normalizeRowCurrency = (row) => {
+  row.currency = normalizeCurrencyCode(row.currency)
+}
+
+const syncRowPriceToI18n = (row) => {
+  const priceFen = Math.max(0, Math.round(Number(row.targetPriceFen) || 0))
+  row.targetPriceFen = priceFen
+  priceI18n.value[row.code] = priceFen
+  syncPriceI18nToForm()
+}
+
+const refreshRatesForRows = async(rows) => {
+  const validRows = rows.filter((row) => row?.code)
+  if (!validRows.length) {
+    ElMessage.warning('请先选择需要更新汇率的语言')
+    return
+  }
+
+  const currencies = validRows
+    .map((row) => normalizeCurrencyCode(row.currency))
+    .filter(Boolean)
+
+  try {
+    priceRateLoading.value = true
+    const result = await fetchExchangeRates({
+      base: 'CNY',
+      currencies
+    })
+    exchangeRateSource.value = result.source || ''
+    exchangeRateFetchedAt.value = result.fetchedAt || ''
+
+    validRows.forEach((row) => {
+      if (row.code === 'zh') {
+        row.rate = 1
+        return
+      }
+      const currency = normalizeCurrencyCode(row.currency)
+      const nextRate = Number(result?.rates?.[currency])
+      if (Number.isFinite(nextRate) && nextRate > 0) {
+        row.rate = nextRate
+      }
+    })
+    ElMessage.success('汇率更新完成')
+  } catch (error) {
+    ElMessage.error(error?.message || '汇率更新失败')
+  } finally {
+    priceRateLoading.value = false
+  }
+}
+
+const refreshSelectedExchangeRates = async() => {
+  const selectedRows = priceRateRows.value.filter((row) => row.selected)
+  await refreshRatesForRows(selectedRows)
+}
+
+const refreshSingleRate = async(row) => {
+  await refreshRatesForRows([row])
+}
+
+const applySelectedRateToPrices = () => {
+  const selectedRows = priceRateRows.value.filter((row) => row.selected)
+  if (!selectedRows.length) {
+    ElMessage.warning('请至少选择一个语言')
+    return
+  }
+
+  let updatedCount = 0
+  selectedRows.forEach((row) => {
+    const convertedFen = calcConvertedFenFromCny(formData.value.price, row.rate, priceAdjustPercent.value)
+    if (convertedFen === null) {
+      return
+    }
+    row.targetPriceFen = convertedFen
+    priceI18n.value[row.code] = convertedFen
+    updatedCount += 1
+  })
+
+  syncPriceI18nToForm()
+  ElMessage.success(`已更新 ${updatedCount} 个语言价格`)
+}
+
+const fillMissingLangSlots = (silent = false) => {
+  if (!getEnabledLangCodes().length) {
+    if (!silent) {
+      ElMessage.warning('请先在语言管理中配置语言')
+    }
+    return
+  }
+
+  nameI18n.value = ensureTextLangSlots(nameI18n.value, formData.value.name || '')
+  descI18n.value = ensureTextLangSlots(descI18n.value, formData.value.description || '')
+
+  formData.value.attrs = (formData.value.attrs || []).map((item) => {
+    return {
+      ...item,
+      labelI18n: ensureTextLangSlots(item.labelI18n || parseI18nJson(item.label), item.label || ''),
+      valueI18n: ensureTextLangSlots(item.valueI18n || parseI18nJson(item.value), item.value || '')
+    }
+  })
+
+  formData.value.specs = (formData.value.specs || []).map((item) => {
+    return {
+      ...item,
+      labelI18n: ensureTextLangSlots(item.labelI18n || parseI18nJson(item.label), item.label || ''),
+      valueI18n: ensureTextLangSlots(item.valueI18n || parseI18nJson(item.value), item.value || '')
+    }
+  })
+
+  ensurePriceLangSlots()
+  buildPriceRateRows()
+  if (!silent) {
+    ElMessage.success('多语言槽位补齐完成')
+  }
+}
+
 onMounted(() => { loadLangs(); loadExtDomain(); loadSkuSpecDict() })
 
 const tableLang = ref('')
@@ -579,6 +918,19 @@ const formatSkuI18nField = (val) => {
     } catch { return val }
   }
   return val
+}
+
+const getLocalizedPriceFen = (basePrice, i18nPayload, langCode) => {
+  const map = normalizePriceI18nMap(i18nPayload)
+  if (langCode && Number.isFinite(Number(map[langCode]))) {
+    return Number(map[langCode])
+  }
+  const base = Number(basePrice)
+  return Number.isFinite(base) ? base : 0
+}
+
+const formatTablePrice = (row) => {
+  return formatFen(getLocalizedPriceFen(row?.price, row?.priceI18n, tableLang.value))
 }
 
 const formatSkuAttrs = (attrsStr) => {
@@ -642,6 +994,7 @@ const formData = ref({
   externalPicturePath: '',
   description: '',
   price: 0,
+  priceI18n: '',
   inventory: 0,
   attrs: [],
   specs: [],
@@ -812,13 +1165,16 @@ const updateSkuFunc = async(row) => {
     if (!formData.value.attrs) formData.value.attrs = []
     if (!formData.value.specs) formData.value.specs = []
     formData.value.attrs.forEach(item => {
-      if (!item.labelI18n || typeof item.labelI18n === 'string') item.labelI18n = parseI18nJson(item.labelI18n || '')
-      if (!item.valueI18n || typeof item.valueI18n === 'string') item.valueI18n = parseI18nJson(item.valueI18n || '')
+      if (!item.labelI18n || typeof item.labelI18n === 'string') item.labelI18n = parseI18nJson(item.labelI18n || item.label)
+      if (!item.valueI18n || typeof item.valueI18n === 'string') item.valueI18n = parseI18nJson(item.valueI18n || item.value)
     })
     formData.value.specs.forEach(item => {
-      if (!item.labelI18n || typeof item.labelI18n === 'string') item.labelI18n = parseI18nJson(item.labelI18n || '')
-      if (!item.valueI18n || typeof item.valueI18n === 'string') item.valueI18n = parseI18nJson(item.valueI18n || '')
+      if (!item.labelI18n || typeof item.labelI18n === 'string') item.labelI18n = parseI18nJson(item.labelI18n || item.label)
+      if (!item.valueI18n || typeof item.valueI18n === 'string') item.valueI18n = parseI18nJson(item.valueI18n || item.value)
     })
+    priceI18n.value = normalizePriceI18nMap(formData.value.priceI18n)
+    ensurePriceLangSlots()
+    buildPriceRateRows()
     dialogFormVisible.value = true
   }
 }
@@ -864,9 +1220,14 @@ const closeDetailShow = () => {
   detailShow.value = false
   formData.value = {
     name: '',
+    picture: '',
+    externalPicturePath: '',
     description: '',
     price: 0,
+    priceI18n: '',
     inventory: 0,
+    attrs: [],
+    specs: [],
     goodID: Number(route.query.id),
   }
 }
@@ -876,6 +1237,11 @@ const openDialog = () => {
   type.value = 'create'
   nameI18n.value = {}
   descI18n.value = {}
+  priceI18n.value = {}
+  priceRateRows.value = []
+  priceAdjustPercent.value = 0
+  exchangeRateSource.value = ''
+  exchangeRateFetchedAt.value = ''
   formData.value.attrs = []
   formData.value.specs = []
   attrs.value.forEach(item => {
@@ -909,21 +1275,31 @@ const openDialog = () => {
       valueI18n: parsedValueI18n
     })
   })
+  fillMissingLangSlots(true)
   dialogFormVisible.value = true
 }
 
 // 关闭弹窗
 const closeDialog = () => {
   dialogFormVisible.value = false
+  priceRateDialogVisible.value = false
   nameI18n.value = {}
   descI18n.value = {}
+  priceI18n.value = {}
+  priceRateRows.value = []
+  priceAdjustPercent.value = 0
+  exchangeRateSource.value = ''
+  exchangeRateFetchedAt.value = ''
   formData.value = {
     no: '',
     name: '',
     externalPicturePath: '',
     description: '',
     price: 0,
+    priceI18n: '',
     inventory: 0,
+    attrs: [],
+    specs: [],
     goodID: Number(route.query.id),
   }
 }
@@ -943,21 +1319,23 @@ const addSpec = () => {
 const enterDialog = async() => {
   elFormRef.value?.validate(async(valid) => {
     if (!valid) return
+    const payload = JSON.parse(JSON.stringify(formData.value))
+    payload.priceI18n = serializePriceI18nMap(priceI18n.value)
     // 序列化 i18n 字段
-    if (enabledLangs.value.length) {
-      formData.value.name = serializeI18nJson(nameI18n.value) || formData.value.name
-      formData.value.description = serializeI18nJson(descI18n.value) || formData.value.description
+    if (getEnabledLangCodes().length) {
+      payload.name = serializeI18nJson(nameI18n.value) || payload.name
+      payload.description = serializeI18nJson(descI18n.value) || payload.description
     }
     let res
     switch (type.value) {
       case 'create':
-        res = await createSku(formData.value)
+        res = await createSku(payload)
         break
       case 'update':
-        res = await updateSku(formData.value)
+        res = await updateSku(payload)
         break
       default:
-        res = await createSku(formData.value)
+        res = await createSku(payload)
         break
     }
     if (res.code === 0) {

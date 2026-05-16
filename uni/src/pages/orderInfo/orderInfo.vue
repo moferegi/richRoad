@@ -41,10 +41,10 @@
           <LazyImage class="nf-goods-img" :src="d.sku?.externalPicturePath ? getExternalUrl(d.sku.externalPicturePath) : getUrl(d.sku?.picture)" mode="aspectFill"></LazyImage>
           <view class="nf-goods-info">
             <text class="nf-goods-name">{{ $lt(d?.sku?.name) || d?.sku?.name }}</text>
-            <text class="nf-goods-desc">{{ $lt(d?.good?.description) || d?.good?.description }}</text>
+            <text class="nf-goods-desc">{{ $lt(d?.good?.description) || $lt(d?.sku?.description) || d?.good?.description || d?.sku?.description }}</text>
             <text class="nf-goods-specs">{{ formatSpecs(d?.sku?.specs, d?.sku?.attrs) }}</text>
             <view class="nf-goods-bottom">
-              <text class="nf-goods-price">{{ cs }}{{ (d.sku?.price || 0) / 100 }}</text>
+              <text class="nf-goods-price">{{ cs }}{{ formatLinePrice(d) }}</text>
               <text class="nf-goods-qty">×{{ d.quantity }}</text>
             </view>
           </view>
@@ -70,7 +70,7 @@
       <view class="nf-card nf-price-card">
         <view class="nf-price-row">
           <text class="nf-price-label">{{ $t('productAmount') }}</text>
-          <text class="nf-price-val">{{ cs }}{{ (originPrice / 100).toFixed(2) }}</text>
+          <text class="nf-price-val">{{ cs }}{{ (localizedOriginPrice / 100).toFixed(2) }}</text>
         </view>
         <view class="nf-price-row nf-price-discount" v-if="selectedCouponDiscount > 0">
           <text class="nf-price-label">{{ $t('discountAmount') }}</text>
@@ -98,7 +98,7 @@
     <view class="nf-footer" v-if="!submitting">
       <view class="nf-footer-info">
         <text class="nf-footer-label">{{ $t('actualPayment') }}</text>
-        <text class="nf-footer-price">{{ cs }}{{ (totalPrice / 100).toFixed(2) }}</text>
+        <text class="nf-footer-price">{{ cs }}{{ (localizedTotalPrice / 100).toFixed(2) }}</text>
       </view>
       <view class="nf-footer-btn" @tap="submitOrder">
         <text>{{ $t('submitOrder') }}</text>
@@ -137,6 +137,14 @@
         </view>
       </scroll-view>
     </view>
+
+    <i18n-action-sheet
+      v-model:visible="payMethodSheetVisible"
+      :items="payMethodSheetItems.map(item => item.label)"
+      :cancel-text="$t('cancel')"
+      @select="handlePayMethodSheetSelect"
+      @cancel="handlePayMethodSheetCancel"
+    />
   </view>
 </template>
 
@@ -151,17 +159,20 @@ import { getUserInfo } from '@/api/base.js'
 import { findGood } from '@/api/product.js'
 import { getDefaultAddress } from '@/api/address.js'
 import { getPaymentConfig } from '@/api/sysConfig.js'
-import { resolveApiMessage } from '@/utils/i18n.js'
+import { localText, resolveApiMessage } from '@/utils/i18n.js'
+import { formatLocalizedPrice, resolveLocalizedPriceFen } from '@/utils/price-i18n.js'
 import { getUrl, getExternalUrl } from "@/utils/url.js"
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import LazyImage from '@/components/lazy-image/lazy-image.vue'
+import I18nActionSheet from '@/components/i18n-action-sheet/i18n-action-sheet.vue'
 
 const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const goBack = () => { uni.navigateBack() }
 
@@ -188,6 +199,8 @@ const paramSkuID = ref(0)
 const paramQuantity = ref(1)
 const paramCouponNum = ref('')
 const paymentMethods = ref([])
+const payMethodSheetVisible = ref(false)
+const payMethodSheetItems = ref([])
 
 const paymentMethodLabelMap = () => ({
   qrcode: $t.value('payByQrcode'),
@@ -200,8 +213,10 @@ const paymentMethodLabelMap = () => ({
   paypal: $t.value('payMethodPaypal'),
 })
 
-const getPaymentMethodLabel = (key, label) => {
-  return paymentMethodLabelMap()[key] || label || key || '-'
+const getPaymentMethodLabel = (key, label, name) => {
+  const localizedName = String(localText(name, locale.value) || '').trim()
+  const localizedLabel = String(localText(label, locale.value) || '').trim()
+  return localizedName || paymentMethodLabelMap()[key] || localizedLabel || key || '-'
 }
 
 const buildDefaultPaymentMethods = () => ([
@@ -217,13 +232,39 @@ const loadPaymentMethods = async () => {
         .filter(m => m && m.key && m.enabled !== false)
         .map(m => ({
           key: m.key,
-          label: getPaymentMethodLabel(m.key, m.label)
+          label: getPaymentMethodLabel(m.key, m.label, m.name)
         }))
       : []
     paymentMethods.value = methods.length > 0 ? methods : buildDefaultPaymentMethods()
   } catch (e) {
     paymentMethods.value = buildDefaultPaymentMethods()
   }
+}
+
+const openPayMethodSheet = (methods = []) => {
+  const normalized = (Array.isArray(methods) ? methods : [])
+    .filter(item => item && item.key)
+    .map(item => ({
+      key: item.key,
+      label: String(item.label || getPaymentMethodLabel(item.key)),
+    }))
+  if (!normalized.length) {
+    return
+  }
+  payMethodSheetItems.value = normalized
+  payMethodSheetVisible.value = true
+}
+
+const handlePayMethodSheetSelect = async ({ index }) => {
+  const selected = payMethodSheetItems.value[index] || payMethodSheetItems.value[0]
+  if (!selected?.key) {
+    return
+  }
+  await doCreateOrder(selected.key)
+}
+
+const handlePayMethodSheetCancel = () => {
+  // User canceled selection; keep behavior unchanged.
 }
 
 /* =================== 价格计算（本地预览） =================== */
@@ -261,6 +302,25 @@ const totalPrice = computed(() => {
   return Math.max(0, price)
 })
 
+const localizedOriginPrice = computed(() => {
+  return goodsList.value.reduce((sum, detail) => {
+    const detailPrice = Number(detail?.price)
+    const basePriceFen = Number.isFinite(detailPrice) && detailPrice >= 0
+      ? detailPrice
+      : detail?.sku?.price
+    const priceI18nSnapshot = detail?.priceI18n || detail?.sku?.priceI18n
+    const priceFen = resolveLocalizedPriceFen(basePriceFen, priceI18nSnapshot, locale.value)
+    const quantity = Number(detail?.quantity || 0)
+    return sum + Math.max(0, priceFen) * Math.max(0, quantity)
+  }, 0)
+})
+
+const localizedTotalPrice = computed(() => {
+  let price = localizedOriginPrice.value - selectedCouponDiscount.value
+  if (usePoints.value) price -= previewPointsUsed.value
+  return Math.max(0, price)
+})
+
 const maxDeductDisplay = computed(() => {
   if (!pointsAllowed.value) return '0.00'
   const afterDiscount = Math.max(0, originPrice.value - selectedCouponDiscount.value)
@@ -279,6 +339,15 @@ const formatSpecs = (specs, attrs) => {
     const value = $lt.value(s.valueI18n) || $lt.value(s.value) || s.value || ''
     return label ? `${label}: ${value}` : value
   }).join('  ')
+}
+
+const formatLinePrice = (detail) => {
+  const detailPrice = Number(detail?.price)
+  const basePriceFen = Number.isFinite(detailPrice) && detailPrice >= 0
+    ? detailPrice
+    : detail?.sku?.price
+  const priceI18nSnapshot = detail?.priceI18n || detail?.sku?.priceI18n
+  return formatLocalizedPrice(basePriceFen, priceI18nSnapshot, locale.value)
 }
 
 /* =================== 地址 =================== */
@@ -441,16 +510,7 @@ const showPayMethodSelect = () => {
   if (!paymentMethods.value.length) {
     paymentMethods.value = buildDefaultPaymentMethods()
   }
-  uni.showActionSheet({
-    itemList: paymentMethods.value.map(item => item.label),
-    success: async (sheetRes) => {
-      const selected = paymentMethods.value[sheetRes.tapIndex]
-      await doCreateOrder(selected?.key || 'contact')
-    },
-    fail: () => {
-      // 用户取消选择，不做任何操作
-    }
-  })
+  openPayMethodSheet(paymentMethods.value)
 }
 
 const doCreateOrder = async (payMethod) => {
@@ -462,6 +522,8 @@ const doCreateOrder = async (payMethod) => {
     const orderData = {
       couponNum: selectedCouponNum.value,
       payMethod: selectedPayMethod,
+      settlementCurrency: locale.value,
+      settlementCurrencySymbol: cs.value,
       name: address.value.name || '',
       phone: address.value.phone || '',
       province: address.value.provinceStr || '',
@@ -502,7 +564,7 @@ const doCreateOrder = async (payMethod) => {
     // 4. 统一跳转支付中间页（二维码/人工/自动渠道一致）
     const encodedPayMethod = encodeURIComponent(selectedPayMethod)
     const encodedPayMethodLabel = encodeURIComponent(selectedMethodLabel)
-    uni.redirectTo({ url: `/pages/pay/index?amount=${(totalPrice.value / 100).toFixed(2)}&orderNo=${newOrderNo}&orderId=${newOrderID}&payMethod=${encodedPayMethod}&payMethodLabel=${encodedPayMethodLabel}` })
+    uni.redirectTo({ url: `/pages/pay/index?amount=${(localizedTotalPrice.value / 100).toFixed(2)}&orderNo=${newOrderNo}&orderId=${newOrderID}&payMethod=${encodedPayMethod}&payMethodLabel=${encodedPayMethodLabel}` })
   } catch (e) {
     uni.showToast({ title: $t.value('orderCreateFail'), icon: 'none' })
   } finally {

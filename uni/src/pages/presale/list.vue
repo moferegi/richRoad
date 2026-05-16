@@ -58,7 +58,7 @@
             <view class="nf-goods-bottom">
               <view class="nf-price-row">
                 <text class="nf-price-label">{{ $t('presalePrice') }}</text>
-                <text class="nf-price">{{ cs }}{{ formatPrice(item.price) }}</text>
+                <text class="nf-price">{{ cs }}{{ formatPrice(item) }}</text>
               </view>
               <view class="nf-presale-progress">
                 <view class="nf-progress-bar">
@@ -92,6 +92,7 @@ import { ref, computed, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getPresaleGoodList } from '@/api/presale'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
+import { formatLocalizedPrice } from '@/utils/price-i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
@@ -100,18 +101,14 @@ const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const list = ref([])
 const loading = ref(false)
 const isBottom = ref(false)
 let params = { page: 1, pageSize: 10 }
 
-const formatPrice = (priceInCents) => {
-  if (!priceInCents && priceInCents !== 0) return '0.00'
-  const cents = parseInt(priceInCents)
-  if (isNaN(cents)) return '0.00'
-  return (cents / 100).toFixed(2)
-}
+const formatPrice = (item) => formatLocalizedPrice(item?.price, item?.priceI18n, locale.value)
 
 const getCountdownType = (item) => {
   const now = Date.now()

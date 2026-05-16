@@ -25,6 +25,83 @@ type OrderService struct {
 
 const shopOrderStatusPendingConfirm = "8"
 
+func normalizeSettlementCurrency(value string) string {
+	normalized := strings.TrimSpace(value)
+	if normalized == "" {
+		return ""
+	}
+	return strings.ReplaceAll(normalized, "_", "-")
+}
+
+func resolveCurrencySymbolByConfigValue(rawValue, settlementCurrency string) string {
+	trimmed := strings.TrimSpace(rawValue)
+	if trimmed == "" {
+		return ""
+	}
+
+	if strings.HasPrefix(trimmed, "{") {
+		var parsed map[string]interface{}
+		if err := json.Unmarshal([]byte(trimmed), &parsed); err == nil && len(parsed) > 0 {
+			candidates := make([]string, 0, 8)
+			currency := normalizeSettlementCurrency(settlementCurrency)
+			if currency != "" {
+				candidates = append(candidates, currency)
+				if strings.Contains(currency, "-") {
+					candidates = append(candidates, strings.SplitN(currency, "-", 2)[0])
+				}
+			}
+			candidates = append(candidates, "zh", "en", "mn", "zh-TW")
+
+			for _, key := range candidates {
+				if key == "" {
+					continue
+				}
+				if value, ok := parsed[key]; ok {
+					resolved := strings.TrimSpace(fmt.Sprintf("%v", value))
+					if resolved != "" {
+						return resolved
+					}
+				}
+			}
+
+			for _, value := range parsed {
+				resolved := strings.TrimSpace(fmt.Sprintf("%v", value))
+				if resolved != "" {
+					return resolved
+				}
+			}
+		}
+	}
+
+	return trimmed
+}
+
+func (orderService *OrderService) fillOrderSettlementCurrency(tx *gorm.DB, order *shop.Order) {
+	if order == nil {
+		return
+	}
+
+	settlementCurrency := normalizeSettlementCurrency(order.SettlementCurrency)
+	settlementSymbol := strings.TrimSpace(order.SettlementCurrencySymbol)
+
+	if settlementSymbol == "" {
+		var sysConf client.SysConfig
+		if err := tx.Where("config_key = ?", "currency_symbol").First(&sysConf).Error; err == nil {
+			settlementSymbol = resolveCurrencySymbolByConfigValue(sysConf.ConfigValue, settlementCurrency)
+		}
+	}
+
+	if settlementCurrency == "" {
+		settlementCurrency = "default"
+	}
+	if settlementSymbol == "" {
+		settlementSymbol = "¥"
+	}
+
+	order.SettlementCurrency = settlementCurrency
+	order.SettlementCurrencySymbol = settlementSymbol
+}
+
 // CreateOrder 创建订单记录
 // Author [piexlmax](https://github.com/piexlmax)
 func (orderService *OrderService) CreateOrder(order *shop.Order) (err error) {
@@ -326,6 +403,7 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, o
 			}
 			// sale_num 在付款确认时增加，而非下单时
 			order.Detail[i].Price = sku.Price
+			order.Detail[i].PriceI18n = sku.PriceI18n
 			order.OriginPrice += order.Detail[i].Quantity * order.Detail[i].Price
 			// 减扣库存
 		}
@@ -391,6 +469,7 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, o
 			}
 		}
 		order.CloseTime = time.Now().Add(time.Duration(closeMinutes) * time.Minute)
+		orderService.fillOrderSettlementCurrency(tx, order)
 
 		generatedOrderNo, noErr := orderService.generateUniqueShopOutTradeNo(tx)
 		if noErr != nil {
@@ -434,9 +513,11 @@ func (orderService *OrderService) PlaceOrderByCart(userID uint, req shopReq.Plac
 		}
 		// 2. 创建订单
 		order := shop.Order{
-			UserID:    userID,
-			Status:    "0",
-			PayMethod: req.PayMethod,
+			UserID:                   userID,
+			Status:                   "0",
+			PayMethod:                req.PayMethod,
+			SettlementCurrency:       req.SettlementCurrency,
+			SettlementCurrencySymbol: req.SettlementCurrencySymbol,
 		}
 		order.OriginPrice = 0
 		// 从购物车设置订单详情
@@ -464,10 +545,11 @@ func (orderService *OrderService) PlaceOrderByCart(userID uint, req shopReq.Plac
 			}
 
 			order.Detail = append(order.Detail, shop.OrderDetail{
-				GoodID:   carts[i].GoodID,
-				SKUID:    carts[i].SKUID,
-				Quantity: carts[i].Quantity,
-				Price:    carts[i].SKU.Price,
+				GoodID:    carts[i].GoodID,
+				SKUID:     carts[i].SKUID,
+				Quantity:  carts[i].Quantity,
+				Price:     carts[i].SKU.Price,
+				PriceI18n: carts[i].SKU.PriceI18n,
 			})
 			order.OriginPrice += carts[i].Quantity * carts[i].SKU.Price
 			// 乐观锁扣减库存：WHERE inventory >= quantity 防止并发超卖
@@ -511,6 +593,7 @@ func (orderService *OrderService) PlaceOrderByCart(userID uint, req shopReq.Plac
 		if order.TotalPrice <= 0 {
 			order.TotalPrice = 0
 		}
+		orderService.fillOrderSettlementCurrency(tx, &order)
 
 		generatedOrderNo, noErr := orderService.generateUniqueShopOutTradeNo(tx)
 		if noErr != nil {

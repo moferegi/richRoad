@@ -192,9 +192,10 @@
         <el-table-column
           align="left"
           label="商品价格"
-          prop="price"
           width="120"
-        />
+        >
+          <template #default="scope">{{ formatTablePrice(scope.row) }}</template>
+        </el-table-column>
         <el-table-column
           align="left"
           label="商品评分"
@@ -385,12 +386,11 @@
                 placeholder="默认商品名称"
               />
             </el-form-item>
-            <div v-if="enabledLangs.length" class="pl-2">
-              <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
-                <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
-                <el-input v-model="titleI18n[lang.code]" :placeholder="`${lang.name}`" size="small" />
-              </div>
-            </div>
+            <MultiLangEditor
+              :model="titleI18n"
+              :languages="enabledLangs"
+              title="商品名称多语言"
+            />
           </el-col>
           <el-col :span="6">
             <el-form-item
@@ -512,11 +512,12 @@
                 <el-col :span="12">
                   <el-form-item label="文字(多语言):" class="mb-0" label-width="auto">
                     <el-input v-model="item.text" placeholder="默认文字" clearable />
-                    <div v-if="enabledLangs.length" class="w-full mt-1">
-                      <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
-                        <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
-                        <el-input v-model="item.textI18n[lang.code]" :placeholder="lang.name" size="small" />
-                      </div>
+                    <div class="w-full mt-2">
+                      <MultiLangEditor
+                        :model="item.textI18n"
+                        :languages="enabledLangs"
+                        :title="'轮播文案多语言 #' + (index + 1)"
+                      />
                     </div>
                   </el-form-item>
                 </el-col>
@@ -572,11 +573,12 @@
             :clearable="true"
             placeholder="默认商品描述"
           />
-          <div v-if="enabledLangs.length" class="w-full mt-2">
-            <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
-              <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
-              <el-input v-model="descI18n[lang.code]" :placeholder="`${lang.name}`" size="small" />
-            </div>
+          <div class="w-full mt-2">
+            <MultiLangEditor
+              :model="descI18n"
+              :languages="enabledLangs"
+              title="商品描述多语言"
+            />
           </div>
         </el-form-item>
 
@@ -586,12 +588,18 @@
               label="商品价格(单位：分):"
               prop="price"
             >
-              <el-input-number
-                v-model="formData.price"
-                style="width:100%"
-                :precision="2"
-                :clearable="true"
-              />
+              <div class="w-full">
+                <el-input-number
+                  v-model="formData.price"
+                  style="width:100%"
+                  :precision="2"
+                  :clearable="true"
+                />
+                <div class="mt-2 flex items-center justify-between gap-2">
+                  <el-button type="primary" plain size="small" @click="openPriceRateDialog">汇率换算</el-button>
+                  <span class="text-xs text-gray-500">多语言价格槽位：{{ Object.keys(priceI18n).length }}</span>
+                </div>
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -697,18 +705,22 @@
           <el-switch v-model="formData.presalePopupEnabled" />
         </el-form-item>
         <el-form-item label="预售弹窗标题(多语言):" prop="presalePopupTitle" v-if="formData.isPresale && formData.presalePopupEnabled">
-          <el-tabs type="border-card" style="width:100%;">
-            <el-tab-pane v-for="lang in enabledLangs" :key="lang.code" :label="lang.name">
-              <el-input v-model="presalePopupTitleI18n[lang.code]" :placeholder="`${lang.name} 弹窗标题`" />
-            </el-tab-pane>
-          </el-tabs>
+          <el-input v-model="formData.presalePopupTitle" placeholder="默认预售弹窗标题" class="mb-2" />
+          <MultiLangEditor
+            :model="presalePopupTitleI18n"
+            :languages="enabledLangs"
+            title="预售弹窗标题多语言"
+          />
         </el-form-item>
         <el-form-item label="预售弹窗内容(多语言):" prop="presalePopupContent" v-if="formData.isPresale && formData.presalePopupEnabled">
-          <el-tabs type="border-card" style="width:100%;">
-            <el-tab-pane v-for="lang in enabledLangs" :key="lang.code" :label="lang.name">
-              <el-input v-model="presalePopupContentI18n[lang.code]" type="textarea" :rows="3" :placeholder="`${lang.name} 弹窗内容`" />
-            </el-tab-pane>
-          </el-tabs>
+          <el-input v-model="formData.presalePopupContent" type="textarea" :rows="3" placeholder="默认预售弹窗内容" class="mb-2" />
+          <MultiLangEditor
+            :model="presalePopupContentI18n"
+            :languages="enabledLangs"
+            title="预售弹窗内容多语言"
+            input-type="textarea"
+            :rows="3"
+          />
         </el-form-item>
 
         <h4 class="flex justify-between items-center">
@@ -745,22 +757,24 @@
               <el-form-item label="规格名称(默认):" class="mb-0">
                 <el-input v-model="item.name" :clearable="true" placeholder="默认规格名称" />
               </el-form-item>
-              <div v-if="enabledLangs.length && item.nameI18n" class="pl-2 mt-1">
-                <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
-                  <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
-                  <el-input v-model="item.nameI18n[lang.code]" :placeholder="lang.name" size="small" />
-                </div>
+              <div class="mt-2">
+                <MultiLangEditor
+                  :model="item.nameI18n"
+                  :languages="enabledLangs"
+                  :title="'规格名称多语言 #' + (index + 1)"
+                />
               </div>
             </el-col>
             <el-col :span="8">
               <el-form-item label="规格编码(默认):" class="mb-0">
                 <el-input v-model="item.value" :clearable="true" placeholder="请输入规格编码" />
               </el-form-item>
-              <div v-if="enabledLangs.length && item.valueI18n" class="pl-2 mt-1">
-                <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
-                  <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
-                  <el-input v-model="item.valueI18n[lang.code]" :placeholder="lang.name" size="small" />
-                </div>
+              <div class="mt-2">
+                <MultiLangEditor
+                  :model="item.valueI18n"
+                  :languages="enabledLangs"
+                  :title="'规格编码多语言 #' + (index + 1)"
+                />
               </div>
             </el-col>
             <el-col :span="8">
@@ -804,22 +818,24 @@
               <el-form-item label="属性名称(默认):" class="mb-0">
                 <el-input v-model="item.name" :clearable="true" placeholder="默认属性名称" />
               </el-form-item>
-              <div v-if="enabledLangs.length && item.nameI18n" class="pl-2 mt-1">
-                <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
-                  <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
-                  <el-input v-model="item.nameI18n[lang.code]" :placeholder="lang.name" size="small" />
-                </div>
+              <div class="mt-2">
+                <MultiLangEditor
+                  :model="item.nameI18n"
+                  :languages="enabledLangs"
+                  :title="'属性名称多语言 #' + (index + 1)"
+                />
               </div>
             </el-col>
             <el-col :span="8">
               <el-form-item label="属性编码(默认):" class="mb-0">
                 <el-input v-model="item.value" :clearable="true" placeholder="请输入属性编码" />
               </el-form-item>
-              <div v-if="enabledLangs.length && item.valueI18n" class="pl-2 mt-1">
-                <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-1">
-                  <span class="w-14 text-xs text-right mr-1">{{ lang.code }}:</span>
-                  <el-input v-model="item.valueI18n[lang.code]" :placeholder="lang.name" size="small" />
-                </div>
+              <div class="mt-2">
+                <MultiLangEditor
+                  :model="item.valueI18n"
+                  :languages="enabledLangs"
+                  :title="'属性编码多语言 #' + (index + 1)"
+                />
               </div>
             </el-col>
             <el-col :span="8">
@@ -833,29 +849,111 @@
             label="商品详情:"
             prop="detail"
         >
-          <div v-if="enabledLangs.length" class="w-full">
-            <el-tabs v-model="detailLangTab" type="card">
-              <el-tab-pane v-for="lang in enabledLangs" :key="lang.code" :label="lang.name || lang.code" :name="lang.code">
-                <div class="h-[600px]">
-                  <rich-edit
-                    v-model="detailI18n[lang.code]"
-                    :clearable="true"
-                    :placeholder="`请输入 ${lang.name} 商品详情`"
-                  />
-                </div>
-              </el-tab-pane>
-            </el-tabs>
-          </div>
-          <div v-else class="h-[800px]">
-            <rich-edit
-                v-model="formData.detail"
-                :clearable="true"
-                placeholder="请输入商品描述"
-            />
-          </div>
+          <MultiLangEditor
+            :model="detailI18n"
+            :languages="enabledLangs"
+            title="商品详情多语言"
+            :use-tabs="true"
+            tab-type="card"
+          >
+            <template #editor="{ lang }">
+              <div class="h-[600px]">
+                <rich-edit
+                  v-model="detailI18n[lang.code]"
+                  :clearable="true"
+                  :placeholder="`请输入 ${(lang.name || lang.code)} 商品详情`"
+                />
+              </div>
+            </template>
+          </MultiLangEditor>
         </el-form-item>
       </el-form>
     </el-drawer>
+
+    <el-dialog
+      v-model="priceRateDialogVisible"
+      title="商品价格汇率换算"
+      width="980px"
+      destroy-on-close
+    >
+      <div class="mb-3 flex flex-wrap items-center gap-2">
+        <el-checkbox :model-value="isAllPriceRowsSelected()" @change="toggleSelectAllPriceRows">全选</el-checkbox>
+        <el-input-number
+          v-model="priceAdjustPercent"
+          :precision="2"
+          :step="0.5"
+          placeholder="增减百分比"
+          style="width: 140px"
+        />
+        <span class="text-xs text-gray-500">增加%（可负数），按人民币价格换算后叠加</span>
+      </div>
+
+      <div class="mb-3 flex flex-wrap gap-2">
+        <el-button type="primary" :loading="priceRateLoading" @click="refreshSelectedExchangeRates">更新汇率（选中）</el-button>
+        <el-button type="success" @click="applySelectedRateToPrices">补齐（更新选中价格）</el-button>
+        <el-button @click="fillMissingLangSlots">补齐多语言槽位</el-button>
+      </div>
+
+      <div class="mb-2 text-xs text-gray-500">
+        汇率来源：{{ exchangeRateSource || '-' }}
+        <span v-if="exchangeRateFetchedAt">，更新时间：{{ exchangeRateFetchedAt }}</span>
+      </div>
+
+      <el-table :data="priceRateRows" border max-height="420px">
+        <el-table-column label="选择" width="70">
+          <template #default="scope">
+            <el-checkbox v-model="scope.row.selected" />
+          </template>
+        </el-table-column>
+        <el-table-column label="语言" width="180">
+          <template #default="scope">
+            {{ scope.row.name }} ({{ scope.row.code }})
+          </template>
+        </el-table-column>
+        <el-table-column label="币种" width="140">
+          <template #default="scope">
+            <el-input v-model="scope.row.currency" maxlength="3" placeholder="USD" @change="normalizeRowCurrency(scope.row)" />
+          </template>
+        </el-table-column>
+        <el-table-column label="汇率(CNY->币种)" width="190">
+          <template #default="scope">
+            <el-input-number
+              v-model="scope.row.rate"
+              :precision="6"
+              :min="0"
+              :step="0.001"
+              controls-position="right"
+              style="width: 100%"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column label="目标价格(分)">
+          <template #default="scope">
+            <div class="flex items-center gap-2">
+              <el-input-number
+                v-model="scope.row.targetPriceFen"
+                :precision="0"
+                :step="1"
+                :min="0"
+                controls-position="right"
+                style="width: 160px"
+                @change="syncRowPriceToI18n(scope.row)"
+              />
+              <span class="text-xs text-gray-500">≈ {{ formatFen(scope.row.targetPriceFen) }}</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="120">
+          <template #default="scope">
+            <el-button link type="primary" @click="refreshSingleRate(scope.row)">更新汇率</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <template #footer>
+        <el-button @click="priceRateDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -878,8 +976,17 @@ import {
   getCategoryList
 } from '@/api/shop/category'
 import { getAllSkuSpecs } from '@/api/shop/skuSpec'
-import { getEnabledLanguages } from '@/api/client/language'
+import { getEnabledLanguages, getLanguageList } from '@/api/client/language'
 import { getDefaultDomain } from '@/api/client/externalLinkDomain'
+import {
+  DEFAULT_LANG_CURRENCY_MAP,
+  fetchExchangeRates,
+  calcConvertedFenFromCny,
+  normalizePriceI18nMap,
+  ensurePriceSlots,
+  serializePriceI18nMap,
+  formatFen
+} from '@/utils/exchange-rate'
 import { getUrl } from '@/utils/image'
 // 图片选择组件
 import SelectImage from '@/components/selectImage/selectImage.vue'
@@ -889,6 +996,7 @@ import { formatDate, formatBoolean } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive, onMounted } from 'vue'
 import RichEdit from "@/components/richtext/rich-edit.vue"
+import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 
 defineOptions({
   name: 'Good'
@@ -1014,22 +1122,46 @@ const selectAttrFromDict = (dictItem) => {
 
 // === i18n 多语言支持 ===
 const enabledLangs = ref([])
+const allLangs = ref([])
 const titleI18n = ref({})
 const descI18n = ref({})
 const detailI18n = ref({})
 const presalePopupTitleI18n = ref({})
 const presalePopupContentI18n = ref({})
-// 当前详情编辑语言tab
-const detailLangTab = ref('')
+
+const uniqueLangItems = (items = []) => {
+  const map = new Map()
+  items.forEach((item) => {
+    const code = String(item?.code || '').trim()
+    if (!code || map.has(code)) return
+    map.set(code, {
+      ...item,
+      code
+    })
+  })
+  return Array.from(map.values())
+}
 
 const loadLangs = async () => {
   try {
-    const res = await getEnabledLanguages()
-    if (res.code === 0) {
-      enabledLangs.value = res.data || []
-      if (enabledLangs.value.length > 0) {
-        detailLangTab.value = enabledLangs.value[0].code
-      }
+    const [enabledRes, listRes] = await Promise.all([
+      getEnabledLanguages().catch(() => null),
+      getLanguageList({ page: 1, pageSize: 500 }).catch(() => null)
+    ])
+
+    if (enabledRes?.code === 0) {
+      enabledLangs.value = uniqueLangItems(enabledRes.data || [])
+    }
+
+    if (listRes?.code === 0) {
+      const listPayload = Array.isArray(listRes?.data?.list)
+        ? listRes.data.list
+        : (Array.isArray(listRes?.data) ? listRes.data : [])
+      allLangs.value = uniqueLangItems(listPayload)
+    }
+
+    if (!allLangs.value.length) {
+      allLangs.value = [...enabledLangs.value]
     }
   } catch (e) { /* ignore */ }
 }
@@ -1047,6 +1179,215 @@ const serializeI18nJson = (obj) => {
   return Object.keys(filtered).length ? JSON.stringify(filtered) : ''
 }
 
+const priceI18n = ref({})
+const priceRateDialogVisible = ref(false)
+const priceRateRows = ref([])
+const priceRateLoading = ref(false)
+const priceAdjustPercent = ref(0)
+const exchangeRateSource = ref('')
+const exchangeRateFetchedAt = ref('')
+
+const getEnabledLangCodes = () => {
+  const source = allLangs.value.length ? allLangs.value : enabledLangs.value
+  return source
+    .map((item) => String(item?.code || '').trim())
+    .filter(Boolean)
+}
+
+const normalizeCurrencyCode = (value) => {
+  return String(value || '').trim().toUpperCase().slice(0, 3)
+}
+
+const syncPriceI18nToForm = () => {
+  formData.value.priceI18n = serializePriceI18nMap(priceI18n.value)
+}
+
+const ensureTextLangSlots = (payload, fallbackValue = '') => {
+  const next = { ...(payload || {}) }
+  getEnabledLangCodes().forEach((code) => {
+    if (!Object.prototype.hasOwnProperty.call(next, code)) {
+      next[code] = fallbackValue
+    }
+  })
+  return next
+}
+
+const ensurePriceLangSlots = () => {
+  const fallbackFen = Math.round(Number(formData.value.price) || 0)
+  priceI18n.value = ensurePriceSlots(priceI18n.value, getEnabledLangCodes(), fallbackFen)
+  syncPriceI18nToForm()
+}
+
+const buildPriceRateRows = () => {
+  ensurePriceLangSlots()
+  const previousMap = {}
+  priceRateRows.value.forEach((row) => {
+    previousMap[row.code] = row
+  })
+
+  const fallbackFen = Math.round(Number(formData.value.price) || 0)
+  const source = allLangs.value.length ? allLangs.value : enabledLangs.value
+  priceRateRows.value = source.map((lang) => {
+    const code = String(lang?.code || '').trim()
+    const previous = previousMap[code] || {}
+    const currency = normalizeCurrencyCode(previous.currency || DEFAULT_LANG_CURRENCY_MAP[code] || 'USD')
+    const targetPriceFen = Number.isFinite(Number(priceI18n.value[code]))
+      ? Number(priceI18n.value[code])
+      : fallbackFen
+    const defaultRate = code === 'zh' ? 1 : 0
+
+    return {
+      code,
+      name: lang?.name || code,
+      currency,
+      rate: Number.isFinite(Number(previous.rate)) ? Number(previous.rate) : defaultRate,
+      selected: previous.selected !== false,
+      targetPriceFen
+    }
+  })
+}
+
+const openPriceRateDialog = () => {
+  if (!getEnabledLangCodes().length) {
+    ElMessage.warning('请先在语言管理中配置语言')
+    return
+  }
+  buildPriceRateRows()
+  priceRateDialogVisible.value = true
+}
+
+const isAllPriceRowsSelected = () => {
+  return priceRateRows.value.length > 0 && priceRateRows.value.every((row) => row.selected)
+}
+
+const toggleSelectAllPriceRows = (checked) => {
+  priceRateRows.value.forEach((row) => {
+    row.selected = !!checked
+  })
+}
+
+const normalizeRowCurrency = (row) => {
+  row.currency = normalizeCurrencyCode(row.currency)
+}
+
+const syncRowPriceToI18n = (row) => {
+  const priceFen = Math.max(0, Math.round(Number(row.targetPriceFen) || 0))
+  row.targetPriceFen = priceFen
+  priceI18n.value[row.code] = priceFen
+  syncPriceI18nToForm()
+}
+
+const refreshRatesForRows = async(rows) => {
+  const validRows = rows.filter((row) => row?.code)
+  if (!validRows.length) {
+    ElMessage.warning('请先选择需要更新汇率的语言')
+    return
+  }
+
+  const currencies = validRows
+    .map((row) => normalizeCurrencyCode(row.currency))
+    .filter(Boolean)
+
+  try {
+    priceRateLoading.value = true
+    const result = await fetchExchangeRates({
+      base: 'CNY',
+      currencies
+    })
+    exchangeRateSource.value = result.source || ''
+    exchangeRateFetchedAt.value = result.fetchedAt || ''
+
+    validRows.forEach((row) => {
+      if (row.code === 'zh') {
+        row.rate = 1
+        return
+      }
+      const currency = normalizeCurrencyCode(row.currency)
+      const nextRate = Number(result?.rates?.[currency])
+      if (Number.isFinite(nextRate) && nextRate > 0) {
+        row.rate = nextRate
+      }
+    })
+    ElMessage.success('汇率更新完成')
+  } catch (error) {
+    ElMessage.error(error?.message || '汇率更新失败')
+  } finally {
+    priceRateLoading.value = false
+  }
+}
+
+const refreshSelectedExchangeRates = async() => {
+  const selectedRows = priceRateRows.value.filter((row) => row.selected)
+  await refreshRatesForRows(selectedRows)
+}
+
+const refreshSingleRate = async(row) => {
+  await refreshRatesForRows([row])
+}
+
+const applySelectedRateToPrices = () => {
+  const selectedRows = priceRateRows.value.filter((row) => row.selected)
+  if (!selectedRows.length) {
+    ElMessage.warning('请至少选择一个语言')
+    return
+  }
+
+  let updatedCount = 0
+  selectedRows.forEach((row) => {
+    const convertedFen = calcConvertedFenFromCny(formData.value.price, row.rate, priceAdjustPercent.value)
+    if (convertedFen === null) {
+      return
+    }
+    row.targetPriceFen = convertedFen
+    priceI18n.value[row.code] = convertedFen
+    updatedCount += 1
+  })
+
+  syncPriceI18nToForm()
+  ElMessage.success(`已更新 ${updatedCount} 个语言价格`)
+}
+
+const fillMissingLangSlots = () => {
+  if (!getEnabledLangCodes().length) {
+    ElMessage.warning('请先在语言管理中配置语言')
+    return
+  }
+
+  titleI18n.value = ensureTextLangSlots(titleI18n.value, formData.value.title || '')
+  descI18n.value = ensureTextLangSlots(descI18n.value, formData.value.description || '')
+  detailI18n.value = ensureTextLangSlots(detailI18n.value, formData.value.detail || '')
+  presalePopupTitleI18n.value = ensureTextLangSlots(presalePopupTitleI18n.value, formData.value.presalePopupTitle || '')
+  presalePopupContentI18n.value = ensureTextLangSlots(presalePopupContentI18n.value, formData.value.presalePopupContent || '')
+
+  formData.value.banner = (formData.value.banner || []).map((item) => {
+    const nextTextI18n = ensureTextLangSlots(item.textI18n || parseI18nJson(item.text), item.text || '')
+    return {
+      ...item,
+      textI18n: nextTextI18n
+    }
+  })
+
+  formData.value.specs = (formData.value.specs || []).map((item) => {
+    return {
+      ...item,
+      nameI18n: ensureTextLangSlots(item.nameI18n || parseI18nJson(item.name), item.name || ''),
+      valueI18n: ensureTextLangSlots(item.valueI18n || parseI18nJson(item.value), item.value || '')
+    }
+  })
+
+  formData.value.attrs = (formData.value.attrs || []).map((item) => {
+    return {
+      ...item,
+      nameI18n: ensureTextLangSlots(item.nameI18n || parseI18nJson(item.name), item.name || ''),
+      valueI18n: ensureTextLangSlots(item.valueI18n || parseI18nJson(item.value), item.value || '')
+    }
+  })
+
+  ensurePriceLangSlots()
+  buildPriceRateRows()
+  ElMessage.success('多语言槽位补齐完成')
+}
+
 onMounted(() => { loadLangs(); loadExtDomain(); loadSkuSpecDict() })
 
 const tableLang = ref('')
@@ -1061,6 +1402,19 @@ const formatI18nField = (val) => {
     } catch { return val }
   }
   return val
+}
+
+const getLocalizedPriceFen = (basePrice, i18nPayload, langCode) => {
+  const map = normalizePriceI18nMap(i18nPayload)
+  if (langCode && Number.isFinite(Number(map[langCode]))) {
+    return Number(map[langCode])
+  }
+  const base = Number(basePrice)
+  return Number.isFinite(base) ? base : 0
+}
+
+const formatTablePrice = (row) => {
+  return formatFen(getLocalizedPriceFen(row?.price, row?.priceI18n, tableLang.value))
 }
 
 const setSKU = (row) => {
@@ -1096,6 +1450,7 @@ const formData = ref({
   externalImagePath: '',
   banner: [],
   price: 0,
+  priceI18n: '',
   rating: 0,
   reviewCount: 0,
   title: '',
@@ -1323,6 +1678,9 @@ const updateGoodFunc = async(row) => {
     detailI18n.value = parseI18nJson(formData.value.detail)
     presalePopupTitleI18n.value = parseI18nJson(formData.value.presalePopupTitle)
     presalePopupContentI18n.value = parseI18nJson(formData.value.presalePopupContent)
+    priceI18n.value = normalizePriceI18nMap(formData.value.priceI18n)
+    ensurePriceLangSlots()
+    buildPriceRateRows()
     dialogFormVisible.value = true
   }
 }
@@ -1353,17 +1711,28 @@ const openDialog = () => {
   detailI18n.value = {}
   presalePopupTitleI18n.value = {}
   presalePopupContentI18n.value = {}
+  priceI18n.value = {}
+  priceRateRows.value = []
+  priceAdjustPercent.value = 0
+  exchangeRateSource.value = ''
+  exchangeRateFetchedAt.value = ''
   dialogFormVisible.value = true
 }
 
 // 关闭弹窗
 const closeDialog = () => {
   dialogFormVisible.value = false
+  priceRateDialogVisible.value = false
   titleI18n.value = {}
   descI18n.value = {}
   detailI18n.value = {}
   presalePopupTitleI18n.value = {}
   presalePopupContentI18n.value = {}
+  priceI18n.value = {}
+  priceRateRows.value = []
+  priceAdjustPercent.value = 0
+  exchangeRateSource.value = ''
+  exchangeRateFetchedAt.value = ''
   formData.value = {
     description: '',
     imageUrl: '',
@@ -1372,6 +1741,7 @@ const closeDialog = () => {
     externalImagePath: '',
     banner: [],
     price: 0,
+    priceI18n: '',
     rating: 0,
     reviewCount: 0,
     title: '',
@@ -1404,8 +1774,9 @@ const enterDialog = async() => {
     if (!valid) return
     // 构建深拷贝 payload，避免序列化时污染 formData（导致保存失败后 nameI18n 丢失）
     const payload = JSON.parse(JSON.stringify(formData.value))
+    payload.priceI18n = serializePriceI18nMap(priceI18n.value)
     // 序列化 i18n 字段（写 payload，不写 formData）
-    if (enabledLangs.value.length) {
+    if (getEnabledLangCodes().length) {
       payload.title = serializeI18nJson(titleI18n.value) || payload.title
       payload.description = serializeI18nJson(descI18n.value) || payload.description
       payload.detail = serializeI18nJson(detailI18n.value) || payload.detail

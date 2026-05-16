@@ -1,0 +1,24 @@
+{
+  "name": "richroad",
+  "version": "1.0.0",
+  "description": "<div align=center>\r <img src=\"http://qmplusimg.henrongyi.top/gvalogo.jpg\" width=\"300\" height=\"300\" />\r </div>",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/moferegi/richRoad.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/moferegi/richRoad/issues"
+  },
+  "homepage": "https://github.com/moferegi/richRoad#readme"
+}

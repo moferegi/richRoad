@@ -108,10 +108,12 @@
       </view>
     </view>
 
-    <view class="popup-mask" v-if="showRecharge" @tap="showRecharge = false">
-      <view class="popup-panel" @tap.stop>
-        <view class="popup-title">{{ $t('rechargeTryonCoins') }}</view>
-        <view class="popup-list">
+    <view class="popup-mask" v-if="showRecharge" @tap="showRecharge = false" @touchmove.stop>
+      <view class="popup-panel popup-panel-recharge" @tap.stop>
+        <view class="popup-head">
+          <view class="popup-title">{{ $t('rechargeTryonCoins') }}</view>
+        </view>
+        <scroll-view class="popup-list" scroll-y @touchmove.stop>
           <view class="popup-item" v-for="(item, index) in rechargePlans" :key="item.key || index" @tap="selectRecharge(item)">
             <view>
               <text class="item-title">{{ formatRechargePoints(item) }}{{ formatRechargeCoinLabel(item) }}</text>
@@ -119,7 +121,7 @@
             </view>
             <uni-icons type="right" size="16" color="rgba(15,23,42,0.35)" />
           </view>
-        </view>
+        </scroll-view>
         <view class="popup-close" @tap="showRecharge = false">{{ $t('cancel') }}</view>
       </view>
     </view>
@@ -157,12 +159,20 @@
       </view>
     </view>
 
+    <i18n-action-sheet
+      v-model:visible="payMethodSheetVisible"
+      :items="payMethodSheetItems.map(item => item.label)"
+      :cancel-text="$t('cancel')"
+      @select="handlePayMethodSheetSelect"
+      @cancel="handlePayMethodSheetCancel"
+    />
+
     <lang-switch v-model="showLangPicker" />
   </view>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '@/pinia/modules/user.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
@@ -171,26 +181,40 @@ import { getTryonRechargePlans } from '@/api/sysConfig.js'
 import { getPaymentConfig } from '@/api/sysConfig.js'
 import { createTryonRechargeOrder } from '@/api/tryonRechargeOrder.js'
 import { localText, resolveApiMessage } from '@/utils/i18n.js'
+import { resolveLocalizedPriceFen } from '@/utils/price-i18n.js'
 import { getExternalUrl } from '@/utils/url.js'
+import I18nActionSheet from '@/components/i18n-action-sheet/i18n-action-sheet.vue'
 
 const userStore = useUserStore()
 const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
 const $t = computed(() => langStore.$t)
 const cs = computed(() => appConfigStore.currencySymbol || '¥')
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const showRecharge = ref(false)
 const showAboutPopup = ref(false)
 const showLangPicker = ref(false)
 const userInfo = ref({})
 const paymentMethods = ref([])
+const payMethodSheetVisible = ref(false)
+const payMethodSheetItems = ref([])
+let payMethodSheetResolver = null
 
 const defaultRechargePlans = [
-  { points: { zh: '50', en: '50', mn: '50' }, coinLabel: { zh: '试衣币', en: 'Try-on Coins', mn: 'Туршилтын зоос' }, currencySymbol: { zh: '￥', en: 'CNY ', mn: 'CNY ' }, price: { zh: '9.9', en: '9.9', mn: '9.9' }, currencySuffix: { zh: '元', en: '', mn: '' } },
-  { points: { zh: '180', en: '180', mn: '180' }, coinLabel: { zh: '试衣币', en: 'Try-on Coins', mn: 'Туршилтын зоос' }, currencySymbol: { zh: '￥', en: 'CNY ', mn: 'CNY ' }, price: { zh: '29.9', en: '29.9', mn: '29.9' }, currencySuffix: { zh: '元', en: '', mn: '' } },
-  { points: { zh: '680', en: '680', mn: '680' }, coinLabel: { zh: '试衣币', en: 'Try-on Coins', mn: 'Туршилтын зоос' }, currencySymbol: { zh: '￥', en: 'CNY ', mn: 'CNY ' }, price: { zh: '99.9', en: '99.9', mn: '99.9' }, currencySuffix: { zh: '元', en: '', mn: '' } },
+  { points: { zh: '50', en: '50', mn: '50' }, coinLabel: { zh: '试衣币', en: 'Try-on Coins', mn: 'Туршилтын зоос' }, price: 990, priceI18n: { zh: 990, en: 990, mn: 990 }, numericPoints: 50 },
+  { points: { zh: '180', en: '180', mn: '180' }, coinLabel: { zh: '试衣币', en: 'Try-on Coins', mn: 'Туршилтын зоос' }, price: 2990, priceI18n: { zh: 2990, en: 2990, mn: 2990 }, numericPoints: 180 },
+  { points: { zh: '680', en: '680', mn: '680' }, coinLabel: { zh: '试衣币', en: 'Try-on Coins', mn: 'Туршилтын зоос' }, price: 9990, priceI18n: { zh: 9990, en: 9990, mn: 9990 }, numericPoints: 680 },
 ]
-const rechargePlans = ref([...defaultRechargePlans])
+
+const cloneDefaultRechargePlans = () => defaultRechargePlans.map(item => ({
+  ...item,
+  points: { ...item.points },
+  coinLabel: { ...item.coinLabel },
+  priceI18n: { ...item.priceI18n },
+}))
+
+const rechargePlans = ref(cloneDefaultRechargePlans())
 
 const toI18nValue = (value, fallback = '') => {
   if (value && typeof value === 'object') return value
@@ -199,28 +223,128 @@ const toI18nValue = (value, fallback = '') => {
 }
 
 const resolvePlanText = (value, fallback = '') => {
-  return localText(toI18nValue(value, fallback), langStore.locale) || fallback
+  return localText(toI18nValue(value, fallback), locale.value) || fallback
+}
+
+const parsePriceFen = (value, fallback = 0, treatAsYuan = false) => {
+  if (value === undefined || value === null || value === '') {
+    return Math.max(0, Number(fallback) || 0)
+  }
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      return Math.max(0, Number(fallback) || 0)
+    }
+    if (treatAsYuan || !Number.isInteger(value)) {
+      return Math.max(0, Math.round(value * 100))
+    }
+    if (value > 0 && value < 100) {
+      return Math.max(0, Math.round(value * 100))
+    }
+    return Math.max(0, Math.round(value))
+  }
+
+  const text = String(value).trim()
+  if (!text) {
+    return Math.max(0, Number(fallback) || 0)
+  }
+  const cleaned = text.replace(/[^0-9.]/g, '')
+  if (!cleaned) {
+    return Math.max(0, Number(fallback) || 0)
+  }
+  const num = Number(cleaned)
+  if (!Number.isFinite(num) || num < 0) {
+    return Math.max(0, Number(fallback) || 0)
+  }
+  if (treatAsYuan || cleaned.includes('.')) {
+    return Math.max(0, Math.round(num * 100))
+  }
+  if (num > 0 && num < 100) {
+    return Math.max(0, Math.round(num * 100))
+  }
+  return Math.max(0, Math.round(num))
+}
+
+const parseLegacyPriceI18n = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {}
+  }
+  const next = {}
+  Object.entries(value).forEach(([code, raw]) => {
+    next[String(code)] = parsePriceFen(raw, 0, true)
+  })
+  return next
+}
+
+const normalizePlanPriceI18n = (value, fallbackFen = 0) => {
+  const fallback = Math.max(0, Number(fallbackFen) || 0)
+  const next = {}
+
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    Object.entries(value).forEach(([code, raw]) => {
+      const priceFen = Number(raw)
+      if (Number.isFinite(priceFen) && priceFen >= 0) {
+        next[String(code)] = Math.round(priceFen)
+      }
+    })
+  }
+
+  if (!Object.keys(next).length) {
+    next.zh = fallback
+    next.en = fallback
+    next.mn = fallback
+  }
+
+  return next
+}
+
+const pickFirstPriceFen = (priceMap, fallback = 0) => {
+  const candidates = ['zh', 'en', 'mn']
+  for (const code of candidates) {
+    const value = Number(priceMap?.[code])
+    if (Number.isFinite(value) && value >= 0) {
+      return Math.round(value)
+    }
+  }
+  const values = Object.values(priceMap || {})
+  for (const raw of values) {
+    const value = Number(raw)
+    if (Number.isFinite(value) && value >= 0) {
+      return Math.round(value)
+    }
+  }
+  return Math.max(0, Number(fallback) || 0)
 }
 
 const normalizeRechargePlans = (raw) => {
-  if (!Array.isArray(raw)) return [...defaultRechargePlans]
+  if (!Array.isArray(raw)) return cloneDefaultRechargePlans()
   const list = raw.map((item) => {
     const pointsText = resolvePlanText(item?.points, '0')
-    const priceText = resolvePlanText(item?.price, '')
     const points = Number(String(pointsText).replace(/[^0-9.]/g, '') || 0)
-    const price = String(priceText ?? '').trim()
-    if (!points || !price) return null
+
+    const explicitPriceI18n = normalizePlanPriceI18n(item?.priceI18n, 0)
+    const legacyPriceI18n = parseLegacyPriceI18n(item?.price)
+    const basePriceFen = parsePriceFen(item?.price, 0, false)
+    const fallbackPriceFen = basePriceFen > 0
+      ? basePriceFen
+      : pickFirstPriceFen(explicitPriceI18n, pickFirstPriceFen(legacyPriceI18n, 0))
+
+    if (!points || fallbackPriceFen <= 0) return null
+
+    const resolvedPriceI18n = Object.keys(item?.priceI18n || {}).length > 0
+      ? normalizePlanPriceI18n(item?.priceI18n, fallbackPriceFen)
+      : normalizePlanPriceI18n(legacyPriceI18n, fallbackPriceFen)
+
     return {
-      key: `${points}_${price}`,
+      key: `${points}_${fallbackPriceFen}`,
       points: toI18nValue(item?.points, String(points)),
       coinLabel: toI18nValue(item?.coinLabel || item?.label, $t.value('tryonCoins')),
-      currencySymbol: toI18nValue(item?.currencySymbol, cs.value),
-      price: toI18nValue(item?.price, price),
-      currencySuffix: toI18nValue(item?.currencySuffix || item?.suffix, ''),
+      price: fallbackPriceFen,
+      priceI18n: resolvedPriceI18n,
       numericPoints: points,
     }
   }).filter(Boolean)
-  return list.length > 0 ? list : [...defaultRechargePlans]
+  return list.length > 0 ? list : cloneDefaultRechargePlans()
 }
 
 const formatRechargePoints = (item) => resolvePlanText(item.points, String(item.numericPoints || ''))
@@ -228,17 +352,9 @@ const formatRechargePoints = (item) => resolvePlanText(item.points, String(item.
 const formatRechargeCoinLabel = (item) => resolvePlanText(item.coinLabel, $t.value('tryonCoins'))
 
 const formatRechargePrice = (item) => {
-  const symbol = resolvePlanText(item.currencySymbol, cs.value)
-  const price = resolvePlanText(item.price, '')
-  const suffix = resolvePlanText(item.currencySuffix, '')
-  return `${symbol}${price}${suffix}`
-}
-
-const normalizePriceText = (value) => {
-  const text = String(value || '').trim()
-  const normalized = text.replace(/[^0-9.]/g, '')
-  if (!normalized) return ''
-  return normalized
+  const localizedFen = resolveLocalizedPriceFen(item?.price, item?.priceI18n, locale.value)
+  const safeFen = Number.isFinite(Number(localizedFen)) ? Math.max(0, Math.round(Number(localizedFen))) : 0
+  return `${cs.value}${(safeFen / 100).toFixed(2)}`
 }
 
 const parseRechargePointsValue = (item) => {
@@ -248,8 +364,9 @@ const parseRechargePointsValue = (item) => {
 }
 
 const parseRechargePriceValue = (item) => {
-  const localizedPrice = resolvePlanText(item.price, '')
-  return normalizePriceText(localizedPrice)
+  const localizedFen = resolveLocalizedPriceFen(item?.price, item?.priceI18n, locale.value)
+  const safeFen = Number.isFinite(Number(localizedFen)) ? Math.max(0, Math.round(Number(localizedFen))) : 0
+  return (safeFen / 100).toFixed(2)
 }
 
 const paymentMethodLabelMap = computed(() => ({
@@ -263,14 +380,54 @@ const paymentMethodLabelMap = computed(() => ({
   paypal: $t.value('payMethodPaypal'),
 }))
 
-const getPaymentMethodLabel = (payMethod, label) => {
-  return paymentMethodLabelMap.value[payMethod] || label || payMethod || $t.value('contactCustomerService')
+const getPaymentMethodLabel = (payMethod, label, name) => {
+  const localizedName = String(localText(name, locale.value) || '').trim()
+  const localizedLabel = String(localText(label, locale.value) || '').trim()
+  return localizedName || paymentMethodLabelMap.value[payMethod] || localizedLabel || payMethod || $t.value('contactCustomerService')
 }
 
 const buildDefaultPaymentMethods = () => ([
   { key: 'qrcode', label: getPaymentMethodLabel('qrcode') },
   { key: 'contact', label: getPaymentMethodLabel('contact') },
 ])
+
+const openPayMethodSheet = (methods = []) => {
+  const normalized = (Array.isArray(methods) ? methods : [])
+    .filter(item => item && item.key)
+    .map(item => ({
+      key: item.key,
+      label: String(item.label || getPaymentMethodLabel(item.key)),
+    }))
+
+  if (!normalized.length) {
+    return Promise.resolve(null)
+  }
+
+  payMethodSheetItems.value = normalized
+  payMethodSheetVisible.value = true
+
+  return new Promise((resolve) => {
+    payMethodSheetResolver = resolve
+  })
+}
+
+const resolvePayMethodSheet = (selected) => {
+  payMethodSheetVisible.value = false
+  const resolver = payMethodSheetResolver
+  payMethodSheetResolver = null
+  if (typeof resolver === 'function') {
+    resolver(selected || null)
+  }
+}
+
+const handlePayMethodSheetSelect = ({ index }) => {
+  const selected = payMethodSheetItems.value[index] || payMethodSheetItems.value[0] || null
+  resolvePayMethodSheet(selected)
+}
+
+const handlePayMethodSheetCancel = () => {
+  resolvePayMethodSheet(null)
+}
 
 const normalizePaymentMethods = (methods) => {
   if (!Array.isArray(methods)) {
@@ -280,7 +437,7 @@ const normalizePaymentMethods = (methods) => {
     .filter(item => item && typeof item.key === 'string' && item.key)
     .map(item => ({
       key: item.key,
-      label: getPaymentMethodLabel(item.key, item.label)
+      label: getPaymentMethodLabel(item.key, item.label, item.name)
     }))
 }
 
@@ -298,18 +455,18 @@ const loadRechargePlans = async () => {
   try {
     const res = await getTryonRechargePlans()
     if (res.code !== 0) {
-      rechargePlans.value = [...defaultRechargePlans]
+      rechargePlans.value = cloneDefaultRechargePlans()
       return
     }
     const payload = typeof res.data === 'object' ? res.data?.configValue : res.data
     if (!payload) {
-      rechargePlans.value = [...defaultRechargePlans]
+      rechargePlans.value = cloneDefaultRechargePlans()
       return
     }
     const parsed = JSON.parse(payload)
     rechargePlans.value = normalizeRechargePlans(parsed)
   } catch (e) {
-    rechargePlans.value = [...defaultRechargePlans]
+    rechargePlans.value = cloneDefaultRechargePlans()
   }
 }
 
@@ -373,62 +530,61 @@ const openRecharge = () => {
   showRecharge.value = true
 }
 
-const selectRecharge = (item) => {
+const selectRecharge = async (item) => {
   showRecharge.value = false
   const points = parseRechargePointsValue(item)
   const price = parseRechargePriceValue(item)
-  if (!points || !price) {
+  const priceNumber = Number(price)
+  const settlementCurrency = String(locale.value || 'zh').replace(/_/g, '-')
+  const settlementCurrencySymbol = String(cs.value || '¥')
+  if (!points || !price || !Number.isFinite(priceNumber) || priceNumber <= 0) {
     uni.showToast({ title: $t.value('apiResponseInvalid'), icon: 'none' })
     return
   }
 
   const methods = paymentMethods.value.length > 0 ? paymentMethods.value : buildDefaultPaymentMethods()
-  uni.showActionSheet({
-    itemList: methods.map(m => m.label),
-    success: async (sheetRes) => {
-      const selected = methods[sheetRes.tapIndex] || methods[0]
-      if (!selected?.key) {
-        uni.showToast({ title: $t.value('apiResponseInvalid'), icon: 'none' })
-        return
-      }
+  const selected = await openPayMethodSheet(methods)
+  if (!selected?.key) {
+    return
+  }
 
-      uni.showLoading({ title: $t.value('loading'), mask: true })
-      try {
-        const res = await createTryonRechargeOrder({
-          points,
-          price,
-          payMethod: selected.key,
-        })
-        if (res.code !== 0) {
-          uni.showToast({ title: resolveApiMessage(res.msg, 'orderCreateFail'), icon: 'none' })
-          return
-        }
+  uni.showLoading({ title: $t.value('loading'), mask: true })
+  try {
+    const res = await createTryonRechargeOrder({
+      points,
+      price,
+      payMethod: selected.key,
+      settlementCurrency,
+      settlementCurrencySymbol,
+    })
+    if (res.code !== 0) {
+      uni.showToast({ title: resolveApiMessage(res.msg, 'orderCreateFail'), icon: 'none' })
+      return
+    }
 
-        const order = res?.data?.order || {}
-        const orderID = Number(order.ID || order.id || 0)
-        if (!orderID) {
-          uni.showToast({ title: $t.value('orderCreateFail'), icon: 'none' })
-          return
-        }
-        const orderNo = String(order.outTradeNo || order.OutTradeNo || orderID)
+    const order = res?.data?.order || {}
+    const orderID = Number(order.ID || order.id || 0)
+    if (!orderID) {
+      uni.showToast({ title: $t.value('orderCreateFail'), icon: 'none' })
+      return
+    }
+    const orderNo = String(order.outTradeNo || order.OutTradeNo || orderID)
 
-        const amountInCent = Number(order.amount || order.Amount || 0)
-        const amount = amountInCent > 0 ? (amountInCent / 100).toFixed(2) : price
-        const encodedPayMethod = encodeURIComponent(String(selected.key || 'contact'))
-        const encodedPayMethodLabel = encodeURIComponent(String(selected.label || getPaymentMethodLabel(selected.key)))
-        const closeTimeRaw = String(order.closeTime || order.CloseTime || '').trim()
-        const closeTimePart = closeTimeRaw ? `&closeTime=${encodeURIComponent(closeTimeRaw)}` : ''
+    const amountInCent = Number(order.amount || order.Amount || 0)
+    const amount = amountInCent > 0 ? (amountInCent / 100).toFixed(2) : price
+    const encodedPayMethod = encodeURIComponent(String(selected.key || 'contact'))
+    const encodedPayMethodLabel = encodeURIComponent(String(selected.label || getPaymentMethodLabel(selected.key)))
+    const closeTimeRaw = String(order.closeTime || order.CloseTime || '').trim()
+    const closeTimePart = closeTimeRaw ? `&closeTime=${encodeURIComponent(closeTimeRaw)}` : ''
 
-        uni.navigateTo({
-          url: `/pages/pay/index?orderType=recharge&amount=${encodeURIComponent(amount)}&orderNo=${encodeURIComponent(orderNo)}&orderId=${orderID}&payMethod=${encodedPayMethod}&payMethodLabel=${encodedPayMethodLabel}&rechargePoints=${points}${closeTimePart}`,
-        })
-      } catch (e) {
-        uni.showToast({ title: resolveApiMessage(e?.message, 'orderCreateFail'), icon: 'none' })
-      } finally {
-        uni.hideLoading()
-      }
-    },
-  })
+    uni.navigateTo({
+      url: `/pages/pay/index?orderType=recharge&amount=${encodeURIComponent(amount)}&orderNo=${encodeURIComponent(orderNo)}&orderId=${orderID}&payMethod=${encodedPayMethod}&payMethodLabel=${encodedPayMethodLabel}&rechargePoints=${points}${closeTimePart}`,
+    })
+  } catch (e) {
+    uni.showToast({ title: resolveApiMessage(e?.message, 'orderCreateFail'), icon: 'none' })
+  } finally {
+    uni.hideLoading()
+  }
 }
 
 const goTryonRoom = () => {
@@ -508,7 +664,6 @@ const tryAutoShowLangPicker = () => {
   if (showLangPicker.value) return
   if (!langStore.shouldAutoShowLanguagePicker()) return
   showLangPicker.value = true
-  langStore.markLanguagePickerPrompted()
 }
 
 const logoutDevice = () => {
@@ -525,6 +680,23 @@ const logoutDevice = () => {
     },
   })
 }
+
+const syncBodyScrollLock = () => {
+  if (typeof document === 'undefined' || !document.body) return
+  const shouldLock = showRecharge.value || showAboutPopup.value || showLangPicker.value
+  document.body.style.overflow = shouldLock ? 'hidden' : ''
+}
+
+watch([showRecharge, showAboutPopup, showLangPicker], syncBodyScrollLock)
+
+onUnmounted(() => {
+  if (typeof document === 'undefined' || !document.body) return
+  document.body.style.overflow = ''
+  if (typeof payMethodSheetResolver === 'function') {
+    payMethodSheetResolver(null)
+  }
+  payMethodSheetResolver = null
+})
 
 onShow(() => {
   langStore.initLangs()
@@ -742,6 +914,8 @@ page {
   background: rgba(15,23,42,0.36);
   display: flex;
   align-items: flex-end;
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 .popup-panel {
@@ -750,6 +924,29 @@ page {
   border-top-right-radius: 24rpx;
   background: #ffffff;
   padding: 24rpx;
+  max-height: 78vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.popup-panel-recharge {
+  height: auto;
+  max-height: min(78vh, 980rpx);
+  overflow: hidden;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 108rpx);
+}
+
+.popup-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12rpx;
+  flex-shrink: 0;
+}
+
+.popup-head .popup-title {
+  margin-bottom: 0;
 }
 
 .popup-panel-help {
@@ -769,7 +966,11 @@ page {
 }
 
 .popup-list {
-  max-height: 560rpx;
+  flex: none;
+  height: auto;
+  min-height: 0;
+  max-height: min(52vh, 640rpx);
+  overscroll-behavior: contain;
 }
 
 .popup-item {
@@ -782,6 +983,10 @@ page {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.popup-item:last-child {
+  margin-bottom: 0;
 }
 
 .item-title {
@@ -799,6 +1004,7 @@ page {
 
 .popup-close {
   margin-top: 14rpx;
+  margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 12rpx);
   height: 78rpx;
   border-radius: 12rpx;
   background: rgba(219,234,254,0.65);
@@ -807,6 +1013,7 @@ page {
   align-items: center;
   justify-content: center;
   font-size: 24rpx;
+  flex-shrink: 0;
 }
 
 .about-popup-panel {

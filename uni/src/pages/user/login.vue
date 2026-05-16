@@ -137,7 +137,6 @@
     if (showLangPicker.value) return
     if (!langStore.shouldAutoShowLanguagePicker()) return
     showLangPicker.value = true
-    langStore.markLanguagePickerPrompted()
   }
 
   const safeDecode = (value) => {

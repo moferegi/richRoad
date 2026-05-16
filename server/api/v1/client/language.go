@@ -126,3 +126,30 @@ func (api *LanguageApi) GetEnabledLanguages(c *gin.Context) {
 		response.OkWithDetailed(list, i18n.T(c, "getSuccess"), c)
 	}
 }
+
+// TranslateI18n 翻译多语言文本
+// @Tags Language
+// @Summary 翻译多语言文本
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data body clientReq.TranslateI18nRequest true "翻译参数"
+// @Success 200 {object} response.Response{data=object,msg=string} "翻译成功"
+// @Router /language/translateI18n [post]
+func (api *LanguageApi) TranslateI18n(c *gin.Context) {
+	var req clientReq.TranslateI18nRequest
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		return
+	}
+
+	translations, err := languageService.TranslateI18n(req)
+	if err != nil {
+		global.GVA_LOG.Error("翻译失败!", zap.Error(err))
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		return
+	}
+
+	response.OkWithDetailed(gin.H{"translations": translations}, i18n.T(c, "getSuccess"), c)
+}

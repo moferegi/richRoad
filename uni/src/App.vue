@@ -122,5 +122,6 @@
 
 <style lang="scss">
 @import '@/common/common.css';
+@import '@/static/iconfont/tabbar-iconfont.css';
 	/*每个页面公共zcss */
 </style>

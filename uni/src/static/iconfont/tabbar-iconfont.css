@@ -1,0 +1,43 @@
+.tab-iconfont {
+  display: inline-block;
+  width: 44rpx;
+  height: 44rpx;
+  vertical-align: middle;
+  background-color: currentColor;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-position: center;
+  mask-size: contain;
+  -webkit-mask-size: contain;
+}
+
+.icon-tab-tryon {
+  mask-image: url('../images/tabBar/luxe-tryon.svg');
+  -webkit-mask-image: url('../images/tabBar/luxe-tryon.svg');
+}
+
+.icon-tab-tryon-active {
+  mask-image: url('../images/tabBar/luxe-tryon-active.svg');
+  -webkit-mask-image: url('../images/tabBar/luxe-tryon-active.svg');
+}
+
+.icon-tab-clothes {
+  mask-image: url('../images/tabBar/luxe-clothes.svg');
+  -webkit-mask-image: url('../images/tabBar/luxe-clothes.svg');
+}
+
+.icon-tab-clothes-active {
+  mask-image: url('../images/tabBar/luxe-clothes-active.svg');
+  -webkit-mask-image: url('../images/tabBar/luxe-clothes-active.svg');
+}
+
+.icon-tab-my {
+  mask-image: url('../images/tabBar/luxe-my.svg');
+  -webkit-mask-image: url('../images/tabBar/luxe-my.svg');
+}
+
+.icon-tab-my-active {
+  mask-image: url('../images/tabBar/luxe-my-active.svg');
+  -webkit-mask-image: url('../images/tabBar/luxe-my-active.svg');
+}

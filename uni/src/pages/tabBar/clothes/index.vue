@@ -11,6 +11,7 @@
         :show-scrollbar="false"
         scroll-with-animation
         :scroll-left="categoryScrollLeft"
+        :scroll-into-view="categoryScrollIntoView"
         v-if="categoryList.length"
       >
         <view class="category-track">
@@ -29,18 +30,37 @@
     </view>
 
     <scroll-view class="list-wrap" scroll-y @scrolltolower="onScrollToLower">
-      <view class="grid">
-        <view class="card" v-for="item in displayList" :key="item.ID || item.id || item.name">
-          <LazyImage class="card-image" :src="mainImage(item)" mode="aspectFill" />
-          <view class="card-body">
-            <text class="card-name">{{ goodName(item) || $t('unnamedGoods') }}</text>
-            <text class="card-desc" v-if="goodDesc(item)">{{ goodDesc(item) }}</text>
-            <view class="tag-list">
-              <text class="tag" v-for="(tag, idx) in extractTags(item)" :key="idx">{{ tag }}</text>
+      <view class="mobile-scroller-wrapper">
+        <view class="waterfall-column">
+          <view class="card" :class="cardClass(colIndex, 'left')" v-for="(item, colIndex) in leftColumnCards" :key="`${item.ID || item.id || item.name || colIndex}-left`">
+            <view class="card-media" :class="cardMediaClass(colIndex, 'left')" @tap="previewImage(item)">
+              <LazyImage class="card-image" :src="mainImage(item)" mode="scaleToFill" />
+              <view class="card-cinema-shadow"></view>
+              <view class="card-cinema-glow"></view>
+              <view class="card-body">
+                <text class="card-name">{{ goodName(item) || $t('unnamedGoods') }}</text>
+                <view class="btn-row">
+                  <view class="btn tryon" @tap.stop="chooseTryon(item)">{{ $t('tryOnAction') }}</view>
+                  <view class="btn buy" @tap.stop="goDetail(item)">{{ $t('buyAction') }}</view>
+                </view>
+              </view>
             </view>
-            <view class="btn-row">
-              <view class="btn tryon" @tap="chooseTryon(item)">{{ $t('tryOnAction') }}</view>
-              <view class="btn buy" @tap="goDetail(item)">{{ $t('buyAction') }}</view>
+          </view>
+        </view>
+
+        <view class="waterfall-column">
+          <view class="card" :class="cardClass(colIndex, 'right')" v-for="(item, colIndex) in rightColumnCards" :key="`${item.ID || item.id || item.name || colIndex}-right`">
+            <view class="card-media" :class="cardMediaClass(colIndex, 'right')" @tap="previewImage(item)">
+              <LazyImage class="card-image" :src="mainImage(item)" mode="scaleToFill" />
+              <view class="card-cinema-shadow"></view>
+              <view class="card-cinema-glow"></view>
+              <view class="card-body">
+                <text class="card-name">{{ goodName(item) || $t('unnamedGoods') }}</text>
+                <view class="btn-row">
+                  <view class="btn tryon" @tap.stop="chooseTryon(item)">{{ $t('tryOnAction') }}</view>
+                  <view class="btn buy" @tap.stop="goDetail(item)">{{ $t('buyAction') }}</view>
+                </view>
+              </view>
             </view>
           </view>
         </view>
@@ -56,7 +76,7 @@
 </template>
 
 <script setup>
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getGoodList, getCategoryMobile } from '@/api/homePage.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
@@ -79,6 +99,7 @@ const displayList = ref([])
 const categoryList = ref([])
 const activeCategoryID = ref(0)
 const categoryScrollLeft = ref(0)
+const categoryScrollIntoView = ref('')
 
 const TRYON_LOWER_KEYWORD_LANGS = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id', 'vi', 'ar', 'ja', 'ko', 'ms']
 const DEFAULT_TRYON_LOWER_KEYWORDS = ['pants', 'skirt', 'bottom', 'lower', 'trousers', 'jeans']
@@ -192,9 +213,19 @@ const centerCategoryTab = (item) => {
       return
     }
 
-    const delta = tab.left - wrap.left
-    const target = categoryScrollLeft.value + delta - (wrap.width - tab.width) / 2
+    const tabOffset = tab.left - track.left
+    const target = tabOffset - (wrap.width - tab.width) / 2
     categoryScrollLeft.value = Math.max(0, Math.min(maxScroll, Math.round(target)))
+  })
+}
+
+const ensureCategoryCentered = (item) => {
+  if (!item) return
+  categoryScrollIntoView.value = categoryTabDomId(item)
+  nextTick(() => {
+    centerCategoryTab(item)
+    setTimeout(() => centerCategoryTab(item), 80)
+    setTimeout(() => centerCategoryTab(item), 180)
   })
 }
 
@@ -219,6 +250,28 @@ const categoryText = (item) => {
 
 const refreshDisplay = () => {
   displayList.value = [...goodsList.value]
+}
+
+const leftColumnCards = computed(() => {
+  return displayList.value.filter((_, index) => index % 2 === 0)
+})
+
+const rightColumnCards = computed(() => {
+  return displayList.value.filter((_, index) => index % 2 === 1)
+})
+
+const cardMediaClass = (columnIndex, side) => {
+  if (columnIndex === 0) return side === 'left' ? 'media-tall' : 'media-short'
+  const odd = columnIndex % 2 === 1
+  if (side === 'left') return odd ? 'media-short' : 'media-tall'
+  return odd ? 'media-tall' : 'media-short'
+}
+
+const cardClass = (columnIndex, side) => {
+  if (columnIndex === 0) return 'card-flat'
+  const odd = columnIndex % 2 === 1
+  if (side === 'left') return odd ? 'card-shift-a' : 'card-shift-b'
+  return odd ? 'card-shift-c' : 'card-shift-d'
 }
 
 const mainImage = (item) => {
@@ -395,7 +448,7 @@ const loadCategories = async () => {
     await nextTick()
     const activeItem = categoryList.value.find(item => Number(item?.ID || item?.id || 0) === Number(activeCategoryID.value))
     if (activeItem) {
-      centerCategoryTab(activeItem)
+      ensureCategoryCentered(activeItem)
     }
   }
 }
@@ -449,6 +502,12 @@ const loadList = async (reset = false) => {
 }
 
 const onSearch = () => {
+  const keyword = String(searchName.value || '').trim()
+  if (!keyword) {
+    uni.showToast({ title: $t('searchContentRequired'), icon: 'none' })
+    return
+  }
+  searchName.value = keyword
   loadList(true)
 }
 
@@ -456,7 +515,7 @@ const switchCategory = (category) => {
   const nextID = Number(category?.ID || category?.id || 0)
   if (nextID === Number(activeCategoryID.value)) return
   activeCategoryID.value = nextID
-  nextTick(() => centerCategoryTab(category))
+  ensureCategoryCentered(category)
   loadList(true)
 }
 
@@ -532,6 +591,29 @@ const goDetail = (item) => {
   uni.navigateTo({ url: `/pages/goodsDetails/goodsDetails?id=${goodID}` })
 }
 
+const previewImage = (item) => {
+  const current = mainImage(item)
+  if (!current) {
+    uni.showToast({ title: $t('goodsImageMissing'), icon: 'none' })
+    return
+  }
+
+  const urls = displayList.value
+    .map((entry) => mainImage(entry))
+    .filter((url) => !!url)
+
+  if (!urls.length) {
+    uni.showToast({ title: $t('goodsImageMissing'), icon: 'none' })
+    return
+  }
+
+  uni.previewImage({
+    current,
+    urls,
+    loop: true,
+  })
+}
+
 onShow(() => {
   if (categoryList.value.length === 0) {
     loadCategories().then(() => loadList(true))
@@ -546,17 +628,27 @@ onShow(() => {
 <style lang="scss">
 page {
   background: #f4f7fb;
+  overflow-x: hidden;
 }
 
 .clothes-page {
+  --fixed-header-height: 184rpx;
   min-height: 100vh;
   background: radial-gradient(120% 80% at 100% -10%, #dbeafe 0%, transparent 60%), #f4f7fb;
   color: #0f172a;
-  padding-top: calc(var(--status-bar-height, 0px) + 16rpx);
+  padding-top: 0;
+  overflow-x: hidden;
 }
 
 .header {
-  padding: 0 20rpx 16rpx;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  padding: calc(var(--status-bar-height, 0px) + 16rpx) 20rpx 16rpx;
+  background: linear-gradient(180deg, rgba(244, 247, 251, 0.96) 0%, rgba(244, 247, 251, 0.9) 72%, rgba(244, 247, 251, 0));
+  backdrop-filter: blur(12px);
 }
 
 .search-row {
@@ -619,94 +711,172 @@ page {
 }
 
 .list-wrap {
-  height: calc(100vh - var(--status-bar-height, 0px) - 170rpx);
+  margin-top: calc(var(--status-bar-height, 0px) + var(--fixed-header-height));
+  height: calc(100vh - var(--status-bar-height, 0px) - var(--fixed-header-height));
   padding: 0 20rpx;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16rpx;
+.mobile-scroller-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 18rpx;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.waterfall-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 28rpx;
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.95);
-  border: 1rpx solid rgba(15, 23, 42, 0.08);
-  border-radius: 14rpx;
+  border-radius: 24rpx;
   overflow: hidden;
-  box-shadow: 0 8rpx 22rpx rgba(15, 23, 42, 0.05);
+  box-shadow: 0 20rpx 40rpx rgba(15, 23, 42, 0.18);
+  background: #ffffff;
+  position: relative;
+}
+
+.card.card-flat {
+  transform: translateY(0) rotate(0.18deg);
+}
+
+.card.card-shift-a {
+  transform: rotate(-0.16deg);
+}
+
+.card.card-shift-b {
+  transform: rotate(0.14deg);
+}
+
+.card.card-shift-c {
+  transform: rotate(-0.18deg);
+}
+
+.card.card-shift-d {
+  transform: rotate(0.12deg);
+}
+
+.card-media {
+  position: relative;
+  height: 620rpx;
+  overflow: hidden;
+  background: transparent;
+}
+
+.card-media.media-base {
+  height: 620rpx;
+}
+
+.card-media.media-short {
+  height: 540rpx;
+}
+
+.card-media.media-tall {
+  height: 620rpx;
 }
 
 .card-image {
   width: 100%;
-  height: 260rpx;
+  height: 100%;
+  filter: saturate(1.04) contrast(1.01);
+}
+
+.card-cinema-shadow,
+.card-cinema-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.card-cinema-shadow {
+  background:
+    radial-gradient(120% 88% at 50% 10%, rgba(255, 255, 255, 0.18) 0%, transparent 62%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0) 56%, rgba(15, 23, 42, 0.18) 100%);
+}
+
+.card-cinema-glow {
+  background: radial-gradient(84% 36% at 50% 0%, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+}
+
+.clothes-page .gva-lazy-image {
+  background: transparent;
+}
+
+.clothes-page .gva-lazy-image__status {
+  background: transparent !important;
+}
+
+.clothes-page .gva-lazy-image__status--error {
+  background: rgba(71, 85, 105, 0.12) !important;
+}
+
+.clothes-page .gva-lazy-image__status-text {
+  opacity: 0;
 }
 
 .card-body {
-  padding: 12rpx;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  padding: 14rpx 16rpx;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, rgba(100, 116, 139, 0.06) 0%, rgba(100, 116, 139, 0.34) 48%, rgba(71, 85, 105, 0.56) 100%);
+  backdrop-filter: blur(11px);
+  border-top: 1rpx solid rgba(226, 232, 240, 0.28);
 }
 
 .card-name {
-  font-size: 24rpx;
-  min-height: 68rpx;
-  line-height: 34rpx;
-}
-
-.card-desc {
   display: -webkit-box;
-  margin-top: 6rpx;
-  min-height: 58rpx;
-  line-height: 29rpx;
-  font-size: 21rpx;
-  color: rgba(15, 23, 42, 0.56);
+  color: #f8fafc;
+  font-size: 24rpx;
+  min-height: 56rpx;
+  line-height: 33rpx;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-.tag-list {
-  margin-top: 8rpx;
-  min-height: 42rpx;
-}
-
-.tag {
-  display: inline-block;
-  margin-right: 8rpx;
-  margin-bottom: 8rpx;
-  padding: 4rpx 10rpx;
-  border-radius: 999rpx;
-  font-size: 18rpx;
-  background: rgba(219, 234, 254, 0.8);
-  color: rgba(30, 64, 175, 0.9);
+  text-shadow: 0 2rpx 10rpx rgba(15, 23, 42, 0.35);
 }
 
 .btn-row {
   display: flex;
-  gap: 8rpx;
+  gap: 12rpx;
+  margin-top: 8rpx;
 }
 
 .btn {
   flex: 1;
-  height: 54rpx;
+  height: 56rpx;
   border-radius: 999rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22rpx;
+  font-size: 21rpx;
+  font-weight: 600;
 }
 
 .btn.tryon {
   background: linear-gradient(90deg, #2563eb, #0ea5e9);
   color: #fff;
+  box-shadow: 0 8rpx 20rpx rgba(37, 99, 235, 0.3);
 }
 
 .btn.buy {
-  background: rgba(15, 23, 42, 0.06);
+  background: rgba(241, 245, 249, 0.86);
   color: #0f172a;
 }
 
 .load-more-wrap {
-  margin-top: 24rpx;
+  margin-top: 80rpx;
   text-align: center;
 }
 

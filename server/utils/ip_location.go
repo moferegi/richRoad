@@ -2,6 +2,9 @@ package utils
 
 import (
 	"fmt"
+	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -17,22 +20,45 @@ var (
 // InitIPSearcher 初始化 IP 归属地查询（全量加载到内存，查询最快）
 func InitIPSearcher(dbPath string) error {
 	ipSearcherOnce.Do(func() {
-		cBuff, err := xdb.LoadContentFromFile(dbPath)
-		if err != nil {
-			ipSearcherErr = fmt.Errorf("load ip2region xdb failed: %w", err)
+		candidates := buildIPDBCandidates(dbPath)
+		var lastErr error
+
+		for _, path := range candidates {
+			cBuff, err := xdb.LoadContentFromFile(path)
+			if err != nil {
+				lastErr = err
+				continue
+			}
+
+			header, err := xdb.LoadHeaderFromBuff(cBuff)
+			if err != nil {
+				lastErr = err
+				continue
+			}
+
+			version, err := xdb.VersionFromHeader(header)
+			if err != nil {
+				lastErr = err
+				continue
+			}
+
+			searcher, err := xdb.NewWithBuffer(version, cBuff)
+			if err != nil {
+				lastErr = err
+				continue
+			}
+
+			ipSearcher = searcher
+			ipSearcherErr = nil
 			return
 		}
-		header, err := xdb.LoadHeaderFromBuff(cBuff)
-		if err != nil {
-			ipSearcherErr = fmt.Errorf("load ip2region header failed: %w", err)
+
+		if lastErr != nil {
+			ipSearcherErr = fmt.Errorf("load ip2region xdb failed, tried %v, last error: %w", candidates, lastErr)
 			return
 		}
-		version, err := xdb.VersionFromHeader(header)
-		if err != nil {
-			ipSearcherErr = fmt.Errorf("detect ip2region version failed: %w", err)
-			return
-		}
-		ipSearcher, ipSearcherErr = xdb.NewWithBuffer(version, cBuff)
+
+		ipSearcherErr = fmt.Errorf("load ip2region xdb failed: no candidate path found")
 	})
 	return ipSearcherErr
 }
@@ -40,18 +66,94 @@ func InitIPSearcher(dbPath string) error {
 // GetIPLocation 查询 IP 归属地，返回格式化后的地址字符串
 // ip2region 原始格式: "国家|区域|省份|城市|ISP"
 func GetIPLocation(ip string) string {
-	if ipSearcher == nil {
-		return ""
+	normalizedIP := normalizeIP(ip)
+	if normalizedIP == "" {
+		return "未知"
 	}
-	// 跳过本地回环地址
-	if ip == "::1" || ip == "127.0.0.1" || ip == "" {
+
+	parsed := net.ParseIP(normalizedIP)
+	if parsed == nil {
+		return "未知"
+	}
+
+	if parsed.IsLoopback() {
 		return "本机"
 	}
-	region, err := ipSearcher.SearchByStr(ip)
+
+	if ipSearcher == nil {
+		if parsed.To4() == nil {
+			return "IPv6"
+		}
+		return "未知"
+	}
+
+	region, err := ipSearcher.SearchByStr(normalizedIP)
 	if err != nil {
+		if parsed.To4() == nil {
+			return "IPv6"
+		}
+		return "未知"
+	}
+
+	result := formatRegion(region)
+	if strings.TrimSpace(result) == "" {
+		if parsed.To4() == nil {
+			return "IPv6"
+		}
+		return "未知"
+	}
+	return result
+}
+
+func buildIPDBCandidates(dbPath string) []string {
+	unique := map[string]struct{}{}
+	add := func(path string) {
+		if path == "" {
+			return
+		}
+		clean := filepath.Clean(path)
+		if _, exists := unique[clean]; exists {
+			return
+		}
+		unique[clean] = struct{}{}
+	}
+
+	add(dbPath)
+
+	if wd, err := os.Getwd(); err == nil {
+		add(filepath.Join(wd, dbPath))
+		add(filepath.Join(wd, "resource", "ip2region", "ip2region.xdb"))
+	}
+
+	if exePath, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exePath)
+		add(filepath.Join(exeDir, dbPath))
+		add(filepath.Join(exeDir, "resource", "ip2region", "ip2region.xdb"))
+	}
+
+	result := make([]string, 0, len(unique))
+	for path := range unique {
+		result = append(result, path)
+	}
+	return result
+}
+
+func normalizeIP(ip string) string {
+	v := strings.TrimSpace(ip)
+	if v == "" {
 		return ""
 	}
-	return formatRegion(region)
+
+	if strings.Contains(v, ",") {
+		parts := strings.Split(v, ",")
+		v = strings.TrimSpace(parts[0])
+	}
+
+	if host, _, err := net.SplitHostPort(v); err == nil {
+		v = host
+	}
+
+	return strings.Trim(v, "[]")
 }
 
 // formatRegion 格式化 ip2region 返回的原始地区字符串

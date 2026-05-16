@@ -26,7 +26,7 @@
           <view class="card-main">
             <text class="card-title">{{ $lt(item.title || item.name || item.label || '') }}</text>
             <view class="card-bottom">
-              <text class="card-price">{{ cs }}{{ formatPrice(item.price) }}</text>
+              <text class="card-price">{{ cs }}{{ formatItemPrice(item) }}</text>
               <text class="card-time">{{ formatDateTime(item.CreatedAt || item.createdAt || item.viewTime) }}</text>
             </view>
           </view>
@@ -60,6 +60,7 @@ import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { clearGoodHistory, getGoodHistory } from '@/api/order'
 import { resolveApiMessage } from '@/utils/i18n.js'
+import { formatLocalizedPrice } from '@/utils/price-i18n.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
@@ -75,6 +76,7 @@ const playHistoryStore = usePlayHistoryStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const sourceList = ref([])
 const visibleList = ref([])
@@ -90,11 +92,8 @@ const sortTimestamp = (item) => {
   return Number.isNaN(time) ? 0 : time
 }
 
-const formatPrice = (priceInCents) => {
-  if (!priceInCents && priceInCents !== 0) return '0.00'
-  const cents = Number(priceInCents)
-  if (Number.isNaN(cents)) return '0.00'
-  return (cents / 100).toFixed(2)
+const formatItemPrice = (item) => {
+  return formatLocalizedPrice(item?.price, item?.priceI18n, locale.value)
 }
 
 const toDate = (raw) => {

@@ -20,6 +20,7 @@ type Good struct {
 	LowerImage  string         `json:"lowerImage" form:"lowerImage" gorm:"column:lower_image;comment:下装图URL;size:500;"` //下装图URL
 	Banner      datatypes.JSON `json:"banner" form:"banner" gorm:"column:banner;comment:商品轮播图;type:text"`               //商品轮播图
 	Price       *float64       `json:"price" form:"price" gorm:"column:price;comment:商品价格;"`                            //商品价格
+	PriceI18n   string         `json:"priceI18n" form:"priceI18n" gorm:"column:price_i18n;comment:多语言价格JSON;type:text"` //多语言价格(JSON)
 	Rating      *float64       `json:"rating" form:"rating" gorm:"column:rating;comment:商品评分;"`                         //商品评分
 	ReviewCount *int           `json:"reviewCount" form:"reviewCount" gorm:"column:review_count;comment:商品评论数量;"`       //商品评论数量
 	SaleCount   *int           `json:"saleCount" form:"saleCount" gorm:"column:sale_count;comment:商品销售数量;"`             //商品销售数量

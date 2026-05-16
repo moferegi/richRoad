@@ -7,7 +7,7 @@
       <view class="nf-navbar-status"></view>
       <view class="nf-navbar-content">
         <view class="nf-navbar-back" @tap="goBack">
-          <uni-icons type="left" size="20" color="#fff" />
+          <uni-icons type="left" size="20" color="rgba(15,23,42,0.78)" />
         </view>
         <text class="nf-navbar-title">{{ $t('myAddresses') }}</text>
         <view style="width: 64rpx;"></view>
@@ -31,7 +31,7 @@
           </view>
           <view class="nf-addr-actions">
             <view class="nf-addr-action" @tap.stop="editAddress(item)">
-              <uni-icons type="compose" size="16" color="rgba(255,255,255,0.6)" />
+              <uni-icons type="compose" size="16" color="rgba(15,23,42,0.5)" />
               <text>{{ $t('editAddr') }}</text>
             </view>
             <view class="nf-addr-action nf-addr-action-del" @tap.stop="delAddress(item)">
@@ -48,7 +48,7 @@
 
       <!-- 空状态 -->
       <view class="nf-addr-empty" v-if="addressList.length === 0">
-        <uni-icons type="location" size="48" color="rgba(229,9,20,0.4)" />
+        <uni-icons type="location" size="48" color="rgba(37,99,235,0.35)" />
         <text class="nf-addr-empty-text">{{ $t('noAddress') }}</text>
       </view>
     </scroll-view>
@@ -280,20 +280,21 @@ const goBack = () => {
 <style lang="scss" scoped>
 .nf-address {
   min-height: 100vh;
-  background: #141414;
+  background: #f4f7fb;
   position: relative;
 }
 .nf-address-bg {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(180deg, #1a1a2e 0%, #141414 100%);
+  background: radial-gradient(120% 80% at 100% -10%, #dbeafe 0%, transparent 60%), #f4f7fb;
   z-index: 0;
 }
 .nf-navbar {
   position: fixed;
   top: 0; left: 0; right: 0;
   z-index: 100;
-  background: rgba(20, 20, 20, 0.95);
+  background: rgba(244, 247, 251, 0.94);
+  border-bottom: 1rpx solid rgba(15, 23, 42, 0.08);
   backdrop-filter: blur(20rpx);
 }
 .nf-navbar-status {
@@ -310,8 +311,8 @@ const goBack = () => {
   width: 64rpx;
   height: 64rpx;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1rpx solid rgba(15, 23, 42, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -319,7 +320,7 @@ const goBack = () => {
 .nf-navbar-title {
   font-size: 34rpx;
   font-weight: bold;
-  color: #fff;
+  color: #0f172a;
 }
 .nf-address-scroll {
   position: relative;
@@ -333,11 +334,12 @@ const goBack = () => {
   padding-bottom: 30rpx;
 }
 .nf-addr-card {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.94);
   border-radius: 16rpx;
   padding: 30rpx;
   margin-bottom: 20rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border: 1rpx solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10rpx 24rpx rgba(15, 23, 42, 0.05);
 }
 .nf-addr-info {
   margin-bottom: 20rpx;
@@ -356,32 +358,32 @@ const goBack = () => {
 .nf-addr-name {
   font-size: 30rpx;
   font-weight: bold;
-  color: #fff;
+  color: #0f172a;
 }
 .nf-addr-phone {
   font-size: 26rpx;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(15, 23, 42, 0.55);
 }
 .nf-addr-default-tag {
-  background: rgba(229, 9, 20, 0.2);
-  border: 1rpx solid rgba(229, 9, 20, 0.4);
+  background: rgba(37, 99, 235, 0.12);
+  border: 1rpx solid rgba(37, 99, 235, 0.32);
   border-radius: 6rpx;
   padding: 4rpx 12rpx;
 }
 .nf-addr-default-tag text {
   font-size: 20rpx;
-  color: #e50914;
+  color: #1d4ed8;
 }
 .nf-addr-detail {
   font-size: 26rpx;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(15, 23, 42, 0.68);
   line-height: 1.5;
 }
 .nf-addr-actions {
   display: flex;
   gap: 30rpx;
   padding-top: 20rpx;
-  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-top: 1rpx solid rgba(15, 23, 42, 0.08);
 }
 .nf-addr-action {
   display: flex;
@@ -390,7 +392,7 @@ const goBack = () => {
 }
 .nf-addr-action text {
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(15, 23, 42, 0.62);
 }
 .nf-addr-action-del text {
   color: #e50914;
@@ -401,7 +403,7 @@ const goBack = () => {
 }
 .nf-addr-bottom text {
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(15, 23, 42, 0.38);
 }
 .nf-addr-empty {
   display: flex;
@@ -412,7 +414,7 @@ const goBack = () => {
 }
 .nf-addr-empty-text {
   font-size: 28rpx;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(15, 23, 42, 0.46);
   margin-top: 20rpx;
 }
 .nf-addr-add-wrap {
@@ -422,14 +424,15 @@ const goBack = () => {
   right: 0;
   padding: 20rpx 24rpx;
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
-  background: rgba(20, 20, 20, 0.95);
+  background: rgba(244, 247, 251, 0.95);
+  border-top: 1rpx solid rgba(15, 23, 42, 0.08);
   backdrop-filter: blur(20rpx);
   z-index: 100;
 }
 .nf-addr-add-btn {
   height: 88rpx;
   border-radius: 12rpx;
-  background: #e50914;
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
   display: flex;
   align-items: center;
   justify-content: center;

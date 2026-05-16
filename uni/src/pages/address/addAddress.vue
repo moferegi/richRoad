@@ -7,7 +7,7 @@
       <view class="nf-navbar-status"></view>
       <view class="nf-navbar-content">
         <view class="nf-navbar-back" @tap="goBack">
-          <uni-icons type="left" size="20" color="#fff" />
+          <uni-icons type="left" size="20" color="rgba(15,23,42,0.78)" />
         </view>
         <text class="nf-navbar-title">{{ $t('addNewAddr') }}</text>
         <view style="width: 64rpx;"></view>
@@ -63,7 +63,7 @@
       <!-- 默认地址 -->
       <view class="nf-form-item nf-form-item-switch">
         <text class="nf-form-label">{{ $t('setDefault') }}</text>
-        <switch @change="switchChange" :checked="formData.checked" color="#e50914" style="transform:scale(0.8)" />
+        <switch @change="switchChange" :checked="formData.checked" color="#2563eb" style="transform:scale(0.8)" />
       </view>
 
       <!-- 保存按钮 -->
@@ -246,20 +246,21 @@ const goBack = () => {
 <style lang="scss" scoped>
 .nf-add-addr {
   min-height: 100vh;
-  background: #141414;
+  background: #f4f7fb;
   position: relative;
 }
 .nf-add-addr-bg {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(180deg, #1a1a2e 0%, #141414 100%);
+  background: radial-gradient(120% 80% at 100% -10%, #dbeafe 0%, transparent 60%), #f4f7fb;
   z-index: 0;
 }
 .nf-navbar {
   position: fixed;
   top: 0; left: 0; right: 0;
   z-index: 100;
-  background: rgba(20, 20, 20, 0.95);
+  background: rgba(244, 247, 251, 0.94);
+  border-bottom: 1rpx solid rgba(15, 23, 42, 0.08);
   backdrop-filter: blur(20rpx);
 }
 .nf-navbar-status {
@@ -276,8 +277,8 @@ const goBack = () => {
   width: 64rpx;
   height: 64rpx;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1rpx solid rgba(15, 23, 42, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -285,7 +286,7 @@ const goBack = () => {
 .nf-navbar-title {
   font-size: 34rpx;
   font-weight: bold;
-  color: #fff;
+  color: #0f172a;
 }
 .nf-form-content {
   position: relative;
@@ -293,20 +294,21 @@ const goBack = () => {
   padding: calc(var(--status-bar-height, 44rpx) + 88rpx + 30rpx) 24rpx 60rpx;
 }
 .nf-form-item {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1rpx solid rgba(15, 23, 42, 0.08);
   border-radius: 12rpx;
   padding: 24rpx;
   margin-bottom: 16rpx;
 }
 .nf-form-label {
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(15, 23, 42, 0.56);
   margin-bottom: 12rpx;
   display: block;
 }
 .nf-form-input {
   font-size: 28rpx;
-  color: #fff;
+  color: #0f172a;
   background: transparent;
   border: none;
   width: 100%;
@@ -324,31 +326,31 @@ const goBack = () => {
   width: 100%;
 }
 ::v-deep .uni-select {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
   border-radius: 8rpx !important;
 }
 ::v-deep .uni-select__input-text {
-  color: #fff !important;
+  color: #0f172a !important;
 }
 ::v-deep .uni-select__input-placeholder {
-  color: rgba(255, 255, 255, 0.3) !important;
+  color: rgba(15, 23, 42, 0.38) !important;
 }
 ::v-deep .uni-select__selector {
-  background: #2a2a2a !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
 }
 ::v-deep .uni-select__selector-item {
-  color: #fff !important;
+  color: #0f172a !important;
 }
 ::v-deep .uni-select__selector-item:hover {
-  background: rgba(229, 9, 20, 0.1) !important;
+  background: rgba(219, 234, 254, 0.5) !important;
 }
 .nf-form-save {
   margin-top: 40rpx;
   height: 88rpx;
   border-radius: 12rpx;
-  background: #e50914;
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -368,8 +370,8 @@ const goBack = () => {
 .nf-area-code-btn {
   height: 72rpx;
   padding: 0 20rpx;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1rpx solid rgba(15, 23, 42, 0.12);
   border-radius: 12rpx;
   display: flex;
   align-items: center;
@@ -377,12 +379,12 @@ const goBack = () => {
   flex-shrink: 0;
 }
 .nf-area-code-text {
-  color: #fff;
+  color: #0f172a;
   font-size: 28rpx;
   font-weight: 600;
 }
 .nf-area-code-arrow {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(15, 23, 42, 0.4);
   font-size: 20rpx;
 }
 .nf-phone-input {
@@ -394,7 +396,7 @@ const goBack = () => {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   z-index: 200;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(15, 23, 42, 0.36);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -402,17 +404,18 @@ const goBack = () => {
 .nf-popup-content {
   width: 100%;
   max-height: 60vh;
-  background: #1a1a1a;
+  background: #ffffff;
   border-radius: 28rpx 28rpx 0 0;
   padding: 32rpx 0;
+  border: 1rpx solid rgba(15, 23, 42, 0.08);
 }
 .nf-popup-title {
   text-align: center;
   font-size: 32rpx;
   font-weight: 700;
-  color: #fff;
+  color: #0f172a;
   padding-bottom: 24rpx;
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1rpx solid rgba(15, 23, 42, 0.08);
 }
 .nf-popup-scroll {
   max-height: 50vh;
@@ -422,15 +425,15 @@ const goBack = () => {
   align-items: center;
   justify-content: space-between;
   padding: 28rpx 40rpx;
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.05);
-  &:active { background: rgba(255, 255, 255, 0.05); }
+  border-bottom: 1rpx solid rgba(15, 23, 42, 0.06);
+  &:active { background: rgba(219, 234, 254, 0.4); }
 }
 .nf-area-name {
-  color: #fff;
+  color: #0f172a;
   font-size: 28rpx;
 }
 .nf-area-code-val {
-  color: rgba(229, 9, 20, 0.8);
+  color: rgba(37, 99, 235, 0.9);
   font-size: 28rpx;
   font-weight: 600;
 }

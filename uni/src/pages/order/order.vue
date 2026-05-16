@@ -70,14 +70,14 @@
           <LazyImage :src="item.detail[0].sku.externalPicturePath ? getExternalUrl(item.detail[0].sku.externalPicturePath) : getUrl(item.detail[0].sku.picture)" class="nf-goods-thumb-lg" mode="aspectFill" />
           <view class="nf-goods-single-info">
             <text class="nf-goods-single-name">{{ $lt(item.detail[0].sku.name) || item.detail[0].sku.name }}</text>
-            <text class="nf-goods-single-desc">{{ $lt(item.detail[0].good?.description) || item.detail[0].sku.description }}</text>
+            <text class="nf-goods-single-desc">{{ $lt(item.detail[0].good?.description) || $lt(item.detail[0].sku?.description) || item.detail[0].good?.description || item.detail[0].sku?.description }}</text>
           </view>
         </view>
 
         <!-- 金额统计 -->
         <view class="nf-order-summary">
           <text class="nf-order-count">{{ $t('totalItems').replace('{n}', item.detail ? item.detail.length : 0) }} · {{ $t('paidAmount') }}</text>
-          <text class="nf-order-price">{{ cs }}{{ (item.totalPrice / 100).toFixed(2) }}</text>
+          <text class="nf-order-price">{{ getOrderCurrencySymbol(item) }}{{ getLocalizedPaidAmount(item) }}</text>
         </view>
 
         <!-- 操作按钮 -->
@@ -150,6 +150,7 @@ import { getSysConfigByKey } from '@/api/sysConfig.js'
 import { getUrl, getExternalUrl } from "@/utils/url.js"
 import RefundApplyPopup from '@/components/refund-apply-popup/refund-apply-popup.vue'
 import LazyImage from '@/components/lazy-image/lazy-image.vue'
+import { resolveLocalizedPriceFen } from '@/utils/price-i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 const langStore = useLangStore()
@@ -157,6 +158,53 @@ const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+
+const getOrderCurrencySymbol = (order) => {
+  const snapshot = String(order?.settlementCurrencySymbol || '').trim()
+  return snapshot || cs.value
+}
+
+const getDetailBasePriceFen = (detail) => {
+  const detailPrice = Number(detail?.price)
+  if (Number.isFinite(detailPrice) && detailPrice >= 0) {
+    return detailPrice
+  }
+  return 0
+}
+
+const getDetailPriceI18nSnapshot = (detail) => {
+  return detail?.priceI18n
+}
+
+const getOrderPriceLocale = (order) => {
+  const snapshot = String(order?.settlementCurrency || '').trim()
+  if (!snapshot) {
+    return locale.value
+  }
+  return snapshot.replace(/_/g, '-')
+}
+
+const getLocalizedPaidAmount = (order) => {
+  const details = Array.isArray(order?.detail) ? order.detail : []
+  if (!details.length) {
+    return (Number(order?.totalPrice || 0) / 100).toFixed(2)
+  }
+
+  const priceLocale = getOrderPriceLocale(order)
+
+  const localizedOrigin = details.reduce((sum, detail) => {
+    const priceFen = resolveLocalizedPriceFen(getDetailBasePriceFen(detail), getDetailPriceI18nSnapshot(detail), priceLocale)
+    const quantity = Math.max(0, Number(detail?.quantity || 0))
+    return sum + Math.max(0, priceFen) * quantity
+  }, 0)
+
+  let localizedTotal = localizedOrigin - Number(order?.discount || 0)
+  if (order?.usePoints) {
+    localizedTotal -= Number(order?.pointsUsed || 0)
+  }
+  return (Math.max(0, localizedTotal) / 100).toFixed(2)
+}
 
 const activeSataus = ref("")
 const showRefundBtn = ref(true)

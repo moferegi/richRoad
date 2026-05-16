@@ -36,6 +36,9 @@
             <template v-else-if="isSecretConfig(scope.row)">
               <span>{{ maskSecretValue(scope.row.configValue) }}</span>
             </template>
+            <template v-else-if="isCurrencySymbolConfig(scope.row)">
+              <span>{{ formatCurrencySymbolPreview(scope.row.configValue) }}</span>
+            </template>
             <!-- 试衣模型可视化摘要 -->
             <template v-else-if="isTryonModelsConfig(scope.row)">
               <div class="tryon-model-summary">
@@ -47,7 +50,7 @@
             <template v-else-if="isTryonRechargePlansConfig(scope.row)">
               <div class="tryon-model-summary">
                 <el-tag size="small" type="warning">{{ rechargePlansCount(scope.row.configValue) }} 个套餐</el-tag>
-                <span class="tryon-model-summary-text">支持点数、币名、货币符号、价格、单位多语言</span>
+                <span class="tryon-model-summary-text">支持点数、币名与多语言价格（基础分价 + 汇率换算）</span>
               </div>
             </template>
             <!-- 支付方式配置摘要 -->
@@ -560,31 +563,54 @@
                         </div>
                       </template>
 
-                      <div class="tryon-model-subtitle">名称多语言 name</div>
-                      <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`name-${model.__uid}-${lang.code}`">
-                        <span class="tryon-model-label">{{ lang.label }}</span>
-                        <el-input v-model="model.name[lang.code]" :placeholder="`name.${lang.code}`" />
+                      <div class="tryon-model-field full">
+                        <MultiLangEditor
+                          :model="model.name"
+                          :languages="multilingualLangOptions"
+                          title="名称多语言 name"
+                          input-type="input"
+                          :use-tabs="true"
+                          tab-type="card"
+                        />
                       </div>
 
-                      <div class="tryon-model-subtitle">说明多语言 desc</div>
-                      <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`desc-${model.__uid}-${lang.code}`">
-                        <span class="tryon-model-label">{{ lang.label }}</span>
-                        <el-input v-model="model.desc[lang.code]" type="textarea" :rows="2" :placeholder="`desc.${lang.code}`" />
+                      <div class="tryon-model-field full">
+                        <MultiLangEditor
+                          :model="model.desc"
+                          :languages="multilingualLangOptions"
+                          title="说明多语言 desc"
+                          input-type="textarea"
+                          :rows="2"
+                          :use-tabs="true"
+                          tab-type="card"
+                        />
                       </div>
 
                       <template v-if="isRefinerUsageModel(model)">
-                        <div class="tryon-model-subtitle">精修说明多语言 refinerDesc</div>
-                        <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`refiner-desc-${model.__uid}-${lang.code}`">
-                          <span class="tryon-model-label">{{ lang.label }}</span>
-                          <el-input v-model="model.refinerDesc[lang.code]" type="textarea" :rows="2" :placeholder="`refinerDesc.${lang.code}`" />
+                        <div class="tryon-model-field full">
+                          <MultiLangEditor
+                            :model="model.refinerDesc"
+                            :languages="multilingualLangOptions"
+                            title="精修说明多语言 refinerDesc"
+                            input-type="textarea"
+                            :rows="2"
+                            :use-tabs="true"
+                            tab-type="card"
+                          />
                         </div>
                       </template>
 
                       <template v-if="model.modelUsage === 'beautify'">
-                        <div class="tryon-model-subtitle">美肤说明多语言 beautifyDesc</div>
-                        <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`beautify-desc-${model.__uid}-${lang.code}`">
-                          <span class="tryon-model-label">{{ lang.label }}</span>
-                          <el-input v-model="model.beautifyDesc[lang.code]" type="textarea" :rows="2" :placeholder="`beautifyDesc.${lang.code}`" />
+                        <div class="tryon-model-field full">
+                          <MultiLangEditor
+                            :model="model.beautifyDesc"
+                            :languages="multilingualLangOptions"
+                            title="美肤说明多语言 beautifyDesc"
+                            input-type="textarea"
+                            :rows="2"
+                            :use-tabs="true"
+                            tab-type="card"
+                          />
                         </div>
                       </template>
                     </div>
@@ -612,34 +638,56 @@
                   <template #title>
                     <div class="tryon-model-title">
                       <span>{{ displayI18nText(plan.points) || ('套餐' + (index + 1)) }} {{ displayI18nText(plan.coinLabel) }}</span>
-                      <el-tag size="small" type="success">{{ displayI18nText(plan.currencySymbol) }}{{ displayI18nText(plan.price) }}{{ displayI18nText(plan.currencySuffix) }}</el-tag>
+                      <el-tag size="small" type="success">{{ formatRechargePlanPricePreview(plan) }}</el-tag>
                     </div>
                   </template>
                   <div class="tryon-model-panel">
                     <div class="tryon-model-grid">
-                      <template v-for="lang in multilingualLangs" :key="`plan-${plan.__uid}-${lang.code}`">
-                        <div class="tryon-model-subtitle">{{ lang.label }}</div>
-                        <div class="tryon-model-field">
-                          <span class="tryon-model-label">点数</span>
-                          <el-input v-model="plan.points[lang.code]" placeholder="50" />
+                      <div class="tryon-model-field full">
+                        <MultiLangEditor
+                          :model="plan.points"
+                          :languages="multilingualLangOptions"
+                          title="点数多语言 points"
+                          input-type="input"
+                          :use-tabs="true"
+                          tab-type="card"
+                        />
+                      </div>
+                      <div class="tryon-model-field full">
+                        <MultiLangEditor
+                          :model="plan.coinLabel"
+                          :languages="multilingualLangOptions"
+                          title="币名多语言 coinLabel"
+                          input-type="input"
+                          :use-tabs="true"
+                          tab-type="card"
+                        />
+                      </div>
+                      <div class="tryon-model-field full">
+                        <span class="tryon-model-label">基础价格 price（单位：分）</span>
+                        <div class="w-full">
+                          <el-input-number v-model="plan.price" :min="0" :step="1" />
+                          <div class="mt-2 flex items-center gap-2">
+                            <el-button
+                              type="primary"
+                              plain
+                              size="small"
+                              @click="openRechargePlanRateDialog(index)"
+                            >汇率换算</el-button>
+                            <span class="tryon-model-summary-text">槽位：{{ Object.keys(plan.priceI18n || {}).length }}</span>
+                          </div>
                         </div>
-                        <div class="tryon-model-field">
-                          <span class="tryon-model-label">币名</span>
-                          <el-input v-model="plan.coinLabel[lang.code]" placeholder="Try-on Coins" />
-                        </div>
-                        <div class="tryon-model-field">
-                          <span class="tryon-model-label">货币符号</span>
-                          <el-input v-model="plan.currencySymbol[lang.code]" placeholder="CNY" />
-                        </div>
-                        <div class="tryon-model-field">
-                          <span class="tryon-model-label">价格</span>
-                          <el-input v-model="plan.price[lang.code]" placeholder="9.9" />
-                        </div>
-                        <div class="tryon-model-field full">
-                          <span class="tryon-model-label">单位/后缀</span>
-                          <el-input v-model="plan.currencySuffix[lang.code]" placeholder="" />
-                        </div>
-                      </template>
+                      </div>
+                      <div class="tryon-model-field full">
+                        <MultiLangEditor
+                          :model="plan.priceI18n"
+                          :languages="multilingualLangOptions"
+                          title="价格多语言 priceI18n（单位：分）"
+                          input-type="input"
+                          :use-tabs="true"
+                          tab-type="card"
+                        />
+                      </div>
                     </div>
                     <div class="tryon-model-actions">
                       <el-button size="small" @click="cloneRechargePlan(index)">复制</el-button>
@@ -694,16 +742,27 @@
                         <el-input v-model="method.externalPath" placeholder="外部图片地址(可选)" />
                       </div>
 
-                      <div class="tryon-model-subtitle">名称多语言 name</div>
-                      <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`pay-name-${method.__uid}-${lang.code}`">
-                        <span class="tryon-model-label">{{ lang.label }}</span>
-                        <el-input v-model="method.name[lang.code]" :placeholder="`name.${lang.code}`" />
+                      <div class="tryon-model-field full">
+                        <MultiLangEditor
+                          :model="method.name"
+                          :languages="multilingualLangOptions"
+                          title="名称多语言 name"
+                          input-type="input"
+                          :use-tabs="true"
+                          tab-type="card"
+                        />
                       </div>
 
-                      <div class="tryon-model-subtitle">复制信息多语言 copyText</div>
-                      <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`pay-copy-${method.__uid}-${lang.code}`">
-                        <span class="tryon-model-label">{{ lang.label }}</span>
-                        <el-input v-model="method.copyText[lang.code]" type="textarea" :rows="2" :placeholder="`copyText.${lang.code}`" />
+                      <div class="tryon-model-field full">
+                        <MultiLangEditor
+                          :model="method.copyText"
+                          :languages="multilingualLangOptions"
+                          title="复制信息多语言 copyText"
+                          input-type="textarea"
+                          :rows="2"
+                          :use-tabs="true"
+                          tab-type="card"
+                        />
                       </div>
                     </div>
                     <div class="tryon-model-actions">
@@ -755,16 +814,27 @@
                         <el-input v-model="method.externalPath" placeholder="https://..." />
                       </div>
 
-                      <div class="tryon-model-subtitle">名称多语言 name</div>
-                      <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`pref-name-${method.__uid}-${lang.code}`">
-                        <span class="tryon-model-label">{{ lang.label }}</span>
-                        <el-input v-model="method.name[lang.code]" :placeholder="`name.${lang.code}`" />
+                      <div class="tryon-model-field full">
+                        <MultiLangEditor
+                          :model="method.name"
+                          :languages="multilingualLangOptions"
+                          title="名称多语言 name"
+                          input-type="input"
+                          :use-tabs="true"
+                          tab-type="card"
+                        />
                       </div>
 
-                      <div class="tryon-model-subtitle">复制信息多语言 copyText</div>
-                      <div class="tryon-model-field" v-for="lang in multilingualLangs" :key="`pref-copy-${method.__uid}-${lang.code}`">
-                        <span class="tryon-model-label">{{ lang.label }}</span>
-                        <el-input v-model="method.copyText[lang.code]" type="textarea" :rows="2" :placeholder="`copyText.${lang.code}`" />
+                      <div class="tryon-model-field full">
+                        <MultiLangEditor
+                          :model="method.copyText"
+                          :languages="multilingualLangOptions"
+                          title="复制信息多语言 copyText"
+                          input-type="textarea"
+                          :rows="2"
+                          :use-tabs="true"
+                          tab-type="card"
+                        />
                       </div>
                     </div>
                     <div class="tryon-model-actions">
@@ -777,17 +847,24 @@
             </div>
           </template>
           <!-- JSON多语言类型 -->
+          <template v-else-if="isCurrencySymbolConfig(editForm)">
+            <div class="json-editor">
+              <div class="json-editor-tip">请手动输入各语言货币符号，可使用“一键补齐”补全槽位。</div>
+              <MultiLangEditor
+                :model="editJsonValue"
+                :languages="multilingualLangOptions"
+                title="货币符号多语言 currency_symbol"
+                input-type="input"
+              />
+            </div>
+          </template>
           <template v-else-if="isJsonConfig(editForm)">
             <div class="json-editor">
-              <div v-for="(val, lang) in editJsonValue" :key="lang" class="json-row">
-                <el-tag size="small" class="mr-2">{{ lang }}</el-tag>
-                <el-input v-model="editJsonValue[lang]" style="flex:1" />
-              </div>
-              <div class="json-row mt-2">
-                <el-input v-model="newJsonLang" placeholder="语言代码" style="width: 100px" class="mr-2" />
-                <el-input v-model="newJsonVal" placeholder="值" style="flex:1" class="mr-2" />
-                <el-button size="small" @click="addJsonLang">添加</el-button>
-              </div>
+              <MultiLangEditor
+                :model="editJsonValue"
+                :languages="multilingualLangOptions"
+                title="JSON 多语言配置"
+              />
             </div>
           </template>
           <!-- 数字类型 -->
@@ -810,6 +887,91 @@
       <template #footer>
         <el-button @click="editVisible = false">取消</el-button>
         <el-button type="primary" @click="handleSave">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="rechargeRateDialogVisible"
+      :title="rechargeRateDialogTitle"
+      width="980px"
+      destroy-on-close
+    >
+      <div class="mb-3 flex flex-wrap items-center gap-2">
+        <el-checkbox :model-value="isAllRechargeRowsSelected()" @change="toggleSelectAllRechargeRows">全选</el-checkbox>
+        <el-input-number
+          v-model="rechargeAdjustPercent"
+          :precision="2"
+          :step="0.5"
+          placeholder="增减百分比"
+          style="width: 140px"
+        />
+        <span class="text-xs text-gray-500">增加%（可负数），人民币价格换算后按比例增减</span>
+      </div>
+
+      <div class="mb-3 flex flex-wrap gap-2">
+        <el-button type="primary" :loading="rechargeRateLoading" @click="refreshSelectedRechargeExchangeRates">更新汇率（选中）</el-button>
+        <el-button type="success" @click="applySelectedRechargeRateToPrices">补齐（更新选中价格）</el-button>
+        <el-button @click="fillRechargeRateLangSlots">补齐多语言槽位</el-button>
+      </div>
+
+      <div class="mb-2 text-xs text-gray-500">
+        汇率来源：{{ rechargeExchangeRateSource || '-' }}
+        <span v-if="rechargeExchangeRateFetchedAt">，更新时间：{{ rechargeExchangeRateFetchedAt }}</span>
+      </div>
+
+      <el-table :data="rechargeRateRows" border max-height="420px">
+        <el-table-column label="选择" width="70">
+          <template #default="scope">
+            <el-checkbox v-model="scope.row.selected" />
+          </template>
+        </el-table-column>
+        <el-table-column label="语言" width="180">
+          <template #default="scope">
+            {{ scope.row.name }} ({{ scope.row.code }})
+          </template>
+        </el-table-column>
+        <el-table-column label="币种" width="140">
+          <template #default="scope">
+            <el-input v-model="scope.row.currency" maxlength="3" placeholder="USD" @change="normalizeRechargeRowCurrency(scope.row)" />
+          </template>
+        </el-table-column>
+        <el-table-column label="汇率(CNY->币种)" width="190">
+          <template #default="scope">
+            <el-input-number
+              v-model="scope.row.rate"
+              :precision="6"
+              :min="0"
+              :step="0.001"
+              controls-position="right"
+              style="width: 100%"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column label="目标价格(分)">
+          <template #default="scope">
+            <div class="flex items-center gap-2">
+              <el-input-number
+                v-model="scope.row.targetPriceFen"
+                :precision="0"
+                :step="1"
+                :min="0"
+                controls-position="right"
+                style="width: 160px"
+                @change="syncRechargeRowPriceToI18n(scope.row)"
+              />
+              <span class="text-xs text-gray-500">≈ {{ formatRechargeFen(scope.row.targetPriceFen) }}</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="120">
+          <template #default="scope">
+            <el-button link type="primary" @click="refreshSingleRechargeRate(scope.row)">更新汇率</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <template #footer>
+        <el-button @click="rechargeRateDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
 
@@ -894,7 +1056,15 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { getSysConfigList, updateSysConfig, getAliyunTryonQuotaEstimate, getModelCallLogList } from '@/api/client/sysConfig'
+import { getEnabledLanguages, getLanguageList } from '@/api/client/language'
 import { ElMessage } from 'element-plus'
+import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
+import {
+  DEFAULT_LANG_CURRENCY_MAP,
+  fetchExchangeRates,
+  calcConvertedFenFromCny,
+  normalizePriceI18nMap,
+} from '@/utils/exchange-rate'
 
 // 配置组定义
 const groupList = [
@@ -941,6 +1111,7 @@ const isTryonModelsConfig = (row) => row?.configKey === 'tryon_models'
 const isTryonRechargePlansConfig = (row) => row?.configKey === 'tryon_recharge_plans'
 const isPaymentManualMethodsConfig = (row) => row?.configKey === 'payment_manual_methods'
 const isPaymentUniPreferredMethodsConfig = (row) => row?.configKey === 'payment_uni_preferred_methods'
+const isCurrencySymbolConfig = (row) => row?.configKey === 'currency_symbol'
 
 // 密钥键列表
 const secretKeys = []
@@ -962,9 +1133,30 @@ const jsonKeys = [
   'announcement_content', 'maintenance_message',
   'username_regex_tip', 'password_regex_tip',
   'tryon_parsing_failed_tip_text', 'tryon_refiner_failed_tip_text',
-  'app_name', 'invite_share_link_tip_text'
+  'app_name', 'invite_share_link_tip_text', 'currency_symbol'
 ]
 const isJsonConfig = (row) => jsonKeys.includes(row.configKey)
+
+const formatCurrencySymbolPreview = (value) => {
+  if (value === undefined || value === null) return '-'
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    return displayI18nText(value, '-')
+  }
+
+  const raw = String(value || '').trim()
+  if (!raw) return '-'
+  if (raw.charAt(0) === '{') {
+    try {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return displayI18nText(parsed, '-')
+      }
+    } catch {
+      return raw
+    }
+  }
+  return raw
+}
 
 // 数字键列表
 const numberKeys = [
@@ -1041,6 +1233,13 @@ const newJsonLang = ref('')
 const newJsonVal = ref('')
 const tryonModels = ref([])
 const rechargePlans = ref([])
+const rechargeRateDialogVisible = ref(false)
+const rechargeRatePlanIndex = ref(-1)
+const rechargeRateRows = ref([])
+const rechargeRateLoading = ref(false)
+const rechargeAdjustPercent = ref(0)
+const rechargeExchangeRateSource = ref('')
+const rechargeExchangeRateFetchedAt = ref('')
 const paymentManualMethods = ref([])
 const paymentPreferredMethods = ref([])
 const tryonModelActiveTab = ref('')
@@ -1050,16 +1249,129 @@ const editDialogWidth = computed(() => {
   return isTryonModelsConfig(editForm.value) ? '1200px' : '600px'
 })
 
-const multilingualLangs = [
-  { code: 'zh', label: '中文 zh' },
-  { code: 'en', label: '英文 en' },
-  { code: 'mn', label: '蒙文 mn' },
-  { code: 'zh-TW', label: '繁体 zh-TW' },
-  { code: 'th', label: '泰语 th' },
-  { code: 'hi', label: '印地语 hi' },
-  { code: 'id', label: '印尼语 id' },
+const rechargeRateDialogTitle = computed(() => {
+  const index = rechargeRatePlanIndex.value
+  const plan = rechargePlans.value[index]
+  if (!plan) {
+    return '充值套餐价格汇率换算'
+  }
+  const pointText = displayI18nText(plan.points, '').trim()
+  const coinText = displayI18nText(plan.coinLabel, '').trim()
+  const suffix = [pointText, coinText].filter(Boolean).join(' ')
+  return suffix ? `充值套餐价格汇率换算 - ${suffix}` : `充值套餐价格汇率换算 #${index + 1}`
+})
+
+const DEFAULT_MULTILINGUAL_LANGS = [
+  { code: 'zh', name: '中文' },
+  { code: 'en', name: '英文' },
+  { code: 'mn', name: '蒙文' },
+  { code: 'zh-TW', name: '繁体' },
+  { code: 'th', name: '泰语' },
+  { code: 'hi', name: '印地语' },
+  { code: 'id', name: '印尼语' },
+  { code: 'vi', name: '越南语' },
+  { code: 'ar', name: '阿拉伯语' },
+  { code: 'ja', name: '日语' },
+  { code: 'ko', name: '韩语' },
+  { code: 'ms', name: '马来语' },
 ]
-const multilingualCodes = multilingualLangs.map(item => item.code)
+
+const defaultLangNameMap = DEFAULT_MULTILINGUAL_LANGS.reduce((acc, item) => {
+  acc[item.code] = item.name
+  return acc
+}, {})
+
+const DISPLAY_LANG_PRIORITY = [
+  'zh',
+  'en',
+  'mn',
+  'zh-TW',
+  'th',
+  'hi',
+  'id',
+  'vi',
+  'ar',
+  'ja',
+  'ko',
+  'ms',
+]
+const displayLangRankMap = new Map(DISPLAY_LANG_PRIORITY.map((code, index) => [code, index]))
+
+const normalizeLangCode = (value) => String(value || '').trim()
+
+const uniqueLangItems = (items = []) => {
+  const map = new Map()
+  items.forEach((item) => {
+    const code = normalizeLangCode(item?.code)
+    if (!code || map.has(code)) return
+    const name = String(item?.name || item?.label || defaultLangNameMap[code] || code).trim()
+    map.set(code, {
+      code,
+      name,
+    })
+  })
+  return Array.from(map.values())
+}
+
+const toLangDisplayName = (code, name) => {
+  const normalizedCode = normalizeLangCode(code)
+  const normalizedName = String(name || defaultLangNameMap[normalizedCode] || normalizedCode).trim()
+  if (!normalizedCode) return normalizedName
+  if (!normalizedName) return normalizedCode
+  return normalizedName.includes(normalizedCode) ? normalizedName : `${normalizedName} ${normalizedCode}`
+}
+
+let multilingualCodes = DEFAULT_MULTILINGUAL_LANGS.map(item => item.code)
+const multilingualLangOptions = ref(
+  DEFAULT_MULTILINGUAL_LANGS.map(item => ({
+    code: item.code,
+    name: toLangDisplayName(item.code, item.name),
+  }))
+)
+
+const applyMultilingualLanguages = (items = []) => {
+  const normalized = uniqueLangItems(items)
+  const source = normalized.length > 0
+    ? normalized
+    : DEFAULT_MULTILINGUAL_LANGS.map(item => ({ code: item.code, name: item.name }))
+
+  const orderedSource = [...source].sort((a, b) => {
+    const rankA = displayLangRankMap.has(a.code) ? displayLangRankMap.get(a.code) : Number.MAX_SAFE_INTEGER
+    const rankB = displayLangRankMap.has(b.code) ? displayLangRankMap.get(b.code) : Number.MAX_SAFE_INTEGER
+    if (rankA !== rankB) {
+      return rankA - rankB
+    }
+    return String(a.code).localeCompare(String(b.code))
+  })
+
+  multilingualCodes = orderedSource.map(item => item.code)
+  multilingualLangOptions.value = orderedSource.map(item => ({
+    code: item.code,
+    name: toLangDisplayName(item.code, item.name),
+  }))
+}
+
+const loadMultilingualLanguages = async () => {
+  try {
+    const [enabledRes, listRes] = await Promise.all([
+      getEnabledLanguages().catch(() => null),
+      getLanguageList({ page: 1, pageSize: 500 }).catch(() => null),
+    ])
+
+    const enabledList = enabledRes?.code === 0 && Array.isArray(enabledRes?.data)
+      ? enabledRes.data
+      : []
+    const listPayload = listRes?.code === 0
+      ? (Array.isArray(listRes?.data?.list)
+          ? listRes.data.list
+          : (Array.isArray(listRes?.data) ? listRes.data : []))
+      : []
+
+    applyMultilingualLanguages(listPayload.length ? listPayload : enabledList)
+  } catch {
+    applyMultilingualLanguages(DEFAULT_MULTILINGUAL_LANGS)
+  }
+}
 
 const buildMultilingualObject = (value, fallback = '') => {
   const source = value && typeof value === 'object' && !Array.isArray(value)
@@ -1080,11 +1392,27 @@ const buildMultilingualObject = (value, fallback = '') => {
 }
 
 const displayI18nText = (value, fallback = '') => {
+  const source = value && typeof value === 'object' && !Array.isArray(value)
+    ? value
+    : {}
   const normalized = buildMultilingualObject(value, fallback)
-  for (const code of multilingualCodes) {
-    const text = String(normalized[code] || '').trim()
+
+  const candidateCodes = Array.from(new Set([
+    ...DISPLAY_LANG_PRIORITY,
+    ...multilingualCodes,
+    ...Object.keys(source),
+  ]))
+
+  for (const code of candidateCodes) {
+    const text = String(source[code] ?? normalized[code] ?? '').trim()
     if (text) return text
   }
+
+  for (const raw of Object.values(source)) {
+    const text = String(raw || '').trim()
+    if (text) return text
+  }
+
   return fallback
 }
 
@@ -1751,23 +2079,168 @@ const validatePaymentPreferredMethods = () => {
 
 const createRechargePlanUid = () => `tryon_recharge_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`
 
+const parseRechargePriceFenFromValue = (value, fallback = 0, treatAsYuan = false) => {
+  if (value === undefined || value === null || value === '') {
+    return Math.max(0, toInt(fallback, 0))
+  }
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      return Math.max(0, toInt(fallback, 0))
+    }
+    if (treatAsYuan || !Number.isInteger(value)) {
+      return Math.max(0, Math.round(value * 100))
+    }
+    if (value > 0 && value < 100) {
+      return Math.max(0, Math.round(value * 100))
+    }
+    return Math.max(0, Math.round(value))
+  }
+
+  const text = String(value).trim()
+  if (!text) {
+    return Math.max(0, toInt(fallback, 0))
+  }
+
+  const cleaned = text.replace(/[^0-9.]/g, '')
+  if (!cleaned) {
+    return Math.max(0, toInt(fallback, 0))
+  }
+
+  const num = Number(cleaned)
+  if (!Number.isFinite(num) || num < 0) {
+    return Math.max(0, toInt(fallback, 0))
+  }
+
+  if (treatAsYuan || cleaned.includes('.')) {
+    return Math.max(0, Math.round(num * 100))
+  }
+  if (num > 0 && num < 100) {
+    return Math.max(0, Math.round(num * 100))
+  }
+  return Math.max(0, Math.round(num))
+}
+
+const parseRechargeLegacyPriceMap = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {}
+  }
+  const next = {}
+  Object.entries(value).forEach(([code, raw]) => {
+    const fen = parseRechargePriceFenFromValue(raw, -1, true)
+    if (Number.isFinite(fen) && fen >= 0) {
+      next[String(code)] = fen
+    }
+  })
+  return next
+}
+
+const pickFirstRechargePriceFen = (priceMap, fallback = 0) => {
+  if (!priceMap || typeof priceMap !== 'object') {
+    return Math.max(0, toInt(fallback, 0))
+  }
+
+  for (const code of multilingualCodes) {
+    const value = Number(priceMap[code])
+    if (Number.isFinite(value) && value >= 0) {
+      return Math.round(value)
+    }
+  }
+
+  const values = Object.values(priceMap)
+  for (const raw of values) {
+    const value = Number(raw)
+    if (Number.isFinite(value) && value >= 0) {
+      return Math.round(value)
+    }
+  }
+
+  return Math.max(0, toInt(fallback, 0))
+}
+
+const normalizeRechargePriceI18n = (value, fallbackFen = 0) => {
+  const fallback = Math.max(0, toInt(fallbackFen, 0))
+  const normalized = normalizePriceI18nMap(value)
+  const next = {}
+
+  Object.entries(normalized).forEach(([code, raw]) => {
+    const priceFen = Number(raw)
+    if (Number.isFinite(priceFen) && priceFen >= 0) {
+      next[String(code)] = Math.round(priceFen)
+    }
+  })
+
+  multilingualCodes.forEach((code) => {
+    if (!Object.prototype.hasOwnProperty.call(next, code)) {
+      next[code] = fallback
+    }
+  })
+
+  if (!Object.keys(next).length) {
+    multilingualCodes.forEach((code) => {
+      next[code] = fallback
+    })
+  }
+
+  return next
+}
+
+const resolveRechargePlanPriceFenByLang = (plan, langCode = 'zh') => {
+  const normalizedLang = String(langCode || '').trim()
+  const priceI18nMap = normalizeRechargePriceI18n(plan?.priceI18n, parseRechargePriceFenFromValue(plan?.price, 0, false))
+  const candidates = []
+
+  if (normalizedLang) {
+    candidates.push(normalizedLang)
+    if (normalizedLang.includes('-')) {
+      candidates.push(normalizedLang.split('-')[0])
+    }
+  }
+  candidates.push('zh', 'en', 'mn')
+
+  for (const candidate of candidates) {
+    if (!candidate || !Object.prototype.hasOwnProperty.call(priceI18nMap, candidate)) {
+      continue
+    }
+    const value = Number(priceI18nMap[candidate])
+    if (Number.isFinite(value) && value >= 0) {
+      return Math.round(value)
+    }
+  }
+
+  return parseRechargePriceFenFromValue(plan?.price, 0, false)
+}
+
+const formatRechargePlanPricePreview = (plan) => {
+  const fen = resolveRechargePlanPriceFenByLang(plan, 'zh')
+  return `${(fen / 100).toFixed(2)}`
+}
+
 const createDefaultRechargePlan = () => ({
   __uid: createRechargePlanUid(),
   points: normalizeRechargeI18nObject({ zh: '50', en: '50', mn: '50' }, '50'),
   coinLabel: normalizeRechargeI18nObject({ zh: '试衣币', en: 'Try-on Coins', mn: 'Туршилтын зоос' }, 'Try-on Coins'),
-  currencySymbol: normalizeRechargeI18nObject({ zh: '￥', en: 'CNY ', mn: 'CNY ' }, 'CNY '),
-  price: normalizeRechargeI18nObject({ zh: '9.9', en: '9.9', mn: '9.9' }, '9.9'),
-  currencySuffix: normalizeRechargeI18nObject({ zh: '元', en: '', mn: '' }, ''),
+  price: 990,
+  priceI18n: normalizeRechargePriceI18n({ zh: 990, en: 990, mn: 990 }, 990),
 })
 
-const normalizeRechargePlan = (item = {}) => ({
-  __uid: createRechargePlanUid(),
-  points: normalizeRechargeI18nObject(item.points, '50'),
-  coinLabel: normalizeRechargeI18nObject(item.coinLabel || item.label, '试衣币'),
-  currencySymbol: normalizeRechargeI18nObject(item.currencySymbol, '￥'),
-  price: normalizeRechargeI18nObject(item.price, '9.9'),
-  currencySuffix: normalizeRechargeI18nObject(item.currencySuffix || item.suffix, '元'),
-})
+const normalizeRechargePlan = (item = {}) => {
+  const explicitPriceI18n = normalizePriceI18nMap(item.priceI18n)
+  const legacyPriceI18n = parseRechargeLegacyPriceMap(item.price)
+  const parsedBasePrice = parseRechargePriceFenFromValue(item.price, 0, false)
+  const fallbackBasePrice = parsedBasePrice > 0
+    ? parsedBasePrice
+    : pickFirstRechargePriceFen(explicitPriceI18n, pickFirstRechargePriceFen(legacyPriceI18n, 990))
+  const sourcePriceI18n = Object.keys(explicitPriceI18n).length > 0 ? explicitPriceI18n : legacyPriceI18n
+
+  return {
+    __uid: createRechargePlanUid(),
+    points: normalizeRechargeI18nObject(item.points, '50'),
+    coinLabel: normalizeRechargeI18nObject(item.coinLabel || item.label, '试衣币'),
+    price: fallbackBasePrice,
+    priceI18n: normalizeRechargePriceI18n(sourcePriceI18n, fallbackBasePrice),
+  }
+}
 
 const parseRechargePlansValue = (rawValue) => {
   try {
@@ -1779,13 +2252,16 @@ const parseRechargePlansValue = (rawValue) => {
   }
 }
 
-const buildRechargePlansPayload = () => rechargePlans.value.map(item => ({
-  points: normalizeRechargeI18nObject(item.points, '0'),
-  coinLabel: normalizeRechargeI18nObject(item.coinLabel, ''),
-  currencySymbol: normalizeRechargeI18nObject(item.currencySymbol, ''),
-  price: normalizeRechargeI18nObject(item.price, '0'),
-  currencySuffix: normalizeRechargeI18nObject(item.currencySuffix, ''),
-}))
+const buildRechargePlansPayload = () => rechargePlans.value.map(item => {
+  const basePriceFen = parseRechargePriceFenFromValue(item.price, 0, false)
+  const priceI18n = normalizeRechargePriceI18n(item.priceI18n, basePriceFen)
+  return {
+    points: normalizeRechargeI18nObject(item.points, '0'),
+    coinLabel: normalizeRechargeI18nObject(item.coinLabel, ''),
+    price: basePriceFen,
+    priceI18n,
+  }
+})
 
 const rechargePlansCount = (rawValue) => parseRechargePlansValue(rawValue).length
 
@@ -1800,7 +2276,220 @@ const cloneRechargePlan = (index) => {
 }
 
 const removeRechargePlan = (index) => {
+  if (rechargeRatePlanIndex.value === index) {
+    rechargeRateDialogVisible.value = false
+    rechargeRatePlanIndex.value = -1
+    rechargeRateRows.value = []
+  } else if (rechargeRatePlanIndex.value > index) {
+    rechargeRatePlanIndex.value -= 1
+  }
   rechargePlans.value.splice(index, 1)
+}
+
+const normalizeRechargeCurrencyCode = (value) => {
+  return String(value || '').trim().toUpperCase().slice(0, 3)
+}
+
+const formatRechargeFen = (fen) => {
+  const value = Number(fen)
+  if (!Number.isFinite(value)) return '0.00'
+  return (value / 100).toFixed(2)
+}
+
+const ensureRechargePlanLangSlots = (index, silent = false) => {
+  const plan = rechargePlans.value[index]
+  if (!plan) return false
+
+  const langCodes = Array.from(new Set(
+    multilingualCodes
+      .map(code => normalizeLangCode(code))
+      .filter(Boolean)
+  ))
+  if (!langCodes.length) {
+    if (!silent) {
+      ElMessage.warning('请先在语言管理中配置语言')
+    }
+    return false
+  }
+
+  const basePriceFen = parseRechargePriceFenFromValue(plan.price, 0, false)
+  plan.points = normalizeRechargeI18nObject(plan.points, displayI18nText(plan.points, ''))
+  plan.coinLabel = normalizeRechargeI18nObject(plan.coinLabel, displayI18nText(plan.coinLabel, ''))
+  plan.price = basePriceFen
+  plan.priceI18n = normalizeRechargePriceI18n(plan.priceI18n, basePriceFen)
+  return true
+}
+
+const buildRechargeRateRows = () => {
+  const index = rechargeRatePlanIndex.value
+  if (!ensureRechargePlanLangSlots(index, true)) {
+    rechargeRateRows.value = []
+    return
+  }
+
+  const plan = rechargePlans.value[index]
+  const previousMap = {}
+  rechargeRateRows.value.forEach((row) => {
+    previousMap[row.code] = row
+  })
+
+  const basePriceFen = parseRechargePriceFenFromValue(plan.price, 0, false)
+  const sourceLangs = Array.isArray(multilingualLangOptions.value) && multilingualLangOptions.value.length
+    ? multilingualLangOptions.value
+    : multilingualCodes.map(code => ({ code, name: toLangDisplayName(code, '') }))
+
+  rechargeRateRows.value = sourceLangs.map((lang) => {
+    const code = normalizeLangCode(lang?.code)
+    const previous = previousMap[code] || {}
+    const currency = normalizeRechargeCurrencyCode(previous.currency || DEFAULT_LANG_CURRENCY_MAP[code] || 'USD')
+    const defaultRate = code === 'zh' || currency === 'CNY' ? 1 : 0
+    const targetPriceFen = Number.isFinite(Number(plan?.priceI18n?.[code]))
+      ? Number(plan.priceI18n[code])
+      : basePriceFen
+
+    return {
+      code,
+      name: String(lang?.name || toLangDisplayName(code, '') || code),
+      currency,
+      rate: Number.isFinite(Number(previous.rate)) ? Number(previous.rate) : defaultRate,
+      selected: previous.selected !== false,
+      targetPriceFen,
+    }
+  })
+}
+
+const openRechargePlanRateDialog = (index) => {
+  if (!ensureRechargePlanLangSlots(index)) {
+    return
+  }
+
+  rechargeRatePlanIndex.value = index
+  buildRechargeRateRows()
+  rechargeRateDialogVisible.value = true
+}
+
+const isAllRechargeRowsSelected = () => {
+  return rechargeRateRows.value.length > 0 && rechargeRateRows.value.every((row) => row.selected)
+}
+
+const toggleSelectAllRechargeRows = (checked) => {
+  rechargeRateRows.value.forEach((row) => {
+    row.selected = !!checked
+  })
+}
+
+const normalizeRechargeRowCurrency = (row) => {
+  row.currency = normalizeRechargeCurrencyCode(row.currency)
+}
+
+const syncRechargeRowPriceToI18n = (row) => {
+  const plan = rechargePlans.value[rechargeRatePlanIndex.value]
+  if (!plan || !row?.code) return
+
+  const basePriceFen = parseRechargePriceFenFromValue(plan.price, 0, false)
+  const priceFen = Math.max(0, Math.round(Number(row.targetPriceFen) || 0))
+  row.targetPriceFen = priceFen
+  plan.priceI18n = normalizeRechargePriceI18n({
+    ...(plan.priceI18n || {}),
+    [row.code]: priceFen,
+  }, basePriceFen)
+}
+
+const refreshRechargeRatesForRows = async (rows) => {
+  const validRows = rows.filter((row) => row?.code)
+  if (!validRows.length) {
+    ElMessage.warning('请先选择需要更新汇率的语言')
+    return
+  }
+
+  const currencies = validRows
+    .map((row) => normalizeRechargeCurrencyCode(row.currency))
+    .filter(Boolean)
+
+  try {
+    rechargeRateLoading.value = true
+    const result = await fetchExchangeRates({
+      base: 'CNY',
+      currencies,
+    })
+
+    rechargeExchangeRateSource.value = String(result?.source || '').trim()
+    rechargeExchangeRateFetchedAt.value = String(result?.fetchedAt || '').trim()
+
+    validRows.forEach((row) => {
+      const currency = normalizeRechargeCurrencyCode(row.currency)
+      if (row.code === 'zh' || currency === 'CNY') {
+        row.rate = 1
+        return
+      }
+      const nextRate = Number(result?.rates?.[currency])
+      if (Number.isFinite(nextRate) && nextRate > 0) {
+        row.rate = nextRate
+      }
+    })
+
+    ElMessage.success('汇率更新完成')
+  } catch (error) {
+    ElMessage.error(error?.message || '汇率更新失败')
+  } finally {
+    rechargeRateLoading.value = false
+  }
+}
+
+const refreshSelectedRechargeExchangeRates = async () => {
+  const selectedRows = rechargeRateRows.value.filter((row) => row.selected)
+  await refreshRechargeRatesForRows(selectedRows)
+}
+
+const refreshSingleRechargeRate = async (row) => {
+  await refreshRechargeRatesForRows([row])
+}
+
+const applySelectedRechargeRateToPrices = () => {
+  const plan = rechargePlans.value[rechargeRatePlanIndex.value]
+  if (!plan) return
+
+  const selectedRows = rechargeRateRows.value.filter((row) => row.selected)
+  if (!selectedRows.length) {
+    ElMessage.warning('请至少选择一个语言')
+    return
+  }
+
+  const basePriceFen = parseRechargePriceFenFromValue(plan.price, 0, false)
+  if (!Number.isFinite(basePriceFen) || basePriceFen <= 0) {
+    ElMessage.warning('请先填写基础价格（单位：分）')
+    return
+  }
+
+  const nextPriceI18n = normalizeRechargePriceI18n(plan.priceI18n, basePriceFen)
+  let updatedCount = 0
+
+  selectedRows.forEach((row) => {
+    const convertedFen = calcConvertedFenFromCny(basePriceFen, row.rate, rechargeAdjustPercent.value)
+    if (convertedFen === null) {
+      return
+    }
+
+    row.targetPriceFen = convertedFen
+    nextPriceI18n[row.code] = convertedFen
+    updatedCount += 1
+  })
+
+  plan.price = basePriceFen
+  plan.priceI18n = normalizeRechargePriceI18n(nextPriceI18n, basePriceFen)
+  ElMessage.success(`已更新 ${updatedCount} 个语言价格`)
+}
+
+const fillRechargeRateLangSlots = (silent = false) => {
+  const index = rechargeRatePlanIndex.value
+  if (!ensureRechargePlanLangSlots(index, silent)) {
+    return
+  }
+
+  buildRechargeRateRows()
+  if (!silent) {
+    ElMessage.success('多语言槽位补齐完成')
+  }
 }
 
 const validateRechargePlans = () => {
@@ -1810,10 +2499,20 @@ const validateRechargePlans = () => {
       ElMessage.warning(`第 ${i + 1} 个套餐缺少试衣币数量`)
       return false
     }
-    if (!String(displayI18nText(item.price, '')).trim()) {
-      ElMessage.warning(`第 ${i + 1} 个套餐缺少价格`)
+    const basePriceFen = parseRechargePriceFenFromValue(item.price, 0, false)
+    if (!Number.isFinite(basePriceFen) || basePriceFen <= 0) {
+      ElMessage.warning(`第 ${i + 1} 个套餐基础价格无效`)
       return false
     }
+
+    const priceI18n = normalizeRechargePriceI18n(item.priceI18n, basePriceFen)
+    if (!Object.keys(priceI18n).length) {
+      ElMessage.warning(`第 ${i + 1} 个套餐缺少多语言价格`)
+      return false
+    }
+
+    item.price = basePriceFen
+    item.priceI18n = priceI18n
   }
   return true
 }
@@ -2437,6 +3136,7 @@ const handleSave = async () => {
 }
 
 onMounted(() => {
+  loadMultilingualLanguages()
   getList()
   getModelLogList()
 })
@@ -2462,6 +3162,11 @@ onMounted(() => {
 }
 .json-editor {
   width: 100%;
+}
+.json-editor-tip {
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #909399;
 }
 .json-row {
   display: flex;

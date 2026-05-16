@@ -121,8 +121,7 @@
 
     <view class="preview-mask" v-if="compareVisible" @tap="closeCompare">
       <view class="preview-panel compare-panel" @tap.stop>
-        <view class="preview-head">
-          <text class="preview-title">{{ compareDialogTitle }}</text>
+        <view class="preview-head compare-head--compact">
           <view class="preview-close" @tap="closeCompare">
             <uni-icons type="closeempty" size="20" color="#0f172a" />
           </view>
@@ -140,9 +139,30 @@
             <LazyImage class="compare-image compare-result-image" :src="getUrl(compareResultPreview)" mode="aspectFit" :style="compareResultInnerStyle" />
           </view>
           <view class="compare-divider" :style="{ left: `${comparePercent}%` }"></view>
+
+          <view v-if="compareGuideVisible" class="compare-guide-stage-overlay">
+            <view class="compare-guide-bubble compare-guide-bubble--stage">
+              <text class="compare-guide-title">{{ $t('compareGuideTitle') }}</text>
+              <text>{{ $t('compareGuideStageTip') }}</text>
+            </view>
+            <view class="compare-guide-pointer compare-guide-pointer--stage"></view>
+            <view class="compare-guide-divider-hint" :style="{ left: `${comparePercent}%` }">
+              <view class="compare-guide-hand">
+                <view class="compare-guide-hand-dot"></view>
+              </view>
+              <text class="compare-guide-divider-text">{{ $t('compareGuideDividerTip') }}</text>
+            </view>
+          </view>
         </view>
 
         <view class="compare-slider-wrap">
+          <view v-if="compareGuideVisible" class="compare-guide-slider-tip">
+            <view class="compare-guide-bubble compare-guide-bubble--slider">
+              <text>{{ $t('compareGuideSliderTip') }}</text>
+            </view>
+            <view class="compare-guide-pointer compare-guide-pointer--slider"></view>
+          </view>
+
           <view class="compare-slider-label">
             <text>{{ compareLeftLabel }}</text>
             <text>{{ compareRightLabel }}</text>
@@ -179,6 +199,10 @@
             @changing="onCompareZoomChange"
             @change="onCompareZoomChange"
           />
+
+          <view class="compare-guide-action-row" v-if="compareGuideVisible">
+            <view class="compare-guide-action-btn" @tap.stop="dismissCompareGuide">{{ $t('compareGuideGotIt') }}</view>
+          </view>
         </view>
       </view>
     </view>
@@ -241,6 +265,8 @@ const comparePinchStartCenterX = ref(0)
 const comparePinchStartCenterY = ref(0)
 const comparePinchBaseOffsetX = ref(0)
 const comparePinchBaseOffsetY = ref(0)
+const compareGuideVisible = ref(false)
+const COMPARE_GUIDE_SEEN_KEY = 'tryon-compare-guide-seen-v1'
 
 const getTaskKey = (item) => String(item?.taskNo || item?.requestID || '').trim()
 
@@ -270,7 +296,6 @@ const canCompareTryonPreview = computed(() => previewOriginImages.value.length >
 const canComparePreview = computed(() => canCompareTryonPreview.value)
 const canDownloadPreview = computed(() => currentPreviewImages.value.length > 0)
 const compareButtonText = computed(() => $t.value('compareImageButton'))
-const compareDialogTitle = computed(() => $t.value('compareImageButton'))
 const compareOriginPreview = computed(() => previewOriginImages.value[0] || '')
 const compareResultPreview = computed(() => previewResultImages.value[0] || '')
 const compareLeftLabel = computed(() => $t.value('previewOriginTab'))
@@ -548,6 +573,7 @@ const closePreview = () => {
 
 const closeCompare = () => {
   compareVisible.value = false
+  dismissCompareGuide()
   comparePercent.value = 50
   compareZoomPercent.value = 100
   compareOffsetX.value = 0
@@ -557,7 +583,22 @@ const closeCompare = () => {
   compareMode.value = 'tryon'
 }
 
+const dismissCompareGuide = () => {
+  compareGuideVisible.value = false
+}
+
+const showCompareGuide = () => {
+  const hasSeen = String(uni.getStorageSync(COMPARE_GUIDE_SEEN_KEY) || '') === '1'
+  if (hasSeen) {
+    compareGuideVisible.value = false
+    return
+  }
+  compareGuideVisible.value = true
+  uni.setStorageSync(COMPARE_GUIDE_SEEN_KEY, '1')
+}
+
 const onCompareSliderChange = (e) => {
+  dismissCompareGuide()
   comparePercent.value = Math.max(0, Math.min(100, Number(e?.detail?.value ?? 50)))
 }
 
@@ -584,6 +625,7 @@ const setCompareZoom = (value) => {
 }
 
 const onCompareZoomChange = (e) => {
+  dismissCompareGuide()
   setCompareZoom(e?.detail?.value)
 }
 
@@ -646,6 +688,7 @@ const startComparePinch = (event) => {
 
 const onCompareStageTouchStart = (event) => {
   if (!compareVisible.value) return
+  dismissCompareGuide()
   if (startComparePinch(event)) return
   if (comparePinching.value || compareZoomScale.value <= 1) return
 
@@ -749,6 +792,7 @@ const openCompareFromPreview = () => {
   compareDragging.value = false
   comparePinching.value = false
   compareVisible.value = true
+  showCompareGuide()
   measureCompareStage()
 }
 
@@ -1432,6 +1476,10 @@ page {
   flex-direction: column;
 }
 
+.compare-head--compact {
+  justify-content: flex-end;
+}
+
 .compare-stage {
   margin: 12rpx 16rpx 0;
   height: 56vh;
@@ -1479,7 +1527,129 @@ page {
 }
 
 .compare-slider-wrap {
+  position: relative;
   padding: 16rpx 20rpx 20rpx;
+}
+
+.compare-guide-stage-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.compare-guide-bubble {
+  max-width: 86%;
+  border-radius: 14rpx;
+  padding: 12rpx 16rpx;
+  color: #ffffff;
+  font-size: 22rpx;
+  line-height: 32rpx;
+  box-shadow: 0 10rpx 28rpx rgba(37, 99, 235, 0.3);
+}
+
+.compare-guide-title {
+  display: block;
+  margin-bottom: 4rpx;
+  font-size: 20rpx;
+  opacity: 0.9;
+}
+
+.compare-guide-bubble--stage {
+  position: absolute;
+  top: 14rpx;
+  left: 14rpx;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.96), rgba(14, 165, 233, 0.94));
+}
+
+.compare-guide-pointer {
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.compare-guide-pointer--stage {
+  top: 100rpx;
+  left: 56rpx;
+  border-left: 10rpx solid transparent;
+  border-right: 10rpx solid transparent;
+  border-top: 14rpx solid rgba(37, 99, 235, 0.94);
+}
+
+.compare-guide-divider-hint {
+  position: absolute;
+  top: 52%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.compare-guide-hand {
+  width: 50rpx;
+  height: 30rpx;
+  border-radius: 999rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.92);
+  background: rgba(15, 23, 42, 0.24);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: compareGuideHandMove 0.9s ease-in-out infinite alternate;
+}
+
+.compare-guide-hand-dot {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.compare-guide-divider-text {
+  color: #ffffff;
+  font-size: 20rpx;
+  text-shadow: 0 2rpx 8rpx rgba(15, 23, 42, 0.5);
+  white-space: nowrap;
+}
+
+.compare-guide-slider-tip {
+  margin-bottom: 8rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.compare-guide-bubble--slider {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.94));
+}
+
+.compare-guide-pointer--slider {
+  position: static;
+  margin-left: 26rpx;
+  border-left: 10rpx solid transparent;
+  border-right: 10rpx solid transparent;
+  border-top: 14rpx solid rgba(30, 41, 59, 0.94);
+}
+
+.compare-guide-action-row {
+  margin-top: 12rpx;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.compare-guide-action-btn {
+  min-width: 132rpx;
+  height: 46rpx;
+  border-radius: 999rpx;
+  padding: 0 20rpx;
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
+  color: #ffffff;
+  font-size: 20rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 18rpx rgba(37, 99, 235, 0.28);
 }
 
 .compare-slider-label {
@@ -1513,5 +1683,14 @@ page {
 
 .compare-zoom-slider {
   margin-top: 4rpx;
+}
+
+@keyframes compareGuideHandMove {
+  0% {
+    transform: translateX(-10rpx);
+  }
+  100% {
+    transform: translateX(10rpx);
+  }
 }
 </style>

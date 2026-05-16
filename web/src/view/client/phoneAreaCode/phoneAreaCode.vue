@@ -73,13 +73,11 @@
             </template>
           <el-form :model="formData" label-position="top" ref="elFormRef" :rules="rule" label-width="80px">
             <el-form-item label="国家名称(多语言):" prop="countryName">
-              <div class="country-name-grid">
-                <div v-for="lang in multilingualLangs" :key="lang.code" class="country-name-item">
-                  <span class="country-name-label">{{ lang.label }}</span>
-                  <el-input v-model="countryNameI18n[lang.code]" :placeholder="`请输入${lang.label}`" clearable />
-                </div>
-              </div>
-              <el-text type="info" size="small" class="country-name-tip">保存时会自动转换为 JSON 多语言字段，仅提交非空语言。</el-text>
+              <MultiLangEditor
+                :model="countryNameI18n"
+                :languages="enabledLangs"
+                title="国家名称多语言"
+              />
             </el-form-item>
             <el-form-item label="区号:" prop="areaCode">
               <el-input v-model="formData.areaCode" placeholder="例: +976" />
@@ -108,32 +106,47 @@ import {
   updatePhoneAreaCode,
   getPhoneAreaCodeList
 } from '@/api/client/phoneAreaCode'
+import { getEnabledLanguages } from '@/api/client/language'
 import { getUrl } from '@/utils/image'
 import SelectImage from '@/components/selectImage/selectImage.vue'
+import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 import { formatDate } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 
 defineOptions({ name: 'PhoneAreaCode' })
 
 const btnLoading = ref(false)
 
-const multilingualLangs = [
-  { code: 'zh', label: '中文 zh' },
-  { code: 'en', label: '英文 en' },
-  { code: 'mn', label: '蒙文 mn' },
-  { code: 'zh-TW', label: '繁体 zh-TW' },
-  { code: 'th', label: '泰语 th' },
-  { code: 'hi', label: '印地语 hi' },
-  { code: 'id', label: '印尼语 id' },
-]
+const enabledLangs = ref([])
 
-const createEmptyCountryNameMap = () => {
-  return multilingualLangs.reduce((acc, item) => {
-    acc[item.code] = ''
-    return acc
-  }, {})
+const DISPLAY_LANG_PRIORITY = ['zh', 'zh-TW', 'en', 'mn', 'th', 'hi', 'id', 'vi', 'ar', 'ja', 'ko', 'ms']
+
+const multilingualLangs = computed(() => {
+  return (enabledLangs.value || []).map((lang) => ({
+    code: String(lang.code || '').trim(),
+    label: `${lang.name || lang.nativeName || lang.code || ''} ${lang.code || ''}`.trim()
+  })).filter((lang) => lang.code)
+})
+
+const loadEnabledLangs = async () => {
+  try {
+    const res = await getEnabledLanguages()
+    if (res.code === 0 && res.data) {
+      const list = Array.isArray(res.data) ? res.data : (res.data.list || [])
+      enabledLangs.value = list.length ? list : [{ code: 'zh', name: '中文' }]
+    } else {
+      enabledLangs.value = [{ code: 'zh', name: '中文' }]
+    }
+  } catch (e) {
+    enabledLangs.value = [{ code: 'zh', name: '中文' }]
+  }
+  applyCountryNameToEditor(formData.value.countryName)
 }
+
+onMounted(() => {
+  loadEnabledLangs()
+})
 
 const parseCountryNameObject = (value) => {
   if (!value) {
@@ -154,22 +167,33 @@ const parseCountryNameObject = (value) => {
   }
 }
 
-const countryNameI18n = ref(createEmptyCountryNameMap())
+const countryNameI18n = ref({})
 
 const applyCountryNameToEditor = (value) => {
   const parsed = parseCountryNameObject(value)
-  const mapped = createEmptyCountryNameMap()
-  for (const item of multilingualLangs) {
-    mapped[item.code] = String(parsed[item.code] ?? '')
+  const mapped = {}
+  Object.entries(parsed).forEach(([rawCode, rawText]) => {
+    const code = String(rawCode || '').trim()
+    if (!code) return
+    mapped[code] = String(rawText ?? '')
+  })
+  for (const item of multilingualLangs.value) {
+    if (!Object.prototype.hasOwnProperty.call(mapped, item.code)) {
+      mapped[item.code] = ''
+    }
   }
   countryNameI18n.value = mapped
 }
 
 const getCountryNamePayload = () => {
-  return multilingualLangs.reduce((acc, item) => {
-    const text = String(countryNameI18n.value[item.code] ?? '').trim()
+  return Object.entries(countryNameI18n.value || {}).reduce((acc, [rawCode, rawText]) => {
+    const code = String(rawCode || '').trim()
+    if (!code) {
+      return acc
+    }
+    const text = String(rawText ?? '').trim()
     if (text) {
-      acc[item.code] = text
+      acc[code] = text
     }
     return acc
   }, {})
@@ -177,8 +201,13 @@ const getCountryNamePayload = () => {
 
 const parseI18n = (value) => {
   const obj = parseCountryNameObject(value)
-  const order = multilingualLangs.map(item => item.code)
-  for (const code of order) {
+  for (const code of DISPLAY_LANG_PRIORITY) {
+    const text = String(obj[code] ?? '').trim()
+    if (text) {
+      return text
+    }
+  }
+  for (const code of multilingualLangs.value.map(item => item.code)) {
     const text = String(obj[code] ?? '').trim()
     if (text) {
       return text

@@ -38,10 +38,10 @@
             <text class="nf-cart-spec-tag">{{ item.sku.specs.map(s => $lt(s.value) || s.value).join(' / ') }}</text>
           </view>
           <view class="nf-cart-specs" v-else-if="item.sku.description">
-            <text class="nf-cart-spec-tag">{{ item.sku.description }}</text>
+            <text class="nf-cart-spec-tag">{{ $lt(item.sku.description) || item.sku.description }}</text>
           </view>
           <view class="nf-cart-bottom">
-            <text class="nf-cart-price">{{ cs }}{{ (item.sku.price / 100).toFixed(2) }}</text>
+            <text class="nf-cart-price">{{ cs }}{{ formatCartItemPrice(item) }}</text>
             <view v-if="!isDeleteAll" class="nf-cart-qty">
               <wu-number-box :asyncChange="true" :min="0" @change="(e)=>onChange(item,e)" integer v-model="item.quantity"></wu-number-box>
             </view>
@@ -53,7 +53,7 @@
   </view>
 
   <!-- 底部操作栏 -->
-  <view class="nf-cart-bar" v-if="isLoggedIn && cartList.length > 0">
+  <view class="nf-cart-bar" :class="{ 'nf-cart-bar--stack': !isDeleteAll && isBarStacked }" v-if="isLoggedIn && cartList.length > 0">
     <view class="nf-cart-bar-left" v-if="!isDeleteAll">
       <view class="nf-cart-check" @tap="toggleSelectAll">
         <view :class="['nf-checkbox', { checked: isAllSelected }]">
@@ -66,14 +66,14 @@
       <view class="nf-cart-bar-done" @tap="toggleDeleteMode">{{ $t('doneText') }}</view>
     </view>
 
-    <view class="nf-cart-bar-right" v-if="!isDeleteAll">
-      <view class="nf-cart-bar-total">
+    <view class="nf-cart-bar-right" :class="{ 'nf-cart-bar-right--stack': isBarStacked }" v-if="!isDeleteAll">
+      <view class="nf-cart-bar-total" :class="{ 'nf-cart-bar-total--stack': isBarStacked }">
         <text class="nf-cart-bar-label">{{ $t('totalText') }}</text>
         <text class="nf-cart-bar-price">{{ cs }}{{ selectedTotal }}</text>
         <text class="nf-cart-bar-count">({{ selectedCount }}{{ $t('itemCount') }})</text>
       </view>
       <view class="nf-cart-bar-btns">
-        <view class="nf-btn nf-btn-ghost-sm" @tap="toggleDeleteMode">{{ $t('editCart') }}</view>
+        <view class="nf-btn nf-btn-ghost-sm nf-btn-edit" @tap="toggleDeleteMode">{{ $t('editCart') }}</view>
         <view class="nf-btn nf-btn-primary" @tap="toSettlement">{{ $t('checkout') }}({{ selectedCount }})</view>
       </view>
     </view>
@@ -92,9 +92,12 @@
 	import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 	import { placeOrderByCart } from '@/api/order.js'
   import { resolveApiMessage } from '@/utils/i18n.js'
+  import { formatLocalizedPrice, resolveLocalizedPriceFen } from '@/utils/price-i18n.js'
 	import { getUrl, getExternalUrl } from "@/utils/url.js"
 
-	const { $t, $lt } = useLangStore()
+  const langStore = useLangStore()
+  const { $t, $lt } = langStore
+  const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 	const appConfigStore = useAppConfigStore()
 	const cs = computed(() => appConfigStore.currencySymbol)
 	const cartList = ref([])
@@ -118,7 +121,16 @@
 	const toggleSelectAll = () => { const v = !isAllSelected.value; cartList.value.forEach(item => { item._selected = v }) }
 	const selectedItems = computed(() => cartList.value.filter(item => item._selected))
 	const selectedCount = computed(() => selectedItems.value.length)
-	const selectedTotal = computed(() => (selectedItems.value.reduce((t, i) => t + i.sku.price * i.quantity, 0) / 100).toFixed(2))
+  const getCartItemPriceFen = (item) => resolveLocalizedPriceFen(item?.sku?.price, item?.sku?.priceI18n, locale.value)
+  const selectedTotalFen = computed(() => selectedItems.value.reduce((total, item) => {
+    return total + getCartItemPriceFen(item) * Number(item?.quantity || 0)
+  }, 0))
+  const selectedTotal = computed(() => (selectedTotalFen.value / 100).toFixed(2))
+  const formatCartItemPrice = (item) => formatLocalizedPrice(item?.sku?.price, item?.sku?.priceI18n, locale.value)
+  const isBarStacked = computed(() => {
+    const digits = String(selectedTotal.value || '').replace(/[^0-9]/g, '').length
+    return digits >= 6
+  })
 
 	const isDeleteAll = ref(false)
 	const goTo = () => { uni.switchTab({ url: '/pages/tabBar/index' }) }
@@ -180,7 +192,11 @@
 		const items = selectedItems.value
 		if (!items.length) { uni.showToast({ title: $t('selectGoods'), icon: 'none' }); return }
 		uni.showLoading({ title: '', mask: true })
-		const res = await placeOrderByCart({ cartIDs: items.map(item => item.ID) })
+    const res = await placeOrderByCart({
+      cartIDs: items.map(item => item.ID),
+      settlementCurrency: locale.value,
+      settlementCurrencySymbol: cs.value,
+    })
 		uni.hideLoading()
 		if (res.code === 0) {
 			const orderedIDs = new Set(items.map(i => i.ID))
@@ -193,9 +209,9 @@
 </script>
 
 <style lang="scss" scoped>
-/* ===== Netflix Dark Cart ===== */
+/* ===== Light Premium Cart ===== */
 .nf-cart {
-  padding: 0 24rpx;
+  padding: 6rpx 8rpx 24rpx;
 }
 
 /* 空状态 */
@@ -211,19 +227,19 @@
 .nf-cart-empty-icon {
   font-size: 120rpx;
   margin-bottom: 30rpx;
-  opacity: 0.6;
+  opacity: 0.75;
 }
 
 .nf-cart-empty-title {
   font-size: 34rpx;
   font-weight: 700;
-  color: #fff;
+  color: #0f172a;
   margin-bottom: 16rpx;
 }
 
 .nf-cart-empty-sub {
   font-size: 26rpx;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(15, 23, 42, 0.56);
   margin-bottom: 50rpx;
   text-align: center;
 }
@@ -241,12 +257,13 @@
 .nf-cart-item {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1rpx solid rgba(15, 23, 42, 0.08);
   border-radius: 20rpx;
   padding: 24rpx;
   margin-bottom: 16rpx;
   backdrop-filter: blur(8px);
+  box-shadow: 0 14rpx 28rpx rgba(15, 23, 42, 0.07);
 }
 
 .nf-cart-check {
@@ -258,15 +275,15 @@
   width: 44rpx;
   height: 44rpx;
   border-radius: 50%;
-  border: 2rpx solid rgba(255, 255, 255, 0.2);
+  border: 2rpx solid rgba(15, 23, 42, 0.22);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
 
   &.checked {
-    background: #e50914;
-    border-color: #e50914;
+    background: linear-gradient(135deg, #2563eb, #0ea5e9);
+    border-color: transparent;
   }
 }
 
@@ -279,10 +296,11 @@
 .nf-cart-img {
   width: 180rpx;
   height: 180rpx;
-  border-radius: 12rpx;
+  border-radius: 14rpx;
   margin-right: 20rpx;
   flex-shrink: 0;
-  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10rpx 20rpx rgba(15, 23, 42, 0.08);
 }
 
 .nf-cart-info {
@@ -297,7 +315,7 @@
 .nf-cart-name {
   font-size: 28rpx;
   font-weight: 600;
-  color: #fff;
+  color: #0f172a;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -310,8 +328,8 @@
 
 .nf-cart-spec-tag {
   font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.06);
+  color: rgba(15, 23, 42, 0.54);
+  background: rgba(15, 23, 42, 0.06);
   padding: 4rpx 12rpx;
   border-radius: 6rpx;
   display: inline-block;
@@ -331,13 +349,13 @@
 .nf-cart-price {
   font-size: 32rpx;
   font-weight: 700;
-  color: #e50914;
+  color: #1d4ed8;
 }
 
 .nf-cart-qty {
   :deep(.wu-numberbox) {
-    border: none;
-    background: rgba(255, 255, 255, 0.06);
+    border: 1rpx solid rgba(15, 23, 42, 0.1);
+    background: rgba(248, 250, 252, 0.96);
     border-radius: 10rpx;
     overflow: hidden;
 
@@ -345,8 +363,8 @@
     .wu-numberbox__plus {
       width: 56rpx;
       height: 56rpx;
-      background: rgba(229, 9, 20, 0.2);
-      color: #e50914;
+      background: rgba(219, 234, 254, 0.9);
+      color: #2563eb;
       border: none;
       font-weight: 600;
     }
@@ -354,8 +372,8 @@
     .wu-numberbox__value {
       width: 64rpx;
       height: 56rpx;
-      background: rgba(255, 255, 255, 0.04);
-      color: #fff;
+      background: rgba(255, 255, 255, 0.96);
+      color: #0f172a;
       margin: 0;
       font-size: 26rpx;
       font-weight: 600;
@@ -375,13 +393,25 @@
   justify-content: space-between;
   height: 120rpx;
   padding: 0 24rpx;
-  background: rgba(20, 20, 20, 0.95);
+  background: rgba(248, 250, 252, 0.94);
   backdrop-filter: blur(24px);
-  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
+  border-top: 1rpx solid rgba(15, 23, 42, 0.08);
   z-index: 100;
   /* #ifdef H5 */
   bottom: 88rpx;
   /* #endif */
+}
+
+.nf-cart-bar--stack {
+  height: auto;
+  min-height: 214rpx;
+  align-items: flex-start;
+  padding-top: 14rpx;
+  padding-bottom: 14rpx;
+}
+
+.nf-cart-bar--stack .nf-cart-bar-left {
+  padding-top: 6rpx;
 }
 
 .nf-cart-bar-left {
@@ -392,14 +422,14 @@
 
 .nf-cart-bar-all {
   font-size: 26rpx;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(15, 23, 42, 0.64);
   margin-left: 8rpx;
 }
 
 .nf-cart-bar-done {
   font-size: 28rpx;
   font-weight: 600;
-  color: #e50914;
+  color: #2563eb;
 }
 
 .nf-cart-bar-right {
@@ -410,33 +440,62 @@
   gap: 16rpx;
 }
 
+.nf-cart-bar-right--stack {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 12rpx;
+}
+
 .nf-cart-bar-total {
   display: flex;
   align-items: baseline;
   margin-right: 12rpx;
 }
 
+.nf-cart-bar-total--stack {
+  margin-right: 0;
+  width: 100%;
+  justify-content: flex-end;
+}
+
 .nf-cart-bar-label {
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(15, 23, 42, 0.48);
   margin-right: 6rpx;
 }
 
 .nf-cart-bar-price {
   font-size: 34rpx;
   font-weight: 700;
-  color: #e50914;
+  color: #1d4ed8;
 }
 
 .nf-cart-bar-count {
   font-size: 20rpx;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(15, 23, 42, 0.44);
   margin-left: 6rpx;
 }
 
 .nf-cart-bar-btns {
   display: flex;
   gap: 12rpx;
+}
+
+.nf-cart-bar-right--stack .nf-cart-bar-btns {
+  width: 280rpx;
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.nf-cart-bar-right--stack .nf-cart-bar-btns .nf-btn,
+.nf-cart-bar-right--stack .nf-cart-bar-btns .nf-btn-ghost-sm,
+.nf-cart-bar-right--stack .nf-cart-bar-btns .nf-btn-primary {
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
 }
 
 /* 按钮系统 */
@@ -454,14 +513,15 @@
 }
 
 .nf-btn-primary {
-  background: #e50914;
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
   color: #fff;
+  box-shadow: 0 10rpx 22rpx rgba(37, 99, 235, 0.26);
 }
 
 .nf-btn-ghost {
-  background: rgba(229, 9, 20, 0.12);
-  border: 1rpx solid rgba(229, 9, 20, 0.3);
-  color: #e50914;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1rpx solid rgba(15, 23, 42, 0.12);
+  color: #0f172a;
 }
 
 .nf-btn-ghost-sm {
@@ -470,23 +530,30 @@
   padding: 0 24rpx;
   border-radius: 32rpx;
   font-size: 24rpx;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1rpx solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1rpx solid rgba(15, 23, 42, 0.14);
+  color: rgba(15, 23, 42, 0.72);
+}
+
+.nf-btn-edit {
+  background: linear-gradient(90deg, #f59e0b, #f97316);
+  border: none;
+  color: #fff;
+  box-shadow: 0 8rpx 18rpx rgba(249, 115, 22, 0.28);
 }
 
 .nf-btn-danger {
-  background: #e50914;
+  background: #dc2626;
   color: #fff;
 }
 
 .nf-btn-del {
   padding: 8rpx 24rpx;
-  background: rgba(229, 9, 20, 0.15);
-  color: #e50914;
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
   border-radius: 16rpx;
   font-size: 24rpx;
   font-weight: 500;
-  border: 1rpx solid rgba(229, 9, 20, 0.3);
+  border: 1rpx solid rgba(220, 38, 38, 0.25);
 }
 </style>

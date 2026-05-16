@@ -1,5 +1,5 @@
 <template>
-  <view v-if="visible" class="lang-mask" @tap.self="close">
+  <view v-if="visible" class="lang-mask">
     <view class="lang-dialog" :class="{ 'lang-dialog-show': animShow }">
       <view class="lang-header">
         <text class="lang-header-title">{{ $t('selectLanguage') }}</text>
@@ -25,7 +25,7 @@
         </view>
       </view>
 
-      <view class="lang-footer" @tap="close">
+      <view class="lang-footer" @tap="close('cancel')">
         <text class="lang-cancel">{{ $t('cancel') }}</text>
       </view>
     </view>
@@ -42,7 +42,7 @@ const $t = computed(() => langStore.$t)
 const props = defineProps({
   modelValue: { type: Boolean, default: false }
 })
-const emit = defineEmits(['update:modelValue', 'change'])
+const emit = defineEmits(['update:modelValue', 'change', 'dismiss'])
 
 const visible = ref(false)
 const animShow = ref(false)
@@ -102,10 +102,14 @@ onUnmounted(() => {
 const selectLang = (lang) => {
   langStore.setLocale(lang)
   emit('change', lang)
-  close()
+  close('select')
 }
 
-const close = () => {
+const close = (reason = 'cancel') => {
+  if (reason === 'cancel' || reason === 'select') {
+    langStore.markLanguagePickerPrompted()
+  }
+  emit('dismiss', reason)
   emit('update:modelValue', false)
 }
 </script>

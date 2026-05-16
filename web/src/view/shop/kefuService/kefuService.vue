@@ -83,6 +83,8 @@
 
             <el-table-column align="left" label="链接" prop="link" width="220" show-overflow-tooltip />
 
+            <el-table-column align="left" label="对应ID" prop="contactId" width="180" show-overflow-tooltip />
+
         <el-table-column align="left" label="操作" fixed="right" :min-width="appStore.operateMinWith">
             <template #default="scope">
             <el-button  type="primary" link class="table-button" @click="getDetails(scope.row)"><el-icon style="margin-right: 5px"><InfoFilled /></el-icon>查看</el-button>
@@ -118,6 +120,13 @@
             <el-form-item label="姓名:" prop="name">
     <el-input v-model="formData.name" :clearable="false" placeholder="请输入姓名" />
 </el-form-item>
+            <el-form-item label="姓名(多语言):">
+              <MultiLangEditor
+                :model="nameI18nObj"
+                :languages="enabledLangs"
+                title="客服姓名多语言"
+              />
+            </el-form-item>
             <el-form-item label="头像(上传):" prop="avatar">
     <SelectImage
      v-model="formData.avatar"
@@ -144,6 +153,9 @@
 </el-form-item>
             <el-form-item label="链接:" prop="link">
     <el-input v-model="formData.link" :clearable="true" placeholder="请输入链接" />
+</el-form-item>
+      <el-form-item label="对应ID:" prop="contactId">
+  <el-input v-model="formData.contactId" :clearable="true" placeholder="请输入对应ID" />
 </el-form-item>
           </el-form>
     </el-drawer>
@@ -172,6 +184,9 @@
                     <el-descriptions-item label="链接">
     {{ detailForm.link }}
 </el-descriptions-item>
+                    <el-descriptions-item label="对应ID">
+            {{ detailForm.contactId || '-' }}
+          </el-descriptions-item>
             </el-descriptions>
         </el-drawer>
 
@@ -187,14 +202,16 @@ import {
   findKefu,
   getKefuList
 } from '@/api/shop/kefuService'
+import { getEnabledLanguages } from '@/api/client/language'
 import { getUrl } from '@/utils/image'
 // 图片选择组件
 import SelectImage from '@/components/selectImage/selectImage.vue'
+import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 
 // 全量引入格式化工具 请按需保留
 import { getDictFunc, formatDate, formatBoolean, filterDict ,filterDataSource, returnArrImg, onDownloadFile } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useAppStore } from "@/pinia"
 
 // 导出组件
@@ -220,12 +237,50 @@ const showAllQuery = ref(false)
 // 自动化生成的字典（可能为空）以及字段
 const formData = ref({
             name: '',
+            nameI18n: '',
             avatar: "",
             externalAvatar: "",
       qrCode: "",
             status: null,
             link: '',
+    contactId: '',
         })
+
+const nameI18nObj = reactive({})
+const enabledLangs = ref([])
+
+const loadEnabledLangs = async () => {
+  try {
+    const res = await getEnabledLanguages()
+    if (res.code === 0 && res.data) {
+      enabledLangs.value = Array.isArray(res.data) ? res.data : (res.data.list || [])
+    }
+  } catch (e) {}
+}
+
+const parseNameI18n = (jsonStr) => {
+  Object.keys(nameI18nObj).forEach((key) => delete nameI18nObj[key])
+  try {
+    const parsed = JSON.parse(jsonStr || '{}')
+    Object.assign(nameI18nObj, parsed)
+  } catch (e) {}
+}
+
+const serializeNameI18n = () => {
+  const result = {}
+  Object.entries(nameI18nObj).forEach(([rawCode, rawText]) => {
+    const code = String(rawCode || '').trim()
+    if (!code) return
+    const text = String(rawText ?? '').trim()
+    if (!text) return
+    result[code] = text
+  })
+  return JSON.stringify(result)
+}
+
+onMounted(() => {
+  loadEnabledLangs()
+})
 
 
 
@@ -386,6 +441,7 @@ const updateKefuFunc = async(row) => {
     type.value = 'update'
     if (res.code === 0) {
         formData.value = res.data
+    parseNameI18n(res.data.nameI18n)
         dialogFormVisible.value = true
     }
 }
@@ -412,6 +468,7 @@ const dialogFormVisible = ref(false)
 // 打开弹窗
 const openDialog = () => {
     type.value = 'create'
+  parseNameI18n('{}')
     dialogFormVisible.value = true
 }
 
@@ -420,18 +477,22 @@ const closeDialog = () => {
     dialogFormVisible.value = false
     formData.value = {
         name: '',
+        nameI18n: '',
         avatar: "",
       externalAvatar: "",
       qrCode: "",
         status: null,
         link: '',
+        contactId: '',
         }
+    parseNameI18n('{}')
 }
 // 弹窗确定
 const enterDialog = async () => {
      btnLoading.value = true
      elFormRef.value?.validate( async (valid) => {
              if (!valid) return btnLoading.value = false
+              formData.value.nameI18n = serializeNameI18n()
               let res
               switch (type.value) {
                 case 'create':

@@ -12,7 +12,7 @@
         <text class="nf-sku-selected" v-if="selectedSpecText">{{ selectedSpecText }}</text>
       </view>
       <view class="nf-sku-close" @tap="closeSku">
-        <uni-icons type="close" size="18" color="rgba(255,255,255,0.6)"></uni-icons>
+        <uni-icons type="close" size="18" color="rgba(15,23,42,0.52)"></uni-icons>
       </view>
     </view>
 
@@ -62,6 +62,7 @@ import { ref, computed } from 'vue'
 import { useUserStore } from '@/pinia/modules/user'
 import { addCart } from '@/api/cart.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
+import { formatLocalizedPrice } from '@/utils/price-i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import LazyImage from '@/components/lazy-image/lazy-image.vue'
@@ -71,6 +72,7 @@ const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 const $lt = computed(() => langStore.$lt)
 const $t = computed(() => langStore.$t)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const props = defineProps({
   isCart: { type: Boolean, default: false },
@@ -232,9 +234,10 @@ const currentCover = computed(() => {
 })
 
 const currentPrice = computed(() => {
-  if (matchedSku.value) return (matchedSku.value.price / 100).toFixed(2)
-  if (props.good.price) return (props.good.price / 100).toFixed(2)
-  return '0.00'
+  if (matchedSku.value) {
+    return formatLocalizedPrice(matchedSku.value.price, matchedSku.value.priceI18n, locale.value)
+  }
+  return formatLocalizedPrice(props.good.price, props.good.priceI18n, locale.value)
 })
 
 const currentStock = computed(() => {
@@ -328,11 +331,15 @@ defineExpose({ showSku, closeSku })
 <style lang="scss" scoped>
 .nf-sku-mask {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.7); z-index: 1000;
+  background: rgba(15, 23, 42, 0.36); z-index: 1000;
 }
 .nf-sku-popup {
   position: fixed; left: 0; right: 0; bottom: -100vh; z-index: 1001;
-  background: #141414; border-radius: 24rpx 24rpx 0 0;
+  background:
+    radial-gradient(120% 100% at 100% 0%, rgba(37, 99, 235, 0.14) 0%, transparent 56%),
+    #f8fbff;
+  border-radius: 24rpx 24rpx 0 0;
+  border: 1rpx solid rgba(15, 23, 42, 0.08);
   transition: all 0.3s ease;
   max-height: 80vh; display: flex; flex-direction: column;
   padding-bottom: constant(safe-area-inset-bottom);
@@ -341,65 +348,72 @@ defineExpose({ showSku, closeSku })
 }
 .nf-sku-header {
   display: flex; padding: 28rpx 32rpx; gap: 24rpx;
-  border-bottom: 1rpx solid rgba(255,255,255,0.06);
+  border-bottom: 1rpx solid rgba(15, 23, 42, 0.08);
   position: relative;
 }
 .nf-sku-cover {
   width: 180rpx; height: 180rpx; border-radius: 16rpx;
-  border: 1rpx solid rgba(255,255,255,0.08);
+  border: 1rpx solid rgba(15, 23, 42, 0.08);
 }
 .nf-sku-info { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 8rpx; }
-.nf-sku-price { font-size: 44rpx; font-weight: 800; color: #e50914; }
-.nf-sku-stock { font-size: 24rpx; color: rgba(255,255,255,0.4); }
-.nf-sku-selected { font-size: 24rpx; color: rgba(255,255,255,0.6); }
+.nf-sku-price { font-size: 44rpx; font-weight: 800; color: #2563eb; }
+.nf-sku-stock { font-size: 24rpx; color: rgba(15, 23, 42, 0.5); }
+.nf-sku-selected { font-size: 24rpx; color: rgba(15, 23, 42, 0.68); }
 .nf-sku-close {
   position: absolute; right: 24rpx; top: 24rpx;
   width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,0.08); border-radius: 50%;
+  background: rgba(15, 23, 42, 0.06); border-radius: 50%;
 }
 .nf-sku-body { flex: 1; padding: 24rpx 32rpx; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; }
 .nf-spec-group { margin-bottom: 32rpx; }
-.nf-spec-title { display: block; font-size: 26rpx; color: rgba(255,255,255,0.6); margin-bottom: 16rpx; font-weight: 600; }
+.nf-spec-title { display: block; font-size: 26rpx; color: rgba(15, 23, 42, 0.6); margin-bottom: 16rpx; font-weight: 600; }
 .nf-spec-options { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .nf-spec-tag {
   padding: 12rpx 28rpx; border-radius: 10rpx;
-  background: rgba(255,255,255,0.06); border: 1rpx solid rgba(255,255,255,0.1);
-  font-size: 26rpx; color: rgba(255,255,255,0.7);
+  background: rgba(255, 255, 255, 0.92); border: 1rpx solid rgba(15, 23, 42, 0.1);
+  font-size: 26rpx; color: rgba(15, 23, 42, 0.72);
   transition: all 0.2s;
 }
 .nf-spec-active {
-  background: rgba(229,9,20,0.15); border-color: #e50914; color: #e50914; font-weight: 600;
+  background: rgba(37, 99, 235, 0.12); border-color: rgba(37, 99, 235, 0.42); color: #1d4ed8; font-weight: 600;
 }
 .nf-spec-disabled { opacity: 0.3; text-decoration: line-through; }
 .nf-qty-section {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 24rpx 0; border-top: 1rpx solid rgba(255,255,255,0.06);
+  padding: 24rpx 0; border-top: 1rpx solid rgba(15, 23, 42, 0.08);
   box-sizing: border-box; max-width: 100%;
 }
 .nf-qty-stepper { display: flex; align-items: center; gap: 4rpx; flex-shrink: 0; }
 .nf-qty-btn {
   width: 56rpx; height: 56rpx; min-width: 56rpx; display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,0.08); border-radius: 10rpx; font-size: 32rpx;
-  color: #fff; font-weight: 600; flex-shrink: 0; box-sizing: border-box;
+  background: rgba(15, 23, 42, 0.08); border-radius: 10rpx; font-size: 32rpx;
+  color: #0f172a; font-weight: 600; flex-shrink: 0; box-sizing: border-box;
 }
 .nf-qty-disabled { opacity: 0.3; }
-.nf-qty-num { min-width: 64rpx; text-align: center; font-size: 30rpx; color: #fff; font-weight: 600; }
+.nf-qty-num { min-width: 64rpx; text-align: center; font-size: 30rpx; color: #0f172a; font-weight: 600; }
 .nf-sku-tip {
   padding: 16rpx 32rpx; text-align: center;
-  background: rgba(229,9,20,0.15); color: #e50914;
+  background: rgba(245, 158, 11, 0.14); color: #b45309;
   font-size: 26rpx; font-weight: 600;
   animation: tipFadeIn 0.2s ease;
 }
 @keyframes tipFadeIn { from { opacity: 0; } to { opacity: 1; } }
 .nf-sku-footer {
   display: flex; padding: 20rpx 32rpx; gap: 20rpx;
-  border-top: 1rpx solid rgba(255,255,255,0.06);
+  border-top: 1rpx solid rgba(15, 23, 42, 0.08);
 }
 .nf-sku-btn-cart, .nf-sku-btn-buy {
   flex: 1; height: 88rpx; display: flex; align-items: center; justify-content: center;
-  border-radius: 12rpx; font-size: 30rpx; font-weight: 700; color: #fff;
+  border-radius: 12rpx; font-size: 30rpx; font-weight: 700;
 }
-.nf-sku-btn-cart { background: rgba(255,149,0,0.9); }
-.nf-sku-btn-buy { background: #e50914; }
+.nf-sku-btn-cart {
+  background: rgba(219, 234, 254, 0.9);
+  border: 1rpx solid rgba(37, 99, 235, 0.2);
+  color: #1d4ed8;
+}
+.nf-sku-btn-buy {
+  background: linear-gradient(90deg, #2563eb, #0ea5e9);
+  color: #fff;
+}
 </style>
 

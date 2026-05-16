@@ -208,20 +208,20 @@
           <el-input v-model="formData.externalIconPath" :clearable="true" placeholder="https://example.com/icon.png" />
         </el-form-item>
         <el-form-item label="分类标题(多语言):" prop="title">
-          <el-tabs v-if="enabledLangs.length" type="border-card" style="width:100%;">
-            <el-tab-pane v-for="lang in enabledLangs" :key="lang.code" :label="lang.name">
-              <el-input v-model="titleI18n[lang.code]" :placeholder="`${lang.name} 标题`" />
-            </el-tab-pane>
-          </el-tabs>
-          <el-input v-else v-model="formData.title" :clearable="true" placeholder="请输入分类标题" />
+          <el-input v-model="formData.title" :clearable="true" placeholder="默认分类标题" class="mb-2" />
+          <MultiLangEditor
+            :model="titleI18n"
+            :languages="enabledLangs"
+            title="分类标题多语言"
+          />
         </el-form-item>
         <el-form-item label="分类描述(多语言):" prop="desc">
-          <el-tabs v-if="enabledLangs.length" type="border-card" style="width:100%;">
-            <el-tab-pane v-for="lang in enabledLangs" :key="lang.code" :label="lang.name">
-              <el-input v-model="descI18n[lang.code]" :placeholder="`${lang.name} 描述`" />
-            </el-tab-pane>
-          </el-tabs>
-          <el-input v-else v-model="formData.desc" :clearable="true" placeholder="请输入分类描述" />
+          <el-input v-model="formData.desc" :clearable="true" placeholder="默认分类描述" class="mb-2" />
+          <MultiLangEditor
+            :model="descI18n"
+            :languages="enabledLangs"
+            title="分类描述多语言"
+          />
         </el-form-item>
       </el-form>
     </el-drawer>
@@ -271,6 +271,7 @@ import { getDictFunc, formatDate, formatBoolean, filterDict, ReturnArrImg, onDow
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive, onMounted } from 'vue'
 import SelectImage from "@/components/selectImage/selectImage.vue";
+import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 import {getUrl} from "@/utils/image";
 
 defineOptions({
@@ -549,8 +550,8 @@ const enterDialog = async() => {
     if (!valid) return
     // 序列化多语言字段
     if (enabledLangs.value.length) {
-      formData.value.title = serializeI18nJson(titleI18n.value)
-      formData.value.desc = serializeI18nJson(descI18n.value)
+      formData.value.title = serializeI18nJson(titleI18n.value) || formData.value.title
+      formData.value.desc = serializeI18nJson(descI18n.value) || formData.value.desc
     }
     let res
     switch (type.value) {

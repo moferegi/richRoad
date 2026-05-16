@@ -56,14 +56,14 @@
           <!-- 头像区 -->
           <view class="nf-kefu-avatar-wrap">
             <image v-if="resolveAvatar(item)" class="nf-kefu-avatar" :src="resolveAvatar(item)" mode="aspectFill" />
-            <view v-else class="nf-kefu-avatar nf-kefu-avatar-fallback" :style="{ background: avatarColor(item.name || String(index)) }">
-              <text class="nf-kefu-avatar-fallback-text">{{ avatarInitial(item.name) }}</text>
+            <view v-else class="nf-kefu-avatar nf-kefu-avatar-fallback" :style="{ background: avatarColor(displayKefuName(item, index)) }">
+              <text class="nf-kefu-avatar-fallback-text">{{ avatarInitial(displayKefuName(item, index)) }}</text>
             </view>
             <view class="nf-kefu-status-dot" :class="'nf-dot-' + normalizeStatus(item.status)"></view>
           </view>
           <!-- 信息区 -->
           <view class="nf-kefu-info">
-            <text class="nf-kefu-name">{{ item.name }}</text>
+            <text class="nf-kefu-name">{{ displayKefuName(item, index) }}</text>
             <view class="nf-kefu-status-row">
               <text class="nf-kefu-status-text" :class="'nf-status-' + normalizeStatus(item.status)">
                 {{ getStatusText(item.status) }}
@@ -110,7 +110,7 @@ import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getKefuList, getCsConfig, getSysConfigByKey } from '@/api/kefu.js'
 import { getUrl } from '@/utils/url.js'
-import { t as i18nT } from '@/utils/i18n.js'
+import { localText, t as i18nT } from '@/utils/i18n.js'
 import { trackVisitorEvent } from '@/utils/visitorEvent.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
@@ -312,6 +312,38 @@ const avatarInitial = (name) => {
   return text.charAt(0).toUpperCase()
 }
 
+const displayKefuName = (item, index = 0) => {
+  const localized = String(localText(item?.nameI18n, langStore.locale) || '').trim()
+  if (localized) return localized
+
+  const fallback = String(item?.name || '').trim()
+  if (fallback) return fallback
+
+  const order = Number(index) + 1
+  return `${$t.value('kefuPlatformName') || 'Kefu'} #${order}`
+}
+
+const resolveContactId = (item) => {
+  return String(item?.contactId || '').trim()
+}
+
+const copyContactId = (contactId) => {
+  const value = String(contactId || '').trim()
+  if (!value) {
+    uni.showToast({ title: $t.value('kefuContactIdMissing'), icon: 'none' })
+    return
+  }
+  uni.setClipboardData({
+    data: value,
+    success: () => {
+      uni.showToast({ title: $t.value('copySuccess'), icon: 'none' })
+    },
+    fail: () => {
+      uni.showToast({ title: $t.value('operationFailed'), icon: 'none' })
+    },
+  })
+}
+
 const avatarColor = (seed) => {
   const text = String(seed || 'kefu')
   let hash = 0
@@ -465,7 +497,24 @@ const contactKefu = (item) => {
     }
     openQrCodePreview(qrCodeUrl, item)
   } else {
-    uni.showToast({ title: $t.value('kefuContact'), icon: 'none' })
+    const contactId = resolveContactId(item)
+    if (!contactId) {
+      uni.showToast({ title: $t.value('kefuContactIdMissing'), icon: 'none' })
+      return
+    }
+
+    const modalContent = `${displayKefuName(item)}\n${$t.value('kefuContactIdLabel')}${contactId}`
+    uni.showModal({
+      title: $t.value('kefuContactIdModalTitle'),
+      content: modalContent,
+      confirmText: $t.value('kefuCopyId'),
+      cancelText: $t.value('cancel'),
+      success: (res) => {
+        if (res.confirm) {
+          copyContactId(contactId)
+        }
+      },
+    })
   }
 }
 

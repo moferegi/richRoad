@@ -20,7 +20,7 @@
             </text>
           </view>
           <view class="price-container">
-            <text class="discount-price">{{ cs }}{{ (item.price / 100).toFixed(2) }}</text>
+            <text class="discount-price">{{ cs }}{{ formatPrice(item) }}</text>
             <text class="original-price">{{ cs }}{{ item.originalPrice }}</text>
           </view>
           <!-- 优惠券/积分标记 -->
@@ -53,6 +53,7 @@
 <script setup>
 import {ref, computed, onMounted, onUnmounted, nextTick, watch} from 'vue'
 import {getUrl, getExternalUrl} from "@/utils/url.js"
+import { formatLocalizedPrice } from '@/utils/price-i18n.js'
 import { onReachBottom } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
@@ -63,6 +64,9 @@ const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+
+const formatPrice = (item) => formatLocalizedPrice(item?.price, item?.priceI18n, locale.value)
 
 const goodsList = ref([])
 const props = defineProps({

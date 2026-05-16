@@ -176,13 +176,12 @@
               </el-col>
             </el-row>
             <el-form-item label="遮罩文字(JSON多语言):" prop="maskText">
-              <div v-if="enabledLangs.length" class="w-full">
-                <div v-for="lang in enabledLangs" :key="lang.code" class="flex items-center mb-2">
-                  <span class="w-16 text-right mr-2">{{ lang.code }}:</span>
-                  <el-input v-model="maskTextI18n[lang.code]" :placeholder="`${lang.name} 遮罩文字`" />
-                </div>
-              </div>
-              <el-input v-else v-model="formData.maskText" placeholder="JSON格式多语言文字" />
+              <el-input v-model="formData.maskText" placeholder="默认遮罩文字" class="mb-2" />
+              <MultiLangEditor
+                :model="maskTextI18n"
+                :languages="enabledLangs"
+                title="遮罩文字多语言"
+              />
             </el-form-item>
           </el-form>
     </el-drawer>
@@ -243,6 +242,7 @@ import {
 } from '@/api/shop/banner'
 import { getUrl } from '@/utils/image'
 import { getEnabledLanguages } from '@/api/client/language'
+import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 // 图片选择组件
 import SelectImage from '@/components/selectImage/selectImage.vue'
 
@@ -557,7 +557,7 @@ const enterDialog = async () => {
              if (!valid) return
               // 序列化遮罩文字i18n
               if (enabledLangs.value.length) {
-                formData.value.maskText = serializeMaskTextI18n(maskTextI18n.value)
+                formData.value.maskText = serializeMaskTextI18n(maskTextI18n.value) || formData.value.maskText
               }
               let res
               switch (type.value) {

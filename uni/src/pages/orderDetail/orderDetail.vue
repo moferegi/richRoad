@@ -41,10 +41,10 @@
           <LazyImage class="nf-goods-img" :src="d.sku?.externalPicturePath ? getExternalUrl(d.sku.externalPicturePath) : getUrl(d.sku?.picture)" mode="aspectFill"></LazyImage>
           <view class="nf-goods-info">
             <text class="nf-goods-name">{{ $lt(d?.sku?.name) || d?.sku?.name }}</text>
-            <text class="nf-goods-desc">{{ $lt(d?.good?.description) || d?.good?.description }}</text>
+            <text class="nf-goods-desc">{{ $lt(d?.good?.description) || $lt(d?.sku?.description) || d?.good?.description || d?.sku?.description }}</text>
             <text class="nf-goods-specs">{{ formatSpecs(d?.sku?.specs, d?.sku?.attrs) }}</text>
             <view class="nf-goods-bottom">
-              <text class="nf-goods-price">{{ cs }}{{ (d.sku?.price || 0) / 100 }}</text>
+              <text class="nf-goods-price">{{ orderCs }}{{ getLocalizedLinePrice(d) }}</text>
               <text class="nf-goods-qty">×{{ d.quantity }}</text>
             </view>
           </view>
@@ -55,11 +55,11 @@
       <view class="nf-card nf-price-card">
         <view class="nf-price-row">
           <text class="nf-price-label">{{ $t('productAmount') }}</text>
-          <text class="nf-price-val">{{ cs }}{{ ((data.originPrice || 0) / 100).toFixed(2) }}</text>
+          <text class="nf-price-val">{{ orderCs }}{{ (localizedOriginPrice / 100).toFixed(2) }}</text>
         </view>
         <view class="nf-price-row nf-price-discount" v-if="data.discount > 0">
           <text class="nf-price-label">{{ $t('discountAmount') }}</text>
-          <text class="nf-price-val">-{{ cs }}{{ (data.discount / 100).toFixed(2) }}</text>
+          <text class="nf-price-val">-{{ orderCs }}{{ (data.discount / 100).toFixed(2) }}</text>
         </view>
         <view class="nf-price-row" v-if="data.usePoints && data.pointsUsed > 0">
           <text class="nf-price-label">{{ $t('pointsDeduction') }}</text>
@@ -67,7 +67,7 @@
         </view>
         <view class="nf-price-row nf-price-total">
           <text class="nf-price-label">{{ $t('actualPayment') }}</text>
-          <text class="nf-price-val nf-price-total-val">{{ cs }}{{ ((data.totalPrice || 0) / 100).toFixed(2) }}</text>
+          <text class="nf-price-val nf-price-total-val">{{ orderCs }}{{ (localizedTotalPrice / 100).toFixed(2) }}</text>
         </view>
       </view>
 
@@ -122,7 +122,7 @@
       <template v-if="data.status === '0'">
         <view class="nf-footer-info">
           <text class="nf-footer-label">{{ $t('actualPayment') }}</text>
-          <text class="nf-footer-price">{{ cs }}{{ ((data.totalPrice || 0) / 100).toFixed(2) }}</text>
+          <text class="nf-footer-price">{{ orderCs }}{{ (localizedTotalPrice / 100).toFixed(2) }}</text>
         </view>
         <view class="nf-footer-btn nf-footer-btn-ghost" @tap="cancelOrder">
           <text>{{ $t('cancelOrder') }}</text>
@@ -167,7 +167,7 @@
       <template v-else>
         <view class="nf-footer-info">
           <text class="nf-footer-label">{{ $t('actualPayment') }}</text>
-          <text class="nf-footer-price">{{ cs }}{{ ((data.totalPrice || 0) / 100).toFixed(2) }}</text>
+          <text class="nf-footer-price">{{ orderCs }}{{ (localizedTotalPrice / 100).toFixed(2) }}</text>
         </view>
       </template>
     </view>
@@ -176,6 +176,14 @@
       v-model:visible="refundVisible"
       :order-id="orderID"
       @success="loadOrder"
+    />
+
+    <i18n-action-sheet
+      v-model:visible="payMethodSheetVisible"
+      :items="payMethodSheetItems.map(item => item.label)"
+      :cancel-text="$t('cancel')"
+      @select="handlePayMethodSheetSelect"
+      @cancel="handlePayMethodSheetCancel"
     />
   </view>
 </template>
@@ -188,8 +196,11 @@ import { checkNeedPay } from '@/api/base.js'
 import { getSysConfigByKey } from '@/api/sysConfig.js'
 import { getPaymentConfig } from '@/api/sysConfig.js'
 import { getUrl, getExternalUrl } from "@/utils/url.js"
+import { localText } from '@/utils/i18n.js'
+import { resolveLocalizedPriceFen } from '@/utils/price-i18n.js'
 import RefundApplyPopup from '@/components/refund-apply-popup/refund-apply-popup.vue'
 import LazyImage from '@/components/lazy-image/lazy-image.vue'
+import I18nActionSheet from '@/components/i18n-action-sheet/i18n-action-sheet.vue'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
@@ -198,15 +209,66 @@ const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const orderID = ref('')
 const data = ref({})
+const orderCs = computed(() => {
+  const snapshot = String(data.value?.settlementCurrencySymbol || '').trim()
+  return snapshot || cs.value
+})
+
+const getDetailBasePriceFen = (detail) => {
+  const detailPrice = Number(detail?.price)
+  if (Number.isFinite(detailPrice) && detailPrice >= 0) {
+    return detailPrice
+  }
+  return 0
+}
+
+const getDetailPriceI18nSnapshot = (detail) => {
+  return detail?.priceI18n
+}
+
+const getOrderPriceLocale = () => {
+  const snapshot = String(data.value?.settlementCurrency || '').trim()
+  if (!snapshot) {
+    return locale.value
+  }
+  return snapshot.replace(/_/g, '-')
+}
+
+const getLocalizedLinePrice = (detail) => {
+  const priceFen = resolveLocalizedPriceFen(getDetailBasePriceFen(detail), getDetailPriceI18nSnapshot(detail), getOrderPriceLocale())
+  return (Math.max(0, priceFen) / 100).toFixed(2)
+}
+
+const localizedOriginPrice = computed(() => {
+  const details = Array.isArray(data.value?.detail) ? data.value.detail : []
+  const priceLocale = getOrderPriceLocale()
+  return details.reduce((sum, detail) => {
+    const priceFen = resolveLocalizedPriceFen(getDetailBasePriceFen(detail), getDetailPriceI18nSnapshot(detail), priceLocale)
+    const quantity = Math.max(0, Number(detail?.quantity || 0))
+    return sum + Math.max(0, priceFen) * quantity
+  }, 0)
+})
+
+const localizedTotalPrice = computed(() => {
+  let total = localizedOriginPrice.value - Number(data.value?.discount || 0)
+  if (data.value?.usePoints) {
+    total -= Number(data.value?.pointsUsed || 0)
+  }
+  return Math.max(0, total)
+})
 const hasAddress = ref(false)
 const pendingAddress = ref(null)
 const refundVisible = ref(false)
 const showRefundBtn = ref(true)
 const showLogisticsBtn = ref(true)
 const paymentMethods = ref([])
+const payMethodSheetVisible = ref(false)
+const payMethodSheetItems = ref([])
+let payMethodSheetResolver = null
 
 const goBack = () => { uni.navigateBack() }
 
@@ -225,7 +287,9 @@ const getStatusLabel = (status) => {
   return map[status] || ''
 }
 
-const getPayMethodLabel = (method) => {
+const getPayMethodLabel = (method, label, name) => {
+  const localizedName = String(localText(name, locale.value) || '').trim()
+  const localizedLabel = String(localText(label, locale.value) || '').trim()
   const map = {
     qrcode: $t.value('payByQrcode'),
     contact: $t.value('payByContact'),
@@ -236,13 +300,50 @@ const getPayMethodLabel = (method) => {
     bank_card_mn: $t.value('payMethodBankMn'),
     paypal: $t.value('payMethodPaypal'),
   }
-  return map[method] || method || '-'
+  return localizedName || map[method] || localizedLabel || method || '-'
 }
 
 const buildDefaultPaymentMethods = () => ([
   { key: 'qrcode', label: $t.value('payByQrcode') },
   { key: 'contact', label: $t.value('payByContact') },
 ])
+
+const openPayMethodSheet = (methods = []) => {
+  const normalized = (Array.isArray(methods) ? methods : [])
+    .filter(item => item && item.key)
+    .map(item => ({
+      key: item.key,
+      label: String(item.label || getPayMethodLabel(item.key)),
+    }))
+
+  if (!normalized.length) {
+    return Promise.resolve(null)
+  }
+
+  payMethodSheetItems.value = normalized
+  payMethodSheetVisible.value = true
+  return new Promise((resolve) => {
+    payMethodSheetResolver = resolve
+  })
+}
+
+const resolvePayMethodSheet = (selected) => {
+  payMethodSheetVisible.value = false
+  const resolver = payMethodSheetResolver
+  payMethodSheetResolver = null
+  if (typeof resolver === 'function') {
+    resolver(selected || null)
+  }
+}
+
+const handlePayMethodSheetSelect = ({ index }) => {
+  const selected = payMethodSheetItems.value[index] || payMethodSheetItems.value[0] || null
+  resolvePayMethodSheet(selected)
+}
+
+const handlePayMethodSheetCancel = () => {
+  resolvePayMethodSheet(null)
+}
 
 const loadPaymentMethods = async () => {
   try {
@@ -252,7 +353,7 @@ const loadPaymentMethods = async () => {
         .filter(m => m && m.key && m.enabled !== false)
         .map(m => ({
           key: m.key,
-          label: m.label || getPayMethodLabel(m.key)
+          label: getPayMethodLabel(m.key, m.label, m.name)
         }))
       : []
     paymentMethods.value = methods.length > 0 ? methods : buildDefaultPaymentMethods()
@@ -386,7 +487,13 @@ const updatePayCountdown = () => {
     : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-onUnmounted(() => { if (payTimer) clearInterval(payTimer) })
+onUnmounted(() => {
+  if (payTimer) clearInterval(payTimer)
+  if (typeof payMethodSheetResolver === 'function') {
+    payMethodSheetResolver(null)
+  }
+  payMethodSheetResolver = null
+})
 
 /* =================== 权限计算 =================== */
 const canApplyRefund = computed(() => showRefundBtn.value && ['1', '2', '3', '7'].includes(String(data.value.status || '')))
@@ -452,20 +559,19 @@ const payNow = async () => {
   if (!paymentMethods.value.length) {
     paymentMethods.value = buildDefaultPaymentMethods()
   }
-  uni.showActionSheet({
-    itemList: paymentMethods.value.map(item => item.label),
-    success: async (res) => {
-      const payMethod = paymentMethods.value[res.tapIndex]?.key || 'contact'
-      const payMethodLabel = paymentMethods.value[res.tapIndex]?.label || getPayMethodLabel(payMethod)
-      // 同步支付方式到后端
-      await updateOrder({ ID: Number(orderID.value), payMethod })
-      const encodedPayMethod = encodeURIComponent(payMethod)
-      const encodedPayMethodLabel = encodeURIComponent(payMethodLabel)
-      const encodedCloseTime = data.value.closeTime ? `&closeTime=${encodeURIComponent(data.value.closeTime)}` : ''
-      const orderNo = encodeURIComponent(String(data.value.outTradeNo || data.value.OutTradeNo || data.value.ID || orderID.value))
-      uni.navigateTo({ url: `/pages/pay/index?amount=${((data.value.totalPrice || 0) / 100).toFixed(2)}&orderNo=${orderNo}&orderId=${orderID.value}&payMethod=${encodedPayMethod}&payMethodLabel=${encodedPayMethodLabel}${encodedCloseTime}` })
-    }
-  })
+  const selected = await openPayMethodSheet(paymentMethods.value)
+  if (!selected?.key) {
+    return
+  }
+  const payMethod = selected.key
+  const payMethodLabel = selected.label || getPayMethodLabel(payMethod)
+  // 同步支付方式到后端
+  await updateOrder({ ID: Number(orderID.value), payMethod })
+  const encodedPayMethod = encodeURIComponent(payMethod)
+  const encodedPayMethodLabel = encodeURIComponent(payMethodLabel)
+  const encodedCloseTime = data.value.closeTime ? `&closeTime=${encodeURIComponent(data.value.closeTime)}` : ''
+  const orderNo = encodeURIComponent(String(data.value.outTradeNo || data.value.OutTradeNo || data.value.ID || orderID.value))
+  uni.navigateTo({ url: `/pages/pay/index?amount=${(localizedTotalPrice.value / 100).toFixed(2)}&orderNo=${orderNo}&orderId=${orderID.value}&payMethod=${encodedPayMethod}&payMethodLabel=${encodedPayMethodLabel}${encodedCloseTime}` })
 }
 
 const goKefuFromOrder = () => {

@@ -21,7 +21,7 @@
     <view class="nf-product-info">
       <view class="nf-price-row">
         <text class="nf-price-symbol">{{ cs }}</text>
-        <text class="nf-price-num">{{ data.price && (data.price / 100).toFixed(2) }}</text>
+        <text class="nf-price-num">{{ goodsDisplayPrice }}</text>
         <view class="nf-sale-tag" v-if="data.saleCount && data.saleCount > 0">
           <text>{{ $t('sold') }} {{ data.saleCount }}</text>
         </view>
@@ -121,7 +121,7 @@
           <text class="nf-nav-icon-text">{{ $t('home') }}</text>
         </view>
         <view class="nf-nav-icon-item" @tap="goToKefu">
-          <uni-icons type="headphones" size="20" color="rgba(15,23,42,0.62)"></uni-icons>
+          <LazyImage class="nf-nav-icon-img" src="./../../static/images/tabBar/service.svg"></LazyImage>
           <text class="nf-nav-icon-text">{{ $t('customerService') }}</text>
         </view>
         <view class="nf-nav-icon-item" @tap="goTo('cart')">
@@ -192,6 +192,7 @@ import { useUserStore } from '@/pinia/modules/user'
 import { usePlayHistoryStore } from '@/pinia/modules/playHistory.js'
 import { getUrl } from '@/utils/url.js'
 import { localText } from '@/utils/i18n.js'
+import { formatLocalizedPrice } from '@/utils/price-i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import LazyImage from '@/components/lazy-image/lazy-image.vue'
@@ -201,10 +202,14 @@ const playHistoryStore = usePlayHistoryStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 const $lt = computed(() => langStore.$lt)
 const $t = computed(() => langStore.$t)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const goBack = () => { uni.navigateBack() }
 
 const data = ref({})
+const goodsDisplayPrice = computed(() => {
+  return formatLocalizedPrice(data.value?.price, data.value?.priceI18n, locale.value)
+})
 const collectionFlag = ref('')
 const goodID = ref(0)
 const userStore = useUserStore()

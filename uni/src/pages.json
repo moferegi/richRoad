@@ -398,8 +398,8 @@
 		}
 	},
 	"tabBar": {
-		"color": "rgba(15,23,42,0.62)",
-		"selectedColor": "#2563eb",
+		"color": "#7E8796",
+		"selectedColor": "#2563EB",
 		"backgroundColor": "#ffffff",
 		"borderStyle": "black",
 		"list": [{
@@ -407,20 +407,20 @@
 			"onPageScroll": true,
 
 			"text": "试衣间",
-				"iconPath": "static/images/tabBar/home.png",
-				"selectedIconPath": "static/images/tabBar/homes.png"
+				"iconPath": "static/images/tabBar/luxe-tryon.svg",
+				"selectedIconPath": "static/images/tabBar/luxe-tryon-active.svg"
 			},
 			{
 				"pagePath": "pages/tabBar/clothes/index",
 				"text": "衣服商品页",
-				"iconPath": "static/images/tabBar/find.png",
-				"selectedIconPath": "static/images/tabBar/finds.png"
+				"iconPath": "static/images/tabBar/luxe-clothes.svg",
+				"selectedIconPath": "static/images/tabBar/luxe-clothes-active.svg"
 			},
 			{
 				"pagePath": "pages/tabBar/my/index",
 				"text": "我的",
-				"iconPath": "static/images/tabBar/my.png",
-				"selectedIconPath": "static/images/tabBar/mys.png"
+				"iconPath": "static/images/tabBar/luxe-my.svg",
+				"selectedIconPath": "static/images/tabBar/luxe-my-active.svg"
 			}
 		]
 	}

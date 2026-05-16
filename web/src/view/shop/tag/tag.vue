@@ -101,13 +101,11 @@
     <el-input v-model="formData.name" :clearable="false" placeholder="请输入标签名" />
 </el-form-item>
             <el-form-item label="标签名(多语言):">
-              <div style="width:100%">
-                <div v-for="lang in enabledLangs" :key="lang.code" style="display:flex;align-items:center;margin-bottom:8px;">
-                  <el-tag size="small" style="margin-right:8px;min-width:50px;text-align:center;">{{ lang.code }}</el-tag>
-                  <el-input v-model="nameI18nObj[lang.code]" :placeholder="lang.name" style="flex:1" />
-                </div>
-                <div v-if="!enabledLangs.length" style="color:#999;font-size:12px;">请先在语言管理中启用语言</div>
-              </div>
+              <MultiLangEditor
+                :model="nameI18nObj"
+                :languages="enabledLangs"
+                title="标签名多语言"
+              />
             </el-form-item>
             <el-form-item label="描述:" prop="description">
     <el-input v-model="formData.description" :clearable="false" placeholder="请输入描述" />
@@ -148,6 +146,7 @@ import { getDictFunc, formatDate, formatBoolean, filterDict ,filterDataSource, r
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive, onMounted } from 'vue'
 import { useAppStore } from "@/pinia"
+import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 
 // 导出组件
 import ExportExcel from '@/components/exportExcel/exportExcel.vue'
@@ -201,11 +200,13 @@ const parseNameI18n = (jsonStr) => {
 // 序列化对象 → JSON
 const serializeNameI18n = () => {
   const obj = {}
-  for (const lang of enabledLangs.value) {
-    if (nameI18nObj[lang.code]) {
-      obj[lang.code] = nameI18nObj[lang.code]
-    }
-  }
+  Object.entries(nameI18nObj).forEach(([rawCode, rawText]) => {
+    const code = String(rawCode || '').trim()
+    if (!code) return
+    const text = String(rawText ?? '').trim()
+    if (!text) return
+    obj[code] = text
+  })
   return JSON.stringify(obj)
 }
 

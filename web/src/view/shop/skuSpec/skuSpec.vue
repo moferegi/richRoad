@@ -92,24 +92,21 @@
           <el-input v-model="formData.label" placeholder="请输入默认名称，如：颜色" />
         </el-form-item>
         <el-form-item label="名称(多语言):">
-          <div style="width:100%">
-            <div v-for="lang in enabledLangs" :key="lang.code" style="display:flex;align-items:center;margin-bottom:8px;">
-              <el-tag size="small" style="margin-right:8px;min-width:50px;text-align:center;">{{ lang.code }}</el-tag>
-              <el-input v-model="labelI18nObj[lang.code]" :placeholder="lang.name" style="flex:1" />
-            </div>
-            <div v-if="!enabledLangs.length" style="color:#999;font-size:12px;">请先在语言管理中启用语言</div>
-          </div>
+          <MultiLangEditor
+            :model="labelI18nObj"
+            :languages="enabledLangs"
+            title="名称多语言"
+          />
         </el-form-item>
         <el-form-item label="值(默认):" prop="value">
           <el-input v-model="formData.value" placeholder="请输入默认值，如：红色" />
         </el-form-item>
         <el-form-item label="值(多语言):">
-          <div style="width:100%">
-            <div v-for="lang in enabledLangs" :key="lang.code" style="display:flex;align-items:center;margin-bottom:8px;">
-              <el-tag size="small" style="margin-right:8px;min-width:50px;text-align:center;">{{ lang.code }}</el-tag>
-              <el-input v-model="valueI18nObj[lang.code]" :placeholder="lang.name" style="flex:1" />
-            </div>
-          </div>
+          <MultiLangEditor
+            :model="valueI18nObj"
+            :languages="enabledLangs"
+            title="值多语言"
+          />
         </el-form-item>
         <el-form-item label="排序:" prop="sort">
           <el-input-number v-model="formData.sort" :min="0" :max="9999" />
@@ -127,6 +124,7 @@ import { getEnabledLanguages } from '@/api/client/language'
 import { formatDate } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive, onMounted } from 'vue'
+import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 
 defineOptions({ name: 'SkuSpec' })
 
@@ -156,9 +154,13 @@ const parseI18nToObj = (jsonStr, target) => {
 
 const serializeI18nObj = (obj) => {
   const result = {}
-  for (const lang of enabledLangs.value) {
-    if (obj[lang.code]) result[lang.code] = obj[lang.code]
-  }
+  Object.entries(obj || {}).forEach(([rawCode, rawText]) => {
+    const code = String(rawCode || '').trim()
+    if (!code) return
+    const text = String(rawText ?? '').trim()
+    if (!text) return
+    result[code] = text
+  })
   return JSON.stringify(result)
 }
 

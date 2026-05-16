@@ -42,7 +42,7 @@
           </view>
           <view class="nf-row">
             <text class="nf-row-label">{{ $t('payAmount') }}</text>
-            <text class="nf-row-value">{{ cs }}{{ amountYuan(item.amount || item.Amount) }}</text>
+            <text class="nf-row-value">{{ formatOrderAmount(item) }}</text>
           </view>
           <view class="nf-row">
             <text class="nf-row-label">{{ $t('paymentMethod') }}</text>
@@ -87,11 +87,13 @@ import {
 } from '@/api/tryonRechargeOrder.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
+import { resolveLocalizedPriceFen } from '@/utils/price-i18n.js'
 
 const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
 const $t = computed(() => langStore.$t)
 const cs = computed(() => appConfigStore.currencySymbol || '¥')
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const page = ref(1)
 const pageSize = 10
@@ -125,9 +127,84 @@ const payMethodLabel = (method) => {
   return map[method] || method || '-'
 }
 
-const amountYuan = (amount) => {
-  const cents = Number(amount || 0)
+const parsePlanSnapshot = (item) => {
+  const raw = item?.planSnapshot || item?.PlanSnapshot
+  if (!raw) return null
+  if (typeof raw === 'object') {
+    return raw
+  }
+  const text = String(raw).trim()
+  if (!text) return null
+  try {
+    const parsed = JSON.parse(text)
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch (e) {
+    return null
+  }
+}
+
+const normalizeSettlementLocale = (value) => {
+  const normalized = String(value || '').trim()
+  return normalized ? normalized.replace(/_/g, '-') : ''
+}
+
+const getOrderSettlementLocale = (item) => {
+  const direct = normalizeSettlementLocale(item?.settlementCurrency || item?.SettlementCurrency)
+  if (direct) {
+    return direct
+  }
+  const snapshot = parsePlanSnapshot(item)
+  const fromSnapshot = normalizeSettlementLocale(snapshot?.settlementCurrency)
+  return fromSnapshot || locale.value
+}
+
+const getOrderCurrencySymbol = (item) => {
+  const direct = String(item?.settlementCurrencySymbol || item?.SettlementCurrencySymbol || '').trim()
+  if (direct) {
+    return direct
+  }
+  const snapshot = parsePlanSnapshot(item)
+  const fromSnapshot = String(snapshot?.settlementCurrencySymbol || '').trim()
+  if (fromSnapshot) {
+    return fromSnapshot
+  }
+  return cs.value
+}
+
+const getOrderAmountFen = (item) => {
+  const amountFen = Number(item?.amount ?? item?.Amount)
+  if (Number.isFinite(amountFen) && amountFen >= 0) {
+    return Math.round(amountFen)
+  }
+
+  const snapshot = parsePlanSnapshot(item)
+  if (snapshot) {
+    const resolvedFen = resolveLocalizedPriceFen(snapshot?.price, snapshot?.priceI18n, getOrderSettlementLocale(item))
+    const safeResolved = Number(resolvedFen)
+    if (Number.isFinite(safeResolved) && safeResolved >= 0) {
+      return Math.round(safeResolved)
+    }
+
+    const selectedPriceFen = Number(snapshot?.selectedPriceFen)
+    if (Number.isFinite(selectedPriceFen) && selectedPriceFen >= 0) {
+      return Math.round(selectedPriceFen)
+    }
+  }
+
+  return 0
+}
+
+const amountYuan = (amountFen) => {
+  const cents = Number(amountFen || 0)
   return (cents / 100).toFixed(2)
+}
+
+const resolveOrderAmountYuan = (item) => {
+  return amountYuan(getOrderAmountFen(item))
+}
+
+const formatOrderAmount = (item) => {
+  return `${getOrderCurrencySymbol(item)}${resolveOrderAmountYuan(item)}`
 }
 
 const formatTime = (t) => {
@@ -176,7 +253,7 @@ const goPay = (item) => {
   const orderId = item.ID || item.id
   const orderNo = item.outTradeNo || item.OutTradeNo || orderId
   const payMethod = item.payMethod || item.PayMethod || 'contact'
-  const amount = amountYuan(item.amount || item.Amount)
+  const amount = resolveOrderAmountYuan(item)
   const points = Number(item.points || item.Points || 0)
   const closeTime = String(item.closeTime || item.CloseTime || '').trim()
   const closeTimePart = closeTime ? `&closeTime=${encodeURIComponent(closeTime)}` : ''

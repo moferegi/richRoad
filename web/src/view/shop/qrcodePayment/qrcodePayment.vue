@@ -72,13 +72,11 @@
               <el-input v-model="formData.name" placeholder="请输入名称" />
             </el-form-item>
             <el-form-item label="名称(多语言):">
-              <div style="width:100%">
-                <div v-for="lang in enabledLangs" :key="lang.code" style="display:flex;align-items:center;margin-bottom:8px;">
-                  <el-tag size="small" style="margin-right:8px;min-width:50px;text-align:center;">{{ lang.code }}</el-tag>
-                  <el-input v-model="nameI18nObj[lang.code]" :placeholder="lang.name" style="flex:1" />
-                </div>
-                <div v-if="!enabledLangs.length" style="color:#999;font-size:12px;">请先在语言管理中启用语言</div>
-              </div>
+              <MultiLangEditor
+                :model="nameI18nObj"
+                :languages="enabledLangs"
+                title="名称多语言"
+              />
             </el-form-item>
             <el-form-item label="收款码图片:" prop="image">
               <SelectImage v-model="formData.image" file-type="image" />
@@ -115,6 +113,7 @@ import {
 import { getEnabledLanguages } from '@/api/client/language'
 import { getUrl } from '@/utils/image'
 import SelectImage from '@/components/selectImage/selectImage.vue'
+import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 import { formatDate } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive, onMounted } from 'vue'
@@ -154,11 +153,13 @@ const parseNameI18n = (jsonStr) => {
 
 const serializeNameI18n = () => {
   const obj = {}
-  for (const lang of enabledLangs.value) {
-    if (nameI18nObj[lang.code]) {
-      obj[lang.code] = nameI18nObj[lang.code]
-    }
-  }
+  Object.entries(nameI18nObj).forEach(([rawCode, rawText]) => {
+    const code = String(rawCode || '').trim()
+    if (!code) return
+    const text = String(rawText ?? '').trim()
+    if (!text) return
+    obj[code] = text
+  })
   return JSON.stringify(obj)
 }
 

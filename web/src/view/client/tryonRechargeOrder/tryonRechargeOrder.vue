@@ -43,7 +43,7 @@
         <el-table-column align="left" label="用户ID" prop="userID" width="100" />
         <el-table-column align="left" label="试衣币" prop="points" width="110" />
         <el-table-column align="left" label="金额(元)" prop="amount" width="120">
-          <template #default="scope">{{ amountYuan(scope.row.amount) }}</template>
+          <template #default="scope">{{ formatOrderAmount(scope.row) }}</template>
         </el-table-column>
         <el-table-column align="left" label="支付方式" prop="payMethod" width="140">
           <template #default="scope">{{ payMethodLabel(scope.row.payMethod) }}</template>
@@ -99,7 +99,8 @@
             <el-tag :type="statusTagType(detailData.status)">{{ statusLabel(detailData.status) }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="试衣币">{{ detailData.points }}</el-descriptions-item>
-          <el-descriptions-item label="金额(元)">{{ amountYuan(detailData.amount) }}</el-descriptions-item>
+          <el-descriptions-item label="金额(元)">{{ formatOrderAmount(detailData) }}</el-descriptions-item>
+          <el-descriptions-item label="结算快照">{{ getSettlementDisplay(detailData) }}</el-descriptions-item>
           <el-descriptions-item label="支付方式">{{ payMethodLabel(detailData.payMethod) }}</el-descriptions-item>
           <el-descriptions-item label="创建时间">{{ formatDate(detailData.CreatedAt) }}</el-descriptions-item>
           <el-descriptions-item label="关闭时间">{{ detailData.closeTime ? formatDate(detailData.closeTime) : '-' }}</el-descriptions-item>
@@ -165,9 +166,150 @@ const statusTagType = (status) => {
   return map[String(status)] || 'info'
 }
 
-const amountYuan = (amount) => {
-  const cents = Number(amount || 0)
-  return (cents / 100).toFixed(2)
+const toSafeFen = (value) => {
+  const num = Number(value)
+  return Number.isFinite(num) && num >= 0 ? Math.round(num) : null
+}
+
+const formatFenToYuan = (value) => {
+  const fen = toSafeFen(value)
+  return ((fen === null ? 0 : fen) / 100).toFixed(2)
+}
+
+const normalizeSettlementLocale = (value) => {
+  const locale = String(value || '').trim()
+  return locale ? locale.replace(/_/g, '-') : ''
+}
+
+const parsePlanSnapshot = (value) => {
+  if (!value) {
+    return null
+  }
+  if (typeof value === 'object') {
+    return value
+  }
+  if (typeof value !== 'string') {
+    return null
+  }
+  const text = value.trim()
+  if (!text) {
+    return null
+  }
+  try {
+    const parsed = JSON.parse(text)
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch (e) {
+    return null
+  }
+}
+
+const parsePriceI18nMap = (value) => {
+  if (!value) {
+    return null
+  }
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    return value
+  }
+  if (typeof value !== 'string') {
+    return null
+  }
+  try {
+    const parsed = JSON.parse(value)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null
+  } catch (e) {
+    return null
+  }
+}
+
+const resolveLocalizedFenByLocale = (priceI18n, locale) => {
+  const priceMap = parsePriceI18nMap(priceI18n)
+  if (!priceMap) {
+    return null
+  }
+
+  const normalizedLocale = normalizeSettlementLocale(locale)
+  const candidates = []
+  if (normalizedLocale) {
+    candidates.push(normalizedLocale)
+    if (normalizedLocale.includes('-')) {
+      candidates.push(normalizedLocale.split('-')[0])
+    }
+  }
+  candidates.push('default', 'zh', 'en', 'mn', 'zh-TW')
+
+  for (const key of candidates) {
+    if (!key || !Object.prototype.hasOwnProperty.call(priceMap, key)) {
+      continue
+    }
+    const fen = toSafeFen(priceMap[key])
+    if (fen !== null) {
+      return fen
+    }
+  }
+
+  return null
+}
+
+const getOrderSettlementLocale = (order) => {
+  const direct = normalizeSettlementLocale(order?.settlementCurrency || order?.SettlementCurrency)
+  if (direct) {
+    return direct
+  }
+  const snapshot = parsePlanSnapshot(order?.planSnapshot || order?.PlanSnapshot)
+  const fromSnapshot = normalizeSettlementLocale(snapshot?.settlementCurrency)
+  return fromSnapshot || 'default'
+}
+
+const getOrderCurrencySymbol = (order) => {
+  const direct = String(order?.settlementCurrencySymbol || order?.SettlementCurrencySymbol || '').trim()
+  if (direct) {
+    return direct
+  }
+  const snapshot = parsePlanSnapshot(order?.planSnapshot || order?.PlanSnapshot)
+  const fromSnapshot = String(snapshot?.settlementCurrencySymbol || '').trim()
+  if (fromSnapshot) {
+    return fromSnapshot
+  }
+  return '¥'
+}
+
+const resolveOrderAmountFen = (order) => {
+  const direct = toSafeFen(order?.amount ?? order?.Amount)
+  if (direct !== null) {
+    return direct
+  }
+
+  const snapshot = parsePlanSnapshot(order?.planSnapshot || order?.PlanSnapshot)
+  if (!snapshot) {
+    return 0
+  }
+
+  const locale = getOrderSettlementLocale(order)
+  const localizedFen = resolveLocalizedFenByLocale(snapshot?.priceI18n, locale)
+  if (localizedFen !== null) {
+    return localizedFen
+  }
+
+  const basePriceFen = toSafeFen(snapshot?.price)
+  if (basePriceFen !== null) {
+    return basePriceFen
+  }
+
+  const selectedPriceFen = toSafeFen(snapshot?.selectedPriceFen)
+  if (selectedPriceFen !== null) {
+    return selectedPriceFen
+  }
+
+  return 0
+}
+
+const formatOrderAmount = (order) => {
+  return `${getOrderCurrencySymbol(order)}${formatFenToYuan(resolveOrderAmountFen(order))}`
+}
+
+const getSettlementDisplay = (order) => {
+  const currency = getOrderSettlementLocale(order)
+  return `${currency} (${getOrderCurrencySymbol(order)})`
 }
 
 const payMethodLabel = (method) => {

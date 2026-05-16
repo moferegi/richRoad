@@ -8,9 +8,11 @@ import (
 
 // CreateTryonRechargeOrderReq 创建试衣币充值订单请求
 type CreateTryonRechargeOrderReq struct {
-	Points    int    `json:"points" form:"points" binding:"required,min=1"`
-	Price     string `json:"price" form:"price" binding:"required"`
-	PayMethod string `json:"payMethod" form:"payMethod"`
+	Points                   int    `json:"points" form:"points" binding:"required,min=1"`
+	Price                    string `json:"price" form:"price" binding:"required"`
+	PayMethod                string `json:"payMethod" form:"payMethod"`
+	SettlementCurrency       string `json:"settlementCurrency" form:"settlementCurrency"`
+	SettlementCurrencySymbol string `json:"settlementCurrencySymbol" form:"settlementCurrencySymbol"`
 }
 
 // UpdateTryonRechargeOrderPayMethodReq 更新充值订单支付方式请求

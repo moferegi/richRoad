@@ -18,7 +18,7 @@
       <!-- 订单金额 -->
       <view class="nf-pay-amount-card">
         <text class="nf-pay-amount-label">{{ $t('payAmount') }}</text>
-        <text class="nf-pay-amount-value">{{ cs }}{{ amount }}</text>
+        <text class="nf-pay-amount-value">{{ displayCs }}{{ displayAmount }}</text>
         <text class="nf-pay-order-no" v-if="orderNo">{{ $t('orderNo') }}: {{ orderNo }}</text>
         <!-- 倒计时 -->
         <view class="nf-pay-countdown" v-if="payCountdown">
@@ -172,6 +172,7 @@ import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { getEnabledQrcodePayments } from '@/api/qrcodePayment.js'
 import { getPaymentConfig, getUniPreferredPayConfig } from '@/api/sysConfig.js'
 import { localText, resolveApiMessage } from '@/utils/i18n'
+import { resolveLocalizedPriceFen } from '@/utils/price-i18n.js'
 import { selfOrder, updateOrder, updateOrderStatus } from '@/api/order.js'
 import LazyImage from '@/components/lazy-image/lazy-image.vue'
 import {
@@ -183,20 +184,93 @@ import {
 const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
+const orderType = ref('shop')
+const orderCurrencySymbol = ref('')
+const displayCs = computed(() => {
+  const snapshot = String(orderCurrencySymbol.value || '').trim()
+  return snapshot || cs.value
+})
 const $t = computed(() => langStore.$t)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const amount = ref('0.00')
 const orderNo = ref('')
 const orderId = ref('')
-const orderType = ref('shop')
 const orderStatus = ref('0')
 const rechargePoints = ref(0)
 const orderSummaryName = ref('')
+const shopOrder = ref(null)
 const paymentMethods = ref([])
 const preferredPayMethods = ref([])
 const selectedPayMethod = ref('qrcode')
 const selectedPreferredPayMethod = ref('')
 const isRechargeOrder = computed(() => orderType.value === 'recharge')
+
+const parsePlanSnapshot = (rawValue) => {
+  if (!rawValue) return null
+  if (typeof rawValue === 'object') {
+    return rawValue
+  }
+  const text = String(rawValue || '').trim()
+  if (!text) return null
+  try {
+    const parsed = JSON.parse(text)
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch (e) {
+    return null
+  }
+}
+
+const getDetailBasePriceFen = (detail) => {
+  const detailPrice = Number(detail?.price)
+  if (Number.isFinite(detailPrice) && detailPrice >= 0) {
+    return detailPrice
+  }
+  return 0
+}
+
+const getDetailPriceI18nSnapshot = (detail) => {
+  return detail?.priceI18n
+}
+
+const getOrderPriceLocale = (order) => {
+  const snapshot = String(order?.settlementCurrency || '').trim()
+  if (!snapshot) {
+    return locale.value
+  }
+  return snapshot.replace(/_/g, '-')
+}
+
+const calculateShopLocalizedTotalFen = (order) => {
+  if (!order || !Array.isArray(order.detail)) {
+    return null
+  }
+
+  const priceLocale = getOrderPriceLocale(order)
+
+  const localizedOrigin = order.detail.reduce((sum, detail) => {
+    const priceFen = resolveLocalizedPriceFen(getDetailBasePriceFen(detail), getDetailPriceI18nSnapshot(detail), priceLocale)
+    const quantity = Math.max(0, Number(detail?.quantity || 0))
+    return sum + Math.max(0, priceFen) * quantity
+  }, 0)
+
+  let total = localizedOrigin - Number(order.discount || 0)
+  if (order.usePoints) {
+    total -= Number(order.pointsUsed || 0)
+  }
+  return Math.max(0, total)
+}
+
+const displayAmount = computed(() => {
+  if (isRechargeOrder.value) {
+    return amount.value
+  }
+  const localizedFen = calculateShopLocalizedTotalFen(shopOrder.value)
+  if (localizedFen === null) {
+    return amount.value
+  }
+  return (localizedFen / 100).toFixed(2)
+})
 
 const purchaseInfoText = computed(() => {
   if (isRechargeOrder.value) {
@@ -219,8 +293,13 @@ const paymentMethodLabelMap = computed(() => ({
   paypal: $t.value('payMethodPaypal'),
 }))
 
-const getPaymentMethodLabel = (payMethod, label) => {
-  return paymentMethodLabelMap.value[payMethod] || label || payMethod || $t.value('contactCustomerService')
+const getPaymentMethodLabel = (payMethod, name, label) => {
+  const localizedName = String(localText(name, langStore.locale) || localText(label, langStore.locale) || '').trim()
+  if (localizedName) {
+    return localizedName
+  }
+  const plainLabel = typeof label === 'string' ? label.trim() : ''
+  return paymentMethodLabelMap.value[payMethod] || plainLabel || payMethod || $t.value('contactCustomerService')
 }
 
 const buildDefaultRawMethods = () => ([
@@ -236,7 +315,7 @@ const normalizePaymentMethods = (methods) => {
     .filter(item => item && typeof item.key === 'string' && item.key)
     .map(item => ({
       key: item.key,
-      label: getPaymentMethodLabel(item.key, item.label),
+      label: getPaymentMethodLabel(item.key, item.name, item.label),
       manual: Boolean(item.manual),
       name: item.name || {},
       copyText: item.copyText || {}
@@ -264,7 +343,7 @@ const normalizePreferredPayMethods = (methods) => {
     .filter(item => item && typeof item.key === 'string')
     .map(item => ({
       key: String(item.key || '').trim().toLowerCase(),
-      label: getPaymentMethodLabel(String(item.key || '').trim().toLowerCase(), item.label),
+      label: getPaymentMethodLabel(String(item.key || '').trim().toLowerCase(), item.name, item.label),
       name: item.name || {},
       image: String(item.image || '').trim(),
       externalPath: String(item.externalPath || '').trim(),
@@ -472,13 +551,6 @@ const loadPaymentMethods = async (preferredMethod, preferredLabel) => {
     selectPreferredPayMethod(preferredPayMethods.value[0].key)
   }
 
-  if (preferredLabel && selectedPreferredPayMethod.value) {
-    const selected = preferredPayMethods.value.find(item => item.key === selectedPreferredPayMethod.value)
-    if (selected) {
-      selected.label = preferredLabel
-    }
-  }
-
   if (selectedPayMethod.value === 'qrcode') {
     loadQrCodes()
   }
@@ -514,9 +586,11 @@ const loadOrderCloseTime = async () => {
   if (orderId.value) {
     try {
       if (isRechargeOrder.value) {
+        shopOrder.value = null
         const rechargeRes = await selfTryonRechargeOrder(orderId.value)
         const order = rechargeRes?.data?.order || rechargeRes?.data || {}
         orderStatus.value = String(order.status || order.Status || orderStatus.value || '0')
+        orderCurrencySymbol.value = String(order.settlementCurrencySymbol || order.SettlementCurrencySymbol || '').trim()
         const latestCloseTime = String(order.closeTime || order.CloseTime || '').trim()
         if (!closeTime.value && latestCloseTime) {
           closeTime.value = latestCloseTime
@@ -528,10 +602,32 @@ const loadOrderCloseTime = async () => {
         if (points > 0) {
           rechargePoints.value = points
         }
+
+        const orderAmountCents = Number(order.amount || order.Amount)
+        if (Number.isFinite(orderAmountCents) && orderAmountCents >= 0) {
+          amount.value = (orderAmountCents / 100).toFixed(2)
+        } else {
+          const snapshot = parsePlanSnapshot(order.planSnapshot || order.PlanSnapshot)
+          if (snapshot) {
+            if (!orderCurrencySymbol.value) {
+              orderCurrencySymbol.value = String(snapshot.settlementCurrencySymbol || '').trim()
+            }
+            const settlementLocale = String(order.settlementCurrency || order.SettlementCurrency || snapshot.settlementCurrency || locale.value || 'zh')
+              .replace(/_/g, '-')
+            const snapshotPriceFen = resolveLocalizedPriceFen(snapshot.price, snapshot.priceI18n, settlementLocale)
+            const selectedPriceFen = Number(snapshot.selectedPriceFen)
+            const amountFen = Number.isFinite(Number(snapshotPriceFen)) && Number(snapshotPriceFen) >= 0
+              ? Math.round(Number(snapshotPriceFen))
+              : (Number.isFinite(selectedPriceFen) && selectedPriceFen >= 0 ? Math.round(selectedPriceFen) : 0)
+            amount.value = (amountFen / 100).toFixed(2)
+          }
+        }
       } else {
         const res = await selfOrder(orderId.value)
         const order = res?.data || {}
+        shopOrder.value = order
         orderStatus.value = String(order.status || order.Status || orderStatus.value || '0')
+        orderCurrencySymbol.value = String(order.settlementCurrencySymbol || order.SettlementCurrencySymbol || '').trim()
         if (!closeTime.value && order.closeTime) {
           closeTime.value = order.closeTime
         }

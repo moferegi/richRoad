@@ -2075,7 +2075,6 @@ const tryAutoShowLangPicker = () => {
   if (showLangPicker.value) return
   if (!langStore.shouldAutoShowLanguagePicker()) return
   showLangPicker.value = true
-  langStore.markLanguagePickerPrompted()
 }
 
 watch(

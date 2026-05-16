@@ -10,7 +10,7 @@
           <image class="product-image" :src="getUrl(item.imageUrl)" mode="aspectFill"></image>
         <view class="desc">
           <text class="product-title">{{ $lt(item.title) }}</text>
-          <text class="product-price">{{ cs }} {{ formatPrice(item.price) }}</text>
+          <text class="product-price">{{ cs }} {{ formatPrice(item) }}</text>
         </view>
       </view>
     </view>
@@ -20,6 +20,7 @@
 <script setup>
 import { computed } from 'vue'
 import {getUrl} from "@/utils/url";
+import { formatLocalizedPrice } from '@/utils/price-i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
@@ -28,6 +29,7 @@ const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const props = defineProps({
   productData: {
@@ -36,21 +38,7 @@ const props = defineProps({
   }
 })
 
-// 处理分转元的价格格式化，避免浮点数精度问题
-const formatPrice = (priceInCents) => {
-  if (!priceInCents && priceInCents !== 0) return '0.00'
-  
-  // 确保输入是数字
-  const cents = parseInt(priceInCents)
-  if (isNaN(cents)) return '0.00'
-  
-  // 使用整数运算避免精度问题
-  const yuan = Math.floor(cents / 100)
-  const remainingCents = cents % 100
-  
-  // 格式化为两位小数
-  return `${yuan}.${remainingCents.toString().padStart(2, '0')}`
-}
+const formatPrice = (item) => formatLocalizedPrice(item?.price, item?.priceI18n, locale.value)
 
 const goto = (item) => {
   uni.navigateTo({

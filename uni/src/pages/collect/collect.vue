@@ -42,7 +42,7 @@
           </view>
           <view class="card-info">
             <text class="card-title">{{ $lt(item.title) }}</text>
-            <text class="card-price">{{ cs }}{{ formatPrice(item.price) }}</text>
+            <text class="card-price">{{ cs }}{{ formatItemPrice(item) }}</text>
             <view class="card-meta">
               <text class="card-sold">{{ $t('sold') }} {{ item.saleNum || 0 }}</text>
               <uni-icons type="right" size="14" color="rgba(30,41,59,0.36)" />
@@ -84,6 +84,7 @@ import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getCollectList, findCollect, createCollect } from '@/api/collect'
 import { useUserStore } from '@/pinia/modules/user'
+import { formatLocalizedPrice } from '@/utils/price-i18n.js'
 import { getUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
@@ -94,6 +95,7 @@ const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol || '¥')
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const userStore = useUserStore()
 const collectList = ref([])
@@ -104,12 +106,8 @@ const getToken = () => {
   return userStore.token || uni.getStorageSync('x-token') || ''
 }
 
-const formatPrice = (priceInCents) => {
-  if (!priceInCents && priceInCents !== 0) return '0.00'
-  const amount = Number(priceInCents)
-  if (Number.isNaN(amount)) return '0.00'
-  if (amount >= 1000) return (amount / 100).toFixed(2)
-  return amount.toFixed(2)
+const formatItemPrice = (item) => {
+  return formatLocalizedPrice(item?.price, item?.priceI18n, locale.value)
 }
 
 const init = async () => {

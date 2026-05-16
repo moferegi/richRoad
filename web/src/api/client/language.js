@@ -48,3 +48,13 @@ export const getEnabledLanguages = () => {
     method: 'get'
   })
 }
+
+// @Tags Language
+// @Summary 翻译多语言文本（管理端）
+export const translateI18n = (data) => {
+  return service({
+    url: '/language/translateI18n',
+    method: 'post',
+    data
+  })
+}

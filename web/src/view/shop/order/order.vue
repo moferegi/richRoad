@@ -70,7 +70,16 @@
         </el-table-column>
 
         <el-table-column align="left" label="购买者ID" prop="userID" width="120" />
-        <el-table-column align="left" label="订单价格（分）" prop="totalPrice" width="200" />
+        <el-table-column align="left" label="订单价格" min-width="200">
+          <template #default="scope">
+            {{ getOrderCurrencySymbol(scope.row) }}{{ formatFenToYuan(calculateLocalizedTotalPriceFen(scope.row)) }}
+          </template>
+        </el-table-column>
+        <el-table-column align="left" label="结算货币" min-width="150">
+          <template #default="scope">
+            {{ getSettlementDisplay(scope.row) }}
+          </template>
+        </el-table-column>
         <el-table-column align="left" label="订单状态" prop="status" width="120">
             <template #default="scope">
               <el-tag :type="getStatusType(scope.row.status)" size="small">
@@ -210,6 +219,12 @@
             </el-col>
             <el-col :span="8">
               <div class="detail-item">
+                <span class="label">结算货币:</span>
+                <span class="value">{{ getSettlementDisplay(orderDetail) }}</span>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="detail-item">
                 <span class="label">优惠券编号:</span>
                 <span class="value">{{ orderDetail.couponNum || '无' }}</span>
               </div>
@@ -238,19 +253,19 @@
             <el-col :span="8">
               <div class="detail-item">
                 <span class="label">原价:</span>
-                <span class="value price">¥{{ (orderDetail.originPrice / 100).toFixed(2) }}</span>
+                <span class="value price">{{ getOrderCurrencySymbol(orderDetail) }}{{ formatFenToYuan(calculateLocalizedOriginPriceFen(orderDetail)) }}</span>
               </div>
             </el-col>
             <el-col :span="8">
               <div class="detail-item">
                 <span class="label">优惠金额:</span>
-                <span class="value discount">-¥{{ (orderDetail.discount / 100).toFixed(2) }}</span>
+                <span class="value discount">-{{ getOrderCurrencySymbol(orderDetail) }}{{ (orderDetail.discount / 100).toFixed(2) }}</span>
               </div>
             </el-col>
             <el-col :span="8">
               <div class="detail-item">
                 <span class="label">实际金额:</span>
-                <span class="value total-price">¥{{ (orderDetail.totalPrice / 100).toFixed(2) }}</span>
+                <span class="value total-price">{{ getOrderCurrencySymbol(orderDetail) }}{{ formatFenToYuan(calculateLocalizedTotalPriceFen(orderDetail)) }}</span>
               </div>
             </el-col>
             <el-col :span="8">
@@ -376,12 +391,12 @@
              <el-table-column prop="quantity" label="购买数量" width="100" align="center" />
              <el-table-column prop="price" label="单价" width="120" align="center">
                <template #default="scope">
-                 ¥{{ (scope.row.price / 100).toFixed(2) }}
+                 {{ getOrderCurrencySymbol(orderDetail) }}{{ formatFenToYuan(resolveLocalizedDetailUnitPriceFen(scope.row, orderDetail)) }}
                </template>
              </el-table-column>
              <el-table-column label="小计" width="120" align="center">
                <template #default="scope">
-                 ¥{{ ((scope.row.price * scope.row.quantity) / 100).toFixed(2) }}
+                 {{ getOrderCurrencySymbol(orderDetail) }}{{ formatFenToYuan(resolveLocalizedDetailUnitPriceFen(scope.row, orderDetail) * Math.max(0, Number(scope.row.quantity || 0))) }}
                </template>
              </el-table-column>
              <el-table-column label="商品图片" width="100" align="center">
@@ -768,6 +783,114 @@ const getDetails = async (row) => {
 const closeDetailDialog = () => {
   detailDialogVisible.value = false
   orderDetail.value = null
+}
+
+const toSafeFen = (value) => {
+  const num = Number(value)
+  return Number.isFinite(num) && num >= 0 ? num : null
+}
+
+const formatFenToYuan = (value) => {
+  const fen = toSafeFen(value)
+  return ((fen === null ? 0 : fen) / 100).toFixed(2)
+}
+
+const normalizeSettlementLocale = (value) => {
+  const locale = String(value || '').trim()
+  return locale ? locale.replace(/_/g, '-') : ''
+}
+
+const parsePriceI18nMap = (value) => {
+  if (!value) {
+    return null
+  }
+  if (typeof value === 'object') {
+    return value
+  }
+  if (typeof value !== 'string') {
+    return null
+  }
+  try {
+    const parsed = JSON.parse(value)
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch (e) {
+    return null
+  }
+}
+
+const resolveLocalizedFenByLocale = (priceI18n, locale) => {
+  const priceMap = parsePriceI18nMap(priceI18n)
+  if (!priceMap) {
+    return null
+  }
+  const normalized = normalizeSettlementLocale(locale)
+  const candidates = []
+  if (normalized) {
+    candidates.push(normalized)
+    if (normalized.includes('-')) {
+      candidates.push(normalized.split('-')[0])
+    }
+  }
+  candidates.push('default', 'zh', 'en', 'mn', 'zh-TW')
+  for (const key of candidates) {
+    if (!key || !Object.prototype.hasOwnProperty.call(priceMap, key)) {
+      continue
+    }
+    const resolved = toSafeFen(priceMap[key])
+    if (resolved !== null) {
+      return resolved
+    }
+  }
+  return null
+}
+
+const getOrderPriceLocale = (order) => {
+  const locale = normalizeSettlementLocale(order?.settlementCurrency)
+  return locale || 'default'
+}
+
+const resolveLocalizedDetailUnitPriceFen = (detail, order) => {
+  const basePrice = toSafeFen(detail?.price) ?? 0
+  const priceLocale = getOrderPriceLocale(order)
+  const snapshotPrice = resolveLocalizedFenByLocale(detail?.priceI18n, priceLocale)
+  if (snapshotPrice !== null) {
+    return snapshotPrice
+  }
+  return basePrice
+}
+
+const calculateLocalizedOriginPriceFen = (order) => {
+  const details = Array.isArray(order?.detail) ? order.detail : []
+  if (!details.length) {
+    return toSafeFen(order?.originPrice) ?? 0
+  }
+  return details.reduce((sum, detail) => {
+    const unitFen = resolveLocalizedDetailUnitPriceFen(detail, order)
+    const quantity = Math.max(0, Number(detail?.quantity || 0))
+    return sum + unitFen * quantity
+  }, 0)
+}
+
+const calculateLocalizedTotalPriceFen = (order) => {
+  const details = Array.isArray(order?.detail) ? order.detail : []
+  if (!details.length) {
+    return toSafeFen(order?.totalPrice) ?? 0
+  }
+  let total = calculateLocalizedOriginPriceFen(order) - Number(order?.discount || 0)
+  if (order?.usePoints) {
+    total -= Number(order?.pointsUsed || 0)
+  }
+  return Math.max(0, total)
+}
+
+const getOrderCurrencySymbol = (order) => {
+  const snapshot = String(order?.settlementCurrencySymbol || '').trim()
+  return snapshot || '¥'
+}
+
+const getSettlementDisplay = (order) => {
+  const currency = String(order?.settlementCurrency || '').trim() || 'default'
+  return `${currency} (${getOrderCurrencySymbol(order)})`
 }
 
 // 获取订单状态对应的标签类型

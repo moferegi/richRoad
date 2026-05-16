@@ -56,6 +56,7 @@ func initNewModulesApis(db *gorm.DB) {
 		{ApiGroup: "语言管理", Method: "DELETE", Path: "/language/deleteLanguage", Description: "删除语言"},
 		{ApiGroup: "语言管理", Method: "PUT", Path: "/language/updateLanguage", Description: "更新语言"},
 		{ApiGroup: "语言管理", Method: "GET", Path: "/language/getLanguageList", Description: "获取语言列表"},
+		{ApiGroup: "语言管理", Method: "POST", Path: "/language/translateI18n", Description: "翻译多语言文本"},
 		// 国际区号
 		{ApiGroup: "国际区号", Method: "POST", Path: "/phoneAreaCode/createPhoneAreaCode", Description: "创建国际区号"},
 		{ApiGroup: "国际区号", Method: "DELETE", Path: "/phoneAreaCode/deletePhoneAreaCode", Description: "删除国际区号"},
@@ -264,6 +265,7 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/language/deleteLanguage", "DELETE"},
 		{"/language/updateLanguage", "PUT"},
 		{"/language/getLanguageList", "GET"},
+		{"/language/translateI18n", "POST"},
 		// 区号
 		{"/phoneAreaCode/createPhoneAreaCode", "POST"},
 		{"/phoneAreaCode/deletePhoneAreaCode", "DELETE"},

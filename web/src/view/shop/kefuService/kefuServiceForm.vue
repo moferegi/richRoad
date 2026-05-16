@@ -6,6 +6,13 @@
         <el-form-item label="姓名:" prop="name">
     <el-input v-model="formData.name" :clearable="false" placeholder="请输入姓名" />
 </el-form-item>
+        <el-form-item label="姓名(多语言):">
+      <MultiLangEditor
+        :model="nameI18nObj"
+        :languages="enabledLangs"
+        title="客服姓名多语言"
+      />
+    </el-form-item>
         <el-form-item label="头像:" prop="avatar">
     <SelectImage
      v-model="formData.avatar"
@@ -30,6 +37,9 @@
         <el-form-item label="链接:" prop="link">
     <el-input v-model="formData.link" :clearable="true" placeholder="请输入链接" />
 </el-form-item>
+        <el-form-item label="对应ID:" prop="contactId">
+    <el-input v-model="formData.contactId" :clearable="true" placeholder="请输入对应ID" />
+</el-form-item>
         <el-form-item>
           <el-button :loading="btnLoading" type="primary" @click="save">保存</el-button>
           <el-button type="primary" @click="back">返回</el-button>
@@ -45,6 +55,8 @@ import {
   updateKefu,
   findKefu
 } from '@/api/shop/kefuService'
+import { getEnabledLanguages } from '@/api/client/language'
+import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 
 defineOptions({
     name: 'KefuForm'
@@ -54,7 +66,7 @@ defineOptions({
 import { getDictFunc } from '@/utils/format'
 import { useRoute, useRouter } from "vue-router"
 import { ElMessage } from 'element-plus'
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 // 图片选择组件
 import SelectImage from '@/components/selectImage/selectImage.vue'
 
@@ -69,11 +81,49 @@ const KEFU_UPLOAD_FOLDER = 'Moffuu/cloth-on/uni-set'
 const type = ref('')
 const formData = ref({
             name: '',
+            nameI18n: '',
             avatar: "",
       qrCode: "",
             status: null,
             link: '',
+    contactId: '',
         })
+
+const nameI18nObj = reactive({})
+const enabledLangs = ref([])
+
+const loadEnabledLangs = async () => {
+  try {
+    const res = await getEnabledLanguages()
+    if (res.code === 0 && res.data) {
+      enabledLangs.value = Array.isArray(res.data) ? res.data : (res.data.list || [])
+    }
+  } catch (e) {}
+}
+
+const parseNameI18n = (jsonStr) => {
+  Object.keys(nameI18nObj).forEach((key) => delete nameI18nObj[key])
+  try {
+    const parsed = JSON.parse(jsonStr || '{}')
+    Object.assign(nameI18nObj, parsed)
+  } catch (e) {}
+}
+
+const serializeNameI18n = () => {
+  const result = {}
+  Object.entries(nameI18nObj).forEach(([rawCode, rawText]) => {
+    const code = String(rawCode || '').trim()
+    if (!code) return
+    const text = String(rawText ?? '').trim()
+    if (!text) return
+    result[code] = text
+  })
+  return JSON.stringify(result)
+}
+
+onMounted(() => {
+  loadEnabledLangs()
+})
 // 验证规则
 const rule = reactive({
                name : [{
@@ -97,9 +147,11 @@ const init = async () => {
       const res = await findKefu({ ID: route.query.id })
       if (res.code === 0) {
         formData.value = res.data
+        parseNameI18n(res.data.nameI18n)
         type.value = 'update'
       }
     } else {
+      parseNameI18n('{}')
       type.value = 'create'
     }
 }
@@ -110,6 +162,7 @@ const save = async() => {
       btnLoading.value = true
       elFormRef.value?.validate( async (valid) => {
          if (!valid) return btnLoading.value = false
+          formData.value.nameI18n = serializeNameI18n()
             let res
            switch (type.value) {
              case 'create':
