@@ -9,7 +9,7 @@ import (
 type Category struct {
 	global.GVA_MODEL
 	ParentID         uint       `json:"parentId" form:"parentId" gorm:"column:parent_id;comment:父级分类ID;"`                                       //父级分类ID
-	Title            string     `json:"title" form:"title" gorm:"column:title;comment:分类标题(JSON多语言);"`                                          //分类标题(JSON多语言)
+	Title            string     `json:"title" form:"title" gorm:"column:title;type:text;comment:分类标题(JSON多语言);"`                                //分类标题(JSON多语言)
 	Desc             string     `json:"desc" form:"desc" gorm:"column:desc;comment:分类描述;"`                                                      //分类描述
 	Goods            []Good     `json:"goods" gorm:"foreignKey:CategoryID;references:ID"`                                                       //分类下的商品
 	Children         []Category `json:"children" gorm:"-"`                                                                                      //子分类

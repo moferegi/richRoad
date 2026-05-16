@@ -9,7 +9,7 @@ import (
 // Popup 弹窗管理 结构体
 type Popup struct {
 	global.GVA_MODEL
-	Title        string     `json:"title" form:"title" gorm:"column:title;size:200;comment:弹窗标题(JSON多语言);"`                                 //弹窗标题
+	Title        string     `json:"title" form:"title" gorm:"column:title;type:text;comment:弹窗标题(JSON多语言);"`                                //弹窗标题
 	Image        string     `json:"image" form:"image" gorm:"column:image;size:500;comment:弹窗图片;"`                                          //弹窗图片
 	ExternalPath string     `json:"externalPath" form:"externalPath" gorm:"column:external_path;size:500;comment:外部图片路径;"`                  //外部图片路径
 	Link         string     `json:"link" form:"link" gorm:"column:link;size:500;comment:点击跳转链接;"`                                           //点击跳转链接

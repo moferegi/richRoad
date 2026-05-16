@@ -162,24 +162,70 @@ func normalizeIP(ip string) string {
 func formatRegion(region string) string {
 	parts := strings.Split(region, "|")
 	if len(parts) < 5 {
-		return region
+		return strings.TrimSpace(region)
 	}
-	country := parts[0]
-	province := parts[2]
-	city := parts[3]
 
-	var result []string
-	if country != "0" && country != "" {
-		result = append(result, country)
+	country := regionPart(parts[0])
+	area := regionPart(parts[1])
+	province := regionPart(parts[2])
+	city := regionPart(parts[3])
+
+	// 某些海外IP会把运营商/机构名写到“城市”位，这里做过滤。
+	if isLikelyOrgName(city) {
+		city = ""
 	}
-	if province != "0" && province != "" && province != country {
-		result = append(result, province)
+
+	result := make([]string, 0, 3)
+	appendUniqueRegionPart(&result, country)
+	appendUniqueRegionPart(&result, province)
+	appendUniqueRegionPart(&result, city)
+
+	// 当省市缺失时，回退展示“区域”(parts[1])，例如："中国 香港特别行政区"。
+	if len(result) <= 1 {
+		appendUniqueRegionPart(&result, area)
 	}
-	if city != "0" && city != "" && city != province {
-		result = append(result, city)
-	}
+
 	if len(result) == 0 {
 		return "未知"
 	}
 	return strings.Join(result, " ")
+}
+
+func regionPart(v string) string {
+	v = strings.TrimSpace(v)
+	if v == "" || v == "0" {
+		return ""
+	}
+	return v
+}
+
+func appendUniqueRegionPart(dst *[]string, v string) {
+	if v == "" {
+		return
+	}
+	for _, existed := range *dst {
+		if existed == v {
+			return
+		}
+	}
+	*dst = append(*dst, v)
+}
+
+func isLikelyOrgName(v string) bool {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return false
+	}
+	lower := strings.ToLower(v)
+	keywords := []string{
+		"communication", "communications", "telecom", "telecommunications", "network", "networks",
+		"datacenter", "hosting", "cloud", "cdn", "isp", "llc", "ltd", "inc", "corp", "company", "co.",
+		"通信", "电信", "联通", "移动", "宽带", "网络", "科技", "公司", "数据中心", "云计算", "运营商",
+	}
+	for _, keyword := range keywords {
+		if strings.Contains(lower, keyword) {
+			return true
+		}
+	}
+	return false
 }

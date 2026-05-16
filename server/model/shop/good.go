@@ -24,7 +24,7 @@ type Good struct {
 	Rating      *float64       `json:"rating" form:"rating" gorm:"column:rating;comment:商品评分;"`                         //商品评分
 	ReviewCount *int           `json:"reviewCount" form:"reviewCount" gorm:"column:review_count;comment:商品评论数量;"`       //商品评论数量
 	SaleCount   *int           `json:"saleCount" form:"saleCount" gorm:"column:sale_count;comment:商品销售数量;"`             //商品销售数量
-	Title       string         `json:"title" form:"title" gorm:"column:title;comment:商品名称;size:191;"`                   //商品名称(JSON多语言)
+	Title       string         `json:"title" form:"title" gorm:"column:title;comment:商品名称;type:text"`                   //商品名称(JSON多语言)
 	CategoryID  *int           `json:"categoryID" form:"categoryID" gorm:"column:category_id;comment:商品类型;size:191;"`   //商品类型
 	Status      *bool          `json:"status" form:"status" gorm:"column:status;comment:状态;"`                           //状态
 	Postage     *float64       `json:"postage" form:"postage" gorm:"column:postage;comment:邮费;"`                        //邮费
