@@ -639,7 +639,7 @@ export default {
   tryonCoinsNotEnough: 'Koin try-on tidak cukup',
   generateConfirmTitle: 'Konfirmasi Generate',
   generateConfirmContent: 'Apakah Anda yakin ingin menghasilkan hasil try-on?',
-  tryonParsingRecommendContent: 'Parsing gambar membantu mempertahankan elemen asli dengan lebih baik. Contohnya, saat hanya ada gambar bawahan, mengaktifkan parsing dapat menjaga atasan tetap. Jika tidak diaktifkan, atasan bisa berubah acak atau hilang.',
+  tryonParsingRecommendContent: 'Jika gambar atasan Anda hanya berupa atasan saja, pilih "Atasan". Jika berupa foto orang mengenakan pakaian, gaun, atau outfit one-piece (atas dan bawah menyatu), pilih "Dress/One-piece".',
   tryonContinueGenerateAction: 'Lanjutkan',
   tryonGoEnableParsingAction: 'Aktifkan Parsing',
   tryonRefinerHelpTitle: 'Penjelasan Penyempurna Gambar',

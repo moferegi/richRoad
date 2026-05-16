@@ -660,7 +660,7 @@ export default {
   tryonCoinsNotEnough: '试衣币不足',
   generateConfirmTitle: '确认生成',
   generateConfirmContent: '是否确定生成试衣结果？',
-  tryonParsingRecommendContent: '如果您的上装图是只有上衣，请选择”只有上装“，如果是人物穿着图、裙子、上下装一体等连体服装的请选择”全身套装“',
+  tryonParsingRecommendContent: '如果您的上装图是单独上衣，请选择“只有上装”；如果是人物穿着图、裙子、上下装一体等连体服装，请选择“全身套装”。',
   tryonContinueGenerateAction: '继续生成',
   tryonGoEnableParsingAction: '去开启',
   tryonRefinerHelpTitle: '图片精修说明',
