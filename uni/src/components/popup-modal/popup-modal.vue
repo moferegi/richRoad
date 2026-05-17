@@ -1,6 +1,8 @@
 <template>
-  <view class="nf-popup-mask" v-if="visible" @tap.self="onClose" @touchmove.stop.prevent>
-    <view class="nf-popup-wrap" :key="'popup_' + currentIndex">
+  <view class="nf-popup-mask" v-if="visible" @tap.self="onClose" @touchmove.prevent>
+    <view class="nf-popup-wrap" :key="'popup_' + currentIndex" @touchmove.stop>
+      <view class="nf-popup-glow nf-popup-glow--top"></view>
+      <view class="nf-popup-glow nf-popup-glow--bottom"></view>
       <view class="nf-popup-header" v-if="parsedTitle || popup.closeable !== false">
         <view class="nf-popup-title-wrap">
           <text class="nf-popup-title-text" v-if="parsedTitle">{{ parsedTitle }}</text>
@@ -19,7 +21,11 @@
         @tap="onImageTap"
       />
       <!-- 内容类型 -->
-      <view v-if="popup.popupType === 'content' && parsedContent" class="nf-popup-content">
+      <view
+        v-if="popup.popupType === 'content' && parsedContent"
+        class="nf-popup-content"
+        @touchmove.stop
+      >
         <rich-text :nodes="parsedContent" />
       </view>
     </view>
@@ -152,7 +158,10 @@ onShow(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(15, 23, 42, 0.56);
+  background:
+    radial-gradient(120% 120% at 50% 18%, rgba(148, 163, 184, 0.2) 0%, rgba(15, 23, 42, 0) 55%),
+    rgba(15, 23, 42, 0.62);
+  backdrop-filter: blur(4rpx);
   z-index: 9999;
   display: flex;
   align-items: center;
@@ -164,20 +173,51 @@ onShow(() => {
 .nf-popup-wrap {
   width: 100%;
   max-width: 640rpx;
-  border-radius: 28rpx;
+  max-height: 84vh;
+  border-radius: 32rpx;
   overflow: hidden;
-  background: #ffffff;
-  box-shadow: 0 24rpx 72rpx rgba(15, 23, 42, 0.26);
-  border: 1rpx solid rgba(148, 163, 184, 0.2);
+  position: relative;
+  background: linear-gradient(165deg, #ffffff 0%, #f8fbff 58%, #f3f6ff 100%);
+  border: 1rpx solid rgba(255, 255, 255, 0.84);
+  box-shadow:
+    0 28rpx 84rpx rgba(15, 23, 42, 0.26),
+    0 6rpx 18rpx rgba(30, 41, 59, 0.12);
+  transform: translateY(14rpx) scale(0.97);
+  opacity: 0;
+  animation: nf-popup-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.nf-popup-glow {
+  position: absolute;
+  border-radius: 999rpx;
+  pointer-events: none;
+}
+
+.nf-popup-glow--top {
+  width: 320rpx;
+  height: 320rpx;
+  right: -120rpx;
+  top: -188rpx;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.22) 0%, rgba(56, 189, 248, 0) 72%);
+}
+
+.nf-popup-glow--bottom {
+  width: 280rpx;
+  height: 280rpx;
+  left: -118rpx;
+  bottom: -176rpx;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.14) 0%, rgba(59, 130, 246, 0) 76%);
 }
 
 .nf-popup-header {
   display: flex;
   align-items: center;
   gap: 16rpx;
-  padding: 22rpx 22rpx 18rpx 28rpx;
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96) 0%, rgba(255, 255, 255, 0.98) 100%);
-  border-bottom: 1rpx solid rgba(148, 163, 184, 0.2);
+  padding: 24rpx 24rpx 18rpx 30rpx;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.92) 0%, rgba(255, 255, 255, 0.98) 100%);
+  border-bottom: 1rpx solid rgba(148, 163, 184, 0.16);
+  position: relative;
+  z-index: 2;
 }
 
 .nf-popup-title-wrap {
@@ -187,9 +227,10 @@ onShow(() => {
 
 .nf-popup-title-text {
   font-size: 30rpx;
-  font-weight: 600;
+  font-weight: 700;
   color: #0f172a;
   line-height: 1.4;
+  text-shadow: 0 1rpx 0 rgba(255, 255, 255, 0.6);
 }
 
 .nf-popup-img {
@@ -198,28 +239,42 @@ onShow(() => {
 }
 
 .nf-popup-content {
-  padding: 26rpx 28rpx 30rpx;
-  max-height: 600rpx;
+  padding: 28rpx 30rpx 34rpx;
+  max-height: 62vh;
   overflow-y: auto;
-  color: #334155;
+  -webkit-overflow-scrolling: touch;
+  color: #1e293b;
   font-size: 26rpx;
-  line-height: 1.6;
+  line-height: 1.72;
+  position: relative;
+  z-index: 1;
 }
 
 .nf-popup-close {
   width: 56rpx;
   height: 56rpx;
   border-radius: 50%;
-  background: #f1f5f9;
-  border: 1rpx solid rgba(148, 163, 184, 0.26);
+  background: linear-gradient(180deg, #ffffff 0%, #eef2f7 100%);
+  border: 1rpx solid rgba(148, 163, 184, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow:
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.9),
+    0 8rpx 18rpx rgba(30, 41, 59, 0.12);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.nf-popup-close:active {
+  transform: scale(0.94);
+  box-shadow:
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.86),
+    0 4rpx 10rpx rgba(30, 41, 59, 0.12);
 }
 
 .nf-popup-close-icon {
   font-size: 34rpx;
-  color: #475569;
+  color: #334155;
   line-height: 1;
 }
 
@@ -229,5 +284,16 @@ onShow(() => {
 
 :deep(.nf-popup-content p:last-child) {
   margin-bottom: 0;
+}
+
+@keyframes nf-popup-enter {
+  from {
+    transform: translateY(14rpx) scale(0.97);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
 </style>

@@ -15,7 +15,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick, getCurrentInstance } from 'vue'
 
 const props = defineProps({
   enabled: { type: Boolean, default: false },
@@ -26,26 +26,64 @@ const props = defineProps({
 
 const animationData = ref({})
 let animTimer = null
+let resetTimer = null
+let animationToken = 0
+const instance = getCurrentInstance()
 
-const startAnimation = () => {
+const getFallbackSize = () => {
+  const safeTextLength = Math.max(String(props.text || '').length, 1)
+  return {
+    textWidth: Math.max(safeTextLength * 16, 80),
+    trackWidth: Math.max(uni.getSystemInfoSync().windowWidth || 320, 120)
+  }
+}
+
+const measureMarqueeSize = () => new Promise((resolve) => {
+  const fallback = getFallbackSize()
+  if (!instance || !instance.proxy) {
+    resolve(fallback)
+    return
+  }
+
+  const query = uni.createSelectorQuery().in(instance.proxy)
+  query.select('.nf-marquee-track').boundingClientRect()
+  query.select('.nf-marquee-text').boundingClientRect()
+  query.exec((res) => {
+    const trackWidth = Number(res?.[0]?.width) || fallback.trackWidth
+    const textWidth = Number(res?.[1]?.width) || fallback.textWidth
+    resolve({
+      trackWidth: Math.max(trackWidth, 1),
+      textWidth: Math.max(textWidth, 1)
+    })
+  })
+})
+
+const startAnimation = async () => {
   stopAnimation()
   if (!props.text || !props.enabled) return
 
-  // 估算文字宽度 (每个字符约16px)
-  const textWidth = props.text.length * 16 + 200
-  const screenWidth = uni.getSystemInfoSync().windowWidth
-  const totalDistance = textWidth + screenWidth
-  const duration = (totalDistance / props.speed) * 1000
+  const currentToken = ++animationToken
+  const { textWidth, trackWidth } = await measureMarqueeSize()
+  if (currentToken !== animationToken) return
+
+  // 使用轨道宽度和真实文字宽度计算位移，避免尾部多余空白造成的长停顿
+  const totalDistance = textWidth + trackWidth
+  const safeSpeed = Math.max(Number(props.speed) || 60, 10)
+  const duration = Math.max((totalDistance / safeSpeed) * 1000, 600)
 
   const runOnce = () => {
+    if (currentToken !== animationToken) return
+
     const animation = uni.createAnimation({
       duration: 0,
       timingFunction: 'linear'
     })
-    animation.translateX(screenWidth).step()
+    animation.translateX(trackWidth).step()
     animationData.value = animation.export()
 
-    setTimeout(() => {
+    resetTimer = setTimeout(() => {
+      if (currentToken !== animationToken) return
+
       const animation2 = uni.createAnimation({
         duration: duration,
         timingFunction: 'linear'
@@ -56,16 +94,23 @@ const startAnimation = () => {
       animTimer = setTimeout(() => {
         runOnce()
       }, duration)
-    }, 50)
+    }, 16)
   }
 
   runOnce()
 }
 
 const stopAnimation = () => {
+  animationToken++
+
   if (animTimer) {
     clearTimeout(animTimer)
     animTimer = null
+  }
+
+  if (resetTimer) {
+    clearTimeout(resetTimer)
+    resetTimer = null
   }
 }
 
