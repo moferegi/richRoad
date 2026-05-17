@@ -1,5 +1,12 @@
 import { request } from '@/utils/request.js'
 
+const withI18nFallback = (params = {}, options = {}) => {
+  if (options && options.includeI18n) {
+    return { ...params, includeI18n: 1 }
+  }
+  return params
+}
+
 /**
  * 获取客服列表（公开接口，无需鉴权）
  * @returns {Promise} 客服列表数据
@@ -25,13 +32,14 @@ export const getCsConfig = () => {
 /**
  * 按 key 获取系统配置（公开接口）
  * @param {string} configKey 配置键
+ * @param {{ includeI18n?: boolean }} [options] 可选全量多语言回退
  * @returns {Promise} 配置值字符串
  */
-export const getSysConfigByKey = (configKey) => {
+export const getSysConfigByKey = (configKey, options = {}) => {
   return request({
     url: '/sysConfig/getSysConfigByKey',
     method: 'get',
-    params: { configKey }
+    params: withI18nFallback({ configKey }, options)
   })
 }
 

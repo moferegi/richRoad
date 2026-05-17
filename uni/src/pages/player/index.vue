@@ -199,7 +199,7 @@
 
 <script setup>
 import { ref, computed, nextTick, onUnmounted, watch } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { findGood } from '@/api/product.js'
 import { findCollect, createCollect } from '@/api/collect.js'
 import { getUrl } from '@/utils/url.js'
@@ -234,6 +234,7 @@ const isPlaying = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
 const playbackSpeed = ref(1.0)
+const lastLoadedLocale = ref('')
 
 const epLabel = (n) => {
   return $t.value('playerEp').replace('{n}', n)
@@ -319,10 +320,20 @@ onLoad(async (options) => {
   if (options.id) {
     goodID.value = options.id
     await init()
+    lastLoadedLocale.value = langStore.locale || uni.getStorageSync('app-lang') || 'zh'
     if (options.autoplay) {
       playFirst()
     }
   }
+})
+
+onShow(async () => {
+  const currentLocale = langStore.locale || uni.getStorageSync('app-lang') || 'zh'
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== currentLocale
+  if (localeChanged && goodID.value) {
+    await init()
+  }
+  lastLoadedLocale.value = currentLocale
 })
 
 const init = async () => {

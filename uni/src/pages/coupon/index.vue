@@ -72,6 +72,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { getAllClaimCoupon, claimCouponByUser } from '@/api/coupon'
 import { t, localText, resolveApiMessage } from '@/utils/i18n'
 import { getUrl } from '@/utils/url'
@@ -82,6 +83,7 @@ const cs = computed(() => appConfigStore.currencySymbol)
 
 const activeTab = ref('available')
 const couponList = ref([])
+const lastLoadedLocale = ref(uni.getStorageSync('app-lang') || 'zh')
 
 const filteredList = computed(() => {
   if (activeTab.value === 'available') return couponList.value.filter(c => c.status !== 1)
@@ -136,7 +138,19 @@ const onClaim = async (item) => {
 const onUse = () => { uni.switchTab({ url: '/pages/tabBar/index' }) }
 const goBack = () => { uni.navigateBack() }
 
-onMounted(() => { loadCoupons() })
+onMounted(() => {
+  loadCoupons()
+  lastLoadedLocale.value = uni.getStorageSync('app-lang') || 'zh'
+})
+
+onShow(() => {
+  const currentLocale = uni.getStorageSync('app-lang') || 'zh'
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== currentLocale
+  if (localeChanged) {
+    loadCoupons()
+  }
+  lastLoadedLocale.value = currentLocale
+})
 </script>
 
 <style lang="scss">

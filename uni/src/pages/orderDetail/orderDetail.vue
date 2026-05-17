@@ -268,6 +268,7 @@ const showLogisticsBtn = ref(true)
 const paymentMethods = ref([])
 const payMethodSheetVisible = ref(false)
 const payMethodSheetItems = ref([])
+const lastLoadedLocale = ref('')
 let payMethodSheetResolver = null
 
 const goBack = () => { uni.navigateBack() }
@@ -347,7 +348,7 @@ const handlePayMethodSheetCancel = () => {
 
 const loadPaymentMethods = async () => {
   try {
-    const res = await getPaymentConfig()
+    const res = await getPaymentConfig({ includeI18n: true })
     const methods = Array.isArray(res?.data?.methods)
       ? res.data.methods
         .filter(m => m && m.key && m.enabled !== false)
@@ -409,12 +410,23 @@ onLoad(async (options) => {
     await loadOrder()
     loadConfig()
     loadPaymentMethods()
+    lastLoadedLocale.value = locale.value
   }
 })
 
 let isFirstShow = true
 onShow(() => {
-  if (isFirstShow) { isFirstShow = false; return }
+  if (isFirstShow) {
+    isFirstShow = false
+    lastLoadedLocale.value = locale.value
+    return
+  }
+
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged) {
+    loadPaymentMethods()
+  }
+
   // 检查是否有从地址页选回的地址
   const addr = uni.getStorageSync('selectedAddress')
   if (addr) {
@@ -427,9 +439,11 @@ onShow(() => {
     data.value.area = addr.areaStr || addr.area
     data.value.street = addr.street
     hasAddress.value = true
+    lastLoadedLocale.value = locale.value
     return
   }
   if (orderID.value) loadOrder()
+  lastLoadedLocale.value = locale.value
 })
 
 const loadConfig = async () => {

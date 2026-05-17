@@ -7,6 +7,7 @@ import (
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -146,12 +147,13 @@ func (cartApi *CartApi) GetCartList(c *gin.Context) {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
 		response.FailWithMessage("获取失败", c)
 	} else {
-		response.OkWithDetailed(response.PageResult{
+		pageResult := response.PageResult{
 			List:     list,
 			Total:    total,
 			Page:     pageInfo.Page,
 			PageSize: pageInfo.PageSize,
-		}, "获取成功", c)
+		}
+		response.OkWithDetailed(i18n.LocalizeResponseData(c, pageResult), "获取成功", c)
 	}
 }
 
@@ -174,7 +176,7 @@ func (cartApi *CartApi) GetSelfCart(c *gin.Context) {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
 		response.FailWithMessage("获取失败", c)
 	} else {
-		response.OkWithDetailed(list, "获取成功", c)
+		response.OkWithDetailed(i18n.LocalizeResponseData(c, list), "获取成功", c)
 	}
 }
 

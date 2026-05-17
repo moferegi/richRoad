@@ -1,14 +1,16 @@
 package shop
 
 import (
+	"strconv"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-	"strconv"
 )
 
 type CategoryApi struct {
@@ -163,7 +165,7 @@ func (categoryApi *CategoryApi) GetCategoryMobile(c *gin.Context) {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
 		response.FailWithMessage("获取失败", c)
 	} else {
-		response.OkWithDetailed(data, "获取成功", c)
+		response.OkWithDetailed(i18n.LocalizeResponseData(c, data), "获取成功", c)
 	}
 }
 
@@ -179,7 +181,7 @@ func (categoryApi *CategoryApi) GetChildrenCategoryAndProduct(c *gin.Context) {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
 		response.FailWithMessage("获取失败", c)
 	} else {
-		response.OkWithDetailed(data, "获取成功", c)
+		response.OkWithDetailed(i18n.LocalizeResponseData(c, data), "获取成功", c)
 	}
 }
 

@@ -197,7 +197,7 @@ func (s *SysConfigApi) GetSysConfigByGroup(c *gin.Context) {
 		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
-	response.OkWithDetailed(list, i18n.T(c, "getSuccess"), c)
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, list), i18n.T(c, "getSuccess"), c)
 }
 
 // GetSysConfigByKey 按key获取单条系统参数
@@ -225,7 +225,7 @@ func (s *SysConfigApi) GetSysConfigByKey(c *gin.Context) {
 		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
-	response.OkWithDetailed(val, i18n.T(c, "getSuccess"), c)
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, val), i18n.T(c, "getSuccess"), c)
 }
 
 // GetLoginConfig 获取登录相关配置（公开接口）
@@ -244,7 +244,7 @@ func (s *SysConfigApi) GetLoginConfig(c *gin.Context) {
 	passwordRegex, _ := sysConfigService.GetConfigByKey("password_regex")
 	usernameRegexTip, _ := sysConfigService.GetConfigByKey("username_regex_tip")
 	passwordRegexTip, _ := sysConfigService.GetConfigByKey("password_regex_tip")
-	response.OkWithDetailed(map[string]string{
+	config := map[string]string{
 		"phone_login_enabled":     phoneEnabled,
 		"username_login_enabled":  usernameEnabled,
 		"default_login_method":    defaultMethod,
@@ -253,7 +253,8 @@ func (s *SysConfigApi) GetLoginConfig(c *gin.Context) {
 		"password_regex":          passwordRegex,
 		"username_regex_tip":      usernameRegexTip,
 		"password_regex_tip":      passwordRegexTip,
-	}, i18n.T(c, "getSuccess"), c)
+	}
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, config), i18n.T(c, "getSuccess"), c)
 }
 
 // GetTryonConfig 获取试衣配置（公开接口）
@@ -309,7 +310,7 @@ func (s *SysConfigApi) GetTryonConfig(c *gin.Context) {
 	}
 	tryonModels = normalizeTryonModelsConfigLocales(tryonModels)
 
-	response.OkWithDetailed(map[string]string{
+	config := map[string]string{
 		"tryon_guest_init_points":             guestInit,
 		"tryon_register_reward_points":        registerReward,
 		"tryon_invite_register_reward_points": inviteRegisterReward,
@@ -320,7 +321,8 @@ func (s *SysConfigApi) GetTryonConfig(c *gin.Context) {
 		"tryon_append_refiner_failed_tip":     appendRefinerFailedTip,
 		"tryon_refiner_failed_tip_text":       refinerFailedTipText,
 		"tryon_models":                        tryonModels,
-	}, i18n.T(c, "getSuccess"), c)
+	}
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, config), i18n.T(c, "getSuccess"), c)
 }
 
 // GetAliyunTryonQuotaEstimate 获取阿里试衣模型剩余额度估算（管理端）
@@ -375,7 +377,7 @@ func (s *SysConfigApi) GetAnnouncementConfig(c *gin.Context) {
 		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
-	response.OkWithDetailed(result, i18n.T(c, "getSuccess"), c)
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, result), i18n.T(c, "getSuccess"), c)
 }
 
 func parseBoolConfig(raw string, defaultVal bool) bool {
@@ -1003,7 +1005,7 @@ func (s *SysConfigApi) GetPaymentConfig(c *gin.Context) {
 		manualContactEnabled = true
 	}
 
-	response.OkWithDetailed(gin.H{
+	paymentConfig := gin.H{
 		"autoEnabled": autoEnabled,
 		"manual": gin.H{
 			"qrcode":  manualQrcodeEnabled,
@@ -1018,7 +1020,8 @@ func (s *SysConfigApi) GetPaymentConfig(c *gin.Context) {
 			"paypal":  paypalEnabled,
 		},
 		"methods": methods,
-	}, i18n.T(c, "getSuccess"), c)
+	}
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, paymentConfig), i18n.T(c, "getSuccess"), c)
 }
 
 // GetUniPreferredPayConfig 获取uni联系客服页期望支付方式配置（公开接口）
@@ -1035,7 +1038,8 @@ func (s *SysConfigApi) GetUniPreferredPayConfig(c *gin.Context) {
 		preferredMethods = defaultUniPreferredPayMethods()
 	}
 
-	response.OkWithDetailed(gin.H{
+	preferredConfig := gin.H{
 		"methods": preferredMethods,
-	}, i18n.T(c, "getSuccess"), c)
+	}
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, preferredConfig), i18n.T(c, "getSuccess"), c)
 }

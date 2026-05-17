@@ -251,6 +251,7 @@ const pageSize = ref(10)
 const total = ref(0)
 const isLoading = ref(false)
 const isBottom = ref(false)
+const lastLoadedLocale = ref('')
 
 const loadConfig = async () => {
   try {
@@ -344,12 +345,24 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
 onLoad((options) => {
   loadConfig()
   init(options.status)
+  lastLoadedLocale.value = locale.value
 })
 
 let isFirstShow = true
 onShow(() => {
-  if (isFirstShow) { isFirstShow = false; return }
+  if (isFirstShow) {
+    isFirstShow = false
+    lastLoadedLocale.value = locale.value
+    return
+  }
+
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged) {
+    loadConfig()
+  }
+
   init(activeSataus.value)
+  lastLoadedLocale.value = locale.value
 })
 
 onReachBottom(() => {

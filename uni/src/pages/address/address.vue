@@ -64,7 +64,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { updateOrder } from '@/api/order.js'
 import { getAddressList, getAddressDataSource, deleteAddress } from '@/api/address.js'
 import { onLoad, onShow } from '@dcloudio/uni-app'
@@ -127,10 +127,23 @@ const getGeoLabel = (item) => {
   if (!item) return ''
   // 优先使用多语言字段
   if (item.labelI18n) {
-    const translated = localText(item.labelI18n)
+    const translated = localText(item.labelI18n, langStore.locale)
     if (translated) return translated
   }
   return item.label || ''
+}
+
+const rebuildAddressTrans = () => {
+  for (const item of addressList.value) {
+    const province = formatt(item.province, 'province')
+    item.provinceTrans = getGeoLabel(province)
+
+    const city = formatt(item.city, 'city')
+    item.cityTrans = getGeoLabel(city)
+
+    const area = formatt(item.area, 'area')
+    item.areaTrans = getGeoLabel(area)
+  }
 }
 
 const getAddress = async (params) => {
@@ -144,22 +157,16 @@ const getAddress = async (params) => {
       }
       addressList.value.push(...res.data.list)
       isBottom.value = false
-
-      for (const item of addressList.value) {
-        const province = formatt(item.province, 'province')
-        item.provinceTrans = getGeoLabel(province)
-
-        const city = formatt(item.city, 'city')
-        item.cityTrans = getGeoLabel(city)
-
-        const area = formatt(item.area, 'area')
-        item.areaTrans = getGeoLabel(area)
-      }
+      rebuildAddressTrans()
     }
   } catch (error) {
     console.error('获取地址列表失败', error)
   }
 }
+
+watch(() => langStore.locale, () => {
+  rebuildAddressTrans()
+})
 
 const debounce = (func, delay) => {
   let timer

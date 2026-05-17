@@ -163,14 +163,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted } from 'vue'
-import { onLoad, onBackPress } from '@dcloudio/uni-app'
+import { ref, computed, onUnmounted, watch } from 'vue'
+import { onLoad, onShow, onBackPress } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
-import { request } from '@/utils/request.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { getEnabledQrcodePayments } from '@/api/qrcodePayment.js'
-import { getPaymentConfig, getUniPreferredPayConfig } from '@/api/sysConfig.js'
+import { getPaymentConfig, getUniPreferredPayConfig, getSysConfigByKey } from '@/api/sysConfig.js'
 import { localText, resolveApiMessage } from '@/utils/i18n'
 import { resolveLocalizedPriceFen } from '@/utils/price-i18n.js'
 import { selfOrder, updateOrder, updateOrderStatus } from '@/api/order.js'
@@ -192,6 +191,7 @@ const displayCs = computed(() => {
 })
 const $t = computed(() => langStore.$t)
 const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+const lastLoadedLocale = ref('')
 
 const amount = ref('0.00')
 const orderNo = ref('')
@@ -366,6 +366,32 @@ const parseSkuSpecItems = (payload) => {
   return []
 }
 
+const rebuildOrderSummaryName = () => {
+  const detail = Array.isArray(shopOrder.value?.detail) ? shopOrder.value.detail : []
+  if (detail.length === 0) {
+    orderSummaryName.value = ''
+    return
+  }
+
+  orderSummaryName.value = detail.map(item => {
+    const sku = item?.sku || {}
+    const good = item?.good || {}
+    const name = localText(sku?.nameI18n || sku?.name || good?.titleI18n || good?.title || good?.nameI18n || good?.name, langStore.locale) || ''
+    const specs = [...parseSkuSpecItems(sku?.specs), ...parseSkuSpecItems(sku?.attrs)]
+      .map(spec => {
+        const label = localText(spec?.labelI18n || spec?.nameI18n || spec?.label || spec?.name, langStore.locale)
+        const value = localText(spec?.valueI18n || spec?.value, langStore.locale)
+        if (!label && !value) return ''
+        return label ? `${label}:${value}` : value
+      })
+      .filter(Boolean)
+      .join(', ')
+    const quantity = Number(item?.quantity || 1)
+    const quantityText = quantity > 1 ? ` x${quantity}` : ''
+    return `${name}${quantityText}${specs ? ` (${specs})` : ''}`
+  }).filter(Boolean).join(' ; ')
+}
+
 const getPreferredPayMethodImage = (method) => {
   if (!method) return ''
   const imagePath = String(method.image || method.externalPath || '').trim()
@@ -432,7 +458,11 @@ const currentQrUrl = computed(() => {
 })
 
 // 付款提示文本
-const paymentTipText = ref('')
+const paymentTipTextRaw = ref('')
+const paymentTipText = computed(() => {
+  const localized = localText(paymentTipTextRaw.value, locale.value)
+  return String(localized || '').trim()
+})
 const paymentTipSize = ref(14)
 const paymentTipColor = ref('#334155')
 
@@ -496,8 +526,8 @@ const loadPaymentMethods = async (preferredMethod, preferredLabel) => {
   let preferredMethods = []
 
   const [paymentConfigResult, preferredConfigResult] = await Promise.allSettled([
-    getPaymentConfig(),
-    getUniPreferredPayConfig()
+    getPaymentConfig({ includeI18n: true }),
+    getUniPreferredPayConfig({ includeI18n: true })
   ])
 
   if (paymentConfigResult.status === 'fulfilled') {
@@ -583,6 +613,19 @@ onLoad((options) => {
   loadPaymentMethods(preferredMethod, preferredLabel)
   loadPaymentTip()
   loadOrderCloseTime()
+  lastLoadedLocale.value = locale.value
+})
+
+onShow(() => {
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged) {
+    rebuildOrderSummaryName()
+    const preferredMethod = selectedPreferredPayMethod.value || selectedPayMethod.value || ''
+    const preferredLabel = selectedPreferredPayMethodLabel.value || selectedPayMethodLabel.value || ''
+    loadPaymentMethods(preferredMethod, preferredLabel)
+    loadPaymentTip()
+  }
+  lastLoadedLocale.value = locale.value
 })
 
 // ========== 倒计时 ==========
@@ -643,31 +686,20 @@ const loadOrderCloseTime = async () => {
         if (!orderNo.value) {
           orderNo.value = String(order.outTradeNo || order.OutTradeNo || order.ID || '')
         }
-        const detail = Array.isArray(order.detail) ? order.detail : []
-        if (detail.length > 0) {
-          orderSummaryName.value = detail.map(item => {
-            const sku = item?.sku || {}
-            const good = item?.good || {}
-            const name = localText(sku?.nameI18n || sku?.name || good?.titleI18n || good?.title || good?.nameI18n || good?.name, langStore.locale) || ''
-            const specs = [...parseSkuSpecItems(sku?.specs), ...parseSkuSpecItems(sku?.attrs)]
-              .map(spec => {
-                const label = localText(spec?.labelI18n || spec?.nameI18n || spec?.label || spec?.name, langStore.locale)
-                const value = localText(spec?.valueI18n || spec?.value, langStore.locale)
-                if (!label && !value) return ''
-                return label ? `${label}:${value}` : value
-              })
-              .filter(Boolean)
-              .join(', ')
-            const quantity = Number(item?.quantity || 1)
-            const quantityText = quantity > 1 ? ` x${quantity}` : ''
-            return `${name}${quantityText}${specs ? ` (${specs})` : ''}`
-          }).filter(Boolean).join(' ; ')
-        }
+        rebuildOrderSummaryName()
       }
     } catch (e) {}
   }
   if (closeTime.value && orderStatus.value === '0') startPayCountdown()
 }
+
+watch(locale, () => {
+  rebuildOrderSummaryName()
+  const preferredMethod = selectedPreferredPayMethod.value || selectedPayMethod.value || ''
+  const preferredLabel = selectedPreferredPayMethodLabel.value || selectedPayMethodLabel.value || ''
+  loadPaymentMethods(preferredMethod, preferredLabel)
+  lastLoadedLocale.value = locale.value
+})
 
 const startPayCountdown = () => {
   if (payTimer) clearInterval(payTimer)
@@ -728,7 +760,7 @@ const loadQrCodes = async () => {
     }
     // 如果多码列表为空，尝试旧的单码配置作为兜底
     if (qrList.value.length === 0) {
-      const res2 = await request({ url: '/sysConfig/getSysConfigByKey', method: 'get', params: { configKey: 'payment_qr_code' } })
+      const res2 = await getSysConfigByKey('payment_qr_code')
       if (res2.code === 0 && res2.data) {
         qrList.value = [{ name: $t.value('payByQrcode'), image: res2.data, externalPath: '' }]
         currentQrIndex.value = 0
@@ -742,12 +774,12 @@ const loadQrCodes = async () => {
 const loadPaymentTip = async () => {
   try {
     const [tipRes, sizeRes, colorRes] = await Promise.all([
-      request({ url: '/sysConfig/getSysConfigByKey', method: 'get', params: { configKey: 'payment_tip_text' } }),
-      request({ url: '/sysConfig/getSysConfigByKey', method: 'get', params: { configKey: 'payment_tip_text_size' } }),
-      request({ url: '/sysConfig/getSysConfigByKey', method: 'get', params: { configKey: 'payment_tip_text_color' } }),
+      getSysConfigByKey('payment_tip_text', { includeI18n: true }),
+      getSysConfigByKey('payment_tip_text_size'),
+      getSysConfigByKey('payment_tip_text_color'),
     ])
     if (tipRes.code === 0 && tipRes.data) {
-      paymentTipText.value = localText(tipRes.data)
+      paymentTipTextRaw.value = tipRes.data
     }
     if (sizeRes.code === 0 && sizeRes.data) {
       paymentTipSize.value = Number(sizeRes.data) || 14

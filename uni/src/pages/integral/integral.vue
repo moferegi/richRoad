@@ -69,8 +69,10 @@ import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 const mode = ref('point')
 const assetType = ref('point')
+const lastLoadedLocale = ref('')
 
 const REASON_KEYS = [
   'reason_newUserReward',
@@ -238,11 +240,22 @@ onLoad((options = {}) => {
   mode.value = nextMode === 'tryon' ? 'tryon' : 'point'
   assetType.value = nextAssetType === 'tryon_point' ? 'tryon_point' : (mode.value === 'tryon' ? 'tryon_point' : 'point')
   resetAndLoad()
+  lastLoadedLocale.value = locale.value
 })
 
 onShow(() => {
-  if (recordList.value.length === 0) return
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged) {
+    resetAndLoad()
+    lastLoadedLocale.value = locale.value
+    return
+  }
+  if (recordList.value.length === 0) {
+    lastLoadedLocale.value = locale.value
+    return
+  }
   resetAndLoad()
+  lastLoadedLocale.value = locale.value
 })
 
 onReachBottom(() => {

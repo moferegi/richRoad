@@ -145,12 +145,13 @@ func (collectApi *CollectApi) GetCollectList(c *gin.Context) {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
 		response.FailWithMessage(i18n.T(c, "getFail"), c)
 	} else {
-		response.OkWithDetailed(response.PageResult{
+		pageResult := response.PageResult{
 			List:     list,
 			Total:    total,
 			Page:     pageInfo.Page,
 			PageSize: pageInfo.PageSize,
-		}, i18n.T(c, "getSuccess"), c)
+		}
+		response.OkWithDetailed(i18n.LocalizeResponseData(c, pageResult), i18n.T(c, "getSuccess"), c)
 	}
 }
 

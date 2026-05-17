@@ -179,7 +179,7 @@
 
 <script setup>
 import { computed, nextTick, ref } from 'vue'
-import { onLoad, onUnload } from '@dcloudio/uni-app'
+import { onLoad, onShow, onUnload } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { createTryonTask, findTryonTask } from '@/api/tryonTask.js'
 import { getTryonConfig } from '@/api/sysConfig.js'
@@ -196,6 +196,7 @@ import {
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const draft = ref({})
 const task = ref(null)
@@ -238,6 +239,7 @@ const comparePinchBaseOffsetX = ref(0)
 const comparePinchBaseOffsetY = ref(0)
 const compareGuideVisible = ref(false)
 const COMPARE_GUIDE_SEEN_KEY = 'tryon-compare-guide-seen-v1'
+const lastLoadedLocale = ref('')
 
 let pollTimer = null
 let pollCount = 0
@@ -426,7 +428,7 @@ const normalizeBool = (value, fallback = false) => {
 
 const loadTryonRuntimeConfig = async () => {
   try {
-    const configRes = await getTryonConfig()
+    const configRes = await getTryonConfig({ includeI18n: true })
     if (configRes.code !== 0 || !configRes.data) return
     tryonRuntimeConfig.value = {
       ...tryonRuntimeConfig.value,
@@ -1150,6 +1152,7 @@ const goContinue = () => {
 onLoad(async (options) => {
   draft.value = getTryonDraft()
   await loadTryonRuntimeConfig()
+  lastLoadedLocale.value = locale.value
   sourcePreview.value = draft.value.sourceRemoteUrl ? getUrl(draft.value.sourceRemoteUrl) : draft.value.sourceLocalPath
   applyTemplatePreviewsFromDraft(draft.value || {})
 
@@ -1160,6 +1163,14 @@ onLoad(async (options) => {
   }
 
   createTask()
+})
+
+onShow(async () => {
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged) {
+    await loadTryonRuntimeConfig()
+  }
+  lastLoadedLocale.value = locale.value
 })
 
 onUnload(() => {

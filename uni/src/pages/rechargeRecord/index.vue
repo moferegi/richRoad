@@ -102,6 +102,7 @@ const recordList = ref([])
 const loading = ref(false)
 const noMore = ref(false)
 const reachedBottom = ref(false)
+const lastLoadedLocale = ref('')
 
 const statusLabel = (status) => {
   const map = {
@@ -297,11 +298,22 @@ const goBack = () => {
 
 onLoad(() => {
   resetAndLoad()
+  lastLoadedLocale.value = locale.value
 })
 
 onShow(() => {
-  if (recordList.value.length === 0) return
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged) {
+    resetAndLoad()
+    lastLoadedLocale.value = locale.value
+    return
+  }
+  if (recordList.value.length === 0) {
+    lastLoadedLocale.value = locale.value
+    return
+  }
   resetAndLoad()
+  lastLoadedLocale.value = locale.value
 })
 
 onReachBottom(() => {

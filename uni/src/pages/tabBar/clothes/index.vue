@@ -89,6 +89,8 @@ import LazyImage from '@/components/lazy-image/lazy-image.vue'
 const langStore = useLangStore()
 const playHistoryStore = usePlayHistoryStore()
 const $t = langStore.$t
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+const lastLoadedLocale = ref('')
 const searchName = ref('')
 const page = ref(1)
 const pageSize = 10
@@ -614,14 +616,41 @@ const previewImage = (item) => {
   })
 }
 
+const reloadLocaleSensitiveData = async () => {
+  await loadCategories()
+  await loadList(true)
+}
+
+const markLocaleLoaded = () => {
+  lastLoadedLocale.value = locale.value
+}
+
 onShow(() => {
-  if (categoryList.value.length === 0) {
-    loadCategories().then(() => loadList(true))
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged) {
+    reloadLocaleSensitiveData().finally(() => {
+      markLocaleLoaded()
+    })
     return
   }
-  if (goodsList.value.length === 0) {
-    loadList(true)
+
+  if (categoryList.value.length === 0) {
+    loadCategories()
+      .then(() => loadList(true))
+      .finally(() => {
+        markLocaleLoaded()
+      })
+    return
   }
+
+  if (goodsList.value.length === 0) {
+    loadList(true).finally(() => {
+      markLocaleLoaded()
+    })
+    return
+  }
+
+  markLocaleLoaded()
 })
 </script>
 

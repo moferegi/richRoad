@@ -1,19 +1,31 @@
 import {request} from '@/utils/request.js'
 
+const withI18nFallback = (params = {}, options = {}) => {
+    if (options && options.includeI18n) {
+        return { ...params, includeI18n: 1 }
+    }
+    return params
+}
+
 
 // 获取是否收藏
-export const findCollect  = (params) => {
+export const findCollect  = (params, options = {}) => {
     return request({
-		url:`/collect/findCollect?goodID=${params.goodID}`,
-        method: 'get'
+		url:'/collect/findCollect',
+        method: 'get',
+        params: withI18nFallback({ goodID: params.goodID }, options)
     })
 }
 
 // 分页获取收藏列表
-export const getCollectList  = (params) => {
+export const getCollectList  = (params, options = {}) => {
     return request({
-		url:`/collect/getCollectList?page=${params.page}&pageSize=${params.pageSize}`,
-        method: 'get'
+		url:'/collect/getCollectList',
+        method: 'get',
+        params: withI18nFallback({
+            page: params.page,
+            pageSize: params.pageSize,
+        }, options)
     })
 }
 

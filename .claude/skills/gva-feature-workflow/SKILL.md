@@ -106,6 +106,50 @@ description: "GVA 功能开发标准工作流。用于新建/扩展插件或业�
 - 对涉及多语言的配置项（重点 announcement_content）执行切换语言回归，确认内容随语言变更
 - 新增后端 key 时，同步检查 uni/src/utils/i18n.js 与后端 i18n 字典是否均存在该 key
 
+6. 非缓存类常见错误（必须规避）
+- fallback 顺序错误：多语言对象/JSON 解析必须优先 locale，再 en，最后 zh，禁止先回退 zh 导致其他语种误显示中文
+- 文案固化：禁止在初始化阶段把 localText(...) 结果写死到长期状态；应存 raw 值并在 computed/watch(locale) 中实时解析
+- 竞态覆盖：切语言触发重拉时，需防旧请求晚到覆盖新语言数据（可用请求戳/最后一次请求保护）
+- 语言状态不一致：所有语言判定统一来源于 langStore.locale（必要时回退 app-lang），避免页面内混用导致局部旧语种
+- 系统消息不可回刷：对本地插入的系统提示（如客服聊天提示）应保存 i18nKey，而不是仅保存已翻译文本
+
+7. 表单页面特殊规则（防止切语丢草稿）
+- 编辑态页面切语言返回时，禁止无条件重拉并覆盖用户输入
+- 推荐策略：查看模式可重拉；编辑模式仅刷新标签/下拉文案/验证码等轻量内容
+- 地址省市区、支付方式、评价草稿等场景必须明确“哪些状态允许重建，哪些状态必须保留”
+
+## Uni 多语言传输策略（单语优先 + 按需全量回退 + 页面内实时重算）（强制执行）
+1. 单语优先（默认）
+- Uni 请求默认按当前语言返回，避免多语言 payload 全量下发导致响应体积膨胀
+- 列表/详情类接口默认不传 includeI18n，优先走单语响应
+- 不允许为“图省事”全局开启 includeI18n
+
+2. 按需全量回退（仅必要页面）
+- 页面在不离页的情况下切换语言且需保留状态时，接口调用必须显式传 includeI18n
+- 推荐在 Uni API 封装层统一透传 options.includeI18n，避免页面直接拼 query
+- 典型需要全量回退的配置：payment methods、tryon_models、announcement_content、invite_share_link_tip_text、tryon_recharge_plans
+
+3. 页面内实时重算（避免旧语种缓存）
+- 禁止在加载时将 localText(...) 结果直接写死到长期状态（ref/store 字符串）
+- 应保存原始值 raw（对象/JSON/字符串），通过 computed 或 watch(locale) 实时解析展示
+- 对拼接文案（如订单摘要、地址省市区映射）必须提供 rebuild 方法，并在 locale 变化时重算
+
+4. 页面缓存返回策略（tabBar / 复用页）
+- 对 tabBar、navigateBack 可复用页、keep-alive 场景，必须在 onShow 增加 locale 变化守卫（推荐 lastLoadedLocale 对比）
+- 禁止“已有数据即 return”短路导致旧语种残留；必须加入 localeChanged 例外分支
+- 语言变化时优先做增量刷新（重拉 locale-sensitive 数据或重算派生文案），避免整页重置
+- 长连接页面（如客服聊天）切语后应优先回刷本地可翻译文案，避免不必要的重连与状态抖动
+
+5. 页面重载策略
+- 切换语言后强制重载页面可以作为兜底，但不能作为唯一方案
+- 长流程页面（支付、试衣生成、表单编辑）优先使用“全量回退 + 页面内重算”，避免重载导致状态丢失
+- 若某页面明确采用重载方案，需在需求说明中标注“会丢失页面瞬时状态”
+
+6. 交付验收标准
+- 关键文案切换语言后无需离页即可正确更新（不出现旧语种残留）
+- 接口抓包可验证：默认单语，只有必要请求携带 includeI18n
+- 相关页面改造后执行 Uni 构建与核心路径手测（至少支付/试衣/邀请/地址）
+
 ## 提交前检查清单
 - 新增 API 是否同步注册到 sys_apis
 - 新增 API 是否有对应 Casbin 规则
@@ -118,6 +162,13 @@ description: "GVA 功能开发标准工作流。用于新建/扩展插件或业�
 - 后端 API 是否仍存在 err.Error() 直接返回给 C 端用户
 - 后端新增 key 是否在 Uni 所有启用语种中补齐
 - 试衣间公告 announcement_content 是否按 localText 解析并随语言切换生效
+- Uni 接口是否保持“默认单语”，且仅在必要场景显式 includeI18n
+- 页面是否存在“localText 后写死状态”导致切语不更新（应改为 raw + computed/watch 重算）
+- tabBar/复用页面是否有 onShow + lastLoadedLocale（或等价）语言守卫，避免返回后旧语种残留
+- 多语言 JSON 的 fallback 顺序是否为 locale -> en -> zh（避免缺词时误回中文）
+- 本地系统提示消息是否保存 i18nKey 并支持语言切换后回刷
+- 切语重拉是否存在旧请求覆盖新语言数据风险（需有竞态保护）
+- 表单编辑页是否避免“切语即重拉覆盖草稿”
 - 修改 initialize/gorm*.go（含 gorm_biz.go）后，是否清理未使用 model 导入，且导入模型与 AutoMigrate 列表保持一致
 - 修改初始化或迁移文件后，是否至少执行 go test ./initialize 做快速编译验证，防止 unused import 回归
 - 新增 Private 路由后，是否同步更新 initialize 下对应的 SysApi 注册与 Casbin 路径清单（例如 invite_init/new_modules_init/shop_init），防止出现“权限不足”

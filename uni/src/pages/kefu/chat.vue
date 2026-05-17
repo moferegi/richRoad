@@ -165,7 +165,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { onLoad, onPullDownRefresh, onUnload } from '@dcloudio/uni-app'
+import { onLoad, onShow, onPullDownRefresh, onUnload } from '@dcloudio/uni-app'
 import { getCsConfig, rateConversation, getMessageHistory } from '@/api/kefu.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { resolveApiMessage } from '@/utils/i18n.js'
@@ -174,6 +174,7 @@ import { getUrl } from '@/utils/url.js'
 // -------- i18n --------
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 // -------- WS 地址 --------
 let wsBase = 'wss://clothapi.235235.vip'
@@ -211,6 +212,7 @@ const agentAvatarUrl = ref('')
 const uploadMaxSizeMB = ref(5)
 const uploadAllowExt = ref(['jpg', 'jpeg', 'png', 'webp', 'gif'])
 const KEFU_CHAT_PREFILL_KEY = 'kefu:chat:prefill'
+const lastLoadedLocale = ref('')
 
 const canSend = computed(() =>
   inputText.value.trim().length > 0 &&
@@ -439,7 +441,7 @@ function handleWsMessage(frame) {
       convStatus.value = 'active'
       if (payload?.conversationId) convId.value = payload.conversationId
       queuePos.value = 0
-      appendSysHint($t.value('kefuAssignedHint'))
+      appendSysHint('kefuAssignedHint')
       scrollToBottom()
       break
     }
@@ -462,7 +464,7 @@ function handleWsMessage(frame) {
       break
     }
     case 'transfer': {
-      appendSysHint($t.value('kefuTransferred'))
+      appendSysHint('kefuTransferred')
       break
     }
     default:
@@ -470,12 +472,25 @@ function handleWsMessage(frame) {
   }
 }
 
-function appendSysHint(text) {
+function appendSysHint(i18nKey, fallbackText = '') {
   messages.value.push({
     tempId: `sys-${Date.now()}`,
     senderType: 'system',
-    content: text,
+    i18nKey: i18nKey || '',
+    content: i18nKey ? $t.value(i18nKey) : fallbackText,
     status: 'sent'
+  })
+}
+
+function refreshLocalizedSystemHints() {
+  messages.value = messages.value.map(msg => {
+    if (msg?.senderType !== 'system' || !msg?.i18nKey) {
+      return msg
+    }
+    return {
+      ...msg,
+      content: $t.value(msg.i18nKey)
+    }
   })
 }
 
@@ -663,9 +678,18 @@ function handleBack() {
 // -------- 生命周期 --------
 onLoad((options = {}) => {
   applyPaymentDraft(options)
+  lastLoadedLocale.value = locale.value
   loadChatConfig().finally(() => {
     connectWs()
   })
+})
+
+onShow(() => {
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged) {
+    refreshLocalizedSystemHints()
+  }
+  lastLoadedLocale.value = locale.value
 })
 
 onPullDownRefresh(() => {

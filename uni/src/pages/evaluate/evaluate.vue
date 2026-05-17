@@ -74,18 +74,20 @@
 import { ref, computed } from 'vue'
 import { findComment } from '@/api/comment.js'
 import { formatTimeToStr } from '@/utils/date.js'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const commentInfo = ref([])
 const allComments = ref([])
 const picCount = ref(0)
 const totalCount = ref(0)
 const tab = ref('all')
+const lastLoadedLocale = ref('')
 let ID = ''
 
 const goBack = () => {
@@ -105,6 +107,15 @@ const findFunc = async (params) => {
 onLoad((options) => {
   ID = options.goodsID
   setTimeout(() => findFunc(ID), 300)
+  lastLoadedLocale.value = locale.value
+})
+
+onShow(() => {
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged && ID) {
+    findFunc(ID)
+  }
+  lastLoadedLocale.value = locale.value
 })
 
 const choose = (type) => {

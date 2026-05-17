@@ -1,11 +1,18 @@
 import {request} from '@/utils/request.js'
 
+const withI18nFallbackData = (data = {}, options = {}) => {
+  if (options && options.includeI18n) {
+    return { ...data, includeI18n: 1 }
+  }
+  return data
+}
+
 // 添加购物车
-export const getAllClaimCoupon  = (data) => {
+export const getAllClaimCoupon  = (data, options = {}) => {
     return request({ 
 		url:'/cou/getAllClaimCoupon',
         method: 'post',
-		data: data
+		data: withI18nFallbackData(data, options)
     })
 }
 

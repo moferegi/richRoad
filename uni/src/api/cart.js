@@ -1,5 +1,12 @@
 import {request} from '@/utils/request.js'
 
+const withI18nFallback = (params = {}, options = {}) => {
+    if (options && options.includeI18n) {
+        return { ...params, includeI18n: 1 }
+    }
+    return params
+}
+
 // 添加购物车
 export const addCart  = (data) => {
     return request({ 
@@ -27,9 +34,10 @@ export const clearCart  = () => {
 }
 
 // 获取自身购物车 
-export const getSelfCart  = () => {
+export const getSelfCart  = (options = {}) => {
     return request({
 		url:'/cart/getSelfCart',
-        method: 'get'
+        method: 'get',
+        params: withI18nFallback({}, options)
     })
 }

@@ -443,7 +443,7 @@ const normalizePaymentMethods = (methods) => {
 
 const loadPaymentMethods = async () => {
   try {
-    const res = await getPaymentConfig()
+    const res = await getPaymentConfig({ includeI18n: true })
     const methods = normalizePaymentMethods(res?.data?.methods)
     paymentMethods.value = methods.length > 0 ? methods : buildDefaultPaymentMethods()
   } catch (e) {
@@ -453,7 +453,7 @@ const loadPaymentMethods = async () => {
 
 const loadRechargePlans = async () => {
   try {
-    const res = await getTryonRechargePlans()
+    const res = await getTryonRechargePlans({ includeI18n: true })
     if (res.code !== 0) {
       rechargePlans.value = cloneDefaultRechargePlans()
       return
@@ -688,6 +688,10 @@ const syncBodyScrollLock = () => {
 }
 
 watch([showRecharge, showAboutPopup, showLangPicker], syncBodyScrollLock)
+
+watch(locale, () => {
+  loadPaymentMethods()
+})
 
 onUnmounted(() => {
   if (typeof document === 'undefined' || !document.body) return

@@ -1,5 +1,12 @@
 import {request} from '@/utils/request.js'
 
+const withI18nFallback = (params = {}, options = {}) => {
+  if (options && options.includeI18n) {
+    return { ...params, includeI18n: 1 }
+  }
+  return params
+}
+
 // 直接下单
 export const placeOrder  = (data) => {
     return request({
@@ -124,34 +131,41 @@ export const findOrder = (params) => {
 
 
 
-export const selfOrderComment = (orderID,goodID,SKUID) => {
+export const selfOrderComment = (orderID, goodID, SKUID, options = {}) => {
   return request({
-    url: `/order/selfOrderComment?ID=${orderID}&goodID=${goodID}&SKUID=${SKUID}`,
-    method: 'get'
-  })
-}
-
-export const selfOrder = (params) => {
-  return request({
-    url: `/order/selfOrder?ID=${params}`,
-    method: 'get'
-  })
-}
-
-export const selfOrderList = (params) => {
-  return request({
-    url: `/order/selfOrderList?ID=${params}`,
-    method: 'get'
-  })
-}
-
-export const SelfOrderList = (params) => {
-  const query = typeof params === 'string'
-    ? `status=${params}`
-    : Object.entries(params).filter(([,v]) => v !== undefined && v !== '').map(([k,v]) => `${k}=${v}`).join('&')
-  return request({
-    url: `/order/selfOrderList?${query}`,
+    url: '/order/selfOrderComment',
     method: 'get',
+    params: withI18nFallback({
+      ID: orderID,
+      goodID,
+      SKUID,
+    }, options)
+  })
+}
+
+export const selfOrder = (params, options = {}) => {
+  return request({
+    url: '/order/selfOrder',
+    method: 'get',
+    params: withI18nFallback({ ID: params }, options)
+  })
+}
+
+export const selfOrderList = (params, options = {}) => {
+  const query = typeof params === 'object' ? params : { ID: params }
+  return request({
+    url: '/order/selfOrderList',
+    method: 'get',
+    params: withI18nFallback(query, options)
+  })
+}
+
+export const SelfOrderList = (params, options = {}) => {
+  const query = typeof params === 'string' ? { status: params } : params
+  return request({
+    url: '/order/selfOrderList',
+    method: 'get',
+    params: withI18nFallback(query, options)
   })
 }
 
@@ -180,10 +194,11 @@ export const applyRefund = (data) => {
 }
 
 // 获取浏览信息
-export const getGoodHistory = (params) => {
+export const getGoodHistory = (options = {}) => {
   return request({
     url: '/good/getGoodHistory',
     method: 'get',
+    params: withI18nFallback({}, options),
   })
 }
 

@@ -6,6 +6,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils" // 引入utils包
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -231,7 +232,7 @@ func (couApi *CouponOrderUserApi) GetAllClaimCoupon(c *gin.Context) {
 		response.FailWithMessage("获取失败: "+err.Error(), c)
 		return
 	}
-	response.OkWithData(coupons, c)
+	response.OkWithData(i18n.LocalizeResponseData(c, coupons), c)
 }
 
 // ClaimCouponByUser 用户领取优惠券

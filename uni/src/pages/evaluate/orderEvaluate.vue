@@ -84,7 +84,7 @@
 
 <script setup>
 import { ref, reactive, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { selfOrder, selfOrderComment } from '@/api/order.js'
 import { createComment } from '@/api/comment.js'
 import { resolveApiMessage } from '@/utils/i18n.js'
@@ -96,6 +96,7 @@ import { useLangStore } from '@/pinia/modules/lang.js'
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 
@@ -106,6 +107,13 @@ const orderItems = ref([])
 const loading = ref(false)
 const submitting = ref(false)
 const viewMode = ref(false) // 是否为查看模式
+const lastLoadedLocale = ref('')
+
+const updatePageTitle = () => {
+	uni.setNavigationBarTitle({
+		title: viewMode.value ? $t.value('viewReviewTitle') : $t.value('orderEvaluateTitle')
+	})
+}
 
 // 页面加载
 onLoad((options) => {
@@ -114,10 +122,9 @@ onLoad((options) => {
 		// 检查是否为查看模式
 		viewMode.value = options.mode === 'view'
 		// 设置页面标题
-		uni.setNavigationBarTitle({
-			title: viewMode.value ? $t.value('viewReviewTitle') : $t.value('orderEvaluateTitle')
-		})
+		updatePageTitle()
 		loadOrderData()
+		lastLoadedLocale.value = locale.value
 	} else {
 		uni.showToast({
 			title: $t.value('orderIdRequired'),
@@ -127,6 +134,18 @@ onLoad((options) => {
 			uni.navigateBack()
 		}, 1500)
 	}
+})
+
+onShow(() => {
+	const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+	if (localeChanged) {
+		updatePageTitle()
+		// 查看模式可安全重拉；编辑模式保留用户草稿，避免切语言后输入丢失。
+		if (viewMode.value && orderID.value) {
+			loadOrderData()
+		}
+	}
+	lastLoadedLocale.value = locale.value
 })
 
 // 加载订单数据

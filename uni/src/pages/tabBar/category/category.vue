@@ -113,6 +113,7 @@
 
 <script setup>
 import {ref, computed, onMounted} from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import {getUrl} from '@/utils/url'
 import {getCategoryMobile, getChildrenCategoryAndProduct} from '@/api/homePage.js'
 import { formatLocalizedPrice } from '@/utils/price-i18n.js'
@@ -136,19 +137,32 @@ const currentCategory = ref(null)
 // 分类和商品数据
 const categoriesWithGoods = ref([])
 const loading = ref(false)
+const lastLoadedLocale = ref('')
 
 // 新增：用于存储转换后的 lower-threshold 的 px 值
 const lowerThresholdInPx = ref(50) // 给一个默认的px值，在onMounted中会被实际rpx转换值覆盖
 
+const getCategoryId = (item) => Number(item?.ID || item?.id || 0)
+
 // 获取分类数据
-const getCategoryData = async () => {
+const getCategoryData = async (preserveActive = false) => {
   try {
     const res = await getCategoryMobile()
     if (res && res.data) {
       catelist.value = res.data
       if (catelist.value.length > 0) {
-        currentCategory.value = catelist.value[0]
-        await loadCategoryData(currentCategory.value.ID)
+        let nextIndex = 0
+        if (preserveActive && currentCategory.value) {
+          const currentId = getCategoryId(currentCategory.value)
+          const foundIndex = catelist.value.findIndex((item) => getCategoryId(item) === currentId)
+          if (foundIndex >= 0) {
+            nextIndex = foundIndex
+          }
+        }
+
+        activeindex.value = nextIndex
+        currentCategory.value = catelist.value[nextIndex]
+        await loadCategoryData(currentCategory.value.ID || currentCategory.value.id)
       } else {
         categoriesWithGoods.value = [];
         currentCategory.value = null;
@@ -235,6 +249,15 @@ onMounted(() => {
   // console.log(`200rpx is approximately ${lowerThresholdInPx.value}px on this device.`); // 用于调试
 
   getCategoryData()
+  lastLoadedLocale.value = locale.value
+})
+
+onShow(() => {
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged) {
+    getCategoryData(true)
+  }
+  lastLoadedLocale.value = locale.value
 })
 </script>
 

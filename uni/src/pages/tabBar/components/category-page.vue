@@ -92,7 +92,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { getCategoryMobile, getGoodList } from '@/api/homePage.js'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getUrl, getExternalUrl } from '@/utils/url'
 import { formatLocalizedPrice } from '@/utils/price-i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
@@ -113,6 +113,8 @@ const loading = ref(false)
 const noMore = ref(false)
 const gridList = ref([])
 const flowData = ref([])
+const parentCategoryID = ref('')
+const lastLoadedLocale = ref('')
 
 const goBack = () => {
   uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/tabBar/index' }) })
@@ -122,15 +124,33 @@ const formatPrice = (item) => formatLocalizedPrice(item?.price, item?.priceI18n,
 
 onLoad((options) => {
   if (options.id) {
+    parentCategoryID.value = options.id
     initCategory(options.id)
+    lastLoadedLocale.value = locale.value
   }
 })
 
-const initCategory = async (parentID) => {
+onShow(() => {
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged && parentCategoryID.value) {
+    initCategory(parentCategoryID.value, true)
+  }
+  lastLoadedLocale.value = locale.value
+})
+
+const initCategory = async (parentID, preserveCurrent = false) => {
+  const previousCategoryID = currentCategoryID.value
   const res = await getCategoryMobile({ parentID })
   if (res.code === 0 && res.data.length) {
     gridList.value = res.data
-    currentCategoryID.value = res.data[0].ID
+    let nextCategoryID = res.data[0].ID
+    if (preserveCurrent && previousCategoryID) {
+      const matched = res.data.find(item => String(item.ID) === String(previousCategoryID))
+      if (matched) {
+        nextCategoryID = matched.ID
+      }
+    }
+    currentCategoryID.value = nextCategoryID
   }
 
   const targetIndex = gridList.value.findIndex(item => item.ID == currentCategoryID.value)

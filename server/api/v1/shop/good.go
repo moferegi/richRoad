@@ -7,6 +7,7 @@ import (
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -120,7 +121,7 @@ func (goodApi *GoodApi) FindGood(c *gin.Context) {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
 		response.FailWithMessage("查询失败", c)
 	} else {
-		response.OkWithData(gin.H{"regood": regood}, c)
+		response.OkWithData(i18n.LocalizeResponseData(c, gin.H{"regood": regood}), c)
 	}
 }
 
@@ -138,7 +139,7 @@ func (goodApi *GoodApi) GetGoodHistory(c *gin.Context) {
 		global.GVA_LOG.Error("获取历史记录失败!", zap.Error(err))
 		response.FailWithMessage("获取历史记录失败", c)
 	} else {
-		response.OkWithData(goods, c)
+		response.OkWithData(i18n.LocalizeResponseData(c, goods), c)
 	}
 }
 
@@ -185,12 +186,13 @@ func (goodApi *GoodApi) GetGoodList(c *gin.Context) {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
 		response.FailWithMessage("获取失败", c)
 	} else {
-		response.OkWithDetailed(response.PageResult{
+		pageResult := response.PageResult{
 			List:     list,
 			Total:    total,
 			Page:     pageInfo.Page,
 			PageSize: pageInfo.PageSize,
-		}, "获取成功", c)
+		}
+		response.OkWithDetailed(i18n.LocalizeResponseData(c, pageResult), "获取成功", c)
 	}
 }
 

@@ -88,8 +88,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, reactive, computed, watch } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getGeos, createAddress } from '@/api/address.js'
 import { getEnabledPhoneAreaCodes } from '@/api/phoneAreaCode.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
@@ -98,6 +98,7 @@ import { localText } from '@/utils/i18n'
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const formData = reactive({
   phone: '',
@@ -122,13 +123,20 @@ const isCounty = ref(false)
 const showAreaCodePicker = ref(false)
 const areaCodes = ref([])
 const selectedAreaCode = ref('+86')
+const lastLoadedLocale = ref('')
 
 const changeKey = (data) => {
   return data.map(item => ({
     ...item,
     value: item.code,
-    text: localText(item.nameI18n) || item.name
+    text: localText(item.nameI18n, langStore.locale) || item.name
   }))
+}
+
+const refreshGeoLabels = () => {
+  areaProvince.value = changeKey(areaProvince.value)
+  areaCity.value = changeKey(areaCity.value)
+  areaCounty.value = changeKey(areaCounty.value)
 }
 
 const findCodeByValue = (data, selectedValue) => {
@@ -164,6 +172,19 @@ onLoad((options) => {
   if (options.ID) orderID.value = options.ID
   init()
   loadAreaCodes()
+  lastLoadedLocale.value = locale.value
+})
+
+onShow(() => {
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged) {
+    refreshGeoLabels()
+  }
+  lastLoadedLocale.value = locale.value
+})
+
+watch(() => langStore.locale, () => {
+  refreshGeoLabels()
 })
 
 const changeProvince = async (e) => {

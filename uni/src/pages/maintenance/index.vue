@@ -43,18 +43,21 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { getUrl } from '@/utils/url.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const bgImage = ref('')
 const popupEnabled = ref(false)
 const popupTitle = ref('')
 const popupContent = ref('')
 const homeBtnEnabled = ref(false)
+const lastLoadedLocale = ref('')
 
 const resolveImageUrl = (url) => {
   const raw = String(url || '').trim()
@@ -90,6 +93,15 @@ const goHome = () => {
 
 onMounted(() => {
   loadConfig()
+  lastLoadedLocale.value = locale.value
+})
+
+onShow(() => {
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged) {
+    loadConfig()
+  }
+  lastLoadedLocale.value = locale.value
 })
 </script>
 

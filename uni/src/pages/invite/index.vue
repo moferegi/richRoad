@@ -102,7 +102,8 @@ const inviteRewardStats = ref({
   totalTryonReward: 0,
   rewardCount: 0,
 })
-const inviteShareTipText = ref('')
+const inviteShareTipTextRaw = ref('')
+const inviteShareTipText = computed(() => String(localText(inviteShareTipTextRaw.value, langStore.locale) || '').trim())
 const inviteShareTipTextColor = ref('#475569')
 
 const subordinateList = ref([])
@@ -240,13 +241,13 @@ const normalizeColorValue = (value, fallback = '#475569') => {
 const loadInviteShareTipConfig = async () => {
   try {
     const [tipRes, colorRes] = await Promise.all([
-      getSysConfigByKey('invite_share_link_tip_text'),
+      getSysConfigByKey('invite_share_link_tip_text', { includeI18n: true }),
       getSysConfigByKey('invite_share_link_tip_text_color'),
     ])
 
     if (tipRes.code === 0) {
       const rawText = typeof tipRes.data === 'object' ? tipRes.data?.configValue : tipRes.data
-      inviteShareTipText.value = localText(rawText, langStore.locale) || ''
+      inviteShareTipTextRaw.value = rawText || ''
     }
 
     if (colorRes.code === 0) {
@@ -254,7 +255,7 @@ const loadInviteShareTipConfig = async () => {
       inviteShareTipTextColor.value = normalizeColorValue(rawColor, '#475569')
     }
   } catch (e) {
-    inviteShareTipText.value = ''
+    inviteShareTipTextRaw.value = ''
     inviteShareTipTextColor.value = '#475569'
   }
 }

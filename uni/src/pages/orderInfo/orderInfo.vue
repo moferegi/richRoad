@@ -201,6 +201,7 @@ const paramCouponNum = ref('')
 const paymentMethods = ref([])
 const payMethodSheetVisible = ref(false)
 const payMethodSheetItems = ref([])
+const lastLoadedLocale = ref('')
 
 const paymentMethodLabelMap = () => ({
   qrcode: $t.value('payByQrcode'),
@@ -226,7 +227,7 @@ const buildDefaultPaymentMethods = () => ([
 
 const loadPaymentMethods = async () => {
   try {
-    const res = await getPaymentConfig()
+    const res = await getPaymentConfig({ includeI18n: true })
     const methods = Array.isArray(res?.data?.methods)
       ? res.data.methods
         .filter(m => m && m.key && m.enabled !== false)
@@ -467,10 +468,17 @@ onLoad(async (options) => {
   }
   loadAddress()
   loadUserPoints()
+  lastLoadedLocale.value = locale.value
 })
 
 // 每次页面显示时刷新地址（用户可能从地址页返回 / 选择了指定地址）
 onShow(() => {
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged) {
+    loadPaymentMethods()
+  }
+  lastLoadedLocale.value = locale.value
+
   const selected = uni.getStorageSync('selectedAddress')
   if (selected) {
     uni.removeStorageSync('selectedAddress')

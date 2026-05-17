@@ -1338,7 +1338,7 @@ const selectModel = (key) => {
 }
 
 const loadConfig = async () => {
-  const res = await getTryonConfig()
+  const res = await getTryonConfig({ includeI18n: true })
   if (res.code === 0 && res.data) {
     tryonConfig.value = { ...tryonConfig.value, ...res.data }
   }

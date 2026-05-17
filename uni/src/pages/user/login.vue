@@ -112,7 +112,7 @@
 		computed,
 		onMounted
 	} from 'vue';
-  import { onLoad } from '@dcloudio/uni-app'
+  import { onLoad, onShow } from '@dcloudio/uni-app'
 
 	import {useUserStore} from "@/pinia/modules/user.js"
 	import { useLangStore } from '@/pinia/modules/lang.js'
@@ -124,6 +124,7 @@
   const appConfigStore = useAppConfigStore()
 	const $t = computed(() => langStore.$t)
 	const $lt = computed(() => langStore.$lt)
+  const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
   const appName = computed(() => appConfigStore.appName || 'RichRoad')
   const appLogoUrl = computed(() => getExternalUrl(appConfigStore.appLogo || ''))
   const langLabel = computed(() => {
@@ -131,6 +132,7 @@
 	  return map[langStore.locale] || langStore.locale.slice(0, 2).toUpperCase()
 	})
 	const showLangPicker = ref(false)
+  const lastLoadedLocale = ref('')
   const inviteCodeFromShare = ref('')
 
   const tryAutoShowLangPicker = () => {
@@ -201,7 +203,7 @@
 		if (!jsonStr) return ''
 		try {
 			const obj = JSON.parse(jsonStr)
-			return obj[langStore.locale] || obj['zh'] || obj['en'] || ''
+      return obj[langStore.locale] || obj['en'] || obj['zh'] || ''
 		} catch(e) {
 			return jsonStr
 		}
@@ -289,6 +291,15 @@
 
   onLoad((options) => {
     applyInviteCode(options)
+    lastLoadedLocale.value = locale.value
+  })
+
+  onShow(() => {
+    const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+    if (localeChanged) {
+      getCaptchaFunc()
+    }
+    lastLoadedLocale.value = locale.value
   })
 
 	onMounted(() => {

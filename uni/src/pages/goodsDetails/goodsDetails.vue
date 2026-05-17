@@ -183,7 +183,7 @@ import goodsSwiper from './components/goods-swiper.vue'
 import goodsSku from './components/goods-sku.vue'
 import goodsDetail from './components/goods-detail.vue'
 import { ref, computed, onUnmounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { findGood } from '@/api/product.js'
 import { SelfOrderList } from '@/api/order.js'
 import { myRouter } from '@/utils/permission'
@@ -211,6 +211,7 @@ const data = ref({})
 const goodsDisplayPrice = computed(() => {
   return formatLocalizedPrice(data.value?.price, data.value?.priceI18n, locale.value)
 })
+const lastLoadedLocale = ref('')
 const collectionFlag = ref('')
 const goodID = ref(0)
 const userStore = useUserStore()
@@ -220,7 +221,16 @@ onLoad((options) => {
   if (options.id) {
     goodID.value = options.id
     init()
+    lastLoadedLocale.value = locale.value
   }
+})
+
+onShow(() => {
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged && goodID.value) {
+    init()
+  }
+  lastLoadedLocale.value = locale.value
 })
 
 const init = async () => {
@@ -526,7 +536,6 @@ page { background-color: #f4f7fb; }
 .nf-meta-row {
   font-size: 24rpx; color: var(--nf-text-tertiary); display: flex; gap: 24rpx;
 }
-.nf-meta-sep { }
 .nf-presale-time {
   display: flex; align-items: center; gap: 10rpx; margin-top: 16rpx; padding: 16rpx 20rpx;
   background: rgba(245, 158, 11, 0.12); border: 1rpx solid rgba(245, 158, 11, 0.2);

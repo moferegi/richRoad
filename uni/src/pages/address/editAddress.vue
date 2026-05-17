@@ -89,7 +89,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getGeos, updateAddress, findAddress } from '@/api/address.js'
 import { getEnabledPhoneAreaCodes } from '@/api/phoneAreaCode.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
@@ -98,6 +98,7 @@ import { localText } from '@/utils/i18n'
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const formData = ref({})
 const areaProvince = ref([])
@@ -110,13 +111,20 @@ const addrID = ref('')
 const showAreaCodePicker = ref(false)
 const areaCodes = ref([])
 const selectedAreaCode = ref('+86')
+const lastLoadedLocale = ref('')
 
 const changeKey = (data) => {
   return data.map(item => ({
     ...item,
     value: item.code,
-    text: localText(item.nameI18n) || item.name
+    text: localText(item.nameI18n, langStore.locale) || item.name
   }))
+}
+
+const refreshGeoLabels = () => {
+  areaProvince.value = changeKey(areaProvince.value)
+  areaCity.value = changeKey(areaCity.value)
+  areaCounty.value = changeKey(areaCounty.value)
 }
 
 const findCodeByValue = (data, selectedValue) => {
@@ -158,10 +166,23 @@ onLoad(async (e) => {
     // 回显区号
     selectedAreaCode.value = info.areaCode || '+86'
   }
+  lastLoadedLocale.value = locale.value
+})
+
+onShow(() => {
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged) {
+    refreshGeoLabels()
+  }
+  lastLoadedLocale.value = locale.value
 })
 
 watch(() => formData.value.provinceSelect, (newVal) => {
   if (newVal) loadCities(newVal)
+})
+
+watch(() => langStore.locale, () => {
+  refreshGeoLabels()
 })
 
 watch(() => formData.value.citySelect, (newVal) => {

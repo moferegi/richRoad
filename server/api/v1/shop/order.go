@@ -10,6 +10,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/passport/sf"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -277,12 +278,13 @@ func (orderApi *OrderApi) SelfOrderList(c *gin.Context) {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
 		response.FailWithMessage("获取失败", c)
 	} else {
-		response.OkWithData(response.PageResult{
+		pageResult := response.PageResult{
 			List:     list,
 			Total:    total,
 			Page:     order.Page,
 			PageSize: order.PageSize,
-		}, c)
+		}
+		response.OkWithData(i18n.LocalizeResponseData(c, pageResult), c)
 	}
 }
 
@@ -302,7 +304,7 @@ func (orderApi *OrderApi) SelfOrder(c *gin.Context) {
 		global.GVA_LOG.Error("查询失败："+err.Error(), zap.Error(err))
 		response.FailWithMessage("查询失败:"+err.Error(), c)
 	} else {
-		response.OkWithData(order, c)
+		response.OkWithData(i18n.LocalizeResponseData(c, order), c)
 	}
 }
 
@@ -315,7 +317,7 @@ func (orderApi *OrderApi) SelfOrderComment(c *gin.Context) {
 		global.GVA_LOG.Error("查询失败："+err.Error(), zap.Error(err))
 		response.FailWithMessage("查询失败:"+err.Error(), c)
 	} else {
-		response.OkWithData(order, c)
+		response.OkWithData(i18n.LocalizeResponseData(c, order), c)
 	}
 }
 

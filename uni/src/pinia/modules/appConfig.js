@@ -53,8 +53,8 @@ export const useAppConfigStore = defineStore('appConfig', () => {
 
     try {
       const [symRes, nameRes, logoRes] = await Promise.all([
-        getCurrencySymbol(),
-        getAppName(),
+        getCurrencySymbol({ includeI18n: true }),
+        getAppName({ includeI18n: true }),
         getAppLogo(),
       ])
 

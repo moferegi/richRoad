@@ -52,20 +52,31 @@
 
 <script setup>
 import { reactive, ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getCaptcha, setPhoneVerified } from '@/api/base.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const currentPhone = ref('')
 const submitting = ref(false)
+const lastLoadedLocale = ref('')
 
 onLoad((options) => {
   if (options.phone) {
     currentPhone.value = options.phone
   }
+  lastLoadedLocale.value = locale.value
+})
+
+onShow(() => {
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged) {
+    getCaptchaFunc()
+  }
+  lastLoadedLocale.value = locale.value
 })
 
 const maskedCurrentPhone = computed(() => {

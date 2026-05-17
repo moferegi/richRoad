@@ -105,7 +105,7 @@ import { ref, computed } from 'vue'
 import { selfOrderComment } from '@/api/order'
 import { createComment } from '@/api/comment'
 import { getSysConfigByKey } from '@/api/sysConfig.js'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { baseUrl } from '@/utils/request.js'
 import { resolveApiMessage } from '@/utils/i18n.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
@@ -114,6 +114,7 @@ import { useLangStore } from '@/pinia/modules/lang.js'
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const orderID = ref(0)
 const goodID = ref(0)
@@ -128,6 +129,7 @@ const isSubmitting = ref(false)
 const shopReply = ref('')
 const shopReplyAt = ref('')
 const picEnabled = ref(true)
+const lastLoadedLocale = ref('')
 
 const goBack = () => {
   uni.navigateBack({ delta: 1, fail: () => uni.switchTab({ url: '/pages/tabBar/my/index' }) })
@@ -186,6 +188,19 @@ onLoad(async (options) => {
   SKUID.value = Number(options.SKUID)
   loadPicConfig()
   setTimeout(() => init(), 200)
+  lastLoadedLocale.value = locale.value
+})
+
+onShow(() => {
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged) {
+    loadPicConfig()
+    // 查看模式可重拉详情；编辑模式保留用户输入，避免草稿丢失。
+    if (isCheck.value && orderID.value && goodID.value && SKUID.value) {
+      init()
+    }
+  }
+  lastLoadedLocale.value = locale.value
 })
 
 const chooseImage = () => {

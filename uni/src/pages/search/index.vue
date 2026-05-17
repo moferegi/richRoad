@@ -78,7 +78,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getGoodList } from '@/api/homePage.js'
 import noPaginGridGoodList from '@/components/good-list/no-pagin-grid-good-list.vue'
 import { resolveApiMessage } from '@/utils/i18n.js'
@@ -87,6 +87,7 @@ import { useLangStore } from '@/pinia/modules/lang.js'
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 const searchResultLabel = computed(() => $t.value('searchResultCount').replace('{' + '{n}}', goodsList.value.length))
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 // 搜索相关
 const searchKeyword = ref('')
@@ -97,6 +98,7 @@ const sessionFrom = ref('search-page')
 const goodsList = ref([])
 const isLoading = ref(false)
 const isBottom = ref(false)
+const lastLoadedLocale = ref('')
 const params = ref({
   page: 1,
   pageSize: 10,
@@ -133,6 +135,19 @@ onLoad((options) => {
       params.value.categoryID = categoryID
     }
   }
+
+  lastLoadedLocale.value = locale.value
+})
+
+onShow(async () => {
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+  if (localeChanged && hasSearched.value) {
+    params.value.page = 1
+    goodsList.value = []
+    isBottom.value = false
+    await loadGoodsList(true)
+  }
+  lastLoadedLocale.value = locale.value
 })
 
 // 返回首页

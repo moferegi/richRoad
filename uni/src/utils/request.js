@@ -254,6 +254,7 @@ export const request = ({url, data, header, method, params}) => {
             header: {
                 'x-token': uni.getStorageSync('x-token'),
                 'Accept-Language': uni.getStorageSync('app-lang') || 'zh',
+                'X-Client-App': 'uni',
                 ...header
             },
             success: (res) => {

@@ -21,15 +21,17 @@
 <script setup>
 	import {ref, computed} from 'vue'
   import { checkRouters } from '@/api/order'
-  import { onLoad } from '@dcloudio/uni-app'
+	import { onLoad, onShow } from '@dcloudio/uni-app'
   import { useLangStore } from '@/pinia/modules/lang.js'
 
   const langStore = useLangStore()
   const $t = computed(() => langStore.$t)
+	const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
   const infoList = ref([])
   const express = ref('')
   const expressNum = ref('')
+	const lastLoadedLocale = ref('')
   const init = async () => {
     const res = await checkRouters(express.value)
     if(res.code === 0) {
@@ -45,7 +47,16 @@
   onLoad( async (options) => {
     express.value = options.express
     init()
+		lastLoadedLocale.value = locale.value
   })
+
+	onShow(() => {
+		const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+		if (localeChanged && express.value) {
+			init()
+		}
+		lastLoadedLocale.value = locale.value
+	})
 
   const copyBoard = () => {
     uni.setClipboardData({

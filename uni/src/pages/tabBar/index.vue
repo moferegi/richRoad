@@ -1761,7 +1761,7 @@ const loadExampleDomain = async () => {
 
 const loadAnnouncement = async () => {
   try {
-    const res = await getAnnouncementConfig()
+    const res = await getAnnouncementConfig({ includeI18n: true })
     if (res.code !== 0 || !res.data || typeof res.data !== 'object') return
     announcementConfig.value = {
       ...announcementConfig.value,
@@ -1894,7 +1894,7 @@ const selectModel = (key) => {
 }
 
 const loadConfig = async () => {
-  const res = await getTryonConfig()
+  const res = await getTryonConfig({ includeI18n: true })
   if (res.code === 0 && res.data) {
     tryonConfig.value = { ...tryonConfig.value, ...res.data }
   }
