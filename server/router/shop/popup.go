@@ -15,10 +15,11 @@ func (s *PopupRouter) InitPopupRouter(Router *gin.RouterGroup, PublicRouter *gin
 
 	var popupApi = v1.ApiGroupApp.ShopApiGroup.PopupApi
 	{
-		popupRouter.POST("createPopup", popupApi.CreatePopup)       // 创建弹窗
-		popupRouter.DELETE("deletePopup", popupApi.DeletePopup)     // 删除弹窗
-		popupRouter.PUT("updatePopup", popupApi.UpdatePopup)        // 更新弹窗
-		popupRouter.GET("getPopupList", popupApi.GetPopupList)      // 获取弹窗列表
+		popupRouter.POST("createPopup", popupApi.CreatePopup)                        // 创建弹窗
+		popupRouter.DELETE("deletePopup", popupApi.DeletePopup)                      // 删除弹窗
+		popupRouter.PUT("updatePopup", popupApi.UpdatePopup)                         // 更新弹窗
+		popupRouter.GET("getPopupList", popupApi.GetPopupList)                       // 获取弹窗列表
+		popupRouter.GET("getPopupPagePathOptions", popupApi.GetPopupPagePathOptions) // 获取弹窗页面路径选项(需登录+权限)
 	}
 	{
 		popupRouterWithoutAuth.GET("getActivePopups", popupApi.GetActivePopups) // 客户端获取生效弹窗

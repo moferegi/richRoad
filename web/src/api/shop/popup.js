@@ -49,3 +49,13 @@ export const getActivePopups = (params) => {
     params
   })
 }
+
+// @Tags Popup
+// @Summary 获取弹窗可选页面路径
+export const getPopupPagePathOptions = (params) => {
+  return service({
+    url: '/popup/getPopupPagePathOptions',
+    method: 'get',
+    params
+  })
+}

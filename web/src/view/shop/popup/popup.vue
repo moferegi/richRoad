@@ -84,7 +84,7 @@
         <el-table-column align="left" label="展示页面" min-width="200">
           <template #default="scope">
             <template v-if="scope.row.pages">
-              <el-tag v-for="p in scope.row.pages.split(',')" :key="p" size="small" class="mr-1 mb-1">{{ p }}</el-tag>
+              <el-tag v-for="p in getDisplayPageTags(scope.row.pages)" :key="p.value" size="small" class="mr-1 mb-1">{{ p.text }}</el-tag>
             </template>
             <el-tag v-else-if="scope.row.position" size="small" type="info">{{ scope.row.position }}</el-tag>
             <span v-else>-</span>
@@ -194,16 +194,66 @@
             <!-- 展示页面路径(标签输入) -->
             <el-form-item label="展示页面路径:" prop="pages">
               <div style="width:100%;">
-                <div class="mb-2">
-                  <el-tag v-for="(p, idx) in pagesList" :key="idx" closable class="mr-1 mb-1" @close="removePageTag(idx)">{{ p }}</el-tag>
-                </div>
-                <div class="flex gap-2">
-                  <el-select v-model="newPagePath" filterable allow-create default-first-option placeholder="选择或输入页面路径" style="flex:1;" @keyup.enter="addPageTag">
-                    <el-option v-for="p in commonPages" :key="p.value" :label="p.label" :value="p.value" />
+                <div class="flex gap-2 mb-2">
+                  <el-input v-model="newPageName" placeholder="名称(可选)，如：首页" style="width: 220px;" />
+                  <el-select v-model="newPagePath" filterable allow-create default-first-option placeholder="选择或输入页面路径" style="flex:1;" @keyup.enter="addPageEntry">
+                    <el-option v-for="p in pageOptions" :key="p.value" :label="`${p.label} (${p.value})`" :value="p.value">
+                      <div class="flex justify-between items-center">
+                        <span>{{ p.label }}</span>
+                        <span class="text-xs text-gray-400 ml-3">{{ p.value }}</span>
+                      </div>
+                    </el-option>
                   </el-select>
-                  <el-button type="primary" @click="addPageTag">添加</el-button>
+                  <el-button type="primary" @click="addPageEntry">添加</el-button>
                 </div>
-                <div class="text-xs text-gray-400 mt-1">选择"all"表示所有页面生效。也可手动输入自定义路径。</div>
+
+                <el-table v-if="pageEntries.length" :data="pageEntries" size="small" border class="mb-2">
+                  <el-table-column label="名称" min-width="150">
+                    <template #default="scope">
+                      <template v-if="editingPageIndex === scope.$index">
+                        <el-input v-model="editingPageName" placeholder="名称(可选)" />
+                      </template>
+                      <template v-else>
+                        {{ scope.row.name || '-' }}
+                      </template>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="路径" min-width="320">
+                    <template #default="scope">
+                      <template v-if="editingPageIndex === scope.$index">
+                        <el-select v-model="editingPagePath" filterable allow-create default-first-option placeholder="选择或输入页面路径" style="width:100%;">
+                          <el-option v-for="p in pageOptions" :key="p.value" :label="`${p.label} (${p.value})`" :value="p.value" />
+                        </el-select>
+                      </template>
+                      <template v-else>
+                        {{ scope.row.path }}
+                      </template>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="220" fixed="right">
+                    <template #default="scope">
+                      <template v-if="editingPageIndex === scope.$index">
+                        <el-button link type="primary" @click="saveEditPageEntry(scope.$index)">保存</el-button>
+                        <el-button link @click="cancelEditPageEntry">取消</el-button>
+                      </template>
+                      <template v-else>
+                        <el-button link type="primary" @click="startEditPageEntry(scope.$index)">修改</el-button>
+                        <el-button link type="danger" @click="removePageEntry(scope.$index)">删除</el-button>
+                      </template>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <div v-else class="text-xs text-gray-400 mb-2">暂无已配置页面路径</div>
+
+                <div class="mb-2">
+                  <el-tag v-for="(entry, idx) in pageEntries" :key="`${entry.path}_${idx}`" class="mr-1 mb-1" type="info" effect="plain">{{ formatPageEntryTag(entry) }}</el-tag>
+                </div>
+                <div class="text-xs text-gray-400 mt-1">选择"all"表示不按页面过滤，客户端下所有页面生效。也可手动输入自定义路径。</div>
+                <div class="text-xs text-gray-500 mt-2">all 当前覆盖（系统路由 + 已配置路径）：</div>
+                <div class="mt-1" v-if="allPageScopeList.length">
+                  <el-tag v-for="p in allPageScopeList" :key="p" size="small" effect="plain" class="mr-1 mb-1">{{ p }}</el-tag>
+                </div>
+                <div class="text-xs text-gray-400 mt-1" v-else>暂无已收录路径</div>
               </div>
             </el-form-item>
 
@@ -263,7 +313,8 @@ import {
   createPopup,
   deletePopup,
   updatePopup,
-  getPopupList
+  getPopupList,
+  getPopupPagePathOptions
 } from '@/api/shop/popup'
 import { getUrl } from '@/utils/image'
 import { getEnabledLanguages } from '@/api/client/language'
@@ -272,7 +323,7 @@ import SelectImage from '@/components/selectImage/selectImage.vue'
 import RichEdit from '@/components/richtext/rich-edit.vue'
 import { formatDate } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, watch, computed } from 'vue'
 
 defineOptions({ name: 'Popup' })
 
@@ -286,13 +337,18 @@ const clientTypeMap = { uni: 'uni端', web: 'web端', all: '全部' }
 const commonPages = [
   { label: '所有页面', value: 'all' },
   { label: '首页', value: '/pages/tabBar/index' },
+  { label: '衣服商品页', value: '/pages/tabBar/clothes/index' },
+  { label: '我的', value: '/pages/tabBar/my/index' },
   { label: '商品详情', value: '/pages/goodsDetails/goodsDetails' },
-  { label: '分类页', value: '/pages/tabBar/category' },
-  { label: '购物车', value: '/pages/tabBar/cart' },
-  { label: '我的', value: '/pages/tabBar/mine' },
-  { label: '订单列表', value: '/pages/order/orderList' },
-  { label: '预售专区', value: '/pages/presale/presale' },
+  { label: '购物车', value: '/pages/cart/index' },
+  { label: '订单列表', value: '/pages/order/order' },
+  { label: '预售专区', value: '/pages/presale/list' },
 ]
+
+const CUSTOM_PAGE_LABEL = '自定义路径'
+const RUNTIME_PAGE_LABEL = '可用页面'
+const customPageOptions = ref([])
+const runtimePageOptions = ref([])
 
 // === 多语言支持 ===
 const enabledLangs = ref([])
@@ -329,28 +385,266 @@ const parseTitle = (title) => {
   } catch { return title }
 }
 
-onMounted(() => { loadLangs() })
+onMounted(() => {
+  loadLangs()
+  loadRuntimePageOptions('all')
+})
 
 // === 页面路径标签管理 ===
-const pagesList = ref([])
-const newPagePath = ref('')
+const PAGE_NAME_PATH_SEPARATOR = '|'
 
-const addPageTag = () => {
-  const v = (newPagePath.value || '').trim()
-  if (!v) return
-  if (!pagesList.value.includes(v)) {
-    pagesList.value.push(v)
+const pageEntries = ref([])
+const newPageName = ref('')
+const newPagePath = ref('')
+const editingPageIndex = ref(-1)
+const editingPageName = ref('')
+const editingPagePath = ref('')
+
+const normalizePagePathInput = (rawPath) => {
+  const raw = String(rawPath || '').trim()
+  if (!raw) return ''
+
+  if (raw.toLowerCase() === 'all' || raw === '所有页面') return 'all'
+
+  const byLabel = commonPages.find(item => item.label === raw)
+  let normalized = byLabel ? byLabel.value : raw
+
+  if (String(normalized).toLowerCase() === 'all') return 'all'
+  normalized = String(normalized).replace(/\\/g, '/')
+  if (!normalized.startsWith('/')) {
+    normalized = '/' + normalized
   }
+  normalized = normalized.replace(/\/+/g, '/')
+  if (normalized.length > 1) {
+    normalized = normalized.replace(/\/+$/, '')
+  }
+  return normalized
+}
+
+const dedupePageEntries = (entries = []) => {
+  const result = []
+  const seen = new Set()
+
+  entries.forEach(item => {
+    const path = normalizePagePathInput(item?.path)
+    if (!path || seen.has(path)) return
+    seen.add(path)
+    result.push({
+      name: String(item?.name || '').trim(),
+      path,
+    })
+  })
+
+  return result
+}
+
+const parsePageEntryToken = (token) => {
+  const raw = String(token || '').trim()
+  if (!raw) return null
+
+  let name = ''
+  let pathValue = raw
+  if (raw.includes(PAGE_NAME_PATH_SEPARATOR)) {
+    const [tokenName, tokenPath] = raw.split(PAGE_NAME_PATH_SEPARATOR)
+    name = String(tokenName || '').trim()
+    pathValue = String(tokenPath || '').trim()
+  }
+
+  const path = normalizePagePathInput(pathValue)
+  if (!path) return null
+  return { name, path }
+}
+
+const parsePageEntriesFromRaw = (rawPages) => {
+  const entries = String(rawPages || '')
+    .split(',')
+    .map(parsePageEntryToken)
+    .filter(Boolean)
+  return dedupePageEntries(entries)
+}
+
+const serializePageEntry = (entry) => {
+  const path = normalizePagePathInput(entry?.path)
+  if (!path) return ''
+
+  const name = String(entry?.name || '').trim()
+  if (!name || path === 'all') {
+    return path
+  }
+
+  return `${name}${PAGE_NAME_PATH_SEPARATOR}${path}`
+}
+
+const normalizedPathList = (rawPages) => {
+  return parsePageEntriesFromRaw(rawPages).map(item => item.path)
+}
+
+const pageOptions = computed(() => {
+  const merged = []
+  const seen = new Set()
+
+  const pushOption = (label, value) => {
+    const normalizedValue = normalizePagePathInput(value)
+    if (!normalizedValue || seen.has(normalizedValue)) return
+    seen.add(normalizedValue)
+    merged.push({
+      label: label || (normalizedValue === 'all' ? '所有页面' : CUSTOM_PAGE_LABEL),
+      value: normalizedValue,
+    })
+  }
+
+  commonPages.forEach(item => pushOption(item.label, item.value))
+  runtimePageOptions.value.forEach(item => pushOption(item.label, item.value))
+  customPageOptions.value.forEach(item => pushOption(item.label, item.value))
+
+  return merged
+})
+
+const allPageScopeList = computed(() => {
+  return pageOptions.value
+    .map(item => item.value)
+    .filter(value => value !== 'all')
+})
+
+const ensureCustomPageOption = (path) => {
+  const normalized = normalizePagePathInput(path)
+  if (!normalized || normalized === 'all') return
+
+  const inCommon = commonPages.some(item => normalizePagePathInput(item.value) === normalized)
+  if (inCommon) return
+
+  const inCustom = customPageOptions.value.some(item => normalizePagePathInput(item.value) === normalized)
+  if (inCustom) return
+
+  customPageOptions.value.push({
+    label: CUSTOM_PAGE_LABEL,
+    value: normalized,
+  })
+}
+
+const resolvePageLabel = (path) => {
+  const normalized = normalizePagePathInput(path)
+  if (!normalized) return ''
+  if (normalized === 'all') return '所有页面'
+  const found = pageOptions.value.find(item => item.value === normalized)
+  if (!found || found.label === RUNTIME_PAGE_LABEL) return ''
+  return found.label
+}
+
+const formatPageTag = (path, name = '') => {
+  const normalized = normalizePagePathInput(path)
+  if (!normalized) return ''
+  if (normalized === 'all') return '所有页面 (all)'
+
+  const displayName = String(name || '').trim() || resolvePageLabel(normalized)
+  const label = displayName
+  if (!label || label === CUSTOM_PAGE_LABEL || label === normalized) {
+    return normalized
+  }
+  return `${label} (${normalized})`
+}
+
+const formatPageEntryTag = (entry) => {
+  return formatPageTag(entry?.path, entry?.name)
+}
+
+const getDisplayPageTags = (rawPages) => {
+  const entries = parsePageEntriesFromRaw(rawPages)
+  entries.forEach(entry => ensureCustomPageOption(entry.path))
+  return entries.map(entry => ({ value: `${entry.path}_${entry.name || ''}`, text: formatPageTag(entry.path, entry.name) }))
+}
+
+const extractPagePathList = (data) => {
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.list)) return data.list
+  return []
+}
+
+const loadRuntimePageOptions = async (clientType = 'all') => {
+  try {
+    const res = await getPopupPagePathOptions({ clientType })
+    if (res.code !== 0) return
+
+    const options = dedupePageEntries(extractPagePathList(res.data).map(path => ({ path })))
+      .map(item => item.path)
+      .filter(path => path !== 'all')
+      .map(path => ({ label: RUNTIME_PAGE_LABEL, value: path }))
+
+    runtimePageOptions.value = options
+  } catch (e) {
+    runtimePageOptions.value = []
+  }
+}
+
+const addPageEntry = () => {
+  const normalized = normalizePagePathInput(newPagePath.value)
+  if (!normalized) return
+
+  const name = String(newPageName.value || '').trim()
+  const existedIndex = pageEntries.value.findIndex(item => item.path === normalized)
+  if (existedIndex >= 0) {
+    pageEntries.value[existedIndex] = {
+      ...pageEntries.value[existedIndex],
+      name: name || pageEntries.value[existedIndex].name,
+    }
+    ElMessage.warning('该路径已存在，已更新名称')
+  } else {
+    pageEntries.value.push({ name, path: normalized })
+  }
+
+  ensureCustomPageOption(normalized)
+  newPageName.value = ''
   newPagePath.value = ''
 }
 
-const removePageTag = (idx) => {
-  pagesList.value.splice(idx, 1)
+const removePageEntry = (idx) => {
+  pageEntries.value.splice(idx, 1)
+  if (editingPageIndex.value === idx) {
+    cancelEditPageEntry()
+  }
 }
 
-// 同步 pagesList <-> formData.pages
-watch(pagesList, (val) => {
-  formData.value.pages = val.join(',')
+const startEditPageEntry = (idx) => {
+  const current = pageEntries.value[idx]
+  if (!current) return
+  editingPageIndex.value = idx
+  editingPageName.value = current.name || ''
+  editingPagePath.value = current.path || ''
+}
+
+const cancelEditPageEntry = () => {
+  editingPageIndex.value = -1
+  editingPageName.value = ''
+  editingPagePath.value = ''
+}
+
+const saveEditPageEntry = (idx) => {
+  if (editingPageIndex.value !== idx) return
+
+  const normalized = normalizePagePathInput(editingPagePath.value)
+  if (!normalized) {
+    ElMessage.warning('请填写正确的页面路径')
+    return
+  }
+
+  const duplicateIndex = pageEntries.value.findIndex((item, itemIndex) => item.path === normalized && itemIndex !== idx)
+  if (duplicateIndex >= 0) {
+    ElMessage.warning('该路径已存在，请勿重复添加')
+    return
+  }
+
+  pageEntries.value[idx] = {
+    name: String(editingPageName.value || '').trim(),
+    path: normalized,
+  }
+  ensureCustomPageOption(normalized)
+  cancelEditPageEntry()
+}
+
+// 同步 pageEntries <-> formData.pages
+watch(pageEntries, (val) => {
+  const normalizedEntries = dedupePageEntries(val)
+  formData.value.pages = normalizedEntries.map(item => serializePageEntry(item)).filter(Boolean).join(',')
 }, { deep: true })
 
 const defaultForm = () => ({
@@ -427,6 +721,9 @@ const getTableData = async() => {
   const table = await getPopupList({ page: page.value, pageSize: pageSize.value, ...searchInfo.value })
   if (table.code === 0) {
     tableData.value = table.data.list
+    tableData.value.forEach(row => {
+      normalizedPathList(row.pages).forEach(path => ensureCustomPageOption(path))
+    })
     total.value = table.data.total
     page.value = table.data.page
     pageSize.value = table.data.pageSize
@@ -463,7 +760,11 @@ const updateFunc = async(row) => {
   titleI18n.value = parseI18nJson(row.title)
   contentI18n.value = parseI18nJson(row.content)
   // 解析页面路径
-  pagesList.value = row.pages ? row.pages.split(',').map(s => s.trim()).filter(Boolean) : []
+  pageEntries.value = parsePageEntriesFromRaw(row.pages)
+  pageEntries.value.forEach(entry => ensureCustomPageOption(entry.path))
+  cancelEditPageEntry()
+  newPageName.value = ''
+  newPagePath.value = ''
   dialogFormVisible.value = true
 }
 
@@ -483,8 +784,12 @@ const openDialog = () => {
   formData.value = defaultForm()
   titleI18n.value = {}
   contentI18n.value = {}
-  pagesList.value = []
+  pageEntries.value = []
+  cancelEditPageEntry()
+  newPageName.value = ''
+  newPagePath.value = ''
   dialogFormVisible.value = true
+  loadRuntimePageOptions(formData.value.clientType || 'all')
 }
 
 const closeDialog = () => {
@@ -492,7 +797,10 @@ const closeDialog = () => {
   formData.value = defaultForm()
   titleI18n.value = {}
   contentI18n.value = {}
-  pagesList.value = []
+  pageEntries.value = []
+  cancelEditPageEntry()
+  newPageName.value = ''
+  newPagePath.value = ''
 }
 
 const enterDialog = async () => {
@@ -506,8 +814,13 @@ const enterDialog = async () => {
         formData.value.content = serializeI18nJson(contentI18n.value) || formData.value.content
       }
     }
-    // pages 从 pagesList 同步（watch 已处理，这里确保）
-    formData.value.pages = pagesList.value.join(',')
+    // pages 从 pageEntries 同步（watch 已处理，这里确保）
+    const normalizedEntries = dedupePageEntries(pageEntries.value)
+    normalizedEntries.forEach(entry => ensureCustomPageOption(entry.path))
+    formData.value.pages = normalizedEntries
+      .map(item => serializePageEntry(item))
+      .filter(Boolean)
+      .join(',')
 
     let res
     switch (type.value) {
@@ -523,4 +836,9 @@ const enterDialog = async () => {
     }
   })
 }
+
+watch(() => formData.value.clientType, (val) => {
+  if (!dialogFormVisible.value) return
+  loadRuntimePageOptions(val || 'all')
+})
 </script>

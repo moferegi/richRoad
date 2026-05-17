@@ -15,6 +15,10 @@ export const DEFAULT_LANG_CURRENCY_MAP = Object.freeze({
 
 const FRANKFURTER_API = 'https://api.frankfurter.app/latest'
 const OPEN_ER_API = 'https://open.er-api.com/v6/latest'
+const EXCHANGE_RATE_CACHE_KEY = '__rr_exchange_rate_cache_v1__'
+const DEFAULT_CACHE_TTL_MS = 30 * 60 * 1000
+
+let exchangeRateCacheStore = null
 
 const normalizeCurrency = (currency) => {
   const value = String(currency || '').trim().toUpperCase()
@@ -24,6 +28,142 @@ const normalizeCurrency = (currency) => {
 const toFiniteNumber = (value) => {
   const num = Number(value)
   return Number.isFinite(num) ? num : null
+}
+
+const hasLocalStorage = () => {
+  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
+}
+
+const normalizeRatesMap = (rawRates, baseCurrency) => {
+  const rates = {
+    [baseCurrency]: 1
+  }
+
+  if (!rawRates || typeof rawRates !== 'object') {
+    return rates
+  }
+
+  Object.entries(rawRates).forEach(([currency, value]) => {
+    const key = normalizeCurrency(currency)
+    const num = toFiniteNumber(value)
+    if (!key || !num || num <= 0) {
+      return
+    }
+    rates[key] = num
+  })
+
+  rates[baseCurrency] = 1
+  return rates
+}
+
+const normalizeCacheItem = (rawItem, baseCurrency) => {
+  const item = rawItem && typeof rawItem === 'object' ? rawItem : {}
+  const source = String(item.source || '').trim()
+  const fetchedAt = String(item.fetchedAt || '').trim()
+  const updatedAt = String(item.updatedAt || '').trim()
+  const rates = normalizeRatesMap(item.rates, baseCurrency)
+  return {
+    source,
+    fetchedAt,
+    updatedAt,
+    rates
+  }
+}
+
+const readExchangeRateCacheStore = () => {
+  if (!hasLocalStorage()) {
+    return {}
+  }
+
+  try {
+    const raw = window.localStorage.getItem(EXCHANGE_RATE_CACHE_KEY)
+    if (!raw) {
+      return {}
+    }
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') {
+      return {}
+    }
+
+    const nextStore = {}
+    Object.entries(parsed).forEach(([base, item]) => {
+      const normalizedBase = normalizeCurrency(base)
+      if (!normalizedBase) {
+        return
+      }
+      nextStore[normalizedBase] = normalizeCacheItem(item, normalizedBase)
+    })
+    return nextStore
+  } catch (_) {
+    return {}
+  }
+}
+
+const ensureExchangeRateCacheStore = () => {
+  if (exchangeRateCacheStore) {
+    return exchangeRateCacheStore
+  }
+  exchangeRateCacheStore = readExchangeRateCacheStore()
+  return exchangeRateCacheStore
+}
+
+const persistExchangeRateCacheStore = () => {
+  if (!hasLocalStorage()) {
+    return
+  }
+  try {
+    window.localStorage.setItem(EXCHANGE_RATE_CACHE_KEY, JSON.stringify(ensureExchangeRateCacheStore()))
+  } catch (_) {
+    // ignore localStorage write errors
+  }
+}
+
+const getCachedBaseItem = (baseCurrency) => {
+  const store = ensureExchangeRateCacheStore()
+  const rawItem = store[baseCurrency]
+  if (!rawItem) {
+    return null
+  }
+  return normalizeCacheItem(rawItem, baseCurrency)
+}
+
+const saveCachedBaseItem = (baseCurrency, item) => {
+  const store = ensureExchangeRateCacheStore()
+  const normalizedItem = normalizeCacheItem(item, baseCurrency)
+  store[baseCurrency] = normalizedItem
+  persistExchangeRateCacheStore()
+  return normalizedItem
+}
+
+const hasRatesForCurrencies = (cacheItem, currencies, baseCurrency) => {
+  if (!cacheItem || !cacheItem.rates || typeof cacheItem.rates !== 'object') {
+    return false
+  }
+  return currencies.every((currency) => {
+    if (currency === baseCurrency) {
+      return true
+    }
+    return Number.isFinite(Number(cacheItem.rates[currency])) && Number(cacheItem.rates[currency]) > 0
+  })
+}
+
+const isCacheFresh = (cacheItem, cacheTtlMs) => {
+  if (!cacheItem) {
+    return false
+  }
+  const ttl = Number.isFinite(Number(cacheTtlMs)) ? Number(cacheTtlMs) : DEFAULT_CACHE_TTL_MS
+  if (ttl <= 0) {
+    return false
+  }
+  const updatedAt = String(cacheItem.updatedAt || '').trim()
+  if (!updatedAt) {
+    return false
+  }
+  const timestamp = Date.parse(updatedAt)
+  if (!Number.isFinite(timestamp)) {
+    return false
+  }
+  return (Date.now() - timestamp) <= ttl
 }
 
 const collectMissingCurrencies = (targetCurrencies, rates, baseCurrency) => {
@@ -65,9 +205,42 @@ const fetchOpenErRates = async (baseCurrency) => {
   }
 }
 
+export const getExchangeRateSnapshot = ({
+  base = 'CNY'
+} = {}) => {
+  const baseCurrency = normalizeCurrency(base) || 'CNY'
+  const cacheItem = getCachedBaseItem(baseCurrency)
+  if (!cacheItem) {
+    return null
+  }
+  return {
+    base: baseCurrency,
+    source: cacheItem.source || '',
+    fetchedAt: cacheItem.fetchedAt || '',
+    updatedAt: cacheItem.updatedAt || '',
+    rates: normalizeRatesMap(cacheItem.rates, baseCurrency)
+  }
+}
+
+export const clearExchangeRateCache = (base) => {
+  const store = ensureExchangeRateCacheStore()
+  const normalizedBase = normalizeCurrency(base)
+  if (normalizedBase) {
+    delete store[normalizedBase]
+  } else {
+    Object.keys(store).forEach((key) => {
+      delete store[key]
+    })
+  }
+  persistExchangeRateCacheStore()
+}
+
 export const fetchExchangeRates = async ({
   base = 'CNY',
-  currencies = []
+  currencies = [],
+  forceRefresh = false,
+  cacheTtlMs = DEFAULT_CACHE_TTL_MS,
+  useCache = true
 } = {}) => {
   const baseCurrency = normalizeCurrency(base) || 'CNY'
   const normalizedCurrencies = Array.from(new Set(
@@ -76,11 +249,19 @@ export const fetchExchangeRates = async ({
       .filter(Boolean)
   ))
 
-  const rates = {
-    [baseCurrency]: 1
+  const cachedItem = useCache ? getCachedBaseItem(baseCurrency) : null
+  if (!forceRefresh && useCache && cachedItem && isCacheFresh(cachedItem, cacheTtlMs) && hasRatesForCurrencies(cachedItem, normalizedCurrencies, baseCurrency)) {
+    return {
+      base: baseCurrency,
+      source: cachedItem.source ? `cache:${cachedItem.source}` : 'cache',
+      fetchedAt: cachedItem.fetchedAt || '',
+      rates: normalizeRatesMap(cachedItem.rates, baseCurrency)
+    }
   }
+
+  const rates = normalizeRatesMap(cachedItem?.rates, baseCurrency)
   const sourceFlags = []
-  let fetchedAt = ''
+  let fetchedAt = cachedItem?.fetchedAt || ''
 
   try {
     const frankfurterResult = await fetchFrankfurterRates(baseCurrency, normalizedCurrencies)
@@ -116,11 +297,19 @@ export const fetchExchangeRates = async ({
     })
   }
 
+  const networkSource = Array.from(new Set(sourceFlags)).join('+') || 'unknown'
+  const cachedResult = saveCachedBaseItem(baseCurrency, {
+    source: networkSource,
+    fetchedAt,
+    updatedAt: new Date().toISOString(),
+    rates
+  })
+
   return {
     base: baseCurrency,
-    source: Array.from(new Set(sourceFlags)).join('+') || 'unknown',
-    fetchedAt,
-    rates
+    source: cachedResult.source || networkSource,
+    fetchedAt: cachedResult.fetchedAt || fetchedAt,
+    rates: normalizeRatesMap(cachedResult.rates, baseCurrency)
   }
 }
 

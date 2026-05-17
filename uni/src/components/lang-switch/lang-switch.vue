@@ -1,5 +1,5 @@
 <template>
-  <view v-if="visible" class="lang-mask">
+  <view v-if="visible" class="lang-mask" :class="{ 'lang-mask-closing': !animShow }">
     <view class="lang-dialog" :class="{ 'lang-dialog-show': animShow }">
       <view class="lang-header">
         <text class="lang-header-title">{{ $t('selectLanguage') }}</text>
@@ -48,6 +48,7 @@ const visible = ref(false)
 const animShow = ref(false)
 const hideTimer = ref(null)
 const currentLang = computed(() => langStore.locale)
+const HIDE_DURATION_MS = 300
 
 const clearHideTimer = () => {
   if (hideTimer.value) {
@@ -91,7 +92,7 @@ watch(() => props.modelValue, (val) => {
     hideTimer.value = setTimeout(() => {
       visible.value = false
       hideTimer.value = null
-    }, 300)
+    }, HIDE_DURATION_MS)
   }
 }, { immediate: true })
 
@@ -123,6 +124,10 @@ const close = (reason = 'cancel') => {
   display: flex;
   align-items: flex-end;
   justify-content: center;
+}
+
+.lang-mask-closing {
+  pointer-events: none;
 }
 
 .lang-dialog {

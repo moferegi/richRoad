@@ -131,3 +131,22 @@ func (api *PopupApi) GetActivePopups(c *gin.Context) {
 		response.OkWithDetailed(list, "获取成功", c)
 	}
 }
+
+// GetPopupPagePathOptions 获取弹窗可选页面路径
+// @Tags Popup
+// @Summary 获取弹窗可选页面路径
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param clientType query string false "客户端类型(uni/web/all)"
+// @Success 200 {object} response.Response{data=[]string,msg=string} "获取成功"
+// @Router /popup/getPopupPagePathOptions [get]
+func (api *PopupApi) GetPopupPagePathOptions(c *gin.Context) {
+	clientType := c.Query("clientType")
+	if list, err := popupService.GetPopupPagePathOptions(clientType); err != nil {
+		global.GVA_LOG.Error("获取失败!", zap.Error(err))
+		response.FailWithMessage("获取失败", c)
+	} else {
+		response.OkWithDetailed(list, "获取成功", c)
+	}
+}

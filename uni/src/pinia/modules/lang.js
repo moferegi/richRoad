@@ -20,6 +20,7 @@ export const useLangStore = defineStore('lang', () => {
   const loaded = ref(false)
   const manuallySelected = ref(uni.getStorageSync(LANG_MANUAL_SELECTED_KEY) === '1')
   const pickerPrompted = ref(uni.getStorageSync(LANG_PICKER_PROMPTED_KEY) === '1')
+  const tabBarSyncTimers = ref([])
 
   const markLanguageManualSelected = () => {
     manuallySelected.value = true
@@ -37,6 +38,16 @@ export const useLangStore = defineStore('lang', () => {
 
   const getEffectiveLocale = (lang) => {
     return lang || locale.value || uni.getStorageSync('app-lang') || 'mn'
+  }
+
+  const clearTabBarSyncTimers = () => {
+    if (!Array.isArray(tabBarSyncTimers.value) || !tabBarSyncTimers.value.length) {
+      return
+    }
+    tabBarSyncTimers.value.forEach((timer) => {
+      clearTimeout(timer)
+    })
+    tabBarSyncTimers.value = []
   }
 
   // 初始化：从后端获取启用的语言和默认语言
@@ -85,6 +96,13 @@ export const useLangStore = defineStore('lang', () => {
       markLanguageManualSelected()
     }
     updateTabBar(lang)
+    clearTabBarSyncTimers()
+    ;[90, 260, 520].forEach((delay) => {
+      const timer = setTimeout(() => {
+        updateTabBar(lang)
+      }, delay)
+      tabBarSyncTimers.value.push(timer)
+    })
     useAppConfigStore().refreshLocalizedConfig()
   }
 

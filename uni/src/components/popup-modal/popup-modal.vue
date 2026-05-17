@@ -1,6 +1,15 @@
 <template>
   <view class="nf-popup-mask" v-if="visible" @tap.self="onClose" @touchmove.stop.prevent>
     <view class="nf-popup-wrap" :key="'popup_' + currentIndex">
+      <view class="nf-popup-header" v-if="parsedTitle || popup.closeable !== false">
+        <view class="nf-popup-title-wrap">
+          <text class="nf-popup-title-text" v-if="parsedTitle">{{ parsedTitle }}</text>
+        </view>
+        <view class="nf-popup-close" v-if="popup.closeable !== false" @tap="onClose">
+          <text class="nf-popup-close-icon">×</text>
+        </view>
+      </view>
+
       <!-- 图片类型 -->
       <image
         v-if="popup.popupType !== 'content' && (popup.image || popup.externalPath)"
@@ -13,18 +22,13 @@
       <view v-if="popup.popupType === 'content' && parsedContent" class="nf-popup-content">
         <rich-text :nodes="parsedContent" />
       </view>
-      <view class="nf-popup-title" v-if="parsedTitle">
-        <text class="nf-popup-title-text">{{ parsedTitle }}</text>
-      </view>
-      <view class="nf-popup-close" v-if="popup.closeable !== false" @tap="onClose">
-        <text class="nf-popup-close-icon">×</text>
-      </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, nextTick } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { getActivePopups } from '@/api/popup.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { getUrl } from '@/utils/url.js'
@@ -40,6 +44,7 @@ const $lt = computed(() => langStore.$lt)
 
 const visible = ref(false)
 const popup = ref({})
+const loading = ref(false)
 
 // 弹窗队列，支持多个连续弹窗
 const popupQueue = ref([])
@@ -74,6 +79,8 @@ const showNext = () => {
 }
 
 const loadPopup = async () => {
+  if (loading.value) return
+  loading.value = true
   const currentPage = getCurrentPagePath()
   const params = { clientType: props.clientType }
   if (currentPage) {
@@ -83,27 +90,36 @@ const loadPopup = async () => {
     params.position = props.position
   }
 
-  const res = await getActivePopups(params)
-  if (res.code === 0 && res.data && res.data.length > 0) {
-    const storageKey = 'popup_shown_' + (currentPage || props.position || 'default')
-    // 过滤掉已弹过的 onceOnly 弹窗
-    const filtered = res.data.filter(p => {
-      if (p.onceOnly) {
-        const shown = uni.getStorageSync(storageKey + '_' + p.ID)
-        if (shown) return false
+  try {
+    const res = await getActivePopups(params)
+    if (res.code === 0 && res.data && res.data.length > 0) {
+      const storageKey = 'popup_shown_' + (currentPage || props.position || 'default')
+      // 过滤掉已弹过的 onceOnly 弹窗
+      const filtered = res.data.filter(p => {
+        if (p.onceOnly) {
+          const shown = uni.getStorageSync(storageKey + '_' + p.ID)
+          if (shown) return false
+        }
+        return true
+      })
+      if (filtered.length === 0) {
+        visible.value = false
+        popupQueue.value = []
+        currentIndex.value = 0
+        return
       }
-      return true
-    })
-    if (filtered.length === 0) return
-    popupQueue.value = filtered
-    currentIndex.value = 0
-    // 标记 onceOnly
-    filtered.forEach(p => {
-      if (p.onceOnly) {
-        uni.setStorageSync(storageKey + '_' + p.ID, '1')
-      }
-    })
-    showNext()
+      popupQueue.value = filtered
+      currentIndex.value = 0
+      // 标记 onceOnly
+      filtered.forEach(p => {
+        if (p.onceOnly) {
+          uni.setStorageSync(storageKey + '_' + p.ID, '1')
+        }
+      })
+      showNext()
+    }
+  } finally {
+    loading.value = false
   }
 }
 
@@ -124,7 +140,7 @@ const onImageTap = () => {
   }
 }
 
-onMounted(() => {
+onShow(() => {
   loadPopup()
 })
 </script>
@@ -132,54 +148,86 @@ onMounted(() => {
 <style scoped>
 .nf-popup-mask {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.7);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.56);
   z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0 28rpx;
+  box-sizing: border-box;
 }
+
 .nf-popup-wrap {
-  position: relative;
-  width: 580rpx;
-  border-radius: 24rpx;
+  width: 100%;
+  max-width: 640rpx;
+  border-radius: 28rpx;
   overflow: hidden;
-  background: #1a1a1a;
+  background: #ffffff;
+  box-shadow: 0 24rpx 72rpx rgba(15, 23, 42, 0.26);
+  border: 1rpx solid rgba(148, 163, 184, 0.2);
 }
+
+.nf-popup-header {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 22rpx 22rpx 18rpx 28rpx;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96) 0%, rgba(255, 255, 255, 0.98) 100%);
+  border-bottom: 1rpx solid rgba(148, 163, 184, 0.2);
+}
+
+.nf-popup-title-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.nf-popup-title-text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.4;
+}
+
 .nf-popup-img {
   width: 100%;
+  display: block;
 }
+
 .nf-popup-content {
-  padding: 24rpx 32rpx;
+  padding: 26rpx 28rpx 30rpx;
   max-height: 600rpx;
   overflow-y: auto;
-  color: #fff;
+  color: #334155;
   font-size: 26rpx;
   line-height: 1.6;
 }
-.nf-popup-title {
-  padding: 24rpx 32rpx;
-  text-align: center;
-}
-.nf-popup-title-text {
-  font-size: 28rpx;
-  color: #fff;
-}
+
 .nf-popup-close {
-  position: absolute;
-  top: 12rpx;
-  right: 12rpx;
   width: 56rpx;
   height: 56rpx;
   border-radius: 50%;
-  background: rgba(0,0,0,0.5);
+  background: #f1f5f9;
+  border: 1rpx solid rgba(148, 163, 184, 0.26);
   display: flex;
   align-items: center;
   justify-content: center;
 }
+
 .nf-popup-close-icon {
-  font-size: 36rpx;
-  color: #fff;
+  font-size: 34rpx;
+  color: #475569;
   line-height: 1;
+}
+
+:deep(.nf-popup-content p) {
+  margin: 0 0 14rpx;
+}
+
+:deep(.nf-popup-content p:last-child) {
+  margin-bottom: 0;
 }
 </style>

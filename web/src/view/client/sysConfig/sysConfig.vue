@@ -1074,6 +1074,7 @@ import SelectImage from '@/components/selectImage/selectImage.vue'
 import {
   DEFAULT_LANG_CURRENCY_MAP,
   fetchExchangeRates,
+  getExchangeRateSnapshot,
   calcConvertedFenFromCny,
   normalizePriceI18nMap,
 } from '@/utils/exchange-rate'
@@ -2367,9 +2368,28 @@ const buildRechargeRateRows = () => {
       targetPriceFen,
     }
   })
+
+  const snapshot = getExchangeRateSnapshot({ base: 'CNY' })
+  if (!snapshot?.rates) {
+    return
+  }
+
+  rechargeExchangeRateSource.value = snapshot.source || ''
+  rechargeExchangeRateFetchedAt.value = snapshot.fetchedAt || ''
+  rechargeRateRows.value.forEach((row) => {
+    const currency = normalizeRechargeCurrencyCode(row.currency)
+    if (row.code === 'zh' || currency === 'CNY') {
+      row.rate = 1
+      return
+    }
+    const snapshotRate = Number(snapshot.rates?.[currency])
+    if (Number.isFinite(snapshotRate) && snapshotRate > 0) {
+      row.rate = snapshotRate
+    }
+  })
 }
 
-const openRechargePlanRateDialog = (index) => {
+const openRechargePlanRateDialog = async(index) => {
   if (!ensureRechargePlanLangSlots(index)) {
     return
   }
@@ -2377,6 +2397,10 @@ const openRechargePlanRateDialog = (index) => {
   rechargeRatePlanIndex.value = index
   buildRechargeRateRows()
   rechargeRateDialogVisible.value = true
+  await refreshRechargeRatesForRows(rechargeRateRows.value, {
+    silent: true,
+    forceRefresh: false,
+  })
 }
 
 const isAllRechargeRowsSelected = () => {
@@ -2406,10 +2430,15 @@ const syncRechargeRowPriceToI18n = (row) => {
   }, basePriceFen)
 }
 
-const refreshRechargeRatesForRows = async (rows) => {
+const refreshRechargeRatesForRows = async (rows, {
+  silent = false,
+  forceRefresh = false,
+} = {}) => {
   const validRows = rows.filter((row) => row?.code)
   if (!validRows.length) {
-    ElMessage.warning('请先选择需要更新汇率的语言')
+    if (!silent) {
+      ElMessage.warning('请先选择需要更新汇率的语言')
+    }
     return
   }
 
@@ -2422,6 +2451,7 @@ const refreshRechargeRatesForRows = async (rows) => {
     const result = await fetchExchangeRates({
       base: 'CNY',
       currencies,
+      forceRefresh,
     })
 
     rechargeExchangeRateSource.value = String(result?.source || '').trim()
@@ -2439,9 +2469,13 @@ const refreshRechargeRatesForRows = async (rows) => {
       }
     })
 
-    ElMessage.success('汇率更新完成')
+    if (!silent) {
+      ElMessage.success('汇率更新完成')
+    }
   } catch (error) {
-    ElMessage.error(error?.message || '汇率更新失败')
+    if (!silent) {
+      ElMessage.error(error?.message || '汇率更新失败')
+    }
   } finally {
     rechargeRateLoading.value = false
   }
@@ -2449,11 +2483,11 @@ const refreshRechargeRatesForRows = async (rows) => {
 
 const refreshSelectedRechargeExchangeRates = async () => {
   const selectedRows = rechargeRateRows.value.filter((row) => row.selected)
-  await refreshRechargeRatesForRows(selectedRows)
+  await refreshRechargeRatesForRows(selectedRows, { forceRefresh: true })
 }
 
 const refreshSingleRechargeRate = async (row) => {
-  await refreshRechargeRatesForRows([row])
+  await refreshRechargeRatesForRows([row], { forceRefresh: true })
 }
 
 const applySelectedRechargeRateToPrices = () => {

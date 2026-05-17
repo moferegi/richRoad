@@ -102,5 +102,12 @@
 </script>
 
 <style scoped lang="scss">
+:deep(.w-e-text-container [data-slate-editor]) {
+  color: #111827;
+}
+
+:deep(.w-e-text-container .w-e-text-placeholder) {
+  color: #94a3b8;
+}
 
 </style>

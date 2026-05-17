@@ -1,6 +1,7 @@
 package initialize
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -20,6 +21,7 @@ func InitNewModulesData() {
 
 	initNewModulesApis(db)
 	initNewModulesMenus(db)
+	initNewModulesMenuBtns(db)
 	initNewModulesCasbin(db)
 	initLanguageSeedData(db)
 }
@@ -42,6 +44,7 @@ func initNewModulesApis(db *gorm.DB) {
 		{ApiGroup: "弹窗管理", Method: "DELETE", Path: "/popup/deletePopup", Description: "删除弹窗"},
 		{ApiGroup: "弹窗管理", Method: "PUT", Path: "/popup/updatePopup", Description: "更新弹窗"},
 		{ApiGroup: "弹窗管理", Method: "GET", Path: "/popup/getPopupList", Description: "获取弹窗列表"},
+		{ApiGroup: "弹窗管理", Method: "GET", Path: "/popup/getPopupPagePathOptions", Description: "获取弹窗页面路径选项"},
 		// 营销奖励
 		{ApiGroup: "营销奖励", Method: "POST", Path: "/marketingReward/createMarketingReward", Description: "创建营销奖励"},
 		{ApiGroup: "营销奖励", Method: "DELETE", Path: "/marketingReward/deleteMarketingReward", Description: "删除营销奖励"},
@@ -227,6 +230,52 @@ func initNewModulesMenus(db *gorm.DB) {
 	}
 }
 
+func initNewModulesMenuBtns(db *gorm.DB) {
+	type btnDef struct {
+		Name string
+		Desc string
+	}
+
+	menuBtnDefs := map[string][]btnDef{
+		"popup": {
+			{Name: "createPopup", Desc: "创建弹窗"},
+			{Name: "deletePopup", Desc: "删除弹窗"},
+			{Name: "updatePopup", Desc: "更新弹窗"},
+			{Name: "getPopupList", Desc: "获取弹窗列表"},
+			{Name: "getPopupPagePathOptions", Desc: "获取弹窗页面路径选项"},
+		},
+	}
+
+	for menuName, defs := range menuBtnDefs {
+		var menu sysModel.SysBaseMenu
+		if err := db.Select("id", "name").Where("name = ?", menuName).First(&menu).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				global.GVA_LOG.Error("查询菜单失败: "+menuName, zap.Error(err))
+			}
+			continue
+		}
+
+		for _, btn := range defs {
+			var count int64
+			db.Model(&sysModel.SysBaseMenuBtn{}).
+				Where("sys_base_menu_id = ? AND name = ?", menu.ID, btn.Name).
+				Count(&count)
+			if count > 0 {
+				continue
+			}
+
+			row := sysModel.SysBaseMenuBtn{
+				Name:          btn.Name,
+				Desc:          btn.Desc,
+				SysBaseMenuID: menu.ID,
+			}
+			if err := db.Create(&row).Error; err != nil {
+				global.GVA_LOG.Error("初始化菜单按钮失败: "+menuName+"/"+btn.Name, zap.Error(err))
+			}
+		}
+	}
+}
+
 func initNewModulesCasbin(db *gorm.DB) {
 	var authorities []sysModel.SysAuthority
 	db.Find(&authorities)
@@ -251,6 +300,7 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/popup/deletePopup", "DELETE"},
 		{"/popup/updatePopup", "PUT"},
 		{"/popup/getPopupList", "GET"},
+		{"/popup/getPopupPagePathOptions", "GET"},
 		// 营销奖励
 		{"/marketingReward/createMarketingReward", "POST"},
 		{"/marketingReward/deleteMarketingReward", "DELETE"},

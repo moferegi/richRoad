@@ -18,8 +18,17 @@ const props = defineProps({
   width: 100%;
   padding: 20rpx 0;
   box-sizing: border-box;
-  color: rgba(255, 255, 255, 0.7);
+  color: #111827;
   font-size: 28rpx;
   line-height: 1.6;
+}
+
+.nf-intro-box :deep(p),
+.nf-intro-box :deep(div),
+.nf-intro-box :deep(span),
+.nf-intro-box :deep(li),
+.nf-intro-box :deep(td),
+.nf-intro-box :deep(th) {
+  color: inherit;
 }
 </style>

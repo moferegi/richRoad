@@ -623,6 +623,7 @@ import { getAllSkuSpecs } from '@/api/shop/skuSpec'
 import {
   DEFAULT_LANG_CURRENCY_MAP,
   fetchExchangeRates,
+  getExchangeRateSnapshot,
   calcConvertedFenFromCny,
   normalizePriceI18nMap,
   ensurePriceSlots,
@@ -827,15 +828,38 @@ const buildPriceRateRows = () => {
       targetPriceFen
     }
   })
+
+  const snapshot = getExchangeRateSnapshot({ base: 'CNY' })
+  if (!snapshot?.rates) {
+    return
+  }
+
+  exchangeRateSource.value = snapshot.source || ''
+  exchangeRateFetchedAt.value = snapshot.fetchedAt || ''
+  priceRateRows.value.forEach((row) => {
+    if (row.code === 'zh') {
+      row.rate = 1
+      return
+    }
+    const currency = normalizeCurrencyCode(row.currency)
+    const snapshotRate = Number(snapshot.rates?.[currency])
+    if (Number.isFinite(snapshotRate) && snapshotRate > 0) {
+      row.rate = snapshotRate
+    }
+  })
 }
 
-const openPriceRateDialog = () => {
+const openPriceRateDialog = async() => {
   if (!getEnabledLangCodes().length) {
     ElMessage.warning('请先在语言管理中配置语言')
     return
   }
   buildPriceRateRows()
   priceRateDialogVisible.value = true
+  await refreshRatesForRows(priceRateRows.value, {
+    silent: true,
+    forceRefresh: false
+  })
 }
 
 const isAllPriceRowsSelected = () => {
@@ -859,10 +883,15 @@ const syncRowPriceToI18n = (row) => {
   syncPriceI18nToForm()
 }
 
-const refreshRatesForRows = async(rows) => {
+const refreshRatesForRows = async(rows, {
+  silent = false,
+  forceRefresh = false
+} = {}) => {
   const validRows = rows.filter((row) => row?.code)
   if (!validRows.length) {
-    ElMessage.warning('请先选择需要更新汇率的语言')
+    if (!silent) {
+      ElMessage.warning('请先选择需要更新汇率的语言')
+    }
     return
   }
 
@@ -874,7 +903,8 @@ const refreshRatesForRows = async(rows) => {
     priceRateLoading.value = true
     const result = await fetchExchangeRates({
       base: 'CNY',
-      currencies
+      currencies,
+      forceRefresh
     })
     exchangeRateSource.value = result.source || ''
     exchangeRateFetchedAt.value = result.fetchedAt || ''
@@ -890,9 +920,13 @@ const refreshRatesForRows = async(rows) => {
         row.rate = nextRate
       }
     })
-    ElMessage.success('汇率更新完成')
+    if (!silent) {
+      ElMessage.success('汇率更新完成')
+    }
   } catch (error) {
-    ElMessage.error(error?.message || '汇率更新失败')
+    if (!silent) {
+      ElMessage.error(error?.message || '汇率更新失败')
+    }
   } finally {
     priceRateLoading.value = false
   }
@@ -900,11 +934,11 @@ const refreshRatesForRows = async(rows) => {
 
 const refreshSelectedExchangeRates = async() => {
   const selectedRows = priceRateRows.value.filter((row) => row.selected)
-  await refreshRatesForRows(selectedRows)
+  await refreshRatesForRows(selectedRows, { forceRefresh: true })
 }
 
 const refreshSingleRate = async(row) => {
-  await refreshRatesForRows([row])
+  await refreshRatesForRows([row], { forceRefresh: true })
 }
 
 const applySelectedRateToPrices = () => {
@@ -1024,6 +1058,8 @@ const specs = ref([])
 const goodPrefill = ref({
   name: '',
   description: '',
+  price: 0,
+  priceI18n: {},
   nameI18n: {},
   descI18n: {},
 })
@@ -1053,9 +1089,13 @@ const getAttr = async() => {
 
     const parsedNameI18n = parseI18nJson(goodData.title)
     const parsedDescI18n = parseI18nJson(goodData.description)
+    const parsedPriceI18n = normalizePriceI18nMap(goodData.priceI18n)
+    const parsedPriceFen = Math.max(0, Math.round(Number(goodData.price) || 0))
     goodPrefill.value = {
       name: pickI18nFallbackText(parsedNameI18n, goodData.title),
       description: pickI18nFallbackText(parsedDescI18n, goodData.description),
+      price: parsedPriceFen,
+      priceI18n: parsedPriceI18n,
       nameI18n: parsedNameI18n,
       descI18n: parsedDescI18n,
     }
@@ -1316,13 +1356,14 @@ const openDialog = () => {
   type.value = 'create'
   nameI18n.value = { ...(goodPrefill.value.nameI18n || {}) }
   descI18n.value = { ...(goodPrefill.value.descI18n || {}) }
-  priceI18n.value = {}
+  priceI18n.value = normalizePriceI18nMap(goodPrefill.value.priceI18n)
   priceRateRows.value = []
   priceAdjustPercent.value = 0
   exchangeRateSource.value = ''
   exchangeRateFetchedAt.value = ''
   formData.value.name = String(goodPrefill.value.name || '')
   formData.value.description = String(goodPrefill.value.description || '')
+  formData.value.price = Math.max(0, Math.round(Number(goodPrefill.value.price) || 0))
   formData.value.attrs = []
   formData.value.specs = []
   attrs.value.forEach(item => {
