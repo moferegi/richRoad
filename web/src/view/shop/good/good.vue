@@ -999,6 +999,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive, onMounted } from 'vue'
 import RichEdit from "@/components/richtext/rich-edit.vue"
 import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
+import { validateRichTextI18nStructure } from '@/utils/richtext-i18n'
 
 defineOptions({
   name: 'Good'
@@ -1809,6 +1810,17 @@ const closeDialog = () => {
 const enterDialog = async() => {
   elFormRef.value?.validate(async(valid) => {
     if (!valid) return
+
+    // 统一富文本多语校验钩子：翻译后保持关键 HTML 结构一致，避免链接/列表/媒体标签被破坏。
+    const richTextValidation = validateRichTextI18nStructure(detailI18n.value, {
+      fieldLabel: '商品详情',
+      preferredBaseLang: 'zh',
+    })
+    if (!richTextValidation.valid) {
+      ElMessage.warning(richTextValidation.message)
+      return
+    }
+
     // 构建深拷贝 payload，避免序列化时污染 formData（导致保存失败后 nameI18n 丢失）
     const payload = JSON.parse(JSON.stringify(formData.value))
     payload.priceI18n = serializePriceI18nMap(priceI18n.value)

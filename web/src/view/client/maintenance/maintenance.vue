@@ -18,21 +18,26 @@
         </el-form-item>
 
         <el-form-item label="弹窗标题(多语言):">
-          <el-tabs v-if="enabledLangs.length" type="border-card" style="width:100%;">
-            <el-tab-pane v-for="lang in enabledLangs" :key="lang.code" :label="lang.name">
-              <el-input v-model="popupTitleI18n[lang.code]" :placeholder="`${lang.name} 弹窗标题`" />
-            </el-tab-pane>
-          </el-tabs>
-          <el-input v-else v-model="formData.maintenance_popup_title" type="textarea" :rows="3" placeholder='{"zh":"系统维护中","en":"System Maintenance"}' />
+          <MultiLangEditor
+            :model="popupTitleI18n"
+            :languages="enabledLangs"
+            title="维护弹窗标题 maintenance_popup_title"
+            input-type="input"
+            :use-tabs="true"
+            tab-type="card"
+          />
         </el-form-item>
 
         <el-form-item label="弹窗内容(多语言):">
-          <el-tabs v-if="enabledLangs.length" type="border-card" style="width:100%;">
-            <el-tab-pane v-for="lang in enabledLangs" :key="lang.code" :label="lang.name">
-              <el-input v-model="popupContentI18n[lang.code]" type="textarea" :rows="3" :placeholder="`${lang.name} 弹窗内容`" />
-            </el-tab-pane>
-          </el-tabs>
-          <el-input v-else v-model="formData.maintenance_popup_content" type="textarea" :rows="4" placeholder='{"zh":"系统正在维护，请稍后再试","en":"..."}' />
+          <MultiLangEditor
+            :model="popupContentI18n"
+            :languages="enabledLangs"
+            title="维护弹窗内容 maintenance_popup_content"
+            input-type="textarea"
+            :rows="4"
+            :use-tabs="true"
+            tab-type="card"
+          />
         </el-form-item>
 
         <el-form-item label="进入首页按钮:">
@@ -54,6 +59,7 @@ import { getSysConfigList, updateSysConfig } from '@/api/client/sysConfig'
 import { getEnabledLanguages } from '@/api/client/language'
 import { ElMessage } from 'element-plus'
 import SelectImage from '@/components/selectImage/selectImage.vue'
+import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 
 defineOptions({
   name: 'MaintenanceSetting'
@@ -66,6 +72,19 @@ const enabledLangs = ref([])
 const popupTitleI18n = ref({})
 const popupContentI18n = ref({})
 
+const DEFAULT_MULTILINGUAL_LANGS = [
+  'zh', 'en', 'mn', 'zh-TW', 'th', 'hi', 'id', 'vi', 'ar', 'ja', 'ko', 'ms'
+]
+
+const getLanguageCodes = () => {
+  const dynamicCodes = Array.isArray(enabledLangs.value)
+    ? enabledLangs.value
+      .map((item) => String(item?.code || '').trim())
+      .filter(Boolean)
+    : []
+  return Array.from(new Set([...dynamicCodes, ...DEFAULT_MULTILINGUAL_LANGS]))
+}
+
 const loadLangs = async () => {
   try {
     const res = await getEnabledLanguages()
@@ -75,9 +94,45 @@ const loadLangs = async () => {
   } catch (e) { /* ignore */ }
 }
 
-const parseI18nJson = (jsonStr) => {
-  if (!jsonStr) return {}
-  try { return JSON.parse(jsonStr) } catch { return {} }
+const parseI18nJson = (rawValue) => {
+  if (rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+    return Object.entries(rawValue).reduce((acc, [rawCode, rawText]) => {
+      const code = String(rawCode || '').trim()
+      const text = String(rawText || '').trim()
+      if (code && text) {
+        acc[code] = text
+      }
+      return acc
+    }, {})
+  }
+
+  const raw = String(rawValue || '').trim()
+  if (!raw) {
+    return {}
+  }
+
+  if (raw.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return Object.entries(parsed).reduce((acc, [rawCode, rawText]) => {
+          const code = String(rawCode || '').trim()
+          const text = String(rawText || '').trim()
+          if (code && text) {
+            acc[code] = text
+          }
+          return acc
+        }, {})
+      }
+    } catch {
+      // 历史值可能是纯文本，转为多语言对象继续编辑。
+    }
+  }
+
+  return getLanguageCodes().reduce((acc, code) => {
+    acc[code] = raw
+    return acc
+  }, {})
 }
 
 const serializeI18nJson = (obj) => {
@@ -127,11 +182,8 @@ const loadConfigs = async () => {
 const saveAll = async () => {
   saving.value = true
   try {
-    // 序列化多语言字段
-    if (enabledLangs.value.length) {
-      formData.value.maintenance_popup_title = serializeI18nJson(popupTitleI18n.value)
-      formData.value.maintenance_popup_content = serializeI18nJson(popupContentI18n.value)
-    }
+    formData.value.maintenance_popup_title = serializeI18nJson(popupTitleI18n.value)
+    formData.value.maintenance_popup_content = serializeI18nJson(popupContentI18n.value)
     for (const key of configKeys) {
       const id = configIdMap.value[key]
       if (id) {
@@ -146,8 +198,8 @@ const saveAll = async () => {
   }
 }
 
-onMounted(() => {
-  loadLangs()
-  loadConfigs()
+onMounted(async () => {
+  await loadLangs()
+  await loadConfigs()
 })
 </script>

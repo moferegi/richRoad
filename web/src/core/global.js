@@ -16,9 +16,9 @@ const createIconComponent = (name) => ({
 })
 
 const registerIcons = async (app) => {
-  const iconModules = import.meta.glob('@/assets/icons/**/*.svg') // 系统目录 svg 图标
+  const iconModules = import.meta.glob('../assets/icons/**/*.svg') // 系统目录 svg 图标
   const pluginIconModules = import.meta.glob(
-    '@/plugin/**/assets/icons/**/*.svg'
+    '../plugin/**/assets/icons/**/*.svg'
   ) // 插件目录 svg 图标
   const mergedIconModules = Object.assign({}, iconModules, pluginIconModules) // 合并所有 svg 图标
   let allKeys = []

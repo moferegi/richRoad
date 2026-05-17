@@ -186,7 +186,7 @@
     <view class="popup-mask" v-if="showTutorialPopup" @tap="showTutorialPopup = false" @touchmove.stop>
       <view class="popup-panel popup-panel-help popup-panel-tutorial" @tap.stop @touchmove.stop>
         <view class="tutorial-popup-head">
-          <view class="popup-title tutorial-popup-title">{{ $t('tryonTutorialTitle') }}</view>
+          <view class="popup-title tutorial-popup-title">{{ tutorialTitle }}</view>
           <view class="tutorial-popup-close" @tap="showTutorialPopup = false">
             <text>×</text>
           </view>
@@ -513,20 +513,16 @@ const appConfigStore = useAppConfigStore()
 const userStore = useUserStore()
 const $t = computed(() => langStore.$t)
 const roomTitle = computed(() => appConfigStore.appName || $t.value('tryonRoom'))
+const tutorialTitle = computed(() => {
+  const value = localText(tryonConfig.value.tryon_tutorial_title, langStore.locale)
+  return String(value || '').trim() || 'Try-On Guide'
+})
 const tutorialItems = computed(() => {
-  return [
-    $t.value('tryonTutorialWebBrowserTip'),
-    $t.value('tryonTutorialItem1'),
-    $t.value('tryonTutorialItem2'),
-    $t.value('tryonTutorialItem3'),
-    $t.value('tryonTutorialItem4'),
-    $t.value('tryonTutorialItem5'),
-    $t.value('tryonTutorialItem6'),
-    $t.value('tryonTutorialItem7'),
-    $t.value('tryonTutorialItem8'),
-    $t.value('tryonTutorialItem9'),
-    $t.value('tryonTutorialItem10'),
-  ]
+  const raw = localText(tryonConfig.value.tryon_tutorial_content, langStore.locale)
+  return String(raw || '')
+    .split(/\r?\n/)
+    .map(item => item.trim())
+    .filter(Boolean)
 })
 
 const showModelPopup = ref(false)
@@ -553,6 +549,8 @@ const announcementConfig = ref({
 })
 const tryonConfig = ref({
   tryon_cost_points: '1',
+  tryon_tutorial_title: '',
+  tryon_tutorial_content: '',
   tryon_models: '',
 })
 

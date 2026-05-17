@@ -53,6 +53,8 @@ var publicConfigKeyAllowlist = map[string]struct{}{
 	"tryon_append_refiner_failed_tip":     {},
 	"tryon_parsing_failed_tip_text":       {},
 	"tryon_refiner_failed_tip_text":       {},
+	"tryon_tutorial_title":                {},
+	"tryon_tutorial_content":              {},
 	"tryon_guest_init_points":             {},
 	"tryon_invite_register_reward_points": {},
 	"tryon_models":                        {},
@@ -274,6 +276,8 @@ func (s *SysConfigApi) GetTryonConfig(c *gin.Context) {
 	parsingFailedTipText, _ := sysConfigService.GetConfigByKey("tryon_parsing_failed_tip_text")
 	appendRefinerFailedTip, _ := sysConfigService.GetConfigByKey("tryon_append_refiner_failed_tip")
 	refinerFailedTipText, _ := sysConfigService.GetConfigByKey("tryon_refiner_failed_tip_text")
+	tutorialTitle, _ := sysConfigService.GetConfigByKey("tryon_tutorial_title")
+	tutorialContent, _ := sysConfigService.GetConfigByKey("tryon_tutorial_content")
 	tryonModels, _ := sysConfigService.GetConfigByKey("tryon_models")
 
 	if guestInit == "" {
@@ -305,6 +309,8 @@ func (s *SysConfigApi) GetTryonConfig(c *gin.Context) {
 	}
 	parsingFailedTipText = normalizeI18nJSONString(parsingFailedTipText)
 	refinerFailedTipText = normalizeI18nJSONString(refinerFailedTipText)
+	tutorialTitle = normalizeI18nJSONString(tutorialTitle)
+	tutorialContent = normalizeI18nJSONString(tutorialContent)
 	if strings.TrimSpace(tryonModels) == "" {
 		tryonModels = defaultTryonModelsConfig()
 	}
@@ -320,6 +326,8 @@ func (s *SysConfigApi) GetTryonConfig(c *gin.Context) {
 		"tryon_parsing_failed_tip_text":       parsingFailedTipText,
 		"tryon_append_refiner_failed_tip":     appendRefinerFailedTip,
 		"tryon_refiner_failed_tip_text":       refinerFailedTipText,
+		"tryon_tutorial_title":                tutorialTitle,
+		"tryon_tutorial_content":              tutorialContent,
 		"tryon_models":                        tryonModels,
 	}
 	response.OkWithDetailed(i18n.LocalizeResponseData(c, config), i18n.T(c, "getSuccess"), c)

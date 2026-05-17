@@ -39,6 +39,11 @@
             <template v-else-if="isCurrencySymbolConfig(scope.row)">
               <span>{{ formatCurrencySymbolPreview(scope.row.configValue) }}</span>
             </template>
+            <template v-else-if="isTryonTutorialConfig(scope.row)">
+              <el-tooltip :content="formatTutorialPreview(scope.row, true)" placement="top">
+                <span class="tutorial-config-preview">{{ formatTutorialPreview(scope.row) }}</span>
+              </el-tooltip>
+            </template>
             <!-- 试衣模型可视化摘要 -->
             <template v-else-if="isTryonModelsConfig(scope.row)">
               <div class="tryon-model-summary">
@@ -869,6 +874,39 @@
               />
             </div>
           </template>
+          <template v-else-if="isTryonTutorialTitleConfig(editForm)">
+            <div class="json-editor tutorial-config-editor">
+              <div class="json-editor-tip">教程弹窗标题（多语言）。支持一键翻译空白/覆盖翻译，建议保持简洁。</div>
+              <MultiLangEditor
+                :model="editJsonValue"
+                :languages="multilingualLangOptions"
+                title="教程标题多语言 tryon_tutorial_title"
+                input-type="input"
+                :use-tabs="true"
+                tab-type="card"
+              />
+            </div>
+          </template>
+          <template v-else-if="isTryonTutorialContentConfig(editForm)">
+            <div class="json-editor tutorial-config-editor">
+              <el-alert
+                type="info"
+                show-icon
+                :closable="false"
+                title="教程正文支持富文本编辑；建议使用标题、列表和段落。一键翻译后请复核格式。"
+                class="tutorial-editor-alert"
+              />
+              <MultiLangEditor
+                :model="editJsonValue"
+                :languages="multilingualLangOptions"
+                title="教程正文多语言 tryon_tutorial_content"
+                input-type="richtext"
+                :use-tabs="true"
+                tab-type="card"
+                :rich-upload-folder="TUTORIAL_RICH_UPLOAD_FOLDER"
+              />
+            </div>
+          </template>
           <template v-else-if="isJsonConfig(editForm)">
             <div class="json-editor">
               <MultiLangEditor
@@ -1071,6 +1109,7 @@ import { getEnabledLanguages, getLanguageList } from '@/api/client/language'
 import { ElMessage } from 'element-plus'
 import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 import SelectImage from '@/components/selectImage/selectImage.vue'
+import { validateRichTextI18nStructure } from '@/utils/richtext-i18n'
 import {
   DEFAULT_LANG_CURRENCY_MAP,
   fetchExchangeRates,
@@ -1125,11 +1164,15 @@ const isTryonRechargePlansConfig = (row) => row?.configKey === 'tryon_recharge_p
 const isPaymentManualMethodsConfig = (row) => row?.configKey === 'payment_manual_methods'
 const isPaymentUniPreferredMethodsConfig = (row) => row?.configKey === 'payment_uni_preferred_methods'
 const isCurrencySymbolConfig = (row) => row?.configKey === 'currency_symbol'
+const isTryonTutorialTitleConfig = (row) => row?.configKey === 'tryon_tutorial_title'
+const isTryonTutorialContentConfig = (row) => row?.configKey === 'tryon_tutorial_content'
+const isTryonTutorialConfig = (row) => isTryonTutorialTitleConfig(row) || isTryonTutorialContentConfig(row)
 const isMaintenanceBgImageConfig = (row) => row?.configKey === 'maintenance_bg_image'
 
 const PAYMENT_MANUAL_METHOD_UPLOAD_FOLDER = 'cloth-on/web-else/pay-method'
 const PAYMENT_PREFERRED_METHOD_UPLOAD_FOLDER = 'cloth-on/web-else/hope-pay'
 const MAINTENANCE_BG_UPLOAD_FOLDER = 'cloth-on/web-else'
+const TUTORIAL_RICH_UPLOAD_FOLDER = 'cloth-on/web-else/tutorial'
 
 // 密钥键列表
 const secretKeys = []
@@ -1151,7 +1194,8 @@ const jsonKeys = [
   'announcement_content', 'maintenance_message',
   'username_regex_tip', 'password_regex_tip',
   'tryon_parsing_failed_tip_text', 'tryon_refiner_failed_tip_text',
-  'app_name', 'invite_share_link_tip_text', 'currency_symbol'
+  'app_name', 'invite_share_link_tip_text', 'currency_symbol',
+  'tryon_tutorial_title', 'tryon_tutorial_content'
 ]
 const isJsonConfig = (row) => jsonKeys.includes(row.configKey)
 
@@ -1174,6 +1218,53 @@ const formatCurrencySymbolPreview = (value) => {
     }
   }
   return raw
+}
+
+const parseMultilingualConfigValue = (value) => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value
+  }
+
+  const raw = String(value || '').trim()
+  if (!raw) {
+    return {}
+  }
+
+  if (raw.charAt(0) === '{') {
+    try {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed
+      }
+    } catch {
+      return {}
+    }
+  }
+
+  return {}
+}
+
+const stripHtmlTags = (value) => {
+  return String(value || '')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const formatTutorialPreview = (row, showFull = false) => {
+  const map = parseMultilingualConfigValue(row?.configValue)
+  let text = displayI18nText(map, String(row?.configValue || '').trim())
+  if (isTryonTutorialContentConfig(row)) {
+    text = stripHtmlTags(text)
+  }
+  const normalized = String(text || '').trim() || '-'
+  if (showFull || normalized.length <= 80) {
+    return normalized
+  }
+  return `${normalized.slice(0, 80)}...`
 }
 
 // 数字键列表
@@ -1264,7 +1355,16 @@ const tryonModelActiveTab = ref('')
 const aliyunQuotaState = reactive({})
 
 const editDialogWidth = computed(() => {
-  return isTryonModelsConfig(editForm.value) ? '1200px' : '600px'
+  if (isTryonModelsConfig(editForm.value)) {
+    return '1200px'
+  }
+  if (isTryonTutorialContentConfig(editForm.value)) {
+    return '1200px'
+  }
+  if (isTryonTutorialTitleConfig(editForm.value)) {
+    return '900px'
+  }
+  return '600px'
 })
 
 const rechargeRateDialogTitle = computed(() => {
@@ -3166,6 +3266,17 @@ const handleSave = async () => {
     }
     configValue = JSON.stringify(buildPaymentPreferredMethodsPayload())
   } else if (isJsonConfig(editForm.value)) {
+    // 统一富文本多语校验钩子：翻译后保持关键 HTML 结构一致，避免链接/列表/媒体标签被破坏。
+    if (isTryonTutorialContentConfig(editForm.value)) {
+      const richTextValidation = validateRichTextI18nStructure(editJsonValue, {
+        fieldLabel: '教程正文',
+        preferredBaseLang: 'zh',
+      })
+      if (!richTextValidation.valid) {
+        ElMessage.warning(richTextValidation.message)
+        return
+      }
+    }
     configValue = JSON.stringify(editJsonValue)
   }
   const res = await updateSysConfig({
@@ -3213,6 +3324,20 @@ onMounted(() => {
   font-size: 12px;
   color: #909399;
 }
+
+.tutorial-config-preview {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.tutorial-config-editor {
+  width: 100%;
+}
+
+.tutorial-editor-alert {
+  margin-bottom: 10px;
+}
+
 .json-row {
   display: flex;
   align-items: center;

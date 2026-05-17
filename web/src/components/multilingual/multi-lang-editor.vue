@@ -35,6 +35,7 @@
           :key="lang.code"
           :label="lang.name || lang.nativeName || lang.code"
           :name="lang.code"
+          :lazy="inputType === 'richtext'"
         >
           <div class="multi-lang-editor__pane">
             <div class="multi-lang-editor__item-head">
@@ -50,6 +51,13 @@
                 clearable
               />
 
+              <RichEdit
+                v-else-if="inputType === 'richtext'"
+                v-model="model[lang.code]"
+                :upload-folder="richUploadFolder"
+                class="multi-lang-editor__rich-edit"
+              />
+
               <el-input
                 v-else
                 v-model="model[lang.code]"
@@ -57,6 +65,10 @@
                 :rows="rows"
                 :placeholder="(lang.name || lang.code) + ' 文案'"
               />
+
+              <div v-if="inputType === 'richtext'" class="multi-lang-editor__rich-tip">
+                支持富文本编辑，一键翻译后请复核格式与换行。
+              </div>
             </slot>
           </div>
         </el-tab-pane>
@@ -77,6 +89,13 @@
               clearable
             />
 
+            <RichEdit
+              v-else-if="inputType === 'richtext'"
+              v-model="model[lang.code]"
+              :upload-folder="richUploadFolder"
+              class="multi-lang-editor__rich-edit"
+            />
+
             <el-input
               v-else
               v-model="model[lang.code]"
@@ -84,6 +103,10 @@
               :rows="rows"
               :placeholder="(lang.name || lang.code) + ' 文案'"
             />
+
+            <div v-if="inputType === 'richtext'" class="multi-lang-editor__rich-tip">
+              支持富文本编辑，一键翻译后请复核格式与换行。
+            </div>
           </slot>
         </div>
       </div>
@@ -94,9 +117,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getLanguageList, translateI18n } from '@/api/client/language'
+
+const RichEdit = defineAsyncComponent(() => import('@/components/richtext/rich-edit.vue'))
 
 const props = defineProps({
   model: {
@@ -122,6 +147,10 @@ const props = defineProps({
   rows: {
     type: Number,
     default: 3,
+  },
+  richUploadFolder: {
+    type: String,
+    default: '',
   },
   useTabs: {
     type: Boolean,
@@ -191,13 +220,43 @@ const validLanguages = computed(() => {
   )
 })
 
+const richTextLikeEmptyPatterns = [
+  /^<p><br><\/p>$/i,
+  /^<p>\s*<\/p>$/i,
+  /^<div><br><\/div>$/i,
+]
+
+const hasMeaningfulContent = (value) => {
+  const raw = String(value ?? '').trim()
+  if (!raw) {
+    return false
+  }
+
+  if (props.inputType !== 'richtext') {
+    return !!raw
+  }
+
+  if (richTextLikeEmptyPatterns.some((pattern) => pattern.test(raw))) {
+    return false
+  }
+
+  const plain = raw
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  return !!plain
+}
+
 const languageCount = computed(() => validLanguages.value.length)
 
 const filledCount = computed(() => {
   if (!props.model || typeof props.model !== 'object') return 0
   return validLanguages.value.reduce((count, lang) => {
-    const value = String(props.model[lang.code] || '').trim()
-    return value ? count + 1 : count
+    return hasMeaningfulContent(props.model[lang.code]) ? count + 1 : count
   }, 0)
 })
 
@@ -262,8 +321,8 @@ const resolveSourceText = () => {
   const sourceCode = String(activeSourceLang.value || '').trim()
   if (!sourceCode) return null
 
-  const sourceValue = String(props.model?.[sourceCode] || '').trim()
-  if (!sourceValue) return null
+  const sourceValue = String(props.model?.[sourceCode] ?? '')
+  if (!hasMeaningfulContent(sourceValue)) return null
 
   return {
     text: sourceValue,
@@ -305,7 +364,7 @@ const translateByMode = async (overwrite = false) => {
   const targets = validLanguages.value
     .map((lang) => lang.code)
     .filter((code) => code !== sourceInfo.source)
-    .filter((code) => overwrite || !String(props.model[code] || '').trim())
+    .filter((code) => overwrite || !hasMeaningfulContent(props.model[code]))
 
   if (!targets.length) {
     ElMessage.info(overwrite ? '没有可覆盖翻译的语言' : '没有需要翻译的空白语言')
@@ -435,6 +494,16 @@ const translateAllSlots = async () => {
 .multi-lang-editor__lang-name {
   color: var(--el-text-color-secondary);
   font-size: 12px;
+}
+
+.multi-lang-editor__rich-edit {
+  width: 100%;
+}
+
+.multi-lang-editor__rich-tip {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
 }
 
 .multi-lang-editor__empty {

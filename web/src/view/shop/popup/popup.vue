@@ -321,6 +321,7 @@ import { getEnabledLanguages } from '@/api/client/language'
 import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 import SelectImage from '@/components/selectImage/selectImage.vue'
 import RichEdit from '@/components/richtext/rich-edit.vue'
+import { validateRichTextI18nStructure } from '@/utils/richtext-i18n'
 import { formatDate } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive, onMounted, watch, computed } from 'vue'
@@ -807,6 +808,20 @@ const enterDialog = async () => {
   btnLoading.value = true
   elFormRef.value?.validate(async (valid) => {
     if (!valid) return btnLoading.value = false
+
+    // 统一富文本多语校验钩子：翻译后保持关键 HTML 结构一致，避免链接/列表/媒体标签被破坏。
+    if (formData.value.popupType === 'content') {
+      const richTextValidation = validateRichTextI18nStructure(contentI18n.value, {
+        fieldLabel: '弹窗内容',
+        preferredBaseLang: 'zh',
+      })
+      if (!richTextValidation.valid) {
+        ElMessage.warning(richTextValidation.message)
+        btnLoading.value = false
+        return
+      }
+    }
+
     // 序列化多语言字段
     if (enabledLangs.value.length) {
       formData.value.title = serializeI18nJson(titleI18n.value) || formData.value.title

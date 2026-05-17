@@ -795,21 +795,21 @@ page {
 
 .card-media {
   position: relative;
-  height: 620rpx;
+  height: 560rpx;
   overflow: hidden;
   background: transparent;
 }
 
 .card-media.media-base {
-  height: 620rpx;
+  height: 560rpx;
 }
 
 .card-media.media-short {
-  height: 540rpx;
+  height: 520rpx;
 }
 
 .card-media.media-tall {
-  height: 620rpx;
+  height: 560rpx;
 }
 
 .card-image {
@@ -870,6 +870,7 @@ page {
   font-size: 24rpx;
   min-height: 56rpx;
   line-height: 33rpx;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
