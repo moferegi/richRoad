@@ -27,6 +27,16 @@ const normalizeRawConfig = (value) => {
   return String(value)
 }
 
+const normalizeLoadOptions = (options) => {
+  if (typeof options === 'boolean') {
+    return { force: options, localeOnly: false }
+  }
+  return {
+    force: !!options?.force,
+    localeOnly: !!options?.localeOnly,
+  }
+}
+
 export const useAppConfigStore = defineStore('appConfig', () => {
   const currencySymbolRaw = ref(uni.getStorageSync('currency_symbol_raw') || uni.getStorageSync('currency_symbol') || '¥')
   const currencySymbol = ref(localText(currencySymbolRaw.value, getActiveLocale()) || normalizeString(currencySymbolRaw.value) || '¥')
@@ -45,8 +55,9 @@ export const useAppConfigStore = defineStore('appConfig', () => {
     uni.setStorageSync('currency_symbol', localizedCurrency)
   }
 
-  const loadConfig = async () => {
-    if (loaded.value) {
+  const loadConfig = async (options = false) => {
+    const { force, localeOnly } = normalizeLoadOptions(options)
+    if (loaded.value && !force) {
       refreshLocalizedConfig()
       return
     }
@@ -55,7 +66,7 @@ export const useAppConfigStore = defineStore('appConfig', () => {
       const [symRes, nameRes, logoRes] = await Promise.all([
         getCurrencySymbol({ includeI18n: true }),
         getAppName({ includeI18n: true }),
-        getAppLogo(),
+        localeOnly ? Promise.resolve(null) : getAppLogo(),
       ])
 
       if (symRes.code === 0 && symRes.data) {
@@ -75,7 +86,7 @@ export const useAppConfigStore = defineStore('appConfig', () => {
         }
       }
 
-      if (logoRes.code === 0 && logoRes.data) {
+      if (!localeOnly && logoRes && logoRes.code === 0 && logoRes.data) {
         const logo = resolveConfigValue(logoRes.data)
         if (logo) { appLogo.value = logo; uni.setStorageSync('app_logo', logo) }
       }

@@ -110,7 +110,8 @@
 		reactive,
 		ref,
 		computed,
-		onMounted
+    onMounted,
+    watch
 	} from 'vue';
   import { onLoad, onShow } from '@dcloudio/uni-app'
 
@@ -263,10 +264,12 @@
 			if (res.code === 0 && res.data) {
 				const list = Array.isArray(res.data) ? res.data : (res.data.list || [])
 				areaCodes.value = list
-				if (areaCodes.value.length > 0) {
-					selectedAreaCode.value = areaCodes.value[0].areaCode
-					form.areaCode = areaCodes.value[0].areaCode
-				}
+        if (!areaCodes.value.length) return
+        const currentCode = form.areaCode || selectedAreaCode.value
+        const matched = areaCodes.value.find(item => item.areaCode === currentCode) || areaCodes.value[0]
+        selectedAreaCode.value = matched.areaCode
+        form.areaCode = matched.areaCode
+        selectedAreaItem.value = matched
 			}
 		} catch(e) {}
 	}
@@ -289,6 +292,14 @@
 		}
 	}
 
+  const reloadLocaleSensitiveData = async () => {
+    await Promise.all([
+      loadAreaCodes(),
+      loadConfig(),
+      appConfigStore.loadConfig({ force: true, localeOnly: true })
+    ])
+  }
+
   onLoad((options) => {
     applyInviteCode(options)
     lastLoadedLocale.value = locale.value
@@ -297,9 +308,15 @@
   onShow(() => {
     const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
     if (localeChanged) {
-      getCaptchaFunc()
+		  reloadLocaleSensitiveData()
     }
     lastLoadedLocale.value = locale.value
+  })
+
+  watch(() => locale.value, (newLocale, oldLocale) => {
+    if (!oldLocale || newLocale === oldLocale) return
+    reloadLocaleSensitiveData()
+    lastLoadedLocale.value = newLocale
   })
 
 	onMounted(() => {
@@ -384,7 +401,7 @@
 		if(flag){
       uni.removeStorageSync('pendingInviteCode')
 			uni.showToast({ title: $t.value('loginSuccess') })
-			uni.navigateTo({ url: '/pages/tabBar/index' })
+      uni.switchTab({ url: '/pages/tabBar/index' })
 			return
 		}
 		getCaptchaFunc()

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import {ref, watch} from 'vue'
 import { login, getUserInfo, phoneLogin } from '@/api/base.js'
 import { myRouter } from '../../utils/permission'
+import { useLangStore } from '@/pinia/modules/lang.js'
 
 export const useUserStore = defineStore('user', () => {
     const userInfo = ref({
@@ -19,6 +20,17 @@ export const useUserStore = defineStore('user', () => {
 		uni.setStorageSync('ID',val.ID)
     }
 
+    const syncTabBarLocale = () => {
+        const langStore = useLangStore()
+        const lang = langStore.locale || uni.getStorageSync('app-lang') || 'mn'
+        langStore.updateTabBar(lang)
+        ;[120, 300, 620].forEach((delay) => {
+            setTimeout(() => {
+                langStore.updateTabBar(lang)
+            }, delay)
+        })
+    }
+
 
     // 登录
     const loginIn = async (loginInfo) => {
@@ -28,6 +40,7 @@ export const useUserStore = defineStore('user', () => {
 			uni.switchTab({
 				url: '/pages/tabBar/index'
 			})
+            syncTabBarLocale()
             return true
         }
         return false
@@ -41,6 +54,7 @@ export const useUserStore = defineStore('user', () => {
 			uni.switchTab({
 				url: '/pages/tabBar/index'
 			})
+            syncTabBarLocale()
             return true
         }
         return false

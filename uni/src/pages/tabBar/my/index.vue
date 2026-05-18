@@ -195,6 +195,7 @@ const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang')
 const showRecharge = ref(false)
 const showAboutPopup = ref(false)
 const showLangPicker = ref(false)
+const lastLoadedLocale = ref('')
 const userInfo = ref({})
 const paymentMethods = ref([])
 const payMethodSheetVisible = ref(false)
@@ -470,6 +471,14 @@ const loadRechargePlans = async () => {
   }
 }
 
+const reloadLocaleSensitiveData = async () => {
+  await Promise.all([
+    appConfigStore.loadConfig({ force: true, localeOnly: true }),
+    loadRechargePlans(),
+    loadPaymentMethods(),
+  ])
+}
+
 const isLogin = computed(() => {
   return !!(userStore.token || uni.getStorageSync('x-token'))
 })
@@ -689,8 +698,10 @@ const syncBodyScrollLock = () => {
 
 watch([showRecharge, showAboutPopup, showLangPicker], syncBodyScrollLock)
 
-watch(locale, () => {
-  loadPaymentMethods()
+watch(locale, (newLocale, oldLocale) => {
+  if (!oldLocale || newLocale === oldLocale) return
+  reloadLocaleSensitiveData()
+  lastLoadedLocale.value = newLocale
 })
 
 onUnmounted(() => {
@@ -703,12 +714,18 @@ onUnmounted(() => {
 })
 
 onShow(() => {
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
   langStore.initLangs()
   tryAutoShowLangPicker()
-  appConfigStore.loadConfig()
-  loadRechargePlans()
-  loadPaymentMethods()
+  if (localeChanged) {
+    reloadLocaleSensitiveData()
+  } else {
+    appConfigStore.loadConfig()
+    loadRechargePlans()
+    loadPaymentMethods()
+  }
   loadUserInfo()
+  lastLoadedLocale.value = locale.value
 })
 </script>
 

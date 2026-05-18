@@ -512,6 +512,8 @@ const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
 const userStore = useUserStore()
 const $t = computed(() => langStore.$t)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+const lastLoadedLocale = ref('')
 const roomTitle = computed(() => appConfigStore.appName || $t.value('tryonRoom'))
 const tutorialTitle = computed(() => {
   const value = localText(tryonConfig.value.tryon_tutorial_title, langStore.locale)
@@ -1899,6 +1901,14 @@ const loadConfig = async () => {
   rebuildModelList()
 }
 
+const reloadLocaleSensitiveData = async () => {
+  await Promise.all([
+    appConfigStore.loadConfig({ force: true, localeOnly: true }),
+    loadAnnouncement(),
+    loadConfig(),
+  ])
+}
+
 const applySelectedClothes = () => {
   const selected = getSelectedClothes()
   if (!selected || typeof selected !== 'object') return
@@ -2100,16 +2110,28 @@ watch(showUpperOnlySplitSelector, (visible, prevVisible) => {
   }
 })
 
+watch(() => locale.value, (newLocale, oldLocale) => {
+  if (!oldLocale || newLocale === oldLocale) return
+  reloadLocaleSensitiveData()
+  lastLoadedLocale.value = newLocale
+})
+
 onShow(() => {
+  const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
   tryAutoShowLangPicker()
-  appConfigStore.loadConfig()
+  if (localeChanged) {
+    reloadLocaleSensitiveData()
+  } else {
+    appConfigStore.loadConfig()
+    loadAnnouncement()
+    loadConfig()
+  }
   loadExampleDomain()
-  loadAnnouncement()
-  loadConfig()
   loadMyModelList()
   loadMyClothList()
   applySelectedModel()
   applySelectedClothes()
+  lastLoadedLocale.value = locale.value
 })
 </script>
 

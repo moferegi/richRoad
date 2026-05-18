@@ -124,7 +124,8 @@
 		reactive,
 		ref,
 		computed,
-		onMounted
+    onMounted,
+    watch
 	} from 'vue';
 
 	import {
@@ -220,6 +221,14 @@
 		}
 	}
 
+  const reloadLocaleSensitiveData = async () => {
+    await Promise.all([
+      loadAreaCodes(),
+      loadConfig(),
+      appConfigStore.loadConfig({ force: true, localeOnly: true })
+    ])
+  }
+
 	// 加载配置
 	const loadConfig = async () => {
 		try {
@@ -251,10 +260,12 @@
 			if (res.code === 0 && res.data) {
 				const list = Array.isArray(res.data) ? res.data : (res.data.list || [])
 				areaCodes.value = list
-				if (areaCodes.value.length > 0) {
-					selectedAreaCode.value = areaCodes.value[0].areaCode
-					form.areaCode = areaCodes.value[0].areaCode
-				}
+        if (!areaCodes.value.length) return
+        const currentCode = form.areaCode || selectedAreaCode.value
+        const matched = areaCodes.value.find(item => item.areaCode === currentCode) || areaCodes.value[0]
+        selectedAreaCode.value = matched.areaCode
+        form.areaCode = matched.areaCode
+        selectedAreaItem.value = matched
 			}
 		} catch(e) {}
 	}
@@ -313,9 +324,15 @@
   onShow(() => {
     const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
     if (localeChanged) {
-      getCaptchaFunc()
+		  reloadLocaleSensitiveData()
     }
     lastLoadedLocale.value = locale.value
+  })
+
+  watch(() => locale.value, (newLocale, oldLocale) => {
+    if (!oldLocale || newLocale === oldLocale) return
+    reloadLocaleSensitiveData()
+    lastLoadedLocale.value = newLocale
   })
 
 	onMounted(() => {
@@ -329,7 +346,18 @@
     tryAutoShowLangPicker()
 	})
 
+  const syncTabBarLocale = () => {
+    const lang = langStore.locale || uni.getStorageSync('app-lang') || 'mn'
+    langStore.updateTabBar(lang)
+    ;[120, 300, 620].forEach((delay) => {
+      setTimeout(() => {
+        langStore.updateTabBar(lang)
+      }, delay)
+    })
+  }
+
 	const toLogin = () => {
+    syncTabBarLocale()
 		uni.navigateTo({ url: '/pages/user/login' })
 	}
 
