@@ -63,10 +63,10 @@ func (api *PresaleApi) CheckPresaleAvailable(c *gin.Context) {
 		response.FailWithMessage("检查失败", c)
 		return
 	}
-	response.OkWithDetailed(gin.H{
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, gin.H{
 		"available": available,
 		"message":   msg,
-	}, "获取成功", c)
+	}), "获取成功", c)
 }
 
 // GetPresaleParticipants 获取预售参与者（管理端）

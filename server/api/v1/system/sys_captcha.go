@@ -7,6 +7,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	systemRes "github.com/flipped-aurora/gin-vue-admin/server/model/system/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"github.com/mojocn/base64Captcha"
 	"go.uber.org/zap"
@@ -58,12 +59,12 @@ func (b *BaseApi) Captcha(c *gin.Context) {
 		response.FailWithMessage("验证码获取失败", c)
 		return
 	}
-	response.OkWithDetailed(systemRes.SysCaptchaResponse{
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, systemRes.SysCaptchaResponse{
 		CaptchaId:     id,
 		PicPath:       b64s,
 		CaptchaLength: global.GVA_CONFIG.Captcha.KeyLong,
 		OpenCaptcha:   oc,
-	}, "验证码获取成功", c)
+	}), "验证码获取成功", c)
 }
 
 // 类型转换

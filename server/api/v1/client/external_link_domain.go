@@ -151,5 +151,5 @@ func (a *ExternalLinkDomainApi) GetDefaultDomain(c *gin.Context) {
 		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
-	response.OkWithDetailed(domain, i18n.T(c, "getSuccess"), c)
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, domain), i18n.T(c, "getSuccess"), c)
 }

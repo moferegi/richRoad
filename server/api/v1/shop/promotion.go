@@ -5,6 +5,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -206,5 +207,5 @@ func (promoApi *PromotionApi) GetPromotionPublic(c *gin.Context) {
 		return
 	}
 
-	response.OkWithDetailed(promotion, "获取成功", c)
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, promotion), "获取成功", c)
 }

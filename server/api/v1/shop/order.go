@@ -67,10 +67,10 @@ func (orderApi *OrderApi) PlaceOrder(c *gin.Context) {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
 		response.FailWithMessage(err.Error(), c)
 	} else {
-		response.OkWithData(gin.H{
+		response.OkWithData(i18n.LocalizeResponseData(c, gin.H{
 			"orderID": orderID,
 			"orderNo": orderNo,
-		}, c)
+		}), c)
 	}
 }
 
@@ -94,10 +94,10 @@ func (orderApi *OrderApi) PlaceOrderByCart(c *gin.Context) {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
 		response.FailWithMessage(err.Error(), c)
 	} else {
-		response.OkWithData(gin.H{
+		response.OkWithData(i18n.LocalizeResponseData(c, gin.H{
 			"orderID": orderID,
 			"orderNo": orderNo,
-		}, c)
+		}), c)
 	}
 }
 
@@ -405,7 +405,7 @@ func (orderApi *OrderApi) FindOrder(c *gin.Context) {
 		global.GVA_LOG.Error(err.Error(), zap.Error(err))
 		response.FailWithMessage("查询失败", c)
 	} else {
-		response.OkWithData(gin.H{"reorder": reorder}, c)
+		response.OkWithData(i18n.LocalizeResponseData(c, gin.H{"reorder": reorder}), c)
 	}
 }
 
@@ -429,12 +429,12 @@ func (orderApi *OrderApi) GetOrderList(c *gin.Context) {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
 		response.FailWithMessage(err.Error(), c)
 	} else {
-		response.OkWithDetailed(response.PageResult{
+		response.OkWithDetailed(i18n.LocalizeResponseData(c, response.PageResult{
 			List:     list,
 			Total:    total,
 			Page:     pageInfo.Page,
 			PageSize: pageInfo.PageSize,
-		}, "获取成功", c)
+		}), "获取成功", c)
 	}
 }
 

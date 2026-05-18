@@ -43,7 +43,7 @@ func (api *TryonRechargeOrderApi) CreateTryonRechargeOrder(c *gin.Context) {
 		return
 	}
 
-	response.OkWithDetailed(gin.H{"order": order}, i18n.T(c, "createSuccess"), c)
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, gin.H{"order": order}), i18n.T(c, "createSuccess"), c)
 }
 
 // UpdateTryonRechargeOrderPayMethod 更新充值订单支付方式
@@ -180,7 +180,7 @@ func (api *TryonRechargeOrderApi) SelfTryonRechargeOrder(c *gin.Context) {
 		return
 	}
 
-	response.OkWithDetailed(gin.H{"order": order}, i18n.T(c, "querySuccess"), c)
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, gin.H{"order": order}), i18n.T(c, "querySuccess"), c)
 }
 
 // FindTryonRechargeOrder 获取充值订单详情（管理端）
@@ -211,7 +211,7 @@ func (api *TryonRechargeOrderApi) FindTryonRechargeOrder(c *gin.Context) {
 		return
 	}
 
-	response.OkWithDetailed(gin.H{"order": order}, i18n.T(c, "querySuccess"), c)
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, gin.H{"order": order}), i18n.T(c, "querySuccess"), c)
 }
 
 // GetMyTryonRechargeOrderList 获取我的充值订单列表
@@ -238,7 +238,7 @@ func (api *TryonRechargeOrderApi) GetMyTryonRechargeOrderList(c *gin.Context) {
 		return
 	}
 
-	response.OkWithDetailed(response.PageResult{List: list, Total: total, Page: search.Page, PageSize: search.PageSize}, i18n.T(c, "querySuccess"), c)
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, response.PageResult{List: list, Total: total, Page: search.Page, PageSize: search.PageSize}), i18n.T(c, "querySuccess"), c)
 }
 
 // GetTryonRechargeOrderList 获取充值订单列表（管理端）
@@ -269,5 +269,5 @@ func (api *TryonRechargeOrderApi) GetTryonRechargeOrderList(c *gin.Context) {
 		return
 	}
 
-	response.OkWithDetailed(response.PageResult{List: list, Total: total, Page: search.Page, PageSize: search.PageSize}, i18n.T(c, "querySuccess"), c)
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, response.PageResult{List: list, Total: total, Page: search.Page, PageSize: search.PageSize}), i18n.T(c, "querySuccess"), c)
 }

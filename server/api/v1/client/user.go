@@ -497,12 +497,12 @@ func (clientUserApi *ClientUserApi) GetSubordinates(c *gin.Context) {
 		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
-	response.OkWithDetailed(response.PageResult{
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, response.PageResult{
 		List:     list,
 		Total:    total,
 		Page:     page,
 		PageSize: pageSize,
-	}, i18n.T(c, "getSuccess"), c)
+	}), i18n.T(c, "getSuccess"), c)
 }
 
 // GetMyInviteInfo 获取当前用户的邀请信息（uni-app端）
@@ -521,12 +521,12 @@ func (clientUserApi *ClientUserApi) GetMyInviteInfo(c *gin.Context) {
 		return
 	}
 	subordinateCount, _ := clientUserService.GetSubordinateCount(userID)
-	response.OkWithDetailed(gin.H{
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, gin.H{
 		"inviteCode":       user.InviteCode,
 		"subordinateCount": subordinateCount,
 		"point":            user.Point,
 		"tryonPoint":       user.TryonPoint,
-	}, i18n.T(c, "getSuccess"), c)
+	}), i18n.T(c, "getSuccess"), c)
 }
 
 // GetMySubordinates 获取当前用户的下级列表（uni-app端）
@@ -555,12 +555,12 @@ func (clientUserApi *ClientUserApi) GetMySubordinates(c *gin.Context) {
 		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
-	response.OkWithDetailed(response.PageResult{
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, response.PageResult{
 		List:     list,
 		Total:    total,
 		Page:     page,
 		PageSize: pageSize,
-	}, i18n.T(c, "getSuccess"), c)
+	}), i18n.T(c, "getSuccess"), c)
 }
 
 // PhoneLogin 手机号+密码登录

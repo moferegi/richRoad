@@ -69,10 +69,12 @@ import { updateOrder } from '@/api/order.js'
 import { getAddressList, getAddressDataSource, deleteAddress } from '@/api/address.js'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
-import { localText } from '@/utils/i18n'
+import { useI18nDisplay } from '@/composables/useI18nDisplay.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+const { resolveDisplayText } = useI18nDisplay(locale)
 
 const addressList = ref([])
 const isShow = ref(false)
@@ -125,12 +127,7 @@ const formatt = (value, type) => {
 
 const getGeoLabel = (item) => {
   if (!item) return ''
-  // 优先使用多语言字段
-  if (item.labelI18n) {
-    const translated = localText(item.labelI18n, langStore.locale)
-    if (translated) return translated
-  }
-  return item.label || ''
+  return resolveDisplayText(item.labelI18n || item.label, item.label || '')
 }
 
 const rebuildAddressTrans = () => {

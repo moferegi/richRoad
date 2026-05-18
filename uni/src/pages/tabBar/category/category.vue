@@ -15,7 +15,7 @@
           :class="['category-item', { 'active': activeindex === index }]"
           @tap="checkitem(index, item)"
         >
-          <view class="category-text">{{ $lt(item.title) }}</view>
+          <view class="category-text">{{ resolveDisplayText(item.title, item.title) }}</view>
           <view v-if="activeindex === index" class="active-indicator"></view>
         </view>
       </scroll-view>
@@ -30,7 +30,7 @@
         <!-- 分类标题 -->
         <view v-if="currentCategory" class="content-header">
           <view class="category-banner">
-            <view class="banner-title">{{ $lt(currentCategory.title) }}</view>
+            <view class="banner-title">{{ resolveDisplayText(currentCategory.title, currentCategory.title) }}</view>
             <view class="banner-subtitle">{{ $t('categorySubtitle') }}</view>
           </view>
         </view>
@@ -40,7 +40,7 @@
           <view v-if="category.goods && category.goods.length > 0" class="category-section">
             <view class="section-title">
               <view class="title-line"></view>
-              <text class="title-text">{{ $lt(category.title) }}</text>
+              <text class="title-text">{{ resolveDisplayText(category.title, category.title) }}</text>
               <view class="title-line"></view>
             </view>
 
@@ -67,14 +67,14 @@
                       }"
                       class="tag-badge"
                     >
-                      {{ $lt(tag.nameI18n || tag.name) }}
+                      {{ resolveDisplayText(tag.nameI18n || tag.name, tag.name) }}
                     </text>
                   </view>
                 </view>
 
                 <view class="card-content">
-                  <view class="goods-title">{{ $lt(item.title) }}</view>
-                  <view class="goods-desc">{{ $lt(item.description) }}</view>
+                  <view class="goods-title">{{ resolveDisplayText(item.title, item.title) }}</view>
+                  <view class="goods-desc">{{ resolveDisplayText(item.description, item.description) }}</view>
 
                   <view class="price-section">
                     <view class="current-price">
@@ -117,6 +117,7 @@ import { onShow } from '@dcloudio/uni-app'
 import {getUrl} from '@/utils/url'
 import {getCategoryMobile, getChildrenCategoryAndProduct} from '@/api/homePage.js'
 import { formatLocalizedPrice } from '@/utils/price-i18n.js'
+import { useI18nDisplay } from '@/composables/useI18nDisplay.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
@@ -124,8 +125,9 @@ const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
-const $lt = computed(() => langStore.$lt)
 const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+
+const { resolveDisplayText } = useI18nDisplay(locale)
 
 const formatGoodsPrice = (item) => formatLocalizedPrice(item?.price, item?.priceI18n, locale.value)
 

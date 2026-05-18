@@ -40,8 +40,8 @@
         <view class="nf-goods-item" v-for="(d, i) in data.detail" :key="i" @tap="goGoodsDetail(d)">
           <LazyImage class="nf-goods-img" :src="d.sku?.externalPicturePath ? getExternalUrl(d.sku.externalPicturePath) : getUrl(d.sku?.picture)" mode="aspectFill"></LazyImage>
           <view class="nf-goods-info">
-            <text class="nf-goods-name">{{ $lt(d?.sku?.name) || d?.sku?.name }}</text>
-            <text class="nf-goods-desc">{{ $lt(d?.good?.description) || $lt(d?.sku?.description) || d?.good?.description || d?.sku?.description }}</text>
+            <text class="nf-goods-name">{{ resolveDisplayText(d?.sku?.nameI18n || d?.sku?.name, d?.sku?.name) }}</text>
+            <text class="nf-goods-desc">{{ resolveDisplayText(d?.good?.descriptionI18n || d?.good?.description || d?.sku?.descriptionI18n || d?.sku?.description, d?.good?.description || d?.sku?.description) }}</text>
             <text class="nf-goods-specs">{{ formatSpecs(d?.sku?.specs, d?.sku?.attrs) }}</text>
             <view class="nf-goods-bottom">
               <text class="nf-goods-price">{{ orderCs }}{{ getLocalizedLinePrice(d) }}</text>
@@ -196,7 +196,7 @@ import { checkNeedPay } from '@/api/base.js'
 import { getSysConfigByKey } from '@/api/sysConfig.js'
 import { getPaymentConfig } from '@/api/sysConfig.js'
 import { getUrl, getExternalUrl } from "@/utils/url.js"
-import { localText } from '@/utils/i18n.js'
+import { useI18nDisplay } from '@/composables/useI18nDisplay.js'
 import { resolveLocalizedPriceFen } from '@/utils/price-i18n.js'
 import RefundApplyPopup from '@/components/refund-apply-popup/refund-apply-popup.vue'
 import LazyImage from '@/components/lazy-image/lazy-image.vue'
@@ -208,8 +208,9 @@ const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
-const $lt = computed(() => langStore.$lt)
 const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+
+const { resolveDisplayText } = useI18nDisplay(locale)
 
 const orderID = ref('')
 const data = ref({})
@@ -289,8 +290,8 @@ const getStatusLabel = (status) => {
 }
 
 const getPayMethodLabel = (method, label, name) => {
-  const localizedName = String(localText(name, locale.value) || '').trim()
-  const localizedLabel = String(localText(label, locale.value) || '').trim()
+  const localizedName = String(resolveDisplayText(name, '') || '').trim()
+  const localizedLabel = String(resolveDisplayText(label, '') || '').trim()
   const map = {
     qrcode: $t.value('payByQrcode'),
     contact: $t.value('payByContact'),
@@ -382,8 +383,8 @@ const formatSpecs = (specs, attrs) => {
   const arr = [...parseSpecItems(specs), ...parseSpecItems(attrs)]
   if (!arr.length) return ''
   return arr.map(s => {
-    const label = localText(s.labelI18n || s.nameI18n || s.label || s.name, locale.value) || s.label || s.name || ''
-    const value = localText(s.valueI18n || s.value, locale.value) || s.value || ''
+    const label = resolveDisplayText(s.labelI18n || s.nameI18n || s.label || s.name, s.label || s.name || '')
+    const value = resolveDisplayText(s.valueI18n || s.value, s.value || '')
     return label ? `${label}: ${value}` : value
   }).join('  ')
 }

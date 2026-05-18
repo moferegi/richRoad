@@ -4,7 +4,7 @@
       <view v-for="(item, index) in props.goodsList" :key="index" class="goods-item" @tap="handleGoodsClick(item)">
         <LazyImage :src="item.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(item.imageUrl)" class="goods-image" mode="aspectFill"></LazyImage>
         <view class="goods-info">
-          <text class="goods-name">{{ $lt(item.title) }}</text>
+          <text class="goods-name">{{ resolveDisplayText(item.title, item.title) }}</text>
           <view v-if="item.tags && item.tags.length > 0" class="merchant-tags">
             <text
                 v-for="tag in item.tags"
@@ -16,7 +16,7 @@
           }"
                 class="merchant-tag"
             >
-              {{ $lt(tag.nameI18n || tag.name) }}
+              {{ resolveDisplayText(tag.nameI18n || tag.name, tag.name || '') }}
             </text>
           </view>
           <view class="price-container">
@@ -55,6 +55,7 @@ import {ref, computed, onMounted, onUnmounted, nextTick, watch} from 'vue'
 import {getUrl, getExternalUrl} from "@/utils/url.js"
 import { formatLocalizedPrice } from '@/utils/price-i18n.js'
 import { onReachBottom } from '@dcloudio/uni-app'
+import { useI18nDisplay } from '@/composables/useI18nDisplay.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import LazyImage from '@/components/lazy-image/lazy-image.vue'
@@ -63,8 +64,8 @@ const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
-const $lt = computed(() => langStore.$lt)
 const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+const { resolveDisplayText } = useI18nDisplay(locale)
 
 const formatPrice = (item) => formatLocalizedPrice(item?.price, item?.priceI18n, locale.value)
 

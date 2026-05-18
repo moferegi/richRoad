@@ -265,7 +265,7 @@ func (couApi *CouponOrderUserApi) ClaimCouponByUser(c *gin.Context) {
 		response.FailWithMessage("领取失败: "+err.Error(), c)
 		return
 	}
-	response.OkWithData(couponNum, c)
+	response.OkWithData(i18n.LocalizeResponseData(c, couponNum), c)
 }
 
 // AdminIssueCouponToAll 管理员向所有用户发放优惠券

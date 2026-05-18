@@ -142,7 +142,7 @@ func (addressApi *AddressApi) FindAddress(c *gin.Context) {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
 		response.FailWithMessage(i18n.T(c, "queryFail"), c)
 	} else {
-		response.OkWithData(gin.H{"readdress": readdress}, c)
+		response.OkWithData(i18n.LocalizeResponseData(c, gin.H{"readdress": readdress}), c)
 	}
 }
 
@@ -166,7 +166,7 @@ func (addressApi *AddressApi) GetDefaultAddress(c *gin.Context) {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
 		response.FailWithMessage(i18n.T(c, "getFail"), c)
 	} else {
-		response.OkWithData(address, c) // 使用返回的地址数据
+		response.OkWithData(i18n.LocalizeResponseData(c, address), c) // 使用返回的地址数据
 	}
 }
 
@@ -194,12 +194,12 @@ func (addressApi *AddressApi) GetAddressList(c *gin.Context) {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
 		response.FailWithMessage(i18n.T(c, "getFail"), c)
 	} else {
-		response.OkWithDetailed(response.PageResult{
+		response.OkWithDetailed(i18n.LocalizeResponseData(c, response.PageResult{
 			List:     list,
 			Total:    total,
 			Page:     pageInfo.Page,
 			PageSize: pageInfo.PageSize,
-		}, i18n.T(c, "getSuccess"), c)
+		}), i18n.T(c, "getSuccess"), c)
 	}
 }
 
@@ -216,7 +216,7 @@ func (addressApi *AddressApi) GetAddressDataSource(c *gin.Context) {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
 		response.FailWithMessage(i18n.T(c, "queryFail"), c)
 	} else {
-		response.OkWithData(dataSource, c)
+		response.OkWithData(i18n.LocalizeResponseData(c, dataSource), c)
 	}
 }
 

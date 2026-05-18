@@ -61,7 +61,7 @@
             class="nf-pay-qr-tab"
             :class="{ active: currentQrIndex === i }"
             @tap="currentQrIndex = i"
-          >{{ localText(qr.nameI18n) || qr.name }}</view>
+          >{{ resolveDisplayText(qr.nameI18n, qr.name) }}</view>
         </view>
         <view class="nf-pay-qr-wrap">
           <LazyImage
@@ -171,6 +171,7 @@ import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { getEnabledQrcodePayments } from '@/api/qrcodePayment.js'
 import { getPaymentConfig, getUniPreferredPayConfig, getSysConfigByKey } from '@/api/sysConfig.js'
 import { localText, resolveApiMessage } from '@/utils/i18n'
+import { useI18nDisplay } from '@/composables/useI18nDisplay.js'
 import { resolveLocalizedPriceFen } from '@/utils/price-i18n.js'
 import { selfOrder, updateOrder, updateOrderStatus } from '@/api/order.js'
 import LazyImage from '@/components/lazy-image/lazy-image.vue'
@@ -192,6 +193,8 @@ const displayCs = computed(() => {
 const $t = computed(() => langStore.$t)
 const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 const lastLoadedLocale = ref('')
+
+const { resolveDisplayText } = useI18nDisplay(locale)
 
 const amount = ref('0.00')
 const orderNo = ref('')
@@ -294,7 +297,7 @@ const paymentMethodLabelMap = computed(() => ({
 }))
 
 const getPaymentMethodLabel = (payMethod, name, label) => {
-  const localizedName = String(localText(name, langStore.locale) || localText(label, langStore.locale) || '').trim()
+  const localizedName = String(resolveDisplayText(name, label) || '').trim()
   if (localizedName) {
     return localizedName
   }
@@ -376,11 +379,14 @@ const rebuildOrderSummaryName = () => {
   orderSummaryName.value = detail.map(item => {
     const sku = item?.sku || {}
     const good = item?.good || {}
-    const name = localText(sku?.nameI18n || sku?.name || good?.titleI18n || good?.title || good?.nameI18n || good?.name, langStore.locale) || ''
+    const name = resolveDisplayText(
+      sku?.nameI18n || good?.titleI18n || good?.nameI18n || sku?.name || good?.title || good?.name,
+      sku?.name || good?.title || good?.name || ''
+    )
     const specs = [...parseSkuSpecItems(sku?.specs), ...parseSkuSpecItems(sku?.attrs)]
       .map(spec => {
-        const label = localText(spec?.labelI18n || spec?.nameI18n || spec?.label || spec?.name, langStore.locale)
-        const value = localText(spec?.valueI18n || spec?.value, langStore.locale)
+        const label = resolveDisplayText(spec?.labelI18n || spec?.nameI18n || spec?.label || spec?.name, spec?.label || spec?.name || '')
+        const value = resolveDisplayText(spec?.valueI18n || spec?.value, spec?.value || '')
         if (!label && !value) return ''
         return label ? `${label}:${value}` : value
       })
@@ -423,7 +429,7 @@ const manualCardTitle = computed(() => {
 })
 const selectedPreferredPayMethodCopyText = computed(() => {
   const found = preferredPayMethods.value.find(item => item.key === selectedPreferredPayMethod.value)
-  return localText(found?.copyText, langStore.locale) || ''
+  return resolveDisplayText(found?.copyText, '')
 })
 const selectedPreferredPayMethodDraftText = computed(() => {
   if (!selectedPreferredPayMethod.value) {
@@ -449,7 +455,7 @@ const currentQrIndex = ref(0)
 const currentQrLabel = computed(() => {
   const qr = qrList.value[currentQrIndex.value]
   if (!qr) return ''
-  return localText(qr.nameI18n, langStore.locale) || qr.name || getPaymentMethodLabel('qrcode')
+  return resolveDisplayText(qr.nameI18n, qr.name) || getPaymentMethodLabel('qrcode')
 })
 const currentQrUrl = computed(() => {
   const qr = qrList.value[currentQrIndex.value]

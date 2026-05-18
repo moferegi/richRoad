@@ -4,6 +4,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/geo/model"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/geo/service"
 	"github.com/gin-gonic/gin"
@@ -24,7 +25,7 @@ func (p *GeoApi) GetGeos(c *gin.Context) {
 		global.GVA_LOG.Error("失败!", zap.Error(err))
 		response.FailWithMessage("失败", c)
 	} else {
-		response.OkWithData(geos, c)
+		response.OkWithData(i18n.LocalizeResponseData(c, geos), c)
 	}
 }
 

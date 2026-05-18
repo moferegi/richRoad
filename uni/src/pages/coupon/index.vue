@@ -74,9 +74,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getAllClaimCoupon, claimCouponByUser } from '@/api/coupon'
-import { t, localText, resolveApiMessage } from '@/utils/i18n'
+import { t, resolveApiMessage } from '@/utils/i18n'
 import { getUrl } from '@/utils/url'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
+import { useI18nDisplay } from '@/composables/useI18nDisplay.js'
 
 const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
@@ -84,6 +85,7 @@ const cs = computed(() => appConfigStore.currencySymbol)
 const activeTab = ref('available')
 const couponList = ref([])
 const lastLoadedLocale = ref(uni.getStorageSync('app-lang') || 'zh')
+const { resolveDisplayText } = useI18nDisplay()
 
 const filteredList = computed(() => {
   if (activeTab.value === 'available') return couponList.value.filter(c => c.status !== 1)
@@ -91,13 +93,11 @@ const filteredList = computed(() => {
 })
 
 const couponName = (item) => {
-  if (item.nameI18n) return localText(item.nameI18n) || item.name
-  return item.name
+  return resolveDisplayText(item.nameI18n || item.name, item.name || '')
 }
 
 const couponDesc = (item) => {
-  if (item.descriptionI18n) return localText(item.descriptionI18n) || item.description || ''
-  return item.description || ''
+  return resolveDisplayText(item.descriptionI18n || item.description, item.description || '')
 }
 
 const minSpendText = (item) => {

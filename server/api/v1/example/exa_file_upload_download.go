@@ -9,6 +9,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/example"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/example/request"
 	exampleRes "github.com/flipped-aurora/gin-vue-admin/server/model/example/response"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils/upload"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -181,7 +182,7 @@ func (b *FileUploadAndDownloadApi) SignURL(c *gin.Context) {
 		return
 	}
 	signedURL := upload.SignURL(req.FilePath)
-	response.OkWithDetailed(gin.H{"url": signedURL}, "生成成功", c)
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, gin.H{"url": signedURL}), "生成成功", c)
 }
 
 // GetHotlinkConfig

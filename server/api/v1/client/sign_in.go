@@ -50,10 +50,10 @@ func (api *SignInApi) GetSignInStatus(c *gin.Context) {
 	userID := utils.GetUserID(c)
 	signed := signInService.GetSignInStatus(userID)
 	continuousDays := signInService.GetContinuousSignInDays(userID)
-	response.OkWithDetailed(gin.H{
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, gin.H{
 		"signed":         signed,
 		"continuousDays": continuousDays,
-	}, i18n.T(c, "getSuccess"), c)
+	}), i18n.T(c, "getSuccess"), c)
 }
 
 // GetSignInRecords 获取签到记录
@@ -74,12 +74,12 @@ func (api *SignInApi) GetSignInRecords(c *gin.Context) {
 		global.GVA_LOG.Error("获取签到记录失败!", zap.Error(err))
 		response.FailWithMessage(i18n.T(c, "getFail"), c)
 	} else {
-		response.OkWithDetailed(response.PageResult{
+		response.OkWithDetailed(i18n.LocalizeResponseData(c, response.PageResult{
 			List:     records,
 			Total:    total,
 			Page:     page,
 			PageSize: pageSize,
-		}, i18n.T(c, "getSuccess"), c)
+		}), i18n.T(c, "getSuccess"), c)
 	}
 }
 

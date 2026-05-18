@@ -1,10 +1,10 @@
 import {request} from '@/utils/request.js'
 
-const withI18nFallbackData = (data = {}, options = {}) => {
+const withI18nFallback = (params = {}, options = {}) => {
   if (options && options.includeI18n) {
-    return { ...data, includeI18n: 1 }
+    return { ...params, includeI18n: 1 }
   }
-  return data
+  return params
 }
 
 // 添加购物车
@@ -12,7 +12,8 @@ export const getAllClaimCoupon  = (data, options = {}) => {
     return request({ 
 		url:'/cou/getAllClaimCoupon',
         method: 'post',
-		data: withI18nFallbackData(data, options)
+    data,
+    params: withI18nFallback({}, options)
     })
 }
 

@@ -10,6 +10,10 @@ description: "GVA 功能开发标准工作流。用于新建/扩展插件或业�
 - 迁移老功能到可复用架构（试衣、电影等）
 - 修复“接口已写但权限/菜单/初始化遗漏”类问题
 
+## 关联技能
+- 遇到 Uni 多语言展示一致性问题（尤其 SKU 规格切语、nameI18n/labelI18n/valueI18n 显示 key 或错误回退）时，必须同时应用 `uni-i18n-display-unification`。
+- 推荐执行顺序：先按本工作流完成模块分层与接口，再按 `uni-i18n-display-unification` 完成展示层统一解析和回归验证。
+
 ## 必做顺序
 1. 先设计数据模型与请求模型
 - 后端先写 model 与 model/request

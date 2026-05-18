@@ -41,7 +41,7 @@ func (api *TryonModelApi) CreateTryonModel(c *gin.Context) {
 		return
 	}
 
-	response.OkWithDetailed(gin.H{"model": model}, i18n.T(c, "createSuccess"), c)
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, gin.H{"model": model}), i18n.T(c, "createSuccess"), c)
 }
 
 // UpdateTryonModel 重命名我的模特
@@ -156,7 +156,7 @@ func (api *TryonModelApi) GetMyTryonModelList(c *gin.Context) {
 		return
 	}
 
-	response.OkWithDetailed(gin.H{"list": list}, i18n.T(c, "getSuccess"), c)
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, gin.H{"list": list}), i18n.T(c, "getSuccess"), c)
 }
 
 // GetTryonModelList 获取模特列表（管理端）

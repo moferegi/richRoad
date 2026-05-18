@@ -6,6 +6,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -119,7 +120,7 @@ func (commentApi *CommentApi) FindComment(c *gin.Context) {
 		response.FailWithMessage("查询失败", c)
 		return
 	}
-	response.OkWithData(recomment, c)
+	response.OkWithData(i18n.LocalizeResponseData(c, recomment), c)
 }
 
 // GetComment 用id查询用户评论
@@ -164,12 +165,12 @@ func (commentApi *CommentApi) GetCommentList(c *gin.Context) {
 		response.FailWithMessage("获取失败", c)
 		return
 	}
-	response.OkWithDetailed(response.PageResult{
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, response.PageResult{
 		List:     list,
 		Total:    total,
 		Page:     pageInfo.Page,
 		PageSize: pageInfo.PageSize,
-	}, "获取成功", c)
+	}), "获取成功", c)
 }
 
 // GetCommentPublic 不需要鉴权的用户评论接口

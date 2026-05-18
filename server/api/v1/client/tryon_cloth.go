@@ -41,7 +41,7 @@ func (api *TryonClothApi) CreateTryonCloth(c *gin.Context) {
 		return
 	}
 
-	response.OkWithDetailed(gin.H{"cloth": cloth}, i18n.T(c, "createSuccess"), c)
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, gin.H{"cloth": cloth}), i18n.T(c, "createSuccess"), c)
 }
 
 // UpdateTryonCloth 更新我的衣橱
@@ -163,7 +163,7 @@ func (api *TryonClothApi) GetMyTryonClothList(c *gin.Context) {
 		return
 	}
 
-	response.OkWithDetailed(gin.H{"list": list}, i18n.T(c, "getSuccess"), c)
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, gin.H{"list": list}), i18n.T(c, "getSuccess"), c)
 }
 
 // GetTryonClothList 获取我的衣橱列表（管理端）

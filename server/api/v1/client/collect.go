@@ -120,7 +120,7 @@ func (collectApi *CollectApi) FindCollect(c *gin.Context) {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
 		response.FailWithMessage(i18n.T(c, "queryFail"), c)
 	} else {
-		response.OkWithData(ok, c)
+		response.OkWithData(i18n.LocalizeResponseData(c, ok), c)
 	}
 }
 

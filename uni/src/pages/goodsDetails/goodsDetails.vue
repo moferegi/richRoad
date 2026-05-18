@@ -67,8 +67,8 @@
       </view>
       <view class="nf-attrs-grid">
         <view class="nf-attr-item" v-for="(attr, idx) in parsedAttrs" :key="idx">
-          <text class="nf-attr-label">{{ $lt(attr.labelI18n) || attr.label }}</text>
-          <text class="nf-attr-value">{{ $lt(attr.valueI18n) || attr.value }}</text>
+          <text class="nf-attr-label">{{ resolveAttrText(attr.labelI18n, attr.label) }}</text>
+          <text class="nf-attr-value">{{ resolveAttrText(attr.valueI18n, attr.value) }}</text>
         </view>
       </view>
     </view>
@@ -193,6 +193,7 @@ import { useUserStore } from '@/pinia/modules/user'
 import { usePlayHistoryStore } from '@/pinia/modules/playHistory.js'
 import { getUrl } from '@/utils/url.js'
 import { localText } from '@/utils/i18n.js'
+import { useI18nDisplay } from '@/composables/useI18nDisplay.js'
 import { formatLocalizedPrice } from '@/utils/price-i18n.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
@@ -204,6 +205,8 @@ const cs = computed(() => appConfigStore.currencySymbol)
 const $lt = computed(() => langStore.$lt)
 const $t = computed(() => langStore.$t)
 const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+
+const { resolveDisplayText: resolveAttrText } = useI18nDisplay(locale)
 
 const goBack = () => { uni.navigateBack() }
 

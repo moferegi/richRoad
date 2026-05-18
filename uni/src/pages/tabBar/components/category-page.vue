@@ -26,7 +26,7 @@
             @tap="goto(item, index)"
           >
             <image class="nf-cate-tab-icon" :src="item.externalIconPath ? getExternalUrl(item.externalIconPath) : getUrl(item.icons)" mode="aspectFill"></image>
-            <text class="nf-cate-tab-text">{{ $lt(item.title) }}</text>
+            <text class="nf-cate-tab-text">{{ resolveDisplayText(item.title, item.title) }}</text>
           </view>
         </view>
       </scroll-view>
@@ -51,7 +51,7 @@
             </view>
           </view>
           <view class="nf-grid-info">
-            <text class="nf-grid-title">{{ $lt(item.title) }}</text>
+            <text class="nf-grid-title">{{ resolveDisplayText(item.title, item.title) }}</text>
             <view class="nf-grid-price-row">
               <text class="nf-grid-price">{{ cs }}{{ formatPrice(item) }}</text>
               <text class="nf-grid-sales">{{ $t('sold') }} {{ item.saleNum || 0 }}</text>
@@ -62,7 +62,7 @@
                 :key="tag.ID"
                 class="nf-grid-tag"
                 :style="{ color: tag.color, borderColor: tag.color + '55', background: tag.color + '15' }"
-              >{{ $lt(tag.nameI18n || tag.name) }}</text>
+              >{{ resolveDisplayText(tag.nameI18n || tag.name, tag.name) }}</text>
             </view>
           </view>
         </view>
@@ -95,6 +95,7 @@ import { getCategoryMobile, getGoodList } from '@/api/homePage.js'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getUrl, getExternalUrl } from '@/utils/url'
 import { formatLocalizedPrice } from '@/utils/price-i18n.js'
+import { useI18nDisplay } from '@/composables/useI18nDisplay.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 
@@ -102,8 +103,9 @@ const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
 const $t = computed(() => langStore.$t)
-const $lt = computed(() => langStore.$lt)
 const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+
+const { resolveDisplayText } = useI18nDisplay(locale)
 
 const selectedIndex = ref(0)
 const currentCategoryID = ref('')

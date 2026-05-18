@@ -93,12 +93,14 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getGeos, updateAddress, findAddress } from '@/api/address.js'
 import { getEnabledPhoneAreaCodes } from '@/api/phoneAreaCode.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
-import { localText } from '@/utils/i18n'
+import { useI18nDisplay } from '@/composables/useI18nDisplay.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
 const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+
+const { resolveDisplayText } = useI18nDisplay(locale)
 
 const formData = ref({})
 const areaProvince = ref([])
@@ -117,7 +119,7 @@ const changeKey = (data) => {
   return data.map(item => ({
     ...item,
     value: item.code,
-    text: localText(item.nameI18n, langStore.locale) || item.name
+    text: resolveDisplayText(item.nameI18n, item.name)
   }))
 }
 

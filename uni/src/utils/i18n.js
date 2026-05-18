@@ -47,6 +47,74 @@ export function localText(value, lang) {
   return String(value)
 }
 
+/**
+ * 规范化候选文案：兼容对象、JSON字符串、key字符串。
+ * @param {string|object|undefined|null} value
+ * @returns {string|object|null}
+ */
+export function normalizeI18nCandidate(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const text = value.trim()
+    if (!text) return null
+    if (text.charAt(0) === '{' && text.charAt(text.length - 1) === '}') {
+      try {
+        const parsed = JSON.parse(text)
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed
+        }
+      } catch {
+        return text
+      }
+    }
+    return text
+  }
+
+  return null
+}
+
+/**
+ * 统一展示文案解析：
+ * 1. 先按 localText 解析对象/JSON
+ * 2. 字符串再尝试按 i18n key 翻译
+ * 3. key 未命中时，英文保留 key，其他语种优先回退 fallback
+ * @param {string|object|undefined|null} candidate
+ * @param {string|object|undefined|null} fallback
+ * @param {string} [lang]
+ * @returns {string}
+ */
+export function resolveI18nDisplayText(candidate, fallback = '', lang) {
+  const locale = lang || uni.getStorageSync('app-lang') || 'zh'
+
+  const localized = String(localText(candidate, locale) || '').trim()
+  if (localized && !(typeof candidate === 'string' && localized === candidate.trim())) {
+    return localized
+  }
+
+  const normalizedCandidate = typeof candidate === 'string' ? candidate.trim() : ''
+  const fallbackText = String(localText(fallback, locale) || '').trim()
+
+  if (normalizedCandidate) {
+    const byKey = String(t(normalizedCandidate, locale) || '').trim()
+    if (byKey && byKey !== normalizedCandidate) {
+      return byKey
+    }
+
+    if (!String(locale || '').toLowerCase().startsWith('en') && fallbackText) {
+      return fallbackText
+    }
+
+    if (localized) {
+      return localized
+    }
+  }
+
+  return fallbackText || String(fallback || '')
+}
+
 const API_MESSAGE_ALIAS_MAP = {
   '上传文件失败': 'uploadFail',
   '接收文件失败': 'uploadFail',

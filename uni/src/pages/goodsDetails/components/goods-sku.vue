@@ -19,7 +19,7 @@
     <!-- 规格选择区 -->
     <scroll-view class="nf-sku-body" scroll-y @touchmove.stop>
       <view v-for="(group, gIdx) in specGroups" :key="gIdx" class="nf-spec-group">
-        <text class="nf-spec-title">{{ $lt(group.label) }}</text>
+        <text class="nf-spec-title">{{ resolveSpecText(group.label, group.rawLabel) }}</text>
         <view class="nf-spec-options">
           <view v-for="(opt, oIdx) in group.values" :key="oIdx"
             class="nf-spec-tag"
@@ -28,7 +28,7 @@
               'nf-spec-disabled': opt.disabled
             }"
             @tap="selectSpec(gIdx, opt)">
-            <text>{{ $lt(opt.value) }}</text>
+            <text>{{ resolveSpecText(opt.value, opt.rawValue) }}</text>
           </view>
         </view>
       </view>
@@ -67,6 +67,8 @@ import { ref, computed } from 'vue'
 import { useUserStore } from '@/pinia/modules/user'
 import { addCart } from '@/api/cart.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
+import { normalizeI18nCandidate } from '@/utils/i18n.js'
+import { useI18nDisplay } from '@/composables/useI18nDisplay.js'
 import { formatLocalizedPrice } from '@/utils/price-i18n.js'
 import { setSelectedClothes } from '@/utils/tryon.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
@@ -76,7 +78,6 @@ import LazyImage from '@/components/lazy-image/lazy-image.vue'
 const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
 const cs = computed(() => appConfigStore.currencySymbol)
-const $lt = computed(() => langStore.$lt)
 const $t = computed(() => langStore.$t)
 const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
@@ -108,8 +109,7 @@ const emitMatchedSku = () => {
   emit('matchedSkuChange', matchedSku.value || null)
 }
 
-// 辅助：判断 i18n 对象是否有实际内容
-const hasI18n = (obj) => obj && typeof obj === 'object' && Object.keys(obj).length > 0
+const { resolveDisplayText: resolveSpecText } = useI18nDisplay(locale)
 
 // 辅助：将对象按key排序后stringify，确保相同内容产生相同字符串
 const stableStringify = (val) => {
@@ -123,14 +123,15 @@ const stableStringify = (val) => {
 
 // 辅助：获取规格的 labelKey（用于按标签匹配而非按位置匹配）
 const getSpecLabelKey = (spec) => {
-  if (hasI18n(spec.labelI18n)) return stableStringify(spec.labelI18n)
-  if (hasI18n(spec.nameI18n)) return stableStringify(spec.nameI18n)
+  const localizedLabel = normalizeI18nCandidate(spec.labelI18n) || normalizeI18nCandidate(spec.nameI18n)
+  if (localizedLabel !== null) return stableStringify(localizedLabel)
   return stableStringify(spec.label || spec.name)
 }
 
 // 辅助：获取规格的实际值（优先 i18n 对象，空对象则回退到纯文本）
 const getSpecVal = (spec) => {
-  return hasI18n(spec.valueI18n) ? spec.valueI18n : spec.value
+  const localizedValue = normalizeI18nCandidate(spec.valueI18n)
+  return localizedValue !== null ? localizedValue : spec.value
 }
 
 // 构建规格分组（使用 specs 即规格配置）
@@ -150,9 +151,11 @@ const buildSpecGroups = () => {
     specs.forEach(spec => {
       const labelKey = getSpecLabelKey(spec)
       if (!groupMap[labelKey]) {
+        const localizedLabel = normalizeI18nCandidate(spec.labelI18n) || normalizeI18nCandidate(spec.nameI18n)
         groupMap[labelKey] = {
           labelKey,
-          label: hasI18n(spec.labelI18n) ? spec.labelI18n : (hasI18n(spec.nameI18n) ? spec.nameI18n : (spec.label || spec.name)),
+          label: localizedLabel !== null ? localizedLabel : (spec.label || spec.name),
+          rawLabel: spec.label || spec.name || '',
           values: [],
           selected: null
         }
@@ -161,7 +164,7 @@ const buildSpecGroups = () => {
       const val = getSpecVal(spec)
       const valStr = stableStringify(val)
       if (!groupMap[labelKey].values.find(v => stableStringify(v.value) === valStr)) {
-        groupMap[labelKey].values.push({ value: val, disabled: false })
+        groupMap[labelKey].values.push({ value: val, rawValue: spec.value || '', disabled: false })
       }
     })
   })
@@ -172,8 +175,13 @@ const buildSpecGroups = () => {
 // 选择规格
 const selectSpec = (gIdx, opt) => {
   if (opt.disabled) {
+    const resolveSelectedValue = (group) => {
+      if (group.selected === null) return ''
+      const current = group.values.find(v => stableStringify(v.value) === stableStringify(group.selected))
+      return resolveSpecText(group.selected, current?.rawValue || '')
+    }
     const specText = specGroups.value.map((g, i) =>
-      i === gIdx ? $lt.value(opt.value) : (g.selected ? $lt.value(g.selected) : '?')
+      i === gIdx ? resolveSpecText(opt.value, opt.rawValue || '') : (g.selected ? resolveSelectedValue(g) : '?')
     ).join(' + ')
     uni.showToast({ title: specText + ' ' + $t.value('skuSoldOut'), icon: 'none' })
     return
@@ -270,7 +278,10 @@ const maxStock = computed(() => {
 })
 
 const selectedSpecText = computed(() => {
-  const selected = specGroups.value.filter(g => g.selected).map(g => $lt.value(g.selected))
+  const selected = specGroups.value.filter(g => g.selected).map(g => {
+    const current = g.values.find(v => stableStringify(v.value) === stableStringify(g.selected))
+    return resolveSpecText(g.selected, current?.rawValue || '')
+  })
   return selected.length > 0 ? selected.join(' / ') : ''
 })
 

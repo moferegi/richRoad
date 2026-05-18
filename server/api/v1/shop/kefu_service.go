@@ -1,18 +1,16 @@
 package shop
 
 import (
-	
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
-    "github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
-    "github.com/flipped-aurora/gin-vue-admin/server/model/shop"
-    shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
-    "github.com/gin-gonic/gin"
-    "go.uber.org/zap"
+	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
+	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
+	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
-type KefuApi struct {}
-
-
+type KefuApi struct{}
 
 // CreateKefu 创建客服
 // @Tags Kefu
@@ -24,8 +22,8 @@ type KefuApi struct {}
 // @Success 200 {object} response.Response{msg=string} "创建成功"
 // @Router /kefu/createKefu [post]
 func (kefuApi *KefuApi) CreateKefu(c *gin.Context) {
-    // 创建业务用Context
-    ctx := c.Request.Context()
+	// 创建业务用Context
+	ctx := c.Request.Context()
 
 	var kefu shop.Kefu
 	err := c.ShouldBindJSON(&kefu)
@@ -33,13 +31,13 @@ func (kefuApi *KefuApi) CreateKefu(c *gin.Context) {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	err = kefuService.CreateKefu(ctx,&kefu)
+	err = kefuService.CreateKefu(ctx, &kefu)
 	if err != nil {
-        global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage("创建失败:" + err.Error(), c)
+		global.GVA_LOG.Error("创建失败!", zap.Error(err))
+		response.FailWithMessage("创建失败:"+err.Error(), c)
 		return
 	}
-    response.OkWithMessage("创建成功", c)
+	response.OkWithMessage("创建成功", c)
 }
 
 // DeleteKefu 删除客服
@@ -52,14 +50,14 @@ func (kefuApi *KefuApi) CreateKefu(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "删除成功"
 // @Router /kefu/deleteKefu [delete]
 func (kefuApi *KefuApi) DeleteKefu(c *gin.Context) {
-    // 创建业务用Context
-    ctx := c.Request.Context()
+	// 创建业务用Context
+	ctx := c.Request.Context()
 
 	ID := c.Query("ID")
-	err := kefuService.DeleteKefu(ctx,ID)
+	err := kefuService.DeleteKefu(ctx, ID)
 	if err != nil {
-        global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败:" + err.Error(), c)
+		global.GVA_LOG.Error("删除失败!", zap.Error(err))
+		response.FailWithMessage("删除失败:"+err.Error(), c)
 		return
 	}
 	response.OkWithMessage("删除成功", c)
@@ -74,14 +72,14 @@ func (kefuApi *KefuApi) DeleteKefu(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "批量删除成功"
 // @Router /kefu/deleteKefuByIds [delete]
 func (kefuApi *KefuApi) DeleteKefuByIds(c *gin.Context) {
-    // 创建业务用Context
-    ctx := c.Request.Context()
+	// 创建业务用Context
+	ctx := c.Request.Context()
 
 	IDs := c.QueryArray("IDs[]")
-	err := kefuService.DeleteKefuByIds(ctx,IDs)
+	err := kefuService.DeleteKefuByIds(ctx, IDs)
 	if err != nil {
-        global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
-		response.FailWithMessage("批量删除失败:" + err.Error(), c)
+		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
+		response.FailWithMessage("批量删除失败:"+err.Error(), c)
 		return
 	}
 	response.OkWithMessage("批量删除成功", c)
@@ -97,8 +95,8 @@ func (kefuApi *KefuApi) DeleteKefuByIds(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "更新成功"
 // @Router /kefu/updateKefu [put]
 func (kefuApi *KefuApi) UpdateKefu(c *gin.Context) {
-    // 从ctx获取标准context进行业务行为
-    ctx := c.Request.Context()
+	// 从ctx获取标准context进行业务行为
+	ctx := c.Request.Context()
 
 	var kefu shop.Kefu
 	err := c.ShouldBindJSON(&kefu)
@@ -106,10 +104,10 @@ func (kefuApi *KefuApi) UpdateKefu(c *gin.Context) {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	err = kefuService.UpdateKefu(ctx,kefu)
+	err = kefuService.UpdateKefu(ctx, kefu)
 	if err != nil {
-        global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage("更新失败:" + err.Error(), c)
+		global.GVA_LOG.Error("更新失败!", zap.Error(err))
+		response.FailWithMessage("更新失败:"+err.Error(), c)
 		return
 	}
 	response.OkWithMessage("更新成功", c)
@@ -125,18 +123,19 @@ func (kefuApi *KefuApi) UpdateKefu(c *gin.Context) {
 // @Success 200 {object} response.Response{data=shop.Kefu,msg=string} "查询成功"
 // @Router /kefu/findKefu [get]
 func (kefuApi *KefuApi) FindKefu(c *gin.Context) {
-    // 创建业务用Context
-    ctx := c.Request.Context()
+	// 创建业务用Context
+	ctx := c.Request.Context()
 
 	ID := c.Query("ID")
-	rekefu, err := kefuService.GetKefu(ctx,ID)
+	rekefu, err := kefuService.GetKefu(ctx, ID)
 	if err != nil {
-        global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage("查询失败:" + err.Error(), c)
+		global.GVA_LOG.Error("查询失败!", zap.Error(err))
+		response.FailWithMessage("查询失败:"+err.Error(), c)
 		return
 	}
 	response.OkWithData(rekefu, c)
 }
+
 // GetKefuList 分页获取客服列表
 // @Tags Kefu
 // @Summary 分页获取客服列表
@@ -147,8 +146,8 @@ func (kefuApi *KefuApi) FindKefu(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /kefu/getKefuList [get]
 func (kefuApi *KefuApi) GetKefuList(c *gin.Context) {
-    // 创建业务用Context
-    ctx := c.Request.Context()
+	// 创建业务用Context
+	ctx := c.Request.Context()
 
 	var pageInfo shopReq.KefuSearch
 	err := c.ShouldBindQuery(&pageInfo)
@@ -156,18 +155,18 @@ func (kefuApi *KefuApi) GetKefuList(c *gin.Context) {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	list, total, err := kefuService.GetKefuInfoList(ctx,pageInfo)
+	list, total, err := kefuService.GetKefuInfoList(ctx, pageInfo)
 	if err != nil {
-	    global.GVA_LOG.Error("获取失败!", zap.Error(err))
-        response.FailWithMessage("获取失败:" + err.Error(), c)
-        return
-    }
-    response.OkWithDetailed(response.PageResult{
-        List:     list,
-        Total:    total,
-        Page:     pageInfo.Page,
-        PageSize: pageInfo.PageSize,
-    }, "获取成功", c)
+		global.GVA_LOG.Error("获取失败!", zap.Error(err))
+		response.FailWithMessage("获取失败:"+err.Error(), c)
+		return
+	}
+	response.OkWithDetailed(response.PageResult{
+		List:     list,
+		Total:    total,
+		Page:     pageInfo.Page,
+		PageSize: pageInfo.PageSize,
+	}, "获取成功", c)
 }
 
 // GetKefuPublic 不需要鉴权的客服接口
@@ -178,12 +177,12 @@ func (kefuApi *KefuApi) GetKefuList(c *gin.Context) {
 // @Success 200 {object} response.Response{data=[]shop.Kefu,msg=string} "获取成功"
 // @Router /kefu/getKefuPublic [get]
 func (kefuApi *KefuApi) GetKefuPublic(c *gin.Context) {
-    ctx := c.Request.Context()
-    list, err := kefuService.GetKefuPublic(ctx)
-    if err != nil {
-        global.GVA_LOG.Error("获取失败!", zap.Error(err))
-        response.FailWithMessage("获取失败:"+err.Error(), c)
-        return
-    }
-    response.OkWithDetailed(list, "获取成功", c)
+	ctx := c.Request.Context()
+	list, err := kefuService.GetKefuPublic(ctx)
+	if err != nil {
+		global.GVA_LOG.Error("获取失败!", zap.Error(err))
+		response.FailWithMessage("获取失败:"+err.Error(), c)
+		return
+	}
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, list), "获取成功", c)
 }

@@ -80,7 +80,8 @@ import { computed, nextTick, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getGoodList, getCategoryMobile } from '@/api/homePage.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
-import { localText, t as i18nT } from '@/utils/i18n.js'
+import { t as i18nT } from '@/utils/i18n.js'
+import { useI18nDisplay } from '@/composables/useI18nDisplay.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { usePlayHistoryStore } from '@/pinia/modules/playHistory.js'
 import { setSelectedClothes } from '@/utils/tryon.js'
@@ -90,6 +91,7 @@ const langStore = useLangStore()
 const playHistoryStore = usePlayHistoryStore()
 const $t = langStore.$t
 const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+const { resolveDisplayText } = useI18nDisplay(locale)
 const lastLoadedLocale = ref('')
 const searchName = ref('')
 const page = ref(1)
@@ -159,27 +161,23 @@ const parseJsonSafe = (raw) => {
 
 const resolveLocaleText = (value) => {
   if (!value) return ''
-  if (typeof value === 'string') {
-    const text = value.trim()
-    if (!text) return ''
-    if (text.startsWith('{') || text.startsWith('[')) {
-      const parsed = parseJsonSafe(text)
-      if (parsed) {
-        if (Array.isArray(parsed)) {
-          return resolveLocaleText(parsed[0])
-        }
-        return localText(parsed, langStore.locale)
-      }
-    }
-    return text
-  }
   if (Array.isArray(value)) {
     return resolveLocaleText(value[0])
   }
-  if (typeof value === 'object') {
-    return localText(value, langStore.locale)
+
+  if (typeof value === 'string') {
+    const text = value.trim()
+    if (!text) return ''
+    if (text.startsWith('[')) {
+      const parsed = parseJsonSafe(text)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return resolveLocaleText(parsed[0])
+      }
+    }
+    return resolveDisplayText(text, text)
   }
-  return String(value)
+
+  return resolveDisplayText(value, '')
 }
 
 const categoryName = (item) => {

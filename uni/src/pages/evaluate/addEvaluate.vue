@@ -19,9 +19,9 @@
       <view class="nf-item-card">
         <image :src="SKU.externalPicturePath ? getExternalUrl(SKU.externalPicturePath) : getUrl(SKU.picture)" class="nf-item-img" mode="aspectFill" />
         <view class="nf-item-info">
-          <text class="nf-item-name">{{ $lt(SKU.name) || SKU.name }}</text>
+          <text class="nf-item-name">{{ resolveDisplayText(SKU?.nameI18n || SKU?.name, SKU?.name) }}</text>
           <view v-for="(sku, index) in SKU.attrs" :key="index" class="nf-item-spec">
-            <text>{{ $lt(sku.label) || sku.label }}：{{ $lt(sku.value) || sku.value }}</text>
+            <text>{{ resolveDisplayText(sku?.labelI18n || sku?.nameI18n || sku?.label || sku?.name, sku?.label || sku?.name) }}：{{ resolveDisplayText(sku?.valueI18n || sku?.value, sku?.value) }}</text>
           </view>
         </view>
       </view>
@@ -108,13 +108,15 @@ import { getSysConfigByKey } from '@/api/sysConfig.js'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { baseUrl } from '@/utils/request.js'
 import { resolveApiMessage } from '@/utils/i18n.js'
+import { useI18nDisplay } from '@/composables/useI18nDisplay.js'
 import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
-const $lt = computed(() => langStore.$lt)
 const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+
+const { resolveDisplayText } = useI18nDisplay(locale)
 
 const orderID = ref(0)
 const goodID = ref(0)

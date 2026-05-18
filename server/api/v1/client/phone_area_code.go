@@ -123,6 +123,6 @@ func (api *PhoneAreaCodeApi) GetEnabledPhoneAreaCodes(c *gin.Context) {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
 		response.FailWithMessage(i18n.T(c, "getFail"), c)
 	} else {
-		response.OkWithDetailed(list, i18n.T(c, "getSuccess"), c)
+		response.OkWithDetailed(i18n.LocalizeResponseData(c, list), i18n.T(c, "getSuccess"), c)
 	}
 }

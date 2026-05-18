@@ -135,7 +135,7 @@ func (api *TryonTaskApi) CreateTryonTask(c *gin.Context) {
 	if reused {
 		msg = i18n.T(c, "requestReusedHistory")
 	}
-	response.OkWithDetailed(gin.H{"task": task, "reused": reused}, msg, c)
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, gin.H{"task": task, "reused": reused}), msg, c)
 }
 
 // ApplyTryonBeautify 对试衣结果执行智能美肤
@@ -166,7 +166,7 @@ func (api *TryonTaskApi) ApplyTryonBeautify(c *gin.Context) {
 	if task.BeautifyStatus == "processing" {
 		msg = i18n.T(c, "tryonBeautifyProcessing")
 	}
-	response.OkWithDetailed(gin.H{"task": task}, msg, c)
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, gin.H{"task": task}), msg, c)
 }
 
 // FindTryonTask 根据ID获取试衣任务
@@ -194,7 +194,7 @@ func (api *TryonTaskApi) FindTryonTask(c *gin.Context) {
 		return
 	}
 
-	response.OkWithData(gin.H{"reTryonTask": task}, c)
+	response.OkWithData(i18n.LocalizeResponseData(c, gin.H{"reTryonTask": task}), c)
 }
 
 // GetMyTryonTaskList 获取我的试衣任务列表
@@ -221,12 +221,12 @@ func (api *TryonTaskApi) GetMyTryonTaskList(c *gin.Context) {
 		return
 	}
 
-	response.OkWithDetailed(response.PageResult{
+	response.OkWithDetailed(i18n.LocalizeResponseData(c, response.PageResult{
 		List:     list,
 		Total:    total,
 		Page:     pageInfo.Page,
 		PageSize: pageInfo.PageSize,
-	}, i18n.T(c, "getSuccess"), c)
+	}), i18n.T(c, "getSuccess"), c)
 }
 
 // GetTryonTaskList 获取试衣任务列表（管理端）

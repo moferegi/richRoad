@@ -33,12 +33,12 @@
         <image class="nf-cart-img" :src="item.sku.externalPicturePath ? getExternalUrl(item.sku.externalPicturePath) : getUrl(item.sku.picture)" mode="aspectFill"></image>
         <!-- 商品信息 -->
         <view class="nf-cart-info">
-          <text class="nf-cart-name">{{ $lt(item.sku.name) || item.sku.name }}</text>
-          <view class="nf-cart-specs" v-if="item.sku.specs && item.sku.specs.length">
-            <text class="nf-cart-spec-tag">{{ item.sku.specs.map(s => $lt(s.value) || s.value).join(' / ') }}</text>
+          <text class="nf-cart-name">{{ resolveDisplayText(item?.sku?.nameI18n || item?.sku?.name, item?.sku?.name) }}</text>
+          <view class="nf-cart-specs" v-if="getItemSpecsText(item)">
+            <text class="nf-cart-spec-tag">{{ getItemSpecsText(item) }}</text>
           </view>
-          <view class="nf-cart-specs" v-else-if="item.sku.description">
-            <text class="nf-cart-spec-tag">{{ $lt(item.sku.description) || item.sku.description }}</text>
+          <view class="nf-cart-specs" v-else-if="item?.sku?.description || item?.sku?.descriptionI18n">
+            <text class="nf-cart-spec-tag">{{ resolveDisplayText(item?.sku?.descriptionI18n || item?.sku?.description, item?.sku?.description) }}</text>
           </view>
           <view class="nf-cart-bottom">
             <text class="nf-cart-price">{{ cs }}{{ formatCartItemPrice(item) }}</text>
@@ -92,12 +92,39 @@
 	import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 	import { placeOrderByCart } from '@/api/order.js'
   import { resolveApiMessage } from '@/utils/i18n.js'
+  import { useI18nDisplay } from '@/composables/useI18nDisplay.js'
   import { formatLocalizedPrice, resolveLocalizedPriceFen } from '@/utils/price-i18n.js'
 	import { getUrl, getExternalUrl } from "@/utils/url.js"
 
   const langStore = useLangStore()
-  const { $t, $lt } = langStore
+  const { $t } = langStore
   const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+
+  const { resolveDisplayText } = useI18nDisplay(locale)
+
+  const parseSpecItems = (payload) => {
+    if (Array.isArray(payload)) {
+      return payload
+    }
+    if (typeof payload === 'string' && payload.trim()) {
+      try {
+        const parsed = JSON.parse(payload)
+        return Array.isArray(parsed) ? parsed : []
+      } catch {
+        return []
+      }
+    }
+    return []
+  }
+
+  const getItemSpecsText = (item) => {
+    const specs = parseSpecItems(item?.sku?.specs)
+    if (!specs.length) return ''
+    return specs
+      .map(s => resolveDisplayText(s?.valueI18n || s?.value, s?.value || ''))
+      .filter(Boolean)
+      .join(' / ')
+  }
 	const appConfigStore = useAppConfigStore()
 	const cs = computed(() => appConfigStore.currencySymbol)
 	const cartList = ref([])

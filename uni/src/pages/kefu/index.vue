@@ -110,12 +110,15 @@ import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getKefuList, getCsConfig, getSysConfigByKey } from '@/api/kefu.js'
 import { getUrl } from '@/utils/url.js'
-import { localText, t as i18nT } from '@/utils/i18n.js'
+import { t as i18nT } from '@/utils/i18n.js'
 import { trackVisitorEvent } from '@/utils/visitorEvent.js'
+import { useI18nDisplay } from '@/composables/useI18nDisplay.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+const { resolveDisplayText } = useI18nDisplay(locale)
 
 const kefuList = ref([])
 const isLoading = ref(true)
@@ -313,7 +316,7 @@ const avatarInitial = (name) => {
 }
 
 const displayKefuName = (item, index = 0) => {
-  const localized = String(localText(item?.nameI18n, langStore.locale) || '').trim()
+  const localized = String(resolveDisplayText(item?.nameI18n || item?.name, item?.name || '') || '').trim()
   if (localized) return localized
 
   const fallback = String(item?.name || '').trim()
