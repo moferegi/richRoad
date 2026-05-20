@@ -19,7 +19,9 @@ export const usePlayHistoryStore = defineStore('playHistory', () => {
   function persist() {
     try {
       uni.setStorageSync(STORAGE_KEY, JSON.stringify(histories.value))
-    } catch (e) {}
+    } catch {
+      // ignore persist failure
+    }
   }
 
   /**

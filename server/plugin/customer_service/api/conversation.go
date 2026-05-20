@@ -29,7 +29,7 @@ func (a *ConversationApi) GetOrCreateConversation(c *gin.Context) {
 	clientUserID := utils.GetUserID(c)
 	conv, _, err := service.Service.ConversationService.CreateOrGetActive(clientUserID)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("获取会话失败", c)
 		return
 	}
 	response.OkWithDetailed(conv, "获取成功", c)
@@ -47,7 +47,7 @@ func (a *ConversationApi) GetOrCreateConversation(c *gin.Context) {
 func (a *ConversationApi) GetConversationList(c *gin.Context) {
 	var search csReq.ConversationSearch
 	if err := c.ShouldBindQuery(&search); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := service.Service.ConversationService.GetList(search)
@@ -82,13 +82,13 @@ func (a *ConversationApi) GetAgentConversationList(c *gin.Context) {
 	}
 	if authID != 888 {
 		if _, err := service.Service.AgentService.GetEnabledByUserID(agentSysUserID); err != nil {
-			response.FailWithMessage(err.Error(), c)
+			response.FailWithMessage("坐席不可用", c)
 			return
 		}
 	}
 	var search csReq.ConversationSearch
 	if err := c.ShouldBindQuery(&search); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
@@ -147,7 +147,7 @@ func (a *ConversationApi) GetAgentConversationList(c *gin.Context) {
 func (a *ConversationApi) CloseConversation(c *gin.Context) {
 	var req csReq.CloseConversationReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	userID := utils.GetUserID(c)
@@ -158,16 +158,16 @@ func (a *ConversationApi) CloseConversation(c *gin.Context) {
 	}
 	if authID != 888 {
 		if _, err := service.Service.AgentService.GetEnabledByUserID(userID); err != nil {
-			response.FailWithMessage(err.Error(), c)
+			response.FailWithMessage("坐席不可用", c)
 			return
 		}
 		if err := service.Service.ConversationService.CheckAgentAccess(userID, req.ConversationID, false); err != nil {
-			response.FailWithMessage(err.Error(), c)
+			response.FailWithMessage("无权限访问该会话", c)
 			return
 		}
 	}
 	if err := service.Service.ConversationService.Close(req.ConversationID, model.ConvClosedByAgent); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("关闭失败", c)
 		return
 	}
 	response.OkWithMessage("关闭成功", c)
@@ -185,7 +185,7 @@ func (a *ConversationApi) CloseConversation(c *gin.Context) {
 func (a *ConversationApi) AcceptConversation(c *gin.Context) {
 	var req csReq.AcceptConversationReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	userID := utils.GetUserID(c)
@@ -196,13 +196,13 @@ func (a *ConversationApi) AcceptConversation(c *gin.Context) {
 	}
 	if authID != 888 {
 		if _, err := service.Service.AgentService.GetEnabledByUserID(userID); err != nil {
-			response.FailWithMessage(err.Error(), c)
+			response.FailWithMessage("坐席不可用", c)
 			return
 		}
 	}
 	conv, err := service.Service.ConversationService.AcceptByAgent(req.ConversationID, userID)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("接入失败", c)
 		return
 	}
 	response.OkWithDetailed(conv, "接入成功", c)
@@ -220,7 +220,7 @@ func (a *ConversationApi) AcceptConversation(c *gin.Context) {
 func (a *ConversationApi) TransferConversation(c *gin.Context) {
 	var req csReq.TransferConversationReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	userID := utils.GetUserID(c)
@@ -231,16 +231,16 @@ func (a *ConversationApi) TransferConversation(c *gin.Context) {
 	}
 	if authID != 888 {
 		if _, err := service.Service.AgentService.GetEnabledByUserID(userID); err != nil {
-			response.FailWithMessage(err.Error(), c)
+			response.FailWithMessage("坐席不可用", c)
 			return
 		}
 		if err := service.Service.ConversationService.CheckAgentAccess(userID, req.ConversationID, false); err != nil {
-			response.FailWithMessage(err.Error(), c)
+			response.FailWithMessage("无权限访问该会话", c)
 			return
 		}
 	}
 	if err := service.Service.ConversationService.Transfer(req.ConversationID, req.TargetAgentUserID); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("转接失败", c)
 		return
 	}
 	response.OkWithMessage("转接成功", c)
@@ -262,12 +262,12 @@ func (a *ConversationApi) RateConversation(c *gin.Context) {
 	}
 	var req csReq.RateConversationReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	clientUserID := utils.GetUserID(c)
 	if err := service.Service.ConversationService.Rate(req.ConversationID, clientUserID, req.Rating); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("评价失败", c)
 		return
 	}
 	response.OkWithMessage("评价成功", c)
@@ -285,11 +285,11 @@ func (a *ConversationApi) RateConversation(c *gin.Context) {
 func (a *ConversationApi) AssignConversation(c *gin.Context) {
 	var req csReq.TransferConversationReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := service.Service.ConversationService.AssignToAgent(req.ConversationID, req.TargetAgentUserID); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("分配失败", c)
 		return
 	}
 	response.OkWithMessage("分配成功", c)

@@ -92,7 +92,6 @@ const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang')
 // 搜索相关
 const searchKeyword = ref('')
 const hasSearched = ref(false)
-const sessionFrom = ref('search-page')
 
 // 商品列表相关
 const goodsList = ref([])

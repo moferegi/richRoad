@@ -35,6 +35,8 @@ username：admin
 
 password：123456
 
+[Security Hardening Rollout Runbook](./docs/security-hardening-runbook.md)
+
 ### 1.2 Contributing Guide
 
 Hi! Thank you for choosing gin-vue-admin.

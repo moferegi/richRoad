@@ -49,7 +49,7 @@
         >
         <el-table-column type="selection" width="55" />
         
-        <el-table-column sortable align="left" label="日期" prop="CreatedAt"width="180">
+        <el-table-column sortable align="left" label="日期" prop="CreatedAt" width="180">
             <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
         
@@ -142,7 +142,7 @@ import {
 import { getEnabledLanguages } from '@/api/client/language'
 
 // 全量引入格式化工具 请按需保留
-import { getDictFunc, formatDate, formatBoolean, filterDict ,filterDataSource, returnArrImg, onDownloadFile } from '@/utils/format'
+import { formatDate } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive, onMounted } from 'vue'
 import { useAppStore } from "@/pinia"
@@ -185,7 +185,9 @@ const loadEnabledLangs = async () => {
     if (res.code === 0 && res.data) {
       enabledLangs.value = Array.isArray(res.data) ? res.data : (res.data.list || [])
     }
-  } catch(e) {}
+  } catch {
+    /* ignore language loading error */
+  }
 }
 
 // 解析 nameI18n JSON → 对象

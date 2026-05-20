@@ -123,7 +123,7 @@ const getTryonLowerKeywords = () => {
   const keywordSet = new Set(DEFAULT_TRYON_LOWER_KEYWORDS.map(normalizeKeyword))
 
   TRYON_LOWER_KEYWORD_LANGS.forEach((lang) => {
-    ;[
+    [
       i18nT('tryonLowerKeywords', lang),
       i18nT('uploadLowerImage', lang),
       i18nT('tryonExampleLowerPrefix', lang),
@@ -231,17 +231,6 @@ const ensureCategoryCentered = (item) => {
 
 const goodName = (item) => {
   return resolveLocaleText(item?.nameI18n || item?.name || item?.titleI18n || item?.title)
-}
-
-const goodDesc = (item) => {
-  return resolveLocaleText(
-    item?.descriptionI18n ||
-    item?.description ||
-    item?.descI18n ||
-    item?.desc ||
-    item?.summaryI18n ||
-    item?.summary
-  )
 }
 
 const categoryText = (item) => {

@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import {ref, watch} from 'vue'
 import { login, getUserInfo, phoneLogin } from '@/api/base.js'
-import { myRouter } from '../../utils/permission'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 export const useUserStore = defineStore('user', () => {

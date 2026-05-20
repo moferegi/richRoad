@@ -9,3 +9,7 @@ type ExaAttachmentCategorySearch struct {
 	Position string `json:"position" form:"position"`
 	request.PageInfo
 }
+
+type SignURLRequest struct {
+	FilePath string `json:"filePath" binding:"required,max=2048"`
+}

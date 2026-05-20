@@ -42,7 +42,7 @@ func (a *AgentApi) GetAgentList(c *gin.Context) {
 func (a *AgentApi) CreateAgent(c *gin.Context) {
 	var agent model.CsAgent
 	if err := c.ShouldBindJSON(&agent); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if agent.UserID == 0 {
@@ -52,7 +52,7 @@ func (a *AgentApi) CreateAgent(c *gin.Context) {
 	// 先尝试获取已有记录
 	existing, err := service.Service.AgentService.GetOrCreate(agent.UserID)
 	if err != nil {
-		response.FailWithMessage("创建失败: "+err.Error(), c)
+		response.FailWithMessage("创建失败", c)
 		return
 	}
 	// 应用表单中的配置字段
@@ -82,7 +82,7 @@ func (a *AgentApi) CreateAgent(c *gin.Context) {
 func (a *AgentApi) UpdateAgent(c *gin.Context) {
 	var req csReq.UpdateAgentReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	// 使用 Updates(map) 只更新指定列，避免 Save() 将零值字段（UserID、CreatedAt 等）覆盖写入
@@ -113,11 +113,11 @@ func (a *AgentApi) UpdateAgent(c *gin.Context) {
 func (a *AgentApi) DeleteAgent(c *gin.Context) {
 	var agent model.CsAgent
 	if err := c.ShouldBindQuery(&agent); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := service.Service.AgentService.Delete(agent.ID); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("删除失败", c)
 		return
 	}
 	response.OkWithMessage("删除成功", c)

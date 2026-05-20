@@ -88,7 +88,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getGeos, updateAddress, findAddress } from '@/api/address.js'
 import { getEnabledPhoneAreaCodes } from '@/api/phoneAreaCode.js'
@@ -140,7 +140,9 @@ const loadAreaCodes = async () => {
       const list = Array.isArray(res.data) ? res.data : (res.data.list || [])
       areaCodes.value = list
     }
-  } catch(e) {}
+  } catch {
+    // ignore optional area code fetch failure
+  }
 }
 
 const selectArea = (item) => {

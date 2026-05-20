@@ -161,7 +161,9 @@ const loadAreaCodes = async () => {
         formData.areaCode = areaCodes.value[0].areaCode
       }
     }
-  } catch(e) {}
+  } catch {
+    // ignore optional area code fetch failure
+  }
 }
 
 const selectArea = (item) => {

@@ -2,6 +2,7 @@ package shop
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
@@ -20,6 +21,31 @@ type OrderApi struct {
 
 var orderService = service.ServiceGroupApp.ShopServiceGroup.OrderService
 
+func isOrderAdmin(authorityID uint) bool {
+	return authorityID == 888 || authorityID == 8881
+}
+
+func failWithErr(c *gin.Context, err error) {
+	if err == nil {
+		response.FailWithMessage(i18n.T(c, "fail"), c)
+		return
+	}
+	key := strings.TrimSpace(err.Error())
+	if key != "" && i18n.HasKey(key) {
+		response.FailWithMessage(i18n.T(c, key), c)
+		return
+	}
+	response.FailWithMessage(i18n.T(c, "fail"), c)
+}
+
+func failWithKey(c *gin.Context, key string) {
+	key = strings.TrimSpace(key)
+	if key == "" || !i18n.HasKey(key) {
+		key = "fail"
+	}
+	response.FailWithMessage(i18n.T(c, key), c)
+}
+
 // CreateOrder 创建订单
 // @Tags Order
 // @Summary 创建订单
@@ -33,15 +59,15 @@ func (orderApi *OrderApi) CreateOrder(c *gin.Context) {
 	var order shop.Order
 	err := c.ShouldBindJSON(&order)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		failWithKey(c, "invalidParams")
 		return
 	}
 
 	if err := orderService.CreateOrder(&order); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		failWithErr(c, err)
 	} else {
-		response.OkWithMessage("创建成功", c)
+		response.OkWithMessage(i18n.T(c, "createSuccess"), c)
 	}
 }
 
@@ -58,14 +84,14 @@ func (orderApi *OrderApi) PlaceOrder(c *gin.Context) {
 	var order shop.Order
 	err := c.ShouldBindJSON(&order)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		failWithKey(c, "invalidParams")
 		return
 	}
 	order.UserID = utils.GetUserID(c)
 
 	if orderID, orderNo, err := orderService.PlaceOrder(&order); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		failWithErr(c, err)
 	} else {
 		response.OkWithData(i18n.LocalizeResponseData(c, gin.H{
 			"orderID": orderID,
@@ -87,12 +113,12 @@ func (orderApi *OrderApi) PlaceOrderByCart(c *gin.Context) {
 	var req shopReq.PlaceOrderByCartRequest
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		failWithKey(c, "invalidParams")
 		return
 	}
 	if orderID, orderNo, err := orderService.PlaceOrderByCart(userID, req); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		failWithErr(c, err)
 	} else {
 		response.OkWithData(i18n.LocalizeResponseData(c, gin.H{
 			"orderID": orderID,
@@ -109,7 +135,7 @@ func (orderApi *OrderApi) ChangeOrderCoupon(c *gin.Context) {
 
 	if err := orderService.ChangeOrderCoupon(userID, orderID, couponNum); err != nil {
 		global.GVA_LOG.Error("变更失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		failWithErr(c, err)
 	} else {
 		response.Ok(c)
 	}
@@ -134,7 +160,7 @@ func (orderApi *OrderApi) ChangeOrderPoints(c *gin.Context) {
 
 	if err := orderService.ChangeOrderPoints(userID, orderID, usePoints); err != nil {
 		global.GVA_LOG.Error("积分变更失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		failWithErr(c, err)
 	} else {
 		response.Ok(c)
 	}
@@ -153,14 +179,14 @@ func (orderApi *OrderApi) ApplyRefund(c *gin.Context) {
 	userID := utils.GetUserID(c)
 	var req shopReq.RefundApplyReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		failWithKey(c, "invalidParams")
 		return
 	}
 	if err := orderService.ApplyRefund(userID, req); err != nil {
 		global.GVA_LOG.Error("退款申请失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		failWithErr(c, err)
 	} else {
-		response.OkWithMessage("申请成功", c)
+		response.OkWithMessage(i18n.T(c, "submitSuccess"), c)
 	}
 }
 
@@ -176,19 +202,19 @@ func (orderApi *OrderApi) ApplyRefund(c *gin.Context) {
 func (orderApi *OrderApi) RefundOrder(c *gin.Context) {
 	var req shopReq.RefundHandleReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		failWithKey(c, "invalidParams")
 		return
 	}
 	authorityID := utils.GetUserAuthorityId(c)
-	if authorityID != 888 {
-		response.FailWithMessage("无权限操作", c)
+	if !isOrderAdmin(authorityID) {
+		failWithKey(c, "noPermission")
 		return
 	}
 	if err := orderService.RefundOrder(req.OrderID, req.Remark); err != nil {
 		global.GVA_LOG.Error("退款失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		failWithErr(c, err)
 	} else {
-		response.OkWithMessage("退款成功", c)
+		response.OkWithMessage(i18n.T(c, "confirmSuccess"), c)
 	}
 }
 
@@ -206,16 +232,16 @@ func (orderApi *OrderApi) UpdateOrderStatus(c *gin.Context) {
 	ID := c.Query("ID")
 	status := c.Query("status")
 	if status != "3" && status != "4" && status != "8" {
-		response.FailWithMessage("状态错误", c)
+		failWithKey(c, "orderStatusInvalid")
 		return
 	}
 	authorityID := utils.GetUserAuthorityId(c)
-	if status == "8" && (authorityID == 888 || authorityID == 8881) {
-		response.FailWithMessage("仅用户可提交付款确认", c)
+	if status == "8" && isOrderAdmin(authorityID) {
+		failWithKey(c, "orderOnlyUserCanSubmitPendingConfirm")
 		return
 	}
 	var err error
-	if authorityID == 888 || authorityID == 8881 {
+	if isOrderAdmin(authorityID) {
 		err = orderService.UpdateOrderStatus(nil, ID, status)
 	} else {
 		userID := utils.GetUserID(c)
@@ -223,9 +249,9 @@ func (orderApi *OrderApi) UpdateOrderStatus(c *gin.Context) {
 	}
 	if err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		failWithErr(c, err)
 	} else {
-		response.OkWithMessage("更新成功", c)
+		response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
 	}
 }
 
@@ -239,16 +265,21 @@ func (orderApi *OrderApi) UpdateOrderStatus(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"确认收款成功"}"
 // @Router /order/confirmPayment [post]
 func (orderApi *OrderApi) ConfirmPayment(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
+
 	ID := c.Query("ID")
 	if ID == "" {
-		response.FailWithMessage("订单ID不能为空", c)
+		failWithKey(c, "orderIDRequired")
 		return
 	}
 	if err := orderService.ConfirmPayment(ID); err != nil {
 		global.GVA_LOG.Error("确认收款失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		failWithErr(c, err)
 	} else {
-		response.OkWithMessage("确认收款成功", c)
+		response.OkWithMessage(i18n.T(c, "confirmSuccess"), c)
 	}
 }
 
@@ -264,7 +295,7 @@ func (orderApi *OrderApi) SelfOrderList(c *gin.Context) {
 	userID := utils.GetUserID(c)
 	var order shopReq.OrderSearch
 	if err := c.ShouldBindQuery(&order); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		failWithKey(c, "invalidParams")
 		return
 	}
 	order.UserID = utils.Pointer(int(userID))
@@ -276,7 +307,7 @@ func (orderApi *OrderApi) SelfOrderList(c *gin.Context) {
 	}
 	if list, total, err := orderService.GetOrderInfoList(order); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		failWithKey(c, "getFail")
 	} else {
 		pageResult := response.PageResult{
 			List:     list,
@@ -302,7 +333,7 @@ func (orderApi *OrderApi) SelfOrder(c *gin.Context) {
 	ID := c.Query("ID")
 	if order, err := orderService.GetOrder(ID, userID); err != nil {
 		global.GVA_LOG.Error("查询失败："+err.Error(), zap.Error(err))
-		response.FailWithMessage("查询失败:"+err.Error(), c)
+		failWithKey(c, "queryFail")
 	} else {
 		response.OkWithData(i18n.LocalizeResponseData(c, order), c)
 	}
@@ -315,7 +346,7 @@ func (orderApi *OrderApi) SelfOrderComment(c *gin.Context) {
 	goodID := c.Query("goodID")
 	if order, err := orderService.SelfOrderComment(ID, goodID, SKUID, userID); err != nil {
 		global.GVA_LOG.Error("查询失败："+err.Error(), zap.Error(err))
-		response.FailWithMessage("查询失败:"+err.Error(), c)
+		failWithKey(c, "queryFail")
 	} else {
 		response.OkWithData(i18n.LocalizeResponseData(c, order), c)
 	}
@@ -331,12 +362,17 @@ func (orderApi *OrderApi) SelfOrderComment(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"删除成功"}"
 // @Router /order/deleteOrder [delete]
 func (orderApi *OrderApi) DeleteOrder(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
+
 	ID := c.Query("ID")
 	if err := orderService.DeleteOrder(ID); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		failWithErr(c, err)
 	} else {
-		response.OkWithMessage("删除成功", c)
+		response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
 	}
 }
 
@@ -349,12 +385,17 @@ func (orderApi *OrderApi) DeleteOrder(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"批量删除成功"}"
 // @Router /order/deleteOrderByIds [delete]
 func (orderApi *OrderApi) DeleteOrderByIds(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
+
 	IDs := c.QueryArray("IDs[]")
 	if err := orderService.DeleteOrderByIds(IDs); err != nil {
 		global.GVA_LOG.Error(err.Error(), zap.Error(err))
-		response.FailWithMessage("批量删除失败", c)
+		failWithKey(c, "batchDeleteFail")
 	} else {
-		response.OkWithMessage("批量删除成功", c)
+		response.OkWithMessage(i18n.T(c, "batchDeleteSuccess"), c)
 	}
 }
 
@@ -371,11 +412,11 @@ func (orderApi *OrderApi) UpdateOrder(c *gin.Context) {
 	var order shop.Order
 	err := c.ShouldBindJSON(&order)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		failWithKey(c, "invalidParams")
 		return
 	}
 	authorityID := utils.GetUserAuthorityId(c)
-	if authorityID == 888 || authorityID == 8881 {
+	if isOrderAdmin(authorityID) {
 		err = orderService.UpdateOrder(order)
 	} else {
 		userID := utils.GetUserID(c)
@@ -384,9 +425,9 @@ func (orderApi *OrderApi) UpdateOrder(c *gin.Context) {
 
 	if err != nil {
 		global.GVA_LOG.Error(err.Error(), zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		failWithErr(c, err)
 	} else {
-		response.OkWithMessage("更新成功", c)
+		response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
 	}
 }
 
@@ -400,10 +441,15 @@ func (orderApi *OrderApi) UpdateOrder(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"查询成功"}"
 // @Router /order/findOrder [get]
 func (orderApi *OrderApi) FindOrder(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
+
 	ID := c.Query("ID")
 	if reorder, err := orderService.GetOrder(ID, 0); err != nil {
 		global.GVA_LOG.Error(err.Error(), zap.Error(err))
-		response.FailWithMessage("查询失败", c)
+		failWithKey(c, "queryFail")
 	} else {
 		response.OkWithData(i18n.LocalizeResponseData(c, gin.H{"reorder": reorder}), c)
 	}
@@ -419,22 +465,27 @@ func (orderApi *OrderApi) FindOrder(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"获取成功"}"
 // @Router /order/getOrderList [get]
 func (orderApi *OrderApi) GetOrderList(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
+
 	var pageInfo shopReq.OrderSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		failWithKey(c, "invalidParams")
 		return
 	}
 	if list, total, err := orderService.GetOrderInfoList(pageInfo); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		failWithErr(c, err)
 	} else {
 		response.OkWithDetailed(i18n.LocalizeResponseData(c, response.PageResult{
 			List:     list,
 			Total:    total,
 			Page:     pageInfo.Page,
 			PageSize: pageInfo.PageSize,
-		}), "获取成功", c)
+		}), i18n.T(c, "getSuccess"), c)
 	}
 }
 
@@ -458,7 +509,7 @@ func (orderApi *OrderApi) CheckRouters(c *gin.Context) {
 	express := c.Query("express")
 	if err, routers := sf.SfPassPort.SearchRouters(express); err != nil {
 		global.GVA_LOG.Error(err.Error(), zap.Error(err))
-		response.FailWithMessage("查询失败:"+err.Error(), c)
+		failWithKey(c, "queryFail")
 	} else {
 		var req map[string]interface{}
 		_ = json.Unmarshal([]byte(routers), &req)
@@ -478,18 +529,18 @@ func (orderApi *OrderApi) CheckRouters(c *gin.Context) {
 func (orderApi *OrderApi) BatchUpdateOrderStatus(c *gin.Context) {
 	var req shopReq.BatchUpdateOrderStatusReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		failWithKey(c, "invalidParams")
 		return
 	}
 	authorityID := utils.GetUserAuthorityId(c)
 	if authorityID != 888 {
-		response.FailWithMessage("无权限操作", c)
+		failWithKey(c, "noPermission")
 		return
 	}
 	if err := orderService.BatchUpdateOrderStatus(req.IDs, req.Status); err != nil {
 		global.GVA_LOG.Error("批量更新失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		failWithErr(c, err)
 	} else {
-		response.OkWithMessage("批量更新成功", c)
+		response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
 	}
 }

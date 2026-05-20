@@ -249,7 +249,7 @@ import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 import SelectImage from '@/components/selectImage/selectImage.vue'
 
 // 全量引入格式化工具 请按需保留
-import { getDictFunc, formatDate, formatBoolean, filterDict, ReturnArrImg, onDownloadFile } from '@/utils/format'
+import { formatDate, ReturnArrImg } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive, onMounted } from 'vue'
 

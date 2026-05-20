@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	sysModel "github.com/flipped-aurora/gin-vue-admin/server/model/system"
 	sysReq "github.com/flipped-aurora/gin-vue-admin/server/model/system/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"go.uber.org/zap"
 )
 
@@ -17,9 +19,29 @@ type BannedIPService struct{}
 
 const (
 	bannedIPRedisHash = "sys:banned_ips" // Redis hash: ip -> expiry_unix (0=永久)
-	ipFailKeyPrefix   = "ip:login_fail:" // Redis string key for per-IP fail count
-	ipFailTTL         = time.Hour        // 登录失败计数TTL
-	autoBanDuration   = time.Hour        // 自动封禁时长
+
+	attackCounterKeyPrefix = "ip:attack:" // Redis string key: ip:attack:{attack_type}:{ip}
+
+	attackAutoBanEnabledConfigKey = "security_attack_auto_ban_enabled"
+	attackAutoBanEnabledEnvKey    = "CS_ATTACK_AUTO_BAN_ENABLED"
+
+	attackAutoBanWindowConfigKey = "security_attack_auto_ban_window_seconds"
+	attackAutoBanWindowEnvKey    = "CS_ATTACK_AUTO_BAN_WINDOW_SECONDS"
+
+	attackAutoBanDurationConfigKey = "security_attack_auto_ban_duration_minutes"
+	attackAutoBanDurationEnvKey    = "CS_ATTACK_AUTO_BAN_DURATION_MINUTES"
+
+	attackAutoBanThresholdDefaultConfigKey = "security_attack_auto_ban_threshold_default"
+	attackAutoBanThresholdDefaultEnvKey    = "CS_ATTACK_AUTO_BAN_THRESHOLD_DEFAULT"
+
+	attackAutoBanThresholdSysErrorConfigKey = "security_attack_auto_ban_threshold_sys_error_rate_limit"
+	attackAutoBanThresholdSysErrorEnvKey    = "CS_ATTACK_AUTO_BAN_THRESHOLD_SYS_ERROR_RATE_LIMIT"
+
+	defaultAttackAutoBanEnabled                 = true
+	defaultAttackAutoBanWindowSeconds     int64 = 3600
+	defaultAttackAutoBanDurationMins      int64 = 60
+	defaultAttackAutoBanThresholdDefault  int64 = 10
+	defaultAttackAutoBanThresholdSysError int64 = 30
 )
 
 // BanIP 封禁指定IP
@@ -135,6 +157,7 @@ type AttackStatItem struct {
 	LoginFail     int64     `json:"loginFail"`     // 密码错误（客户端）
 	CaptchaFail   int64     `json:"captchaFail"`   // 验证码错误
 	RegisterLimit int64     `json:"registerLimit"` // 注册IP超限
+	SysErrorRate  int64     `json:"sysErrorRate"`  // 错误上报频率超限
 	AdminFail     int64     `json:"adminFail"`     // 管理员登录失败
 	LastTime      time.Time `json:"lastTime"`
 	IsBanned      bool      `json:"isBanned"`
@@ -180,6 +203,8 @@ func (s *BannedIPService) GetAttackStats(hours int) ([]AttackStatItem, error) {
 			item.CaptchaFail += r.Count
 		case "register_limit":
 			item.RegisterLimit += r.Count
+		case "sys_error_rate_limit":
+			item.SysErrorRate += r.Count
 		}
 		item.TotalCount += r.Count
 		if r.LastTime.After(item.LastTime) {
@@ -226,9 +251,15 @@ func (s *BannedIPService) GetAttackStats(hours int) ([]AttackStatItem, error) {
 }
 
 // RecordAttack 记录攻击行为并触发自动封禁
-// attackType: "login_fail" | "captcha_fail" | "register_limit"
+// attackType: "login_fail" | "captcha_fail" | "register_limit" | "sys_error_rate_limit"
 // 日志写入异步执行，不阻塞请求响应
 func (s *BannedIPService) RecordAttack(ip, attackType, username, detail string) {
+	ip = strings.TrimSpace(ip)
+	if ip == "" {
+		ip = "unknown"
+	}
+	attackType = normalizeAttackType(attackType)
+
 	go func() {
 		if global.GVA_DB != nil {
 			global.GVA_DB.Create(&sysModel.SysAttackLog{
@@ -243,15 +274,66 @@ func (s *BannedIPService) RecordAttack(ip, attackType, username, detail string) 
 	if global.GVA_REDIS == nil {
 		return
 	}
-	key := ipFailKeyPrefix + ip
-	count, _ := global.GVA_REDIS.Incr(context.Background(), key).Result()
-	global.GVA_REDIS.Expire(context.Background(), key, ipFailTTL)
+	if !utils.GetBoolSetting(attackAutoBanEnabledConfigKey, attackAutoBanEnabledEnvKey, defaultAttackAutoBanEnabled) {
+		return
+	}
 
-	const threshold int64 = 10
+	threshold := s.getAutoBanThreshold(attackType)
+	if threshold <= 0 {
+		return
+	}
+
+	windowSeconds := utils.GetInt64Setting(attackAutoBanWindowConfigKey, attackAutoBanWindowEnvKey, defaultAttackAutoBanWindowSeconds)
+	if windowSeconds < 1 {
+		windowSeconds = defaultAttackAutoBanWindowSeconds
+	}
+
+	banDurationMins := utils.GetInt64Setting(attackAutoBanDurationConfigKey, attackAutoBanDurationEnvKey, defaultAttackAutoBanDurationMins)
+	if banDurationMins < 1 {
+		banDurationMins = defaultAttackAutoBanDurationMins
+	}
+
+	key := fmt.Sprintf("%s%s:%s", attackCounterKeyPrefix, attackType, ip)
+	count, _ := global.GVA_REDIS.Incr(context.Background(), key).Result()
+	global.GVA_REDIS.Expire(context.Background(), key, time.Duration(windowSeconds)*time.Second)
+
 	if count >= threshold {
-		_ = s.BanIP(ip, fmt.Sprintf("自动封禁：1小时内检测到攻击行为 %d 次", count), "系统自动", 60, true)
+		reason := fmt.Sprintf("自动封禁：%s 在 %d 秒内触发 %d 次", attackType, windowSeconds, count)
+		_ = s.BanIP(ip, reason, "系统自动", int(banDurationMins), true)
 		global.GVA_REDIS.Del(context.Background(), key)
 	}
+}
+
+func normalizeAttackType(attackType string) string {
+	attackType = strings.ToLower(strings.TrimSpace(attackType))
+	if attackType == "" {
+		return "unknown"
+	}
+	return attackType
+}
+
+func (s *BannedIPService) getAutoBanThreshold(attackType string) int64 {
+	if attackType == "sys_error_rate_limit" {
+		threshold := utils.GetInt64Setting(
+			attackAutoBanThresholdSysErrorConfigKey,
+			attackAutoBanThresholdSysErrorEnvKey,
+			defaultAttackAutoBanThresholdSysError,
+		)
+		if threshold < 1 {
+			return 0
+		}
+		return threshold
+	}
+
+	threshold := utils.GetInt64Setting(
+		attackAutoBanThresholdDefaultConfigKey,
+		attackAutoBanThresholdDefaultEnvKey,
+		defaultAttackAutoBanThresholdDefault,
+	)
+	if threshold < 1 {
+		return 0
+	}
+	return threshold
 }
 
 // RecordIPLoginFail 向后兼容保留，内部转发 RecordAttack

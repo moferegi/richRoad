@@ -24,12 +24,12 @@ func (a *AutoCodeHistoryApi) First(c *gin.Context) {
 	var info common.GetById
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	data, err := autoCodeHistoryService.First(c.Request.Context(), info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("获取失败", c)
 		return
 	}
 	response.OkWithDetailed(gin.H{"meta": data}, "获取成功", c)
@@ -48,7 +48,7 @@ func (a *AutoCodeHistoryApi) Delete(c *gin.Context) {
 	var info common.GetById
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = autoCodeHistoryService.Delete(c.Request.Context(), info)
@@ -73,12 +73,12 @@ func (a *AutoCodeHistoryApi) RollBack(c *gin.Context) {
 	var info request.SysAutoHistoryRollBack
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = autoCodeHistoryService.RollBack(c.Request.Context(), info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("回滚失败", c)
 		return
 	}
 	response.OkWithMessage("回滚成功", c)
@@ -97,7 +97,7 @@ func (a *AutoCodeHistoryApi) GetList(c *gin.Context) {
 	var info common.PageInfo
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := autoCodeHistoryService.GetList(c.Request.Context(), info)

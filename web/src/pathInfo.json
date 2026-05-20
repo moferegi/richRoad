@@ -1,6 +1,6 @@
 {
   "/src/view/about/index.vue": "About",
-  "/src/view/client/address/address.vue": "Address",
+  "/src/view/client/address/address.vue": "ClientAddress",
   "/src/view/client/address/addressForm.vue": "AddressForm",
   "/src/view/client/collect/collect.vue": "Collect",
   "/src/view/client/collect/collectForm.vue": "CollectForm",
@@ -111,7 +111,7 @@
   "/src/view/systemTools/autoCode/index.vue": "AutoCode",
   "/src/view/systemTools/autoCode/mcp.vue": "MCP",
   "/src/view/systemTools/autoCode/mcpTest.vue": "MCPTest",
-  "/src/view/systemTools/autoCode/picture.vue": "Picture",
+  "/src/view/systemTools/autoCode/picture.vue": "AutoCodePicture",
   "/src/view/systemTools/autoCodeAdmin/index.vue": "AutoCodeAdmin",
   "/src/view/systemTools/autoPkg/autoPkg.vue": "AutoPkg",
   "/src/view/systemTools/dbInspector/index.vue": "Index",

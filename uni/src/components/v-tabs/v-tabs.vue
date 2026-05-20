@@ -110,7 +110,7 @@ export default {
   computed: {
     getDomId() {
       const len = 16
-      const $chars = 'ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678' /****默认去掉了容易混淆的字符oOLl,9gq,Vv,Uu,I1****/
+			const $chars = 'ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678' // 默认去掉了容易混淆的字符 oOLl,9gq,Vv,Uu,I1
       const maxPos = $chars.length
       let pwd = ''
       for (let i = 0; i < len; i++) {
@@ -120,12 +120,7 @@ export default {
     }
   },
   watch: {
-    // #ifdef VUE3
     modelValue: {
-    // #endif
-    // #ifdef VUE2
-    value: {
-    // #endif
       immediate: true,
       handler(newVal) {
         this.current = newVal > -1 && newVal < this.tabs.length ? newVal : 0

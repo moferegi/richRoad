@@ -44,14 +44,14 @@
     <view
       class="scroll-trigger"
       ref="scrollTriggerRef"
-      v-if="!isLastPage && goodsList.length > 0"
+      v-if="!isLastPage && props.goodsList.length > 0"
     >
     </view>
   </view>
 </template>
 
 <script setup>
-import {ref, computed, onMounted, onUnmounted, nextTick, watch} from 'vue'
+import {ref, computed} from 'vue'
 import {getUrl, getExternalUrl} from "@/utils/url.js"
 import { formatLocalizedPrice } from '@/utils/price-i18n.js'
 import { onReachBottom } from '@dcloudio/uni-app'
@@ -68,8 +68,6 @@ const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang')
 const { resolveDisplayText } = useI18nDisplay(locale)
 
 const formatPrice = (item) => formatLocalizedPrice(item?.price, item?.priceI18n, locale.value)
-
-const goodsList = ref([])
 const props = defineProps({
   goodsList: {
     type: Array,
@@ -93,20 +91,6 @@ const props = defineProps({
     default: 400
   }
 })
-const getDiscountText = (discount) => {
-  if (discount >= 9.5) return $t.value('discountSmall')
-  if (discount >= 9.0) return $t.value('discountNormal')
-  if (discount >= 8.0) return $t.value('discountGood')
-  if (discount >= 7.0) return $t.value('discountGreat')
-  if (discount >= 6.0) return $t.value('discountLow')
-  if (discount >= 5.0) return $t.value('discountSpecial')
-  return $t.value('discountDefault')
-}
-const queryList = async (pageNo, pageSize) => {
-
-// 加载数据方法
-
-}
 // 向父组件发送事件
 const emit = defineEmits(['load-more'])
 

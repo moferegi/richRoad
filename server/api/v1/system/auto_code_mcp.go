@@ -2,6 +2,7 @@ package system
 
 import (
 	"fmt"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/mcp/client"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
@@ -23,7 +24,7 @@ func (a *AutoCodeTemplateApi) MCP(c *gin.Context) {
 	var info request.AutoMcpTool
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
@@ -50,6 +51,11 @@ func (a *AutoCodeTemplateApi) MCPList(c *gin.Context) {
 	baseUrl := fmt.Sprintf("http://127.0.0.1:%d%s", global.GVA_CONFIG.System.Addr, global.GVA_CONFIG.MCP.SSEPath)
 
 	testClient, err := client.NewClient(baseUrl, "testClient", "v1.0.0", global.GVA_CONFIG.MCP.Name)
+	if err != nil {
+		response.FailWithMessage("创建失败", c)
+		global.GVA_LOG.Error(err.Error())
+		return
+	}
 	defer testClient.Close()
 	toolsRequest := mcp.ListToolsRequest{}
 
@@ -92,7 +98,7 @@ func (a *AutoCodeTemplateApi) MCPTest(c *gin.Context) {
 
 	// 绑定JSON请求体
 	if err := c.ShouldBindJSON(&testRequest); err != nil {
-		response.FailWithMessage("参数解析失败:"+err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
@@ -100,7 +106,7 @@ func (a *AutoCodeTemplateApi) MCPTest(c *gin.Context) {
 	baseUrl := fmt.Sprintf("http://127.0.0.1:%d%s", global.GVA_CONFIG.System.Addr, global.GVA_CONFIG.MCP.SSEPath)
 	testClient, err := client.NewClient(baseUrl, "testClient", "v1.0.0", global.GVA_CONFIG.MCP.Name)
 	if err != nil {
-		response.FailWithMessage("创建MCP客户端失败:"+err.Error(), c)
+		response.FailWithMessage("创建MCP客户端失败", c)
 		return
 	}
 	defer testClient.Close()
@@ -117,7 +123,7 @@ func (a *AutoCodeTemplateApi) MCPTest(c *gin.Context) {
 
 	_, err = testClient.Initialize(ctx, initRequest)
 	if err != nil {
-		response.FailWithMessage("初始化MCP连接失败:"+err.Error(), c)
+		response.FailWithMessage("初始化MCP连接失败", c)
 		return
 	}
 
@@ -129,7 +135,7 @@ func (a *AutoCodeTemplateApi) MCPTest(c *gin.Context) {
 	// 调用工具
 	result, err := testClient.CallTool(ctx, request)
 	if err != nil {
-		response.FailWithMessage("工具调用失败:"+err.Error(), c)
+		response.FailWithMessage("工具调用失败", c)
 		return
 	}
 

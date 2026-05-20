@@ -26,12 +26,12 @@ func (e *CustomerApi) CreateExaCustomer(c *gin.Context) {
 	var customer example.ExaCustomer
 	err := c.ShouldBindJSON(&customer)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(customer, utils.CustomerVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	customer.SysUserID = utils.GetUserID(c)
@@ -58,12 +58,12 @@ func (e *CustomerApi) DeleteExaCustomer(c *gin.Context) {
 	var customer example.ExaCustomer
 	err := c.ShouldBindJSON(&customer)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(customer.GVA_MODEL, utils.IdVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = customerService.DeleteExaCustomer(customer)
@@ -88,17 +88,17 @@ func (e *CustomerApi) UpdateExaCustomer(c *gin.Context) {
 	var customer example.ExaCustomer
 	err := c.ShouldBindJSON(&customer)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(customer.GVA_MODEL, utils.IdVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(customer, utils.CustomerVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = customerService.UpdateExaCustomer(&customer)
@@ -123,12 +123,12 @@ func (e *CustomerApi) GetExaCustomer(c *gin.Context) {
 	var customer example.ExaCustomer
 	err := c.ShouldBindQuery(&customer)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(customer.GVA_MODEL, utils.IdVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	data, err := customerService.GetExaCustomer(customer.ID)
@@ -153,18 +153,18 @@ func (e *CustomerApi) GetExaCustomerList(c *gin.Context) {
 	var pageInfo request.PageInfo
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(pageInfo, utils.PageInfoVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	customerList, total, err := customerService.GetCustomerInfoList(utils.GetUserAuthorityId(c), pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败"+err.Error(), c)
+		response.FailWithMessage("获取失败", c)
 		return
 	}
 	response.OkWithDetailed(response.PageResult{

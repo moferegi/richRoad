@@ -21,7 +21,7 @@ func (s *ApiTokenApi) CreateApiToken(c *gin.Context) {
 	}
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
@@ -34,7 +34,7 @@ func (s *ApiTokenApi) CreateApiToken(c *gin.Context) {
 	jwtStr, err := apiTokenService.CreateApiToken(token, req.Days)
 	if err != nil {
 		global.GVA_LOG.Error("签发失败!", zap.Error(err))
-		response.FailWithMessage("签发失败: "+err.Error(), c)
+		response.FailWithMessage("签发失败", c)
 		return
 	}
 
@@ -46,7 +46,7 @@ func (s *ApiTokenApi) GetApiTokenList(c *gin.Context) {
 	var pageInfo sysReq.SysApiTokenSearch
 	err := c.ShouldBindJSON(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := apiTokenService.GetApiTokenList(pageInfo)
@@ -68,7 +68,7 @@ func (s *ApiTokenApi) DeleteApiToken(c *gin.Context) {
 	var req system.SysApiToken
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = apiTokenService.DeleteApiToken(req.ID)

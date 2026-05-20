@@ -1,7 +1,7 @@
 package shop
 
 import (
-	"github.com/flipped-aurora/gin-vue-admin/server/api/v1"
+	v1 "github.com/flipped-aurora/gin-vue-admin/server/api/v1"
 	"github.com/flipped-aurora/gin-vue-admin/server/middleware"
 	"github.com/gin-gonic/gin"
 )
@@ -21,12 +21,12 @@ func (s *GoodRouter) InitGoodRouter(Router *gin.RouterGroup, PublicRouter *gin.R
 		goodRouter.DELETE("deleteGood", goodApi.DeleteGood)           // 删除商品
 		goodRouter.DELETE("deleteGoodByIds", goodApi.DeleteGoodByIds) // 批量删除商品
 		goodRouter.PUT("updateGood", goodApi.UpdateGood)              // 更新商品
+		goodRouter.DELETE("clearGoodHistory", goodApi.ClearGoodHistory)
 	}
 	{
 		goodRouterWithoutAuth.GET("findGood", goodApi.FindGood)             // 根据ID获取商品
 		goodRouterWithoutAuth.GET("getGoodList", goodApi.GetGoodList)       // 获取商品列表
 		goodRouterWithoutAuth.GET("getGoodHistory", goodApi.GetGoodHistory) // 获取商品列表
-		goodRouterWithoutAuth.DELETE("clearGoodHistory", goodApi.ClearGoodHistory)
 	}
 	{
 		goodRouterWithoutRecord.GET("getGoodPublic", goodApi.GetGoodPublic) // 获取商品列表

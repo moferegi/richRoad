@@ -32,14 +32,14 @@ func (dbInspectorApi *DBInspectorApi) GetOverview(c *gin.Context) {
 
 	var req systemReq.DBInspectorOverviewSearch
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
 	result, err := dbInspectorService.GetOverview(c.Request.Context(), req)
 	if err != nil {
 		global.GVA_LOG.Error("获取数据库巡检总览失败", zap.Error(err))
-		response.FailWithMessage("获取数据库巡检总览失败: "+err.Error(), c)
+		response.FailWithMessage("获取数据库巡检总览失败", c)
 		return
 	}
 	response.OkWithDetailed(result, "获取成功", c)
@@ -62,14 +62,14 @@ func (dbInspectorApi *DBInspectorApi) AutoFix(c *gin.Context) {
 
 	var req systemReq.DBInspectorAutoFixReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
 	result, err := dbInspectorService.AutoFix(c.Request.Context(), req)
 	if err != nil {
 		global.GVA_LOG.Error("数据库巡检自动修复失败", zap.Error(err))
-		response.FailWithMessage("自动修复失败: "+err.Error(), c)
+		response.FailWithMessage("自动修复失败", c)
 		return
 	}
 	if result.Success {
@@ -96,14 +96,14 @@ func (dbInspectorApi *DBInspectorApi) DeleteRecordsByRange(c *gin.Context) {
 
 	var req systemReq.DBInspectorDeleteByRangeReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
 	result, err := dbInspectorService.DeleteRecordsByRange(c.Request.Context(), req)
 	if err != nil {
 		global.GVA_LOG.Error("数据库巡检真删除失败", zap.Error(err))
-		response.FailWithMessage("真删除失败: "+err.Error(), c)
+		response.FailWithMessage("真删除失败", c)
 		return
 	}
 	response.OkWithDetailed(result, "真删除完成", c)

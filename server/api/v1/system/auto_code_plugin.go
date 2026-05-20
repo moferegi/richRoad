@@ -28,7 +28,7 @@ type AutoCodePluginApi struct{}
 func (a *AutoCodePluginApi) Install(c *gin.Context) {
 	header, err := c.FormFile("plug")
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	web, server, err := autoCodePluginService.Install(header)
@@ -41,7 +41,7 @@ func (a *AutoCodePluginApi) Install(c *gin.Context) {
 		serverStr = "server端插件未成功安装，请按照文档自行解压安装，如果为纯前端插件请忽略此条提示"
 	}
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("安装失败", c)
 		return
 	}
 	response.OkWithData([]interface{}{
@@ -69,7 +69,7 @@ func (a *AutoCodePluginApi) Packaged(c *gin.Context) {
 	zipPath, err := autoCodePluginService.PubPlug(plugName)
 	if err != nil {
 		global.GVA_LOG.Error("打包失败!", zap.Error(err))
-		response.FailWithMessage("打包失败"+err.Error(), c)
+		response.FailWithMessage("打包失败", c)
 		return
 	}
 	response.OkWithMessage(fmt.Sprintf("打包成功,文件路径为:%s", zipPath), c)
@@ -87,13 +87,13 @@ func (a *AutoCodePluginApi) InitMenu(c *gin.Context) {
 	var menuInfo request.InitMenu
 	err := c.ShouldBindJSON(&menuInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = autoCodePluginService.InitMenu(menuInfo)
 	if err != nil {
 		global.GVA_LOG.Error("创建初始化Menu失败!", zap.Error(err))
-		response.FailWithMessage("创建初始化Menu失败"+err.Error(), c)
+		response.FailWithMessage("创建初始化Menu失败", c)
 		return
 	}
 	response.OkWithMessage("文件变更成功", c)
@@ -111,13 +111,13 @@ func (a *AutoCodePluginApi) InitAPI(c *gin.Context) {
 	var apiInfo request.InitApi
 	err := c.ShouldBindJSON(&apiInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = autoCodePluginService.InitAPI(apiInfo)
 	if err != nil {
 		global.GVA_LOG.Error("创建初始化API失败!", zap.Error(err))
-		response.FailWithMessage("创建初始化API失败"+err.Error(), c)
+		response.FailWithMessage("创建初始化API失败", c)
 		return
 	}
 	response.OkWithMessage("文件变更成功", c)
@@ -135,13 +135,13 @@ func (a *AutoCodePluginApi) InitDictionary(c *gin.Context) {
 	var dictInfo request.InitDictionary
 	err := c.ShouldBindJSON(&dictInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = autoCodePluginService.InitDictionary(dictInfo)
 	if err != nil {
 		global.GVA_LOG.Error("创建初始化Dictionary失败!", zap.Error(err))
-		response.FailWithMessage("创建初始化Dictionary失败"+err.Error(), c)
+		response.FailWithMessage("创建初始化Dictionary失败", c)
 		return
 	}
 	response.OkWithMessage("文件变更成功", c)
@@ -211,7 +211,7 @@ func (a *AutoCodePluginApi) Remove(c *gin.Context) {
 	err := autoCodePluginService.Remove(pluginName, pluginType)
 	if err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败"+err.Error(), c)
+		response.FailWithMessage("删除失败", c)
 		return
 	}
 	response.OkWithMessage("删除成功", c)

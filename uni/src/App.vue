@@ -24,9 +24,7 @@
 	}
 
 	const setupH5NavigateBackGuard = () => {
-		// #ifndef H5
-		return
-		// #endif
+		// #ifdef H5
 		if (backGuardInstalled || typeof uni.addInterceptor !== 'function') {
 			return
 		}
@@ -55,6 +53,7 @@
 				switchToHomeTab()
 			}
 		})
+		// #endif
 	}
 	export default {
 		onLaunch: function() {
@@ -67,21 +66,21 @@
 			initExternalDomain()
 			initCdnDomain()
 			appConfigStore.loadConfig()
-      console.log(123)
+			console.log(123)
 			wx.login({
-			  success: async (res) => {
-			    if (res.code) {
-			      //发起网络请求
-			      const data = await getOpenID(res.code)
-				  if(data.code === 0) {
-            console.log( data.data.openid)
-					  uni.setStorageSync('openid', data.data.openid)
-				  }
-            console.log( data.data)
-			    } else {
-			      console.log('登录失败！' + res.errMsg)
-			    }
-			  }
+				success: async (res) => {
+					if (res.code) {
+						//发起网络请求
+						const data = await getOpenID(res.code)
+						if (data.code === 0) {
+							console.log(data.data.openid)
+							uni.setStorageSync('openid', data.data.openid)
+						}
+						console.log(data.data)
+					} else {
+						console.log('登录失败！' + res.errMsg)
+					}
+				}
 			})
 			myRouter()
 			// 初始化访客指纹

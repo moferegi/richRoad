@@ -31,14 +31,14 @@ func (a *QuickReplyApi) GetQuickReplyList(c *gin.Context) {
 	}
 	if authID != 888 {
 		if _, err := service.Service.AgentService.GetEnabledByUserID(userID); err != nil {
-			response.FailWithMessage(err.Error(), c)
+			response.FailWithMessage("坐席不可用", c)
 			return
 		}
 	}
 
 	var search csReq.QuickReplySearch
 	if err := c.ShouldBindQuery(&search); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := service.Service.QuickReplyService.GetList(search)
@@ -84,7 +84,7 @@ func (a *QuickReplyApi) GetAllQuickReplies(c *gin.Context) {
 func (a *QuickReplyApi) CreateQuickReply(c *gin.Context) {
 	var qr model.CsQuickReply
 	if err := c.ShouldBindJSON(&qr); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	qr.CreatedBy = utils.GetUserID(c)
@@ -107,7 +107,7 @@ func (a *QuickReplyApi) CreateQuickReply(c *gin.Context) {
 func (a *QuickReplyApi) UpdateQuickReply(c *gin.Context) {
 	var qr model.CsQuickReply
 	if err := c.ShouldBindJSON(&qr); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := service.Service.QuickReplyService.Update(&qr); err != nil {
@@ -129,7 +129,7 @@ func (a *QuickReplyApi) UpdateQuickReply(c *gin.Context) {
 func (a *QuickReplyApi) DeleteQuickReply(c *gin.Context) {
 	var qr model.CsQuickReply
 	if err := c.ShouldBindQuery(&qr); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := service.Service.QuickReplyService.Delete(qr.ID); err != nil {

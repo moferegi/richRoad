@@ -43,9 +43,7 @@ export default function http(opts, data = {}) {
 					reject(res)
 					uni.removeStorageSync("userInfo") // 清除本地用户信息
 					uni.removeStorageSync("token")
-					login(true,(token,userInfo) =>{
-						
-					})
+					login(() => {})
 					return;
 				}
 				if (res.code !== 200) {

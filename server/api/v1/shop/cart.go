@@ -30,7 +30,7 @@ func (cartApi *CartApi) CreateCart(c *gin.Context) {
 	var cart shop.Cart
 	err := c.ShouldBindJSON(&cart)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := cartService.CreateCart(&cart); err != nil {
@@ -91,7 +91,7 @@ func (cartApi *CartApi) UpdateCart(c *gin.Context) {
 	var cart shop.Cart
 	err := c.ShouldBindJSON(&cart)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := cartService.UpdateCart(cart); err != nil {
@@ -134,7 +134,7 @@ func (cartApi *CartApi) GetCartList(c *gin.Context) {
 	var pageInfo shopReq.CartSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	userID := utils.GetUserID(c)
@@ -193,14 +193,14 @@ func (cartApi *CartApi) AddCart(c *gin.Context) {
 	var cart shopReq.CartCreate
 	err := c.ShouldBindJSON(&cart)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	userID := utils.GetUserID(c)
 	cart.UserID = userID
 	if err := cartService.AddCart(&cart); err != nil {
 		global.GVA_LOG.Error("购物车操作失败!", zap.Error(err))
-		response.FailWithMessage("购物车操作失败："+err.Error(), c)
+		response.FailWithMessage("购物车操作失败", c)
 	} else {
 		response.OkWithMessage("购物车操作成功", c)
 	}
@@ -219,14 +219,14 @@ func (cartApi *CartApi) CutCart(c *gin.Context) {
 	var cart shopReq.CartCreate
 	err := c.ShouldBindJSON(&cart)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	userID := utils.GetUserID(c)
 	cart.UserID = userID
 	if err := cartService.CutCart(&cart); err != nil {
 		global.GVA_LOG.Error("购物车操作失败!", zap.Error(err))
-		response.FailWithMessage("购物车操作失败："+err.Error(), c)
+		response.FailWithMessage("购物车操作失败", c)
 	} else {
 		response.OkWithMessage("购物车操作成功", c)
 	}
@@ -244,7 +244,7 @@ func (cartApi *CartApi) ClearCart(c *gin.Context) {
 	userID := utils.GetUserID(c)
 	if err := cartService.ClearCart(userID); err != nil {
 		global.GVA_LOG.Error("购物车操作失败!", zap.Error(err))
-		response.FailWithMessage("购物车操作失败："+err.Error(), c)
+		response.FailWithMessage("购物车操作失败", c)
 	} else {
 		response.OkWithMessage("购物车操作成功", c)
 	}

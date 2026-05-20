@@ -117,7 +117,7 @@
         >
         <el-table-column type="selection" width="55" />
         
-        <el-table-column sortable="custom" align="left" label="日期" prop="CreatedAt"width="180">
+        <el-table-column sortable="custom" align="left" label="日期" prop="CreatedAt" width="180">
             <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
         
@@ -298,7 +298,7 @@ import {
 import { getClientUserList } from '@/api/client/user'
 
 // 全量引入格式化工具 请按需保留
-import { getDictFunc, formatDate, formatBoolean, filterDict ,filterDataSource, returnArrImg, onDownloadFile } from '@/utils/format'
+import { getDictFunc, formatDate, filterDict } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive } from 'vue'
 import { useAppStore } from "@/pinia"
@@ -346,12 +346,12 @@ const rule = reactive({
                    trigger: ['input','blur'],
                },
               ],
-			   assetType : [{
-			       required: true,
-			       message: '请选择资产类型',
-			       trigger: ['change','blur'],
-			   },
-			  ],
+         assetType : [{
+           required: true,
+           message: '请选择资产类型',
+           trigger: ['change','blur'],
+         },
+        ],
                changeType : [{
                    required: true,
                    message: '请选择增减类型',

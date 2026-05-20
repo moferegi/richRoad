@@ -20,7 +20,108 @@ func InitSecurityData() {
 	initSecurityApis(db)
 	initSecurityMenu(db)
 	initSecurityCasbin(db)
+	cleanupSensitiveIgnoreApis(db)
+	ensureClientSelfProfilePermission(db)
+	ensureSystemReloadPermission(db)
 	loadBannedIPCache()
+}
+
+func cleanupSensitiveIgnoreApis(db *gorm.DB) {
+	if db == nil || !db.Migrator().HasTable(&sysModel.SysIgnoreApi{}) {
+		return
+	}
+
+	targets := []struct {
+		Method string
+		Path   string
+	}{
+		{Method: "POST", Path: "/init/initdb"},
+		{Method: "POST", Path: "/init/checkdb"},
+		{Method: "POST", Path: "/system/reloadSystem"},
+	}
+
+	var affected int64
+	for _, target := range targets {
+		res := db.Where("method = ? AND path = ?", target.Method, target.Path).Delete(&sysModel.SysIgnoreApi{})
+		if res.Error != nil {
+			global.GVA_LOG.Warn("清理敏感忽略API失败", zap.String("path", target.Path), zap.String("method", target.Method), zap.Error(res.Error))
+			continue
+		}
+		affected += res.RowsAffected
+	}
+
+	if affected > 0 {
+		global.GVA_LOG.Warn("已清理敏感接口的忽略规则", zap.Int64("affected", affected))
+	}
+}
+
+func ensureClientSelfProfilePermission(db *gorm.DB) {
+	if db == nil {
+		return
+	}
+
+	const path = "/clientUser/setClientUserInfo"
+	const method = "POST"
+
+	if db.Migrator().HasTable(&sysModel.SysApi{}) {
+		var count int64
+		db.Model(&sysModel.SysApi{}).Where("path = ? AND method = ?", path, method).Count(&count)
+		if count == 0 {
+			api := sysModel.SysApi{ApiGroup: "客户端用户", Method: method, Path: path, Description: "设置个人信息"}
+			if err := db.Create(&api).Error; err != nil {
+				global.GVA_LOG.Warn("补齐客户端个人信息API失败", zap.String("path", path), zap.Error(err))
+			}
+		}
+	}
+
+	if db.Migrator().HasTable("casbin_rule") {
+		var count int64
+		db.Table("casbin_rule").Where("ptype = ? AND v0 = ? AND v1 = ? AND v2 = ?", "p", "8080", path, method).Count(&count)
+		if count == 0 {
+			res := db.Exec("INSERT INTO casbin_rule (ptype, v0, v1, v2) VALUES (?, ?, ?, ?)", "p", "8080", path, method)
+			if res.Error != nil {
+				global.GVA_LOG.Warn("补齐客户端个人信息Casbin规则失败", zap.String("path", path), zap.Error(res.Error))
+			}
+		}
+	}
+}
+
+func ensureSystemReloadPermission(db *gorm.DB) {
+	if db == nil {
+		return
+	}
+
+	const path = "/system/reloadSystem"
+	const method = "POST"
+
+	if db.Migrator().HasTable(&sysModel.SysApi{}) {
+		var count int64
+		db.Model(&sysModel.SysApi{}).Where("path = ? AND method = ?", path, method).Count(&count)
+		if count == 0 {
+			api := sysModel.SysApi{ApiGroup: "系统服务", Method: method, Path: path, Description: "重载系统"}
+			if err := db.Create(&api).Error; err != nil {
+				global.GVA_LOG.Warn("补齐系统重载API失败", zap.String("path", path), zap.Error(err))
+			}
+		}
+	}
+
+	if db.Migrator().HasTable("casbin_rule") {
+		var count int64
+		db.Table("casbin_rule").Where("ptype = ? AND v0 = ? AND v1 = ? AND v2 = ?", "p", "888", path, method).Count(&count)
+		if count == 0 {
+			res := db.Exec("INSERT INTO casbin_rule (ptype, v0, v1, v2) VALUES (?, ?, ?, ?)", "p", "888", path, method)
+			if res.Error != nil {
+				global.GVA_LOG.Warn("补齐系统重载Casbin规则失败", zap.String("path", path), zap.Error(res.Error))
+			}
+		}
+	}
+
+	cleanupLegacyManagedCasbinRules(db, "system_reload", []struct {
+		Path   string
+		Method string
+	}{
+		{Path: path, Method: method},
+	}, []string{"888"})
 }
 
 func initSecurityApis(db *gorm.DB) {

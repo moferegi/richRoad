@@ -147,7 +147,9 @@ const loadEnabledLangs = async () => {
     if (res.code === 0 && res.data) {
       enabledLangs.value = Array.isArray(res.data) ? res.data : (res.data.list || [])
     }
-  } catch(e) {}
+  } catch {
+    /* ignore language loading error */
+  }
 }
 
 const parseNameI18n = (jsonStr) => {

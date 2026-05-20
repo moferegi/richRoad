@@ -150,7 +150,7 @@
   const appLogoUrl = computed(() => getExternalUrl(appConfigStore.appLogo || ''))
   const langLabel = computed(() => {
     const map = { zh: 'ZH', en: 'EN', mn: 'MN', 'zh-TW': 'TW', th: 'TH', hi: 'HI', id: 'ID', vi: 'VI', ar: 'AR', ja: 'JA', ko: 'KO', ms: 'MS' }
-	  return map[langStore.locale] || langStore.locale.slice(0, 2).toUpperCase()
+    return map[langStore.locale] || langStore.locale.slice(0, 2).toUpperCase()
 	})
 	const showLangPicker = ref(false)
   const lastLoadedLocale = ref('')
@@ -162,7 +162,7 @@
   }
 
 	const goBack = () => {
-	  uni.switchTab({ url: '/pages/tabBar/index' })
+    uni.switchTab({ url: '/pages/tabBar/index' })
 	}
 
 	// 注册模式
@@ -250,7 +250,9 @@
 				usernameRegexTip.value = res.data.username_regex_tip || ''
 				passwordRegexTip.value = res.data.password_regex_tip || ''
 			}
-		} catch(e) {}
+    } catch {
+      // ignore config fetch failure
+    }
 	}
 
 	// 加载区号列表
@@ -267,7 +269,9 @@
         form.areaCode = matched.areaCode
         selectedAreaItem.value = matched
 			}
-		} catch(e) {}
+    } catch {
+      // ignore area code fetch failure
+    }
 	}
 
 	const selectArea = (item) => {
@@ -324,7 +328,7 @@
   onShow(() => {
     const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
     if (localeChanged) {
-		  reloadLocaleSensitiveData()
+      reloadLocaleSensitiveData()
     }
     lastLoadedLocale.value = locale.value
   })
@@ -377,7 +381,9 @@
 						uni.showToast({ title: tip || $t.value('enterUsername'), icon: 'none' })
 						return
 					}
-				} catch(e) {}
+        } catch {
+          // ignore invalid username regex
+        }
 			}
 			if (!form.password) {
 				uni.showToast({ title: $t.value('enterPassword'), icon: 'none' })
@@ -392,7 +398,9 @@
 						uni.showToast({ title: tip || $t.value('enterPassword'), icon: 'none' })
 						return
 					}
-				} catch(e) {}
+        } catch {
+          // ignore invalid password regex
+        }
 			}
 			if (!form.rePassword) {
 				uni.showToast({ title: $t.value('enterRePassword'), icon: 'none' })
@@ -435,7 +443,9 @@
 						uni.showToast({ title: $t.value('phoneFormatInvalid'), icon: 'none' })
 						return
 					}
-				} catch(e) {}
+        } catch {
+          // ignore invalid phone regex
+        }
 			}
 			if (!form.password) {
 				uni.showToast({ title: $t.value('enterPassword'), icon: 'none' })
@@ -450,7 +460,9 @@
 						uni.showToast({ title: tip || $t.value('enterPassword'), icon: 'none' })
 						return
 					}
-				} catch(e) {}
+        } catch {
+          // ignore invalid password regex
+        }
 			}
 			if (!form.rePassword) {
 				uni.showToast({ title: $t.value('enterRePassword'), icon: 'none' })

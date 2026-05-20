@@ -113,6 +113,7 @@ func (i *initApi) InitializeData(ctx context.Context) (context.Context, error) {
 		{ApiGroup: "系统服务", Method: "POST", Path: "/system/getServerInfo", Description: "获取服务器信息"},
 		{ApiGroup: "系统服务", Method: "POST", Path: "/system/getSystemConfig", Description: "获取配置文件内容"},
 		{ApiGroup: "系统服务", Method: "POST", Path: "/system/setSystemConfig", Description: "设置配置文件内容"},
+		{ApiGroup: "系统服务", Method: "POST", Path: "/system/reloadSystem", Description: "重载系统"},
 
 		{ApiGroup: "skills", Method: "GET", Path: "/skills/getTools", Description: "获取技能工具列表"},
 		{ApiGroup: "skills", Method: "POST", Path: "/skills/getSkillList", Description: "获取技能列表"},
@@ -236,6 +237,7 @@ func (i *initApi) InitializeData(ctx context.Context) (context.Context, error) {
 		{ApiGroup: "客户端用户", Method: "GET", Path: "/clientUser/findClientUser", Description: "根据ID获取客户端用户"},
 		{ApiGroup: "客户端用户", Method: "GET", Path: "/clientUser/getClientUserList", Description: "获取客户端用户列表"},
 		{ApiGroup: "客户端用户", Method: "GET", Path: "/clientUser/getUserInfo", Description: "获取自身信息"},
+		{ApiGroup: "客户端用户", Method: "POST", Path: "/clientUser/setClientUserInfo", Description: "设置个人信息"},
 		{ApiGroup: "客户端用户", Method: "POST", Path: "/clientUser/login", Description: "客户端登录"},
 		{ApiGroup: "客户端用户", Method: "POST", Path: "/clientUser/register", Description: "注册客户端用户"},
 

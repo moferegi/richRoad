@@ -1,7 +1,10 @@
 package client
 
 import (
+	"context"
+	"fmt"
 	"math"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,6 +17,16 @@ import (
 type VisitorService struct {
 }
 
+const (
+	visitorHeartbeatRateLimitConfigKey = "security_visitor_heartbeat_rate_limit_per_minute"
+	visitorHeartbeatRateLimitEnvKey    = "CS_VISITOR_HEARTBEAT_RATE_LIMIT_PER_MINUTE"
+	defaultVisitorHeartbeatRateLimit   = int64(120)
+
+	visitorHeartbeatDedupeConfigKey = "security_visitor_heartbeat_dedupe_seconds"
+	visitorHeartbeatDedupeEnvKey    = "CS_VISITOR_HEARTBEAT_DEDUPE_SECONDS"
+	defaultVisitorHeartbeatDedupe   = int64(3)
+)
+
 // 今日统计缓存（避免高频查库）
 var (
 	statsCache     map[string]interface{}
@@ -21,6 +34,51 @@ var (
 	statsCacheMu   sync.RWMutex
 	statsCacheTTL  = 30 * time.Second
 )
+
+func (visitorService *VisitorService) CheckHeartbeatRateLimit(ip string) bool {
+	limit := utils.GetInt64Setting(visitorHeartbeatRateLimitConfigKey, visitorHeartbeatRateLimitEnvKey, defaultVisitorHeartbeatRateLimit)
+	if limit <= 0 {
+		return true
+	}
+	if global.GVA_REDIS == nil {
+		return true
+	}
+
+	ctx := context.Background()
+	key := fmt.Sprintf("visitor:heartbeat:ip:%s", ip)
+	count, err := global.GVA_REDIS.Incr(ctx, key).Result()
+	if err != nil {
+		return true
+	}
+	if count == 1 {
+		_ = global.GVA_REDIS.Expire(ctx, key, time.Minute).Err()
+	}
+
+	return count <= limit
+}
+
+func (visitorService *VisitorService) ShouldPersistHeartbeat(visitorID string) bool {
+	visitorID = strings.TrimSpace(visitorID)
+	if visitorID == "" {
+		return true
+	}
+	if global.GVA_REDIS == nil {
+		return true
+	}
+
+	dedupeSeconds := utils.GetInt64Setting(visitorHeartbeatDedupeConfigKey, visitorHeartbeatDedupeEnvKey, defaultVisitorHeartbeatDedupe)
+	if dedupeSeconds <= 0 {
+		return true
+	}
+
+	ctx := context.Background()
+	key := fmt.Sprintf("visitor:heartbeat:dedupe:%s", visitorID)
+	ok, err := global.GVA_REDIS.SetNX(ctx, key, "1", time.Duration(dedupeSeconds)*time.Second).Result()
+	if err != nil {
+		return true
+	}
+	return ok
+}
 
 // Heartbeat 记录访客心跳
 func (visitorService *VisitorService) Heartbeat(log *client.VisitorLog) error {

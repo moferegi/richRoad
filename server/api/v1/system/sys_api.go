@@ -28,12 +28,12 @@ func (s *SystemApiApi) CreateApi(c *gin.Context) {
 	var api system.SysApi
 	err := c.ShouldBindJSON(&api)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(api, utils.ApiVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = apiService.CreateApi(api)
@@ -100,7 +100,7 @@ func (s *SystemApiApi) IgnoreApi(c *gin.Context) {
 	var ignoreApi system.SysIgnoreApi
 	err := c.ShouldBindJSON(&ignoreApi)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = apiService.IgnoreApi(ignoreApi)
@@ -124,7 +124,7 @@ func (s *SystemApiApi) EnterSyncApi(c *gin.Context) {
 	var syncApi systemRes.SysSyncApis
 	err := c.ShouldBindJSON(&syncApi)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = apiService.EnterSyncApi(syncApi)
@@ -149,12 +149,12 @@ func (s *SystemApiApi) DeleteApi(c *gin.Context) {
 	var api system.SysApi
 	err := c.ShouldBindJSON(&api)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(api.GVA_MODEL, utils.IdVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = apiService.DeleteApi(api)
@@ -179,12 +179,12 @@ func (s *SystemApiApi) GetApiList(c *gin.Context) {
 	var pageInfo systemReq.SearchApiParams
 	err := c.ShouldBindJSON(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(pageInfo.PageInfo, utils.PageInfoVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := apiService.GetAPIInfoList(pageInfo.SysApi, pageInfo.PageInfo, pageInfo.OrderKey, pageInfo.Desc)
@@ -214,12 +214,12 @@ func (s *SystemApiApi) GetApiById(c *gin.Context) {
 	var idInfo request.GetById
 	err := c.ShouldBindJSON(&idInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(idInfo, utils.IdVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	api, err := apiService.GetApiById(idInfo.ID)
@@ -244,12 +244,12 @@ func (s *SystemApiApi) UpdateApi(c *gin.Context) {
 	var api system.SysApi
 	err := c.ShouldBindJSON(&api)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(api, utils.ApiVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = apiService.UpdateApi(api)
@@ -293,7 +293,7 @@ func (s *SystemApiApi) DeleteApisByIds(c *gin.Context) {
 	var ids request.IdsReq
 	err := c.ShouldBindJSON(&ids)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = apiService.DeleteApisByIds(ids)
@@ -308,11 +308,18 @@ func (s *SystemApiApi) DeleteApisByIds(c *gin.Context) {
 // FreshCasbin
 // @Tags      SysApi
 // @Summary   刷新casbin缓存
+// @Security  ApiKeyAuth
 // @accept    application/json
 // @Produce   application/json
 // @Success   200   {object}  response.Response{msg=string}  "刷新成功"
 // @Router    /api/freshCasbin [get]
 func (s *SystemApiApi) FreshCasbin(c *gin.Context) {
+	authorityID := utils.GetUserAuthorityId(c)
+	if authorityID != 888 && authorityID != 8881 {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
+
 	err := casbinService.FreshCasbin()
 	if err != nil {
 		global.GVA_LOG.Error("刷新失败!", zap.Error(err))

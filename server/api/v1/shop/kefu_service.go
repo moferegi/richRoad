@@ -28,13 +28,13 @@ func (kefuApi *KefuApi) CreateKefu(c *gin.Context) {
 	var kefu shop.Kefu
 	err := c.ShouldBindJSON(&kefu)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = kefuService.CreateKefu(ctx, &kefu)
 	if err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage("创建失败:"+err.Error(), c)
+		response.FailWithMessage("创建失败", c)
 		return
 	}
 	response.OkWithMessage("创建成功", c)
@@ -57,7 +57,7 @@ func (kefuApi *KefuApi) DeleteKefu(c *gin.Context) {
 	err := kefuService.DeleteKefu(ctx, ID)
 	if err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败:"+err.Error(), c)
+		response.FailWithMessage("删除失败", c)
 		return
 	}
 	response.OkWithMessage("删除成功", c)
@@ -79,7 +79,7 @@ func (kefuApi *KefuApi) DeleteKefuByIds(c *gin.Context) {
 	err := kefuService.DeleteKefuByIds(ctx, IDs)
 	if err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
-		response.FailWithMessage("批量删除失败:"+err.Error(), c)
+		response.FailWithMessage("批量删除失败", c)
 		return
 	}
 	response.OkWithMessage("批量删除成功", c)
@@ -101,13 +101,13 @@ func (kefuApi *KefuApi) UpdateKefu(c *gin.Context) {
 	var kefu shop.Kefu
 	err := c.ShouldBindJSON(&kefu)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = kefuService.UpdateKefu(ctx, kefu)
 	if err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage("更新失败:"+err.Error(), c)
+		response.FailWithMessage("更新失败", c)
 		return
 	}
 	response.OkWithMessage("更新成功", c)
@@ -130,7 +130,7 @@ func (kefuApi *KefuApi) FindKefu(c *gin.Context) {
 	rekefu, err := kefuService.GetKefu(ctx, ID)
 	if err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage("查询失败:"+err.Error(), c)
+		response.FailWithMessage("查询失败", c)
 		return
 	}
 	response.OkWithData(rekefu, c)
@@ -152,13 +152,13 @@ func (kefuApi *KefuApi) GetKefuList(c *gin.Context) {
 	var pageInfo shopReq.KefuSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := kefuService.GetKefuInfoList(ctx, pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败:"+err.Error(), c)
+		response.FailWithMessage("获取失败", c)
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -181,7 +181,7 @@ func (kefuApi *KefuApi) GetKefuPublic(c *gin.Context) {
 	list, err := kefuService.GetKefuPublic(ctx)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败:"+err.Error(), c)
+		response.FailWithMessage("获取失败", c)
 		return
 	}
 	response.OkWithDetailed(i18n.LocalizeResponseData(c, list), "获取成功", c)

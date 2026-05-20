@@ -32,13 +32,13 @@ var store = base64Captcha.DefaultMemStore
 func (clientUserApi *ClientUserApi) GetOpenID(c *gin.Context) {
 	code := c.Query("code")
 	if code == "" {
-		response.FailWithMessage(i18n.T(c, "codeEmpty"), c)
+		failClientWithKey(c, "codeEmpty")
 		return
 	}
 	res, err := external.GetOpenID(code)
 	if err != nil {
 		global.GVA_LOG.Error("获取openid失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "openidFail"), c)
+		failClientWithKey(c, "openidFail")
 		return
 	}
 	response.OkWithData(res, c)
@@ -49,7 +49,7 @@ func (clientUserApi *ClientUserApi) GetUserInfo(c *gin.Context) {
 	id := strconv.Itoa(int(userID))
 	if user, err := clientUserService.GetClientUser(id); err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "queryFail"), c)
+		failClientWithKey(c, "queryFail")
 	} else {
 		response.OkWithData(user, c)
 	}
@@ -62,17 +62,22 @@ func (clientUserApi *ClientUserApi) Login(c *gin.Context) {
 	key := c.ClientIP()
 
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	err = utils.Verify(l, utils.LoginVerify)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
 	// 检查登录失败限制
 	var securityService = service.ServiceGroupApp.ClientServiceGroup.SecurityService
+	if allowedByIP, waitByIP := securityService.CheckLoginIPRateLimit(key); !allowedByIP {
+		clientBannedIPService.RecordAttack(key, "login_rate_limit", l.Username, "登录IP频率超限")
+		response.FailWithMessage(i18n.T(c, "requestTooFrequent")+" "+strconv.Itoa(waitByIP)+"s", c)
+		return
+	}
 	allowed, waitSec, _ := securityService.CheckLoginFail(l.Username)
 	if !allowed {
 		response.FailWithMessage(i18n.T(c, "loginLocked")+" "+strconv.Itoa(waitSec)+"s", c)
@@ -101,7 +106,7 @@ func (clientUserApi *ClientUserApi) Login(c *gin.Context) {
 			global.BlackCache.Increment(key, 1)
 			securityService.RecordLoginFail(l.Username)
 			clientBannedIPService.RecordAttack(key, "login_fail", l.Username, "密码错误")
-			response.FailWithMessage(i18n.T(c, "loginFail"), c)
+			failClientWithKey(c, "loginFail")
 			return
 		}
 		securityService.ClearLoginFail(l.Username)
@@ -112,20 +117,20 @@ func (clientUserApi *ClientUserApi) Login(c *gin.Context) {
 	global.BlackCache.Increment(key, 1)
 	securityService.RecordLoginFail(l.Username)
 	clientBannedIPService.RecordAttack(key, "captcha_fail", l.Username, "验证码错误")
-	response.FailWithMessage(i18n.T(c, "captchaError"), c)
+	failClientWithKey(c, "captchaError")
 }
 
 func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 	var register clientReq.CreateUser
 	err := c.ShouldBindJSON(&register)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
 	// 验证码校验
 	if register.CaptchaId == "" || register.Captcha == "" || !store.Verify(register.CaptchaId, register.Captcha, true) {
-		response.FailWithMessage(i18n.T(c, "captchaError"), c)
+		failClientWithKey(c, "captchaError")
 		return
 	}
 
@@ -134,12 +139,12 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 	allowed, _ := securityService.CheckRegisterIPLimit(c.ClientIP())
 	if !allowed {
 		clientBannedIPService.RecordAttack(c.ClientIP(), "register_limit", "", "注册IP超限")
-		response.FailWithMessage(i18n.T(c, "registerIPLimit"), c)
+		failClientWithKey(c, "registerIPLimit")
 		return
 	}
 
 	if register.Password != register.RePassword {
-		response.FailWithMessage(i18n.T(c, "passwordMismatch"), c)
+		failClientWithKey(c, "passwordMismatch")
 		return
 	}
 
@@ -158,7 +163,7 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 
 	if err := clientUserService.CreateClientUser(&clientUser); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -206,19 +211,19 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 // @Router /clientUser/adjustTryonPoint [post]
 func (clientUserApi *ClientUserApi) AdjustClientUserTryonPoint(c *gin.Context) {
 	if !isSysConfigAdmin(utils.GetUserAuthorityId(c)) {
-		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		failClientWithKey(c, "noPermission")
 		return
 	}
 
 	var req clientReq.AdjustTryonPointRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
 	if err := clientUserService.AdjustTryonPoint(c.Request.Context(), req, utils.GetUserID(c)); err != nil {
 		global.GVA_LOG.Error("调整试衣币失败!", zap.Error(err), zap.Uint("targetUserID", req.UserID))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -238,14 +243,14 @@ func (clientUserApi *ClientUserApi) CreateClientUser(c *gin.Context) {
 	var clientUser client.ClientUser
 	err := c.ShouldBindJSON(&clientUser)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	clientUser.CreatedBy = utils.GetUserID(c)
 
 	if err := clientUserService.CreateClientUser(&clientUser); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "createFail"), c)
+		failClientWithKey(c, "createFail")
 	} else {
 		response.OkWithMessage(i18n.T(c, "createSuccess"), c)
 	}
@@ -265,7 +270,7 @@ func (clientUserApi *ClientUserApi) DeleteClientUser(c *gin.Context) {
 	userID := utils.GetUserID(c)
 	if err := clientUserService.DeleteClientUser(ID, userID); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "deleteFail"), c)
+		failClientWithKey(c, "deleteFail")
 	} else {
 		response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
 	}
@@ -284,7 +289,7 @@ func (clientUserApi *ClientUserApi) DeleteClientUserByIds(c *gin.Context) {
 	userID := utils.GetUserID(c)
 	if err := clientUserService.DeleteClientUserByIds(IDs, userID); err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "batchDeleteFail"), c)
+		failClientWithKey(c, "batchDeleteFail")
 	} else {
 		response.OkWithMessage(i18n.T(c, "batchDeleteSuccess"), c)
 	}
@@ -303,14 +308,14 @@ func (clientUserApi *ClientUserApi) UpdateClientUser(c *gin.Context) {
 	var clientUser client.ClientUser
 	err := c.ShouldBindJSON(&clientUser)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	clientUser.UpdatedBy = utils.GetUserID(c)
 
 	if err := clientUserService.UpdateClientUser(clientUser); err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "updateFail"), c)
+		failClientWithKey(c, "updateFail")
 	} else {
 		response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
 	}
@@ -329,7 +334,7 @@ func (clientUserApi *ClientUserApi) FindClientUser(c *gin.Context) {
 	ID := c.Query("ID")
 	if reclientUser, err := clientUserService.GetClientUser(ID); err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "queryFail"), c)
+		failClientWithKey(c, "queryFail")
 	} else {
 		response.OkWithData(gin.H{"reclientUser": reclientUser}, c)
 	}
@@ -348,12 +353,12 @@ func (clientUserApi *ClientUserApi) GetClientUserList(c *gin.Context) {
 	var pageInfo clientReq.ClientUserSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	if list, total, err := clientUserService.GetClientUserInfoList(pageInfo); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 	} else {
 		response.OkWithDetailed(response.PageResult{
 			List:     list,
@@ -364,25 +369,35 @@ func (clientUserApi *ClientUserApi) GetClientUserList(c *gin.Context) {
 	}
 }
 
-// GetClientUserPublic 不需要鉴权的客户端用户接口
+// SetClientUserInfo 设置当前登录用户信息
 // @Tags ClientUser
-// @Summary 不需要鉴权的客户端用户接口
+// @Summary 设置当前登录用户信息
+// @Security ApiKeyAuth
 // @accept application/json
 // @Produce application/json
-// @Param data query clientReq.ClientUserSearch true "分页获取客户端用户列表"
-// @Success 200 {string} string "{"success":true,"data":{},"msg":"获取成功"}"
+// @Param data body clientReq.UpdateKV true "键值对更新参数"
+// @Success 200 {string} string "{"success":true,"msg":"设置成功"}"
 // @Router /clientUser/setClientUserInfo [post]
 func (clientUserApi *ClientUserApi) SetClientUserInfo(c *gin.Context) {
+	claims := utils.GetUserInfo(c)
+	if claims == nil || claims.BaseClaims.ID == 0 {
+		failClientWithKey(c, "notLogin")
+		return
+	}
+	if claims.AuthorityId != 8080 {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 
 	var req clientReq.UpdateKV
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	key := req.Key
 	value := req.Value
-	userID := utils.GetUserID(c)
+	userID := claims.BaseClaims.ID
 
 	keyWhiteList := []string{"avatar", "nickname", "gender", "phone", "email"}
 	inWhiteList := false
@@ -399,7 +414,7 @@ func (clientUserApi *ClientUserApi) SetClientUserInfo(c *gin.Context) {
 
 	if err := clientUserService.SetClientUserInfo(key, value, userID); err != nil {
 		global.GVA_LOG.Error("设置失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "setFail")+":"+err.Error(), c)
+		failClientWithKey(c, "setFail")
 	} else {
 		response.OkWithMessage(i18n.T(c, "setSuccess"), c)
 	}
@@ -418,7 +433,7 @@ func (clientUserApi *ClientUserApi) TokenNext(c *gin.Context, user client.Client
 	token, err := j.CreateToken(claims)
 	if err != nil {
 		global.GVA_LOG.Error("获取token失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "tokenFail"), c)
+		failClientWithKey(c, "tokenFail")
 		return
 	}
 	maxDevices := global.GVA_CONFIG.System.MaxLoginDevices
@@ -436,7 +451,7 @@ func (clientUserApi *ClientUserApi) TokenNext(c *gin.Context, user client.Client
 	evicted, err := utils.AddDeviceToken(user.Username, token, dr, maxDevices)
 	if err != nil {
 		global.GVA_LOG.Error("设置登录设备失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "loginStatusFail"), c)
+		failClientWithKey(c, "loginStatusFail")
 		return
 	}
 	for _, ejwt := range evicted {
@@ -475,12 +490,12 @@ func interfaceToInt(v interface{}) (i int) {
 func (clientUserApi *ClientUserApi) GetSubordinates(c *gin.Context) {
 	userIDStr := c.Query("userID")
 	if userIDStr == "" {
-		response.FailWithMessage(i18n.T(c, "userIDRequired"), c)
+		failClientWithKey(c, "userIDRequired")
 		return
 	}
 	userID, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidUserID"), c)
+		failClientWithKey(c, "invalidUserID")
 		return
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -494,7 +509,7 @@ func (clientUserApi *ClientUserApi) GetSubordinates(c *gin.Context) {
 	list, total, err := clientUserService.GetSubordinates(uint(userID), page, pageSize)
 	if err != nil {
 		global.GVA_LOG.Error("获取下级失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 	response.OkWithDetailed(i18n.LocalizeResponseData(c, response.PageResult{
@@ -517,7 +532,7 @@ func (clientUserApi *ClientUserApi) GetMyInviteInfo(c *gin.Context) {
 	userID := utils.GetUserID(c)
 	user, err := clientUserService.GetClientUser(strconv.Itoa(int(userID)))
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 	subordinateCount, _ := clientUserService.GetSubordinateCount(userID)
@@ -552,7 +567,7 @@ func (clientUserApi *ClientUserApi) GetMySubordinates(c *gin.Context) {
 	list, total, err := clientUserService.GetSubordinates(userID, page, pageSize)
 	if err != nil {
 		global.GVA_LOG.Error("获取下级失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 	response.OkWithDetailed(i18n.LocalizeResponseData(c, response.PageResult{
@@ -574,18 +589,23 @@ func (clientUserApi *ClientUserApi) GetMySubordinates(c *gin.Context) {
 func (clientUserApi *ClientUserApi) PhoneLogin(c *gin.Context) {
 	var req clientReq.PhoneLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
 	// 验证码校验
 	if !store.Verify(req.CaptchaId, req.Captcha, true) {
-		response.FailWithMessage(i18n.T(c, "captchaError"), c)
+		failClientWithKey(c, "captchaError")
 		return
 	}
 
 	// 检查登录失败限制
 	var securityService = service.ServiceGroupApp.ClientServiceGroup.SecurityService
+	if allowedByIP, waitByIP := securityService.CheckLoginIPRateLimit(c.ClientIP()); !allowedByIP {
+		clientBannedIPService.RecordAttack(c.ClientIP(), "login_rate_limit", req.Phone, "手机号登录IP频率超限")
+		response.FailWithMessage(i18n.T(c, "requestTooFrequent")+" "+strconv.Itoa(waitByIP)+"s", c)
+		return
+	}
 	allowed, waitSec, _ := securityService.CheckLoginFail(req.Phone)
 	if !allowed {
 		response.FailWithMessage(i18n.T(c, "loginLocked")+" "+strconv.Itoa(waitSec)+"s", c)
@@ -597,7 +617,7 @@ func (clientUserApi *ClientUserApi) PhoneLogin(c *gin.Context) {
 		global.GVA_LOG.Error("手机号登录失败!", zap.Error(err))
 		securityService.RecordLoginFail(req.Phone)
 		clientBannedIPService.RecordAttack(c.ClientIP(), "login_fail", req.Phone, "手机号密码错误")
-		response.FailWithMessage(i18n.T(c, "phoneLoginFail"), c)
+		failClientWithKey(c, "phoneLoginFail")
 		return
 	}
 
@@ -616,13 +636,13 @@ func (clientUserApi *ClientUserApi) PhoneLogin(c *gin.Context) {
 func (clientUserApi *ClientUserApi) PhoneRegister(c *gin.Context) {
 	var req clientReq.PhoneRegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
 	// 验证码校验
 	if !store.Verify(req.CaptchaId, req.Captcha, true) {
-		response.FailWithMessage(i18n.T(c, "captchaError"), c)
+		failClientWithKey(c, "captchaError")
 		return
 	}
 
@@ -631,20 +651,20 @@ func (clientUserApi *ClientUserApi) PhoneRegister(c *gin.Context) {
 	allowed, _ := securityService.CheckRegisterIPLimit(c.ClientIP())
 	if !allowed {
 		clientBannedIPService.RecordAttack(c.ClientIP(), "register_limit", "", "注册IP超限")
-		response.FailWithMessage(i18n.T(c, "registerIPLimit"), c)
+		failClientWithKey(c, "registerIPLimit")
 		return
 	}
 
 	// 验证手机号格式（通过PhoneAreaCode的正则）
 	var areaCode client.PhoneAreaCode
 	if err := global.GVA_DB.Where("area_code = ? AND is_enabled = ?", req.AreaCode, true).First(&areaCode).Error; err != nil {
-		response.FailWithMessage(i18n.T(c, "areaCodeInvalid"), c)
+		failClientWithKey(c, "areaCodeInvalid")
 		return
 	}
 	if areaCode.PhoneRegex != "" {
 		matched, _ := regexp.MatchString(areaCode.PhoneRegex, req.Phone)
 		if !matched {
-			response.FailWithMessage(i18n.T(c, "phoneFormatError"), c)
+			failClientWithKey(c, "phoneFormatError")
 			return
 		}
 	}
@@ -653,7 +673,7 @@ func (clientUserApi *ClientUserApi) PhoneRegister(c *gin.Context) {
 	clientUser, err := clientUserService.RegisterByPhone(req.AreaCode, req.Phone, req.Password, req.InviteCode)
 	if err != nil {
 		global.GVA_LOG.Error("手机号注册失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -699,20 +719,20 @@ func (clientUserApi *ClientUserApi) PhoneRegister(c *gin.Context) {
 func (clientUserApi *ClientUserApi) ChangePassword(c *gin.Context) {
 	var req clientReq.ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
 	// 验证码校验
 	if !store.Verify(req.CaptchaId, req.Captcha, true) {
-		response.FailWithMessage(i18n.T(c, "captchaError"), c)
+		failClientWithKey(c, "captchaError")
 		return
 	}
 
 	userID := utils.GetUserID(c)
 	if err := clientUserService.ChangePassword(userID, req.OldPassword, req.NewPassword, req.Method); err != nil {
 		global.GVA_LOG.Error("修改密码失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -731,18 +751,18 @@ func (clientUserApi *ClientUserApi) ChangePassword(c *gin.Context) {
 func (clientUserApi *ClientUserApi) SetPhoneVerified(c *gin.Context) {
 	var req clientReq.SetPhoneRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
 	if req.Phone == "" {
-		response.FailWithMessage(i18n.T(c, "phoneRequired"), c)
+		failClientWithKey(c, "phoneRequired")
 		return
 	}
 
 	// 验证码校验
 	if !store.Verify(req.CaptchaId, req.Captcha, true) {
-		response.FailWithMessage(i18n.T(c, "captchaError"), c)
+		failClientWithKey(c, "captchaError")
 		return
 	}
 
@@ -751,18 +771,18 @@ func (clientUserApi *ClientUserApi) SetPhoneVerified(c *gin.Context) {
 	// 验证密码
 	var user client.ClientUser
 	if err := global.GVA_DB.Where("id = ?", userID).First(&user).Error; err != nil {
-		response.FailWithMessage(i18n.T(c, "userNotExist"), c)
+		failClientWithKey(c, "userNotExist")
 		return
 	}
 	if !utils.BcryptCheck(req.Password, user.Password) {
-		response.FailWithMessage(i18n.T(c, "passwordError"), c)
+		failClientWithKey(c, "passwordError")
 		return
 	}
 
 	// 设置手机号
 	if err := clientUserService.SetClientUserInfo("phone", req.Phone, userID); err != nil {
 		global.GVA_LOG.Error("设置手机号失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "setFail")+":"+err.Error(), c)
+		failClientWithKey(c, "setFail")
 		return
 	}
 

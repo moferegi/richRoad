@@ -104,13 +104,13 @@ func (autoApi *AutoCodeApi) GetColumn(c *gin.Context) {
 func (autoApi *AutoCodeApi) LLMAuto(c *gin.Context) {
 	var llm common.JSONMap
 	if err := c.ShouldBindJSON(&llm); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	data, err := autoCodeService.LLMAuto(c.Request.Context(), llm)
 	if err != nil {
 		global.GVA_LOG.Error("大模型生成失败!", zap.Error(err))
-		response.FailWithMessage("大模型生成失败"+err.Error(), c)
+		response.FailWithMessage("大模型生成失败", c)
 		return
 	}
 	response.OkWithData(data, c)

@@ -23,7 +23,7 @@ type BlacklistApi struct{}
 func (a *BlacklistApi) GetBlacklist(c *gin.Context) {
 	var search csReq.BlacklistSearch
 	if err := c.ShouldBindQuery(&search); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := service.Service.BlacklistService.GetList(search)
@@ -51,12 +51,12 @@ func (a *BlacklistApi) GetBlacklist(c *gin.Context) {
 func (a *BlacklistApi) AddToBlacklist(c *gin.Context) {
 	var bl model.CsBlacklist
 	if err := c.ShouldBindJSON(&bl); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	operatorID := utils.GetUserID(c)
 	if err := service.Service.BlacklistService.Add(bl.ClientUserID, operatorID, bl.Reason); err != nil {
-		response.FailWithMessage("操作失败: "+err.Error(), c)
+		response.FailWithMessage("操作失败", c)
 		return
 	}
 	response.OkWithMessage("操作成功", c)
@@ -74,7 +74,7 @@ func (a *BlacklistApi) AddToBlacklist(c *gin.Context) {
 func (a *BlacklistApi) RemoveFromBlacklist(c *gin.Context) {
 	var bl model.CsBlacklist
 	if err := c.ShouldBindQuery(&bl); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := service.Service.BlacklistService.Remove(bl.ID); err != nil {

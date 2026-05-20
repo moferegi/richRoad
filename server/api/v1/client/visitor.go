@@ -28,17 +28,25 @@ var visitorService = service.ServiceGroupApp.ClientServiceGroup.VisitorService
 func (visitorApi *VisitorApi) Heartbeat(c *gin.Context) {
 	var req clientReq.HeartbeatRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	if req.VisitorID == "" {
-		response.FailWithMessage(i18n.T(c, "visitorIDRequired"), c)
+		failClientWithKey(c, "visitorIDRequired")
 		return
 	}
 
 	// 获取真实IP
 	ip := c.ClientIP()
 	userAgent := c.GetHeader("User-Agent")
+	if !visitorService.CheckHeartbeatRateLimit(ip) {
+		failClientWithKey(c, "visitorHeartbeatTooFrequent")
+		return
+	}
+	if !visitorService.ShouldPersistHeartbeat(req.VisitorID) {
+		response.OkWithMessage(i18n.T(c, "ok"), c)
+		return
+	}
 
 	// 尝试获取登录用户ID（公开接口，可能未登录）
 	userID := utils.GetUserID(c)
@@ -64,7 +72,7 @@ func (visitorApi *VisitorApi) Heartbeat(c *gin.Context) {
 
 	if err := visitorService.Heartbeat(log); err != nil {
 		global.GVA_LOG.Error("访客心跳上报失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "fail"), c)
+		failClientWithKey(c, "fail")
 		return
 	}
 	response.OkWithMessage(i18n.T(c, "ok"), c)
@@ -82,13 +90,13 @@ func (visitorApi *VisitorApi) Heartbeat(c *gin.Context) {
 func (visitorApi *VisitorApi) GetVisitorLogList(c *gin.Context) {
 	var pageInfo clientReq.VisitorLogSearch
 	if err := c.ShouldBindQuery(&pageInfo); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	list, total, err := visitorService.GetVisitorLogList(pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -111,13 +119,13 @@ func (visitorApi *VisitorApi) GetVisitorLogList(c *gin.Context) {
 func (visitorApi *VisitorApi) GetVisitorSummaryList(c *gin.Context) {
 	var pageInfo clientReq.VisitorSummarySearch
 	if err := c.ShouldBindQuery(&pageInfo); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	list, total, err := visitorService.GetVisitorSummaryList(pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -140,7 +148,7 @@ func (visitorApi *VisitorApi) GetTodayStats(c *gin.Context) {
 	stats, err := visitorService.GetTodayStats()
 	if err != nil {
 		global.GVA_LOG.Error("获取今日统计失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 	response.OkWithDetailed(stats, i18n.T(c, "getSuccess"), c)
@@ -158,14 +166,14 @@ func (visitorApi *VisitorApi) GetTodayStats(c *gin.Context) {
 func (visitorApi *VisitorApi) GetKefuGuideStats(c *gin.Context) {
 	var query clientReq.KefuGuideStatsSearch
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
 	stats, err := visitorService.GetKefuGuideStats(query)
 	if err != nil {
 		global.GVA_LOG.Error("获取客服引导统计失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 	response.OkWithDetailed(stats, i18n.T(c, "getSuccess"), c)
@@ -183,12 +191,12 @@ func (visitorApi *VisitorApi) GetKefuGuideStats(c *gin.Context) {
 func (visitorApi *VisitorApi) AggregateDailySummary(c *gin.Context) {
 	date := c.Query("date")
 	if date == "" {
-		response.FailWithMessage(i18n.T(c, "dateRequired"), c)
+		failClientWithKey(c, "dateRequired")
 		return
 	}
 	if err := visitorService.AggregateDailySummary(date); err != nil {
 		global.GVA_LOG.Error("聚合失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "fail"), c)
+		failClientWithKey(c, "fail")
 		return
 	}
 	response.OkWithMessage(i18n.T(c, "success"), c)

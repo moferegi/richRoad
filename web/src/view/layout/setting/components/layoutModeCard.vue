@@ -59,7 +59,7 @@ defineOptions({
   name: 'LayoutModeCard'
 })
 
-const props = defineProps({
+defineProps({
   modelValue: {
     type: String,
     default: 'normal'

@@ -123,7 +123,7 @@ func (sysVersionApi *SysVersionApi) DeleteSysVersion(c *gin.Context) {
 	err := sysVersionService.DeleteSysVersion(ctx, ID)
 	if err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败:"+err.Error(), c)
+		response.FailWithMessage("删除失败", c)
 		return
 	}
 	response.OkWithMessage("删除成功", c)
@@ -145,7 +145,7 @@ func (sysVersionApi *SysVersionApi) DeleteSysVersionByIds(c *gin.Context) {
 	err := sysVersionService.DeleteSysVersionByIds(ctx, IDs)
 	if err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
-		response.FailWithMessage("批量删除失败:"+err.Error(), c)
+		response.FailWithMessage("批量删除失败", c)
 		return
 	}
 	response.OkWithMessage("批量删除成功", c)
@@ -168,7 +168,7 @@ func (sysVersionApi *SysVersionApi) FindSysVersion(c *gin.Context) {
 	resysVersion, err := sysVersionService.GetSysVersion(ctx, ID)
 	if err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage("查询失败:"+err.Error(), c)
+		response.FailWithMessage("查询失败", c)
 		return
 	}
 	response.OkWithData(resysVersion, c)
@@ -190,13 +190,13 @@ func (sysVersionApi *SysVersionApi) GetSysVersionList(c *gin.Context) {
 	var pageInfo systemReq.SysVersionSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := sysVersionService.GetSysVersionInfoList(ctx, pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败:"+err.Error(), c)
+		response.FailWithMessage("获取失败", c)
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -241,7 +241,7 @@ func (sysVersionApi *SysVersionApi) ExportVersion(c *gin.Context) {
 	var req systemReq.ExportVersionRequest
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
@@ -251,7 +251,7 @@ func (sysVersionApi *SysVersionApi) ExportVersion(c *gin.Context) {
 		menuData, err = sysVersionService.GetMenusByIds(ctx, req.MenuIds)
 		if err != nil {
 			global.GVA_LOG.Error("获取菜单数据失败!", zap.Error(err))
-			response.FailWithMessage("获取菜单数据失败:"+err.Error(), c)
+			response.FailWithMessage("获取菜单数据失败", c)
 			return
 		}
 	}
@@ -262,7 +262,7 @@ func (sysVersionApi *SysVersionApi) ExportVersion(c *gin.Context) {
 		apiData, err = sysVersionService.GetApisByIds(ctx, req.ApiIds)
 		if err != nil {
 			global.GVA_LOG.Error("获取API数据失败!", zap.Error(err))
-			response.FailWithMessage("获取API数据失败:"+err.Error(), c)
+			response.FailWithMessage("获取API数据失败", c)
 			return
 		}
 	}
@@ -273,7 +273,7 @@ func (sysVersionApi *SysVersionApi) ExportVersion(c *gin.Context) {
 		dictData, err = sysVersionService.GetDictionariesByIds(ctx, req.DictIds)
 		if err != nil {
 			global.GVA_LOG.Error("获取字典数据失败!", zap.Error(err))
-			response.FailWithMessage("获取字典数据失败:"+err.Error(), c)
+			response.FailWithMessage("获取字典数据失败", c)
 			return
 		}
 	}
@@ -338,7 +338,7 @@ func (sysVersionApi *SysVersionApi) ExportVersion(c *gin.Context) {
 	jsonData, err := json.MarshalIndent(exportData, "", "  ")
 	if err != nil {
 		global.GVA_LOG.Error("JSON序列化失败!", zap.Error(err))
-		response.FailWithMessage("JSON序列化失败:"+err.Error(), c)
+		response.FailWithMessage("JSON序列化失败", c)
 		return
 	}
 
@@ -353,7 +353,7 @@ func (sysVersionApi *SysVersionApi) ExportVersion(c *gin.Context) {
 	err = sysVersionService.CreateSysVersion(ctx, &version)
 	if err != nil {
 		global.GVA_LOG.Error("保存版本记录失败!", zap.Error(err))
-		response.FailWithMessage("保存版本记录失败:"+err.Error(), c)
+		response.FailWithMessage("保存版本记录失败", c)
 		return
 	}
 
@@ -382,7 +382,7 @@ func (sysVersionApi *SysVersionApi) DownloadVersionJson(c *gin.Context) {
 	version, err := sysVersionService.GetSysVersion(ctx, ID)
 	if err != nil {
 		global.GVA_LOG.Error("获取版本记录失败!", zap.Error(err))
-		response.FailWithMessage("获取版本记录失败:"+err.Error(), c)
+		response.FailWithMessage("获取版本记录失败", c)
 		return
 	}
 
@@ -430,7 +430,7 @@ func (sysVersionApi *SysVersionApi) ImportVersion(c *gin.Context) {
 	var importData systemReq.ImportVersionRequest
 	err := c.ShouldBindJSON(&importData)
 	if err != nil {
-		response.FailWithMessage("解析JSON数据失败:"+err.Error(), c)
+		response.FailWithMessage("解析JSON数据失败", c)
 		return
 	}
 
@@ -444,7 +444,7 @@ func (sysVersionApi *SysVersionApi) ImportVersion(c *gin.Context) {
 	if len(importData.ExportMenu) > 0 {
 		if err := sysVersionService.ImportMenus(ctx, importData.ExportMenu); err != nil {
 			global.GVA_LOG.Error("导入菜单失败!", zap.Error(err))
-			response.FailWithMessage("导入菜单失败: "+err.Error(), c)
+			response.FailWithMessage("导入菜单失败", c)
 			return
 		}
 	}
@@ -453,7 +453,7 @@ func (sysVersionApi *SysVersionApi) ImportVersion(c *gin.Context) {
 	if len(importData.ExportApi) > 0 {
 		if err := sysVersionService.ImportApis(importData.ExportApi); err != nil {
 			global.GVA_LOG.Error("导入API失败!", zap.Error(err))
-			response.FailWithMessage("导入API失败: "+err.Error(), c)
+			response.FailWithMessage("导入API失败", c)
 			return
 		}
 	}
@@ -462,7 +462,7 @@ func (sysVersionApi *SysVersionApi) ImportVersion(c *gin.Context) {
 	if len(importData.ExportDictionary) > 0 {
 		if err := sysVersionService.ImportDictionaries(importData.ExportDictionary); err != nil {
 			global.GVA_LOG.Error("导入字典失败!", zap.Error(err))
-			response.FailWithMessage("导入字典失败: "+err.Error(), c)
+			response.FailWithMessage("导入字典失败", c)
 			return
 		}
 	}

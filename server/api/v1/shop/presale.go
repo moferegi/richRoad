@@ -28,7 +28,7 @@ func (api *PresaleApi) GetPresaleGoodList(c *gin.Context) {
 	var pageInfo shopReq.PresaleListRequest
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if list, total, err := presaleService.GetPresaleGoodList(pageInfo); err != nil {

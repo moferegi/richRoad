@@ -199,6 +199,13 @@ func initShopCasbin(db *gorm.DB) {
 	var authorities []sysModel.SysAuthority
 	db.Find(&authorities)
 
+	seedAuthorities := make([]sysModel.SysAuthority, 0, len(authorities))
+	for _, auth := range authorities {
+		if auth.AuthorityId == 888 || auth.AuthorityId == 8881 || auth.AuthorityId == 8080 || auth.AuthorityId == 9528 {
+			seedAuthorities = append(seedAuthorities, auth)
+		}
+	}
+
 	paths := []struct {
 		Path   string
 		Method string
@@ -351,7 +358,7 @@ func initShopCasbin(db *gorm.DB) {
 		{"/skuSpec/getAllSkuSpecs", "GET"},
 	}
 
-	for _, auth := range authorities {
+	for _, auth := range seedAuthorities {
 		authId := fmt.Sprintf("%d", auth.AuthorityId)
 		for _, p := range paths {
 			var count int64
@@ -362,5 +369,42 @@ func initShopCasbin(db *gorm.DB) {
 					"p", authId, p.Path, p.Method)
 			}
 		}
+	}
+
+	cleanupLegacyManagedCasbinRules(db, "shop", paths, []string{"888", "8881", "8080", "9528"})
+
+	adminOnlyPaths := []struct {
+		Path   string
+		Method string
+	}{
+		{"/order/deleteOrder", "DELETE"},
+		{"/order/deleteOrderByIds", "DELETE"},
+		{"/order/confirmPayment", "POST"},
+		{"/order/refundOrder", "POST"},
+		{"/order/batchUpdateOrderStatus", "POST"},
+		{"/order/findOrder", "GET"},
+		{"/order/getOrderList", "GET"},
+		{"/sysConfig/updateSysConfig", "PUT"},
+		{"/sysConfig/getSysConfigList", "GET"},
+		{"/sysConfig/getConfigByKey", "GET"},
+		{"/sysConfig/getSysConfigByGroup", "GET"},
+		{"/sysConfig/getSysConfigByKey", "GET"},
+		{"/sysConfig/getAliyunTryonQuotaEstimate", "GET"},
+		{"/sysConfig/getModelCallLogList", "GET"},
+		{"/clientUser/getUserList", "GET"},
+		{"/clientUser/updateUser", "PUT"},
+		{"/clientUser/deleteUser", "DELETE"},
+		{"/clientUser/changePassword", "POST"},
+		{"/clientUser/setPhoneVerified", "POST"},
+		{"/extDomain/createExternalLinkDomain", "POST"},
+		{"/extDomain/deleteExternalLinkDomain", "DELETE"},
+		{"/extDomain/updateExternalLinkDomain", "PUT"},
+		{"/extDomain/setDefaultDomain", "POST"},
+	}
+	for _, p := range adminOnlyPaths {
+		db.Exec(
+			"DELETE FROM casbin_rule WHERE ptype = ? AND v1 = ? AND v2 = ? AND v0 NOT IN (?, ?)",
+			"p", p.Path, p.Method, "888", "8881",
+		)
 	}
 }

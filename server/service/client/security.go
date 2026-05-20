@@ -3,22 +3,68 @@ package client
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 )
 
 type SecurityService struct{}
 
+const (
+	captchaRateLimitConfigKey = "captcha_rate_limit"
+	captchaRateLimitEnvKey    = "CS_CAPTCHA_RATE_LIMIT"
+	defaultCaptchaRateLimit   = int64(10)
+
+	captchaRateWindowConfigKey = "captcha_rate_limit_window_seconds"
+	captchaRateWindowEnvKey    = "CS_CAPTCHA_RATE_LIMIT_WINDOW_SECONDS"
+	defaultCaptchaRateWindow   = int64(60)
+
+	loginIPRateLimitConfigKey = "security_login_ip_rate_limit_per_minute"
+	loginIPRateLimitEnvKey    = "CS_LOGIN_IP_RATE_LIMIT_PER_MINUTE"
+	defaultLoginIPRateLimit   = int64(30)
+
+	loginIPRateWindowConfigKey = "security_login_ip_rate_limit_window_seconds"
+	loginIPRateWindowEnvKey    = "CS_LOGIN_IP_RATE_LIMIT_WINDOW_SECONDS"
+	defaultLoginIPRateWindow   = int64(60)
+)
+
+type localCaptchaRateCounter struct {
+	Count     int64
+	ExpiresAt time.Time
+}
+
+var localCaptchaRateLimiter = struct {
+	mu       sync.Mutex
+	counters map[string]localCaptchaRateCounter
+}{
+	counters: make(map[string]localCaptchaRateCounter),
+}
+
+var localLoginIPRateLimiter = struct {
+	mu       sync.Mutex
+	counters map[string]localCaptchaRateCounter
+}{
+	counters: make(map[string]localCaptchaRateCounter),
+}
+
 // ---------- 辅助：读取 sysConfig ----------
 
 func (s *SecurityService) getConfigInt(key string, def int) int {
+	if strings.TrimSpace(key) == "" || global.GVA_DB == nil {
+		return def
+	}
+
 	var cfg client.SysConfig
 	if err := global.GVA_DB.Where("config_key = ?", key).First(&cfg).Error; err == nil {
-		v := def
-		fmt.Sscanf(cfg.ConfigValue, "%d", &v)
-		return v
+		v, parseErr := strconv.Atoi(strings.TrimSpace(cfg.ConfigValue))
+		if parseErr == nil {
+			return v
+		}
 	}
 	return def
 }
@@ -64,6 +110,88 @@ func (s *SecurityService) IncrementRegisterIP(ip string) {
 }
 
 // ========== 登录失败限制 ==========
+
+func (s *SecurityService) checkLoginIPRateLimitLocal(ip string, limit int64, window time.Duration) (allowed bool, waitSeconds int) {
+	if limit <= 0 {
+		return true, 0
+	}
+	if window <= 0 {
+		window = time.Duration(defaultLoginIPRateWindow) * time.Second
+	}
+
+	now := time.Now()
+	localLoginIPRateLimiter.mu.Lock()
+	defer localLoginIPRateLimiter.mu.Unlock()
+
+	if len(localLoginIPRateLimiter.counters) > 10000 {
+		for key, counter := range localLoginIPRateLimiter.counters {
+			if now.After(counter.ExpiresAt) {
+				delete(localLoginIPRateLimiter.counters, key)
+			}
+		}
+	}
+
+	counter, ok := localLoginIPRateLimiter.counters[ip]
+	if !ok || now.After(counter.ExpiresAt) {
+		localLoginIPRateLimiter.counters[ip] = localCaptchaRateCounter{
+			Count:     1,
+			ExpiresAt: now.Add(window),
+		}
+		return true, 0
+	}
+
+	if counter.Count >= limit {
+		remain := int(time.Until(counter.ExpiresAt).Seconds())
+		if remain < 1 {
+			remain = 1
+		}
+		return false, remain
+	}
+
+	counter.Count++
+	localLoginIPRateLimiter.counters[ip] = counter
+	return true, 0
+}
+
+// CheckLoginIPRateLimit 登录接口按IP限流（优先 Redis，失败时回退本地内存窗口计数）
+func (s *SecurityService) CheckLoginIPRateLimit(ip string) (allowed bool, waitSeconds int) {
+	ip = strings.TrimSpace(ip)
+	if ip == "" {
+		ip = "unknown"
+	}
+
+	limit := utils.GetInt64Setting(loginIPRateLimitConfigKey, loginIPRateLimitEnvKey, defaultLoginIPRateLimit)
+	if limit <= 0 {
+		return true, 0
+	}
+	windowSeconds := utils.GetInt64Setting(loginIPRateWindowConfigKey, loginIPRateWindowEnvKey, defaultLoginIPRateWindow)
+	if windowSeconds <= 0 {
+		windowSeconds = defaultLoginIPRateWindow
+	}
+	window := time.Duration(windowSeconds) * time.Second
+
+	if global.GVA_REDIS == nil {
+		return s.checkLoginIPRateLimitLocal(ip, limit, window)
+	}
+
+	key := fmt.Sprintf("login:rate:ip:%s", ip)
+	count, err := global.GVA_REDIS.Incr(context.Background(), key).Result()
+	if err != nil {
+		return s.checkLoginIPRateLimitLocal(ip, limit, window)
+	}
+	if count == 1 {
+		_ = global.GVA_REDIS.Expire(context.Background(), key, window).Err()
+	}
+	if count > limit {
+		ttl, ttlErr := global.GVA_REDIS.TTL(context.Background(), key).Result()
+		if ttlErr != nil || ttl <= 0 {
+			return false, int(window.Seconds())
+		}
+		return false, int(ttl.Seconds())
+	}
+
+	return true, 0
+}
 
 // CheckLoginFail 检查登录失败限制（优先Redis，回退DB）
 func (s *SecurityService) CheckLoginFail(username string) (allowed bool, waitSeconds int, err error) {
@@ -157,20 +285,72 @@ func (s *SecurityService) ClearLoginFail(username string) {
 
 // ========== 验证码频率限制 ==========
 
-// CheckCaptchaRateLimit 验证码请求频率限制（仅Redis支持，DB不做频控）
-func (s *SecurityService) CheckCaptchaRateLimit(ip string) (allowed bool) {
-	if global.GVA_REDIS == nil {
-		return true // 验证码频率限制仅Redis支持
+func (s *SecurityService) checkCaptchaRateLimitLocal(ip string, limit int64, window time.Duration) bool {
+	if limit <= 0 {
+		return true
+	}
+	if window <= 0 {
+		window = time.Duration(defaultCaptchaRateWindow) * time.Second
 	}
 
-	limit := s.getConfigInt("captcha_rate_limit", 10)
+	now := time.Now()
+	localCaptchaRateLimiter.mu.Lock()
+	defer localCaptchaRateLimiter.mu.Unlock()
 
-	key := fmt.Sprintf("captcha:rate:%s", ip)
-	count, _ := global.GVA_REDIS.Get(context.Background(), key).Int()
-	if count >= limit {
+	if len(localCaptchaRateLimiter.counters) > 10000 {
+		for key, counter := range localCaptchaRateLimiter.counters {
+			if now.After(counter.ExpiresAt) {
+				delete(localCaptchaRateLimiter.counters, key)
+			}
+		}
+	}
+
+	counter, ok := localCaptchaRateLimiter.counters[ip]
+	if !ok || now.After(counter.ExpiresAt) {
+		localCaptchaRateLimiter.counters[ip] = localCaptchaRateCounter{
+			Count:     1,
+			ExpiresAt: now.Add(window),
+		}
+		return true
+	}
+
+	if counter.Count >= limit {
 		return false
 	}
-	global.GVA_REDIS.Incr(context.Background(), key)
-	global.GVA_REDIS.Expire(context.Background(), key, 60*time.Second)
+
+	counter.Count++
+	localCaptchaRateLimiter.counters[ip] = counter
 	return true
+}
+
+// CheckCaptchaRateLimit 验证码请求频率限制（优先 Redis，失败时回退本地内存窗口计数）
+func (s *SecurityService) CheckCaptchaRateLimit(ip string) (allowed bool) {
+	ip = strings.TrimSpace(ip)
+	if ip == "" {
+		ip = "unknown"
+	}
+	limit := utils.GetInt64Setting(captchaRateLimitConfigKey, captchaRateLimitEnvKey, defaultCaptchaRateLimit)
+	if limit <= 0 {
+		return true
+	}
+	windowSeconds := utils.GetInt64Setting(captchaRateWindowConfigKey, captchaRateWindowEnvKey, defaultCaptchaRateWindow)
+	if windowSeconds <= 0 {
+		windowSeconds = defaultCaptchaRateWindow
+	}
+	window := time.Duration(windowSeconds) * time.Second
+
+	if global.GVA_REDIS == nil {
+		return s.checkCaptchaRateLimitLocal(ip, limit, window)
+	}
+
+	key := fmt.Sprintf("captcha:rate:%s", ip)
+	count, err := global.GVA_REDIS.Incr(context.Background(), key).Result()
+	if err != nil {
+		return s.checkCaptchaRateLimitLocal(ip, limit, window)
+	}
+	if count == 1 {
+		_ = global.GVA_REDIS.Expire(context.Background(), key, window).Err()
+	}
+
+	return count <= limit
 }

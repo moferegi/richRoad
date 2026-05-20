@@ -269,7 +269,6 @@ import {
 import { getEnabledLanguages } from '@/api/client/language'
 
 // 全量引入格式化工具 请按需保留
-import { getDictFunc, formatDate, formatBoolean, filterDict, ReturnArrImg, onDownloadFile } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive, onMounted } from 'vue'
 import SelectImage from "@/components/selectImage/selectImage.vue";

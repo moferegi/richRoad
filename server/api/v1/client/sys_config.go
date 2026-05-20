@@ -57,7 +57,6 @@ var publicConfigKeyAllowlist = map[string]struct{}{
 	"tryon_tutorial_content":              {},
 	"tryon_guest_init_points":             {},
 	"tryon_invite_register_reward_points": {},
-	"tryon_models":                        {},
 	"tryon_recharge_plans":                {},
 	"tryon_register_reward_points":        {},
 }
@@ -84,20 +83,20 @@ func isSysConfigAdmin(authorityId uint) bool {
 // @Router /sysConfig/getSysConfigList [get]
 func (s *SysConfigApi) GetSysConfigList(c *gin.Context) {
 	if !isSysConfigAdmin(utils.GetUserAuthorityId(c)) {
-		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		failClientWithKey(c, "noPermission")
 		return
 	}
 
 	var pageInfo request.SysConfigSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	list, total, err := sysConfigService.GetSysConfigList(pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -119,21 +118,21 @@ func (s *SysConfigApi) GetSysConfigList(c *gin.Context) {
 // @Router /sysConfig/getModelCallLogList [get]
 func (s *SysConfigApi) GetModelCallLogList(c *gin.Context) {
 	if !isSysConfigAdmin(utils.GetUserAuthorityId(c)) {
-		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		failClientWithKey(c, "noPermission")
 		return
 	}
 
 	var pageInfo request.ModelCallLogSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
 	list, total, err := sysConfigService.GetModelCallLogList(pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取模型调用日志失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 
@@ -157,7 +156,7 @@ func (s *SysConfigApi) GetModelCallLogList(c *gin.Context) {
 func (s *SysConfigApi) UpdateSysConfig(c *gin.Context) {
 	authorityId := utils.GetUserAuthorityId(c)
 	if !isSysConfigAdmin(authorityId) {
-		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		failClientWithKey(c, "noPermission")
 		return
 	}
 
@@ -167,12 +166,12 @@ func (s *SysConfigApi) UpdateSysConfig(c *gin.Context) {
 		Remark      string `json:"remark"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	if err := sysConfigService.UpdateSysConfig(req.ID, req.ConfigValue, req.Remark); err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "updateFail"), c)
+		failClientWithKey(c, "updateFail")
 		return
 	}
 	response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
@@ -188,15 +187,20 @@ func (s *SysConfigApi) UpdateSysConfig(c *gin.Context) {
 // @Success 200 {object} response.Response{data=[]client.SysConfig,msg=string} "获取成功"
 // @Router /sysConfig/getSysConfigByGroup [get]
 func (s *SysConfigApi) GetSysConfigByGroup(c *gin.Context) {
+	if !isSysConfigAdmin(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
+
 	group := c.Query("configGroup")
 	if group == "" {
-		response.FailWithMessage(i18n.T(c, "configGroupRequired"), c)
+		failClientWithKey(c, "configGroupRequired")
 		return
 	}
 	list, err := sysConfigService.GetConfigByGroup(group)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 	response.OkWithDetailed(i18n.LocalizeResponseData(c, list), i18n.T(c, "getSuccess"), c)
@@ -214,17 +218,17 @@ func (s *SysConfigApi) GetSysConfigByGroup(c *gin.Context) {
 func (s *SysConfigApi) GetSysConfigByKey(c *gin.Context) {
 	key := c.Query("configKey")
 	if key == "" {
-		response.FailWithMessage(i18n.T(c, "configKeyRequired"), c)
+		failClientWithKey(c, "configKeyRequired")
 		return
 	}
 	if !isPublicConfigKeyAllowed(key) {
-		response.FailWithMessage(i18n.T(c, "configNotPublic"), c)
+		failClientWithKey(c, "configNotPublic")
 		return
 	}
 	val, err := sysConfigService.GetConfigByKey(key)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 	response.OkWithDetailed(i18n.LocalizeResponseData(c, val), i18n.T(c, "getSuccess"), c)
@@ -315,6 +319,7 @@ func (s *SysConfigApi) GetTryonConfig(c *gin.Context) {
 		tryonModels = defaultTryonModelsConfig()
 	}
 	tryonModels = normalizeTryonModelsConfigLocales(tryonModels)
+	tryonModels = sanitizeTryonModelsConfig(tryonModels)
 
 	config := map[string]string{
 		"tryon_guest_init_points":             guestInit,
@@ -344,20 +349,20 @@ func (s *SysConfigApi) GetTryonConfig(c *gin.Context) {
 // @Router /sysConfig/getAliyunTryonQuotaEstimate [get]
 func (s *SysConfigApi) GetAliyunTryonQuotaEstimate(c *gin.Context) {
 	if !isSysConfigAdmin(utils.GetUserAuthorityId(c)) {
-		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		failClientWithKey(c, "noPermission")
 		return
 	}
 
 	var query request.AliyunTryonQuotaSearch
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
 	list, err := sysConfigService.GetAliyunTryonQuotaEstimate(query.ModelKey)
 	if err != nil {
 		global.GVA_LOG.Error("获取阿里模型额度估算失败", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 
@@ -382,7 +387,7 @@ func (s *SysConfigApi) GetAnnouncementConfig(c *gin.Context) {
 	result, err := sysConfigService.GetAnnouncementConfig()
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 	response.OkWithDetailed(i18n.LocalizeResponseData(c, result), i18n.T(c, "getSuccess"), c)
@@ -883,6 +888,64 @@ func normalizeTryonModelsConfigLocales(raw string) string {
 		return raw
 	}
 	return string(bytes)
+}
+
+var tryonSensitiveConfigFields = map[string]struct{}{
+	"token":                   {},
+	"refinertoken":            {},
+	"parsingtoken":            {},
+	"accesstokensecret":       {},
+	"accesskeysecret":         {},
+	"secretaccesskey":         {},
+	"securitytoken":           {},
+	"beautifyaccesskeysecret": {},
+	"beautifysecuritytoken":   {},
+	"apikey":                  {},
+	"authorization":           {},
+	"secret":                  {},
+	"aksecret":                {},
+	"sk":                      {},
+}
+
+func sanitizeTryonModelsConfig(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return raw
+	}
+
+	var payload interface{}
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return raw
+	}
+
+	payload = scrubTryonSensitiveFields(payload)
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		return raw
+	}
+	return string(bytes)
+}
+
+func scrubTryonSensitiveFields(value interface{}) interface{} {
+	switch typed := value.(type) {
+	case map[string]interface{}:
+		result := make(map[string]interface{}, len(typed))
+		for key, val := range typed {
+			normalizedKey := strings.ToLower(strings.TrimSpace(key))
+			if _, blocked := tryonSensitiveConfigFields[normalizedKey]; blocked {
+				continue
+			}
+			result[key] = scrubTryonSensitiveFields(val)
+		}
+		return result
+	case []interface{}:
+		for idx := range typed {
+			typed[idx] = scrubTryonSensitiveFields(typed[idx])
+		}
+		return typed
+	default:
+		return typed
+	}
 }
 
 // GetPaymentConfig 获取支付方式配置（公开接口）

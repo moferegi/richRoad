@@ -209,7 +209,7 @@ import SelectImage from '@/components/selectImage/selectImage.vue'
 import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 
 // 全量引入格式化工具 请按需保留
-import { getDictFunc, formatDate, formatBoolean, filterDict ,filterDataSource, returnArrImg, onDownloadFile } from '@/utils/format'
+import { formatDate, returnArrImg } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive, onMounted } from 'vue'
 import { useAppStore } from "@/pinia"
@@ -255,7 +255,9 @@ const loadEnabledLangs = async () => {
     if (res.code === 0 && res.data) {
       enabledLangs.value = Array.isArray(res.data) ? res.data : (res.data.list || [])
     }
-  } catch (e) {}
+  } catch {
+    /* ignore language loading error */
+  }
 }
 
 const parseNameI18n = (jsonStr) => {
@@ -263,7 +265,9 @@ const parseNameI18n = (jsonStr) => {
   try {
     const parsed = JSON.parse(jsonStr || '{}')
     Object.assign(nameI18nObj, parsed)
-  } catch (e) {}
+  } catch {
+    /* ignore i18n parse error */
+  }
 }
 
 const serializeNameI18n = () => {

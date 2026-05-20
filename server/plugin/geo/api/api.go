@@ -87,7 +87,7 @@ func (p *GeoApi) DeleteGeo(c *gin.Context) {
 	c.ShouldBindQuery(&geo)
 	if err := service.ServiceGroupApp.DeleteGeo(geo); err != nil {
 		global.GVA_LOG.Error("失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("删除失败", c)
 	} else {
 		response.OkWithMessage("删除成功", c)
 	}

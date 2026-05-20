@@ -28,7 +28,7 @@ func (api *PopupApi) CreatePopup(c *gin.Context) {
 	var info shop.Popup
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := popupService.CreatePopup(&info); err != nil {
@@ -71,7 +71,7 @@ func (api *PopupApi) UpdatePopup(c *gin.Context) {
 	var info shop.Popup
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := popupService.UpdatePopup(info); err != nil {
@@ -95,7 +95,7 @@ func (api *PopupApi) GetPopupList(c *gin.Context) {
 	var pageInfo shopReq.PopupSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if list, total, err := popupService.GetPopupList(pageInfo); err != nil {

@@ -27,12 +27,12 @@ func (a *AuthorityApi) CreateAuthority(c *gin.Context) {
 	var err error
 
 	if err = c.ShouldBindJSON(&authority); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
 	if err = utils.Verify(authority, utils.AuthorityVerify); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
@@ -42,13 +42,13 @@ func (a *AuthorityApi) CreateAuthority(c *gin.Context) {
 
 	if authBack, err = authorityService.CreateAuthority(authority); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage("创建失败"+err.Error(), c)
+		response.FailWithMessage("创建失败", c)
 		return
 	}
 	err = casbinService.FreshCasbin()
 	if err != nil {
 		global.GVA_LOG.Error("创建成功，权限刷新失败。", zap.Error(err))
-		response.FailWithMessage("创建成功，权限刷新失败。"+err.Error(), c)
+		response.FailWithMessage("创建成功，权限刷新失败", c)
 		return
 	}
 	response.OkWithDetailed(systemRes.SysAuthorityResponse{Authority: authBack}, "创建成功", c)
@@ -67,24 +67,24 @@ func (a *AuthorityApi) CopyAuthority(c *gin.Context) {
 	var copyInfo systemRes.SysAuthorityCopyResponse
 	err := c.ShouldBindJSON(&copyInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(copyInfo, utils.OldAuthorityVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(copyInfo.Authority, utils.AuthorityVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	adminAuthorityID := utils.GetUserAuthorityId(c)
 	authBack, err := authorityService.CopyAuthority(adminAuthorityID, copyInfo)
 	if err != nil {
 		global.GVA_LOG.Error("拷贝失败!", zap.Error(err))
-		response.FailWithMessage("拷贝失败"+err.Error(), c)
+		response.FailWithMessage("拷贝失败", c)
 		return
 	}
 	response.OkWithDetailed(systemRes.SysAuthorityResponse{Authority: authBack}, "拷贝成功", c)
@@ -103,17 +103,17 @@ func (a *AuthorityApi) DeleteAuthority(c *gin.Context) {
 	var authority system.SysAuthority
 	var err error
 	if err = c.ShouldBindJSON(&authority); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err = utils.Verify(authority, utils.AuthorityIdVerify); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	// 删除角色之前需要判断是否有用户正在使用此角色
 	if err = authorityService.DeleteAuthority(&authority); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败"+err.Error(), c)
+		response.FailWithMessage("删除失败", c)
 		return
 	}
 	_ = casbinService.FreshCasbin()
@@ -133,18 +133,18 @@ func (a *AuthorityApi) UpdateAuthority(c *gin.Context) {
 	var auth system.SysAuthority
 	err := c.ShouldBindJSON(&auth)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(auth, utils.AuthorityVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	authority, err := authorityService.UpdateAuthority(auth)
 	if err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage("更新失败"+err.Error(), c)
+		response.FailWithMessage("更新失败", c)
 		return
 	}
 	response.OkWithDetailed(systemRes.SysAuthorityResponse{Authority: authority}, "更新成功", c)
@@ -164,7 +164,7 @@ func (a *AuthorityApi) GetAuthorityList(c *gin.Context) {
 	list, err := authorityService.GetAuthorityInfoList(authorityID)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败"+err.Error(), c)
+		response.FailWithMessage("获取失败", c)
 		return
 	}
 	response.OkWithDetailed(list, "获取成功", c)
@@ -183,19 +183,19 @@ func (a *AuthorityApi) SetDataAuthority(c *gin.Context) {
 	var auth system.SysAuthority
 	err := c.ShouldBindJSON(&auth)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(auth, utils.AuthorityIdVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	adminAuthorityID := utils.GetUserAuthorityId(c)
 	err = authorityService.SetDataAuthority(adminAuthorityID, auth)
 	if err != nil {
 		global.GVA_LOG.Error("设置失败!", zap.Error(err))
-		response.FailWithMessage("设置失败"+err.Error(), c)
+		response.FailWithMessage("设置失败", c)
 		return
 	}
 	response.OkWithMessage("设置成功", c)

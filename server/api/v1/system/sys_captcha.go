@@ -31,7 +31,7 @@ func (b *BaseApi) Captcha(c *gin.Context) {
 	// 验证码请求频率限制
 	secSvc := service.ServiceGroupApp.ClientServiceGroup.SecurityService
 	if !secSvc.CheckCaptchaRateLimit(c.ClientIP()) {
-		response.FailWithMessage("验证码请求过于频繁，请稍后再试", c)
+		response.FailWithMessage(i18n.T(c, "requestTooFrequent"), c)
 		return
 	}
 

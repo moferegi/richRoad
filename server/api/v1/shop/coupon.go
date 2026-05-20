@@ -27,13 +27,13 @@ func (CouApi *CouponApi) CreateCoupon(c *gin.Context) {
 	var Cou shop.Coupon
 	err := c.ShouldBindJSON(&Cou)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = couponService.CreateCoupon(ctx, &Cou)
 	if err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage("创建失败:"+err.Error(), c)
+		response.FailWithMessage("创建失败", c)
 		return
 	}
 	response.OkWithMessage("创建成功", c)
@@ -56,7 +56,7 @@ func (CouApi *CouponApi) DeleteCoupon(c *gin.Context) {
 	err := couponService.DeleteCoupon(ctx, ID)
 	if err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败:"+err.Error(), c)
+		response.FailWithMessage("删除失败", c)
 		return
 	}
 	response.OkWithMessage("删除成功", c)
@@ -78,7 +78,7 @@ func (CouApi *CouponApi) DeleteCouponByIds(c *gin.Context) {
 	err := couponService.DeleteCouponByIds(ctx, IDs)
 	if err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
-		response.FailWithMessage("批量删除失败:"+err.Error(), c)
+		response.FailWithMessage("批量删除失败", c)
 		return
 	}
 	response.OkWithMessage("批量删除成功", c)
@@ -100,13 +100,13 @@ func (CouApi *CouponApi) UpdateCoupon(c *gin.Context) {
 	var Cou shop.Coupon
 	err := c.ShouldBindJSON(&Cou)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = couponService.UpdateCoupon(ctx, Cou)
 	if err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage("更新失败:"+err.Error(), c)
+		response.FailWithMessage("更新失败", c)
 		return
 	}
 	response.OkWithMessage("更新成功", c)
@@ -129,7 +129,7 @@ func (CouApi *CouponApi) FindCoupon(c *gin.Context) {
 	reCou, err := couponService.GetCoupon(ctx, ID)
 	if err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage("查询失败:"+err.Error(), c)
+		response.FailWithMessage("查询失败", c)
 		return
 	}
 	response.OkWithData(reCou, c)
@@ -151,13 +151,13 @@ func (CouApi *CouponApi) GetCouponList(c *gin.Context) {
 	var pageInfo shopReq.CouponSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := couponService.GetCouponInfoList(ctx, pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败:"+err.Error(), c)
+		response.FailWithMessage("获取失败", c)
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -183,7 +183,7 @@ func (CouApi *CouponApi) GetCouponDataSource(c *gin.Context) {
 	dataSource, err := couponService.GetCouponDataSource(ctx)
 	if err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage("查询失败:"+err.Error(), c)
+		response.FailWithMessage("查询失败", c)
 		return
 	}
 	response.OkWithData(dataSource, c)

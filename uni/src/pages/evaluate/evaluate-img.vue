@@ -1,6 +1,6 @@
 <template>
 	<view>
-		<template v-for="(item,index) in imgList">
+		<template v-for="(item,index) in imgList" :key="index">
 			<image @tap="previewImage(item,index)" class="evaluate_img m_b_16 m_r_16" :src="getUrl(item)" mode="aspectFill"></image>
 		</template>
 	</view>
@@ -11,7 +11,7 @@
 	let props = defineProps({
 		imgList: {
 			type: Array,
-			default: []
+			default: () => []
 		}
 	})
 	const previewImage = (item,index) => {

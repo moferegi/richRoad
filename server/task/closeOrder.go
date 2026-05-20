@@ -20,7 +20,7 @@ func ClearOrder(db *gorm.DB) error {
 
 	var orders []shop.Order
 	now := time.Now()
-	err := db.Where("status = ? AND close_time < ?", "0", now).Limit(500).Find(&orders).Error
+	err := db.Where("status IN ? AND close_time < ?", []string{"0", "8"}, now).Limit(500).Find(&orders).Error
 	if err != nil {
 		return err
 	}
@@ -71,14 +71,14 @@ func ClearExpiredTryonRechargeOrders(db *gorm.DB) error {
 
 	now := time.Now()
 	var orders []client.TryonRechargeOrder
-	err := db.Where("status = ? AND close_time < ?", "0", now).Limit(500).Find(&orders).Error
+	err := db.Where("status IN ? AND close_time < ?", []string{"0", "8"}, now).Limit(500).Find(&orders).Error
 	if err != nil {
 		return err
 	}
 
 	var lastErr error
 	for _, order := range orders {
-		e := db.Model(&client.TryonRechargeOrder{}).Where("id = ? AND status = ?", order.ID, "0").Updates(map[string]interface{}{
+		e := db.Model(&client.TryonRechargeOrder{}).Where("id = ? AND status IN ?", order.ID, []string{"0", "8"}).Updates(map[string]interface{}{
 			"status":       "4",
 			"cancelled_at": now,
 		}).Error

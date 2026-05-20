@@ -5,8 +5,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -20,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
+	"golang.org/x/net/publicsuffix"
 )
 
 func checkWSOrigin(r *http.Request) bool {
@@ -86,14 +85,28 @@ func sameRootDomain(a, b string) bool {
 	if net.ParseIP(a) != nil || net.ParseIP(b) != nil {
 		return false
 	}
-	aParts := strings.Split(a, ".")
-	bParts := strings.Split(b, ".")
-	if len(aParts) < 2 || len(bParts) < 2 {
+	aRoot := effectiveRootDomain(a)
+	bRoot := effectiveRootDomain(b)
+	if aRoot == "" || bRoot == "" {
 		return false
 	}
-	aRoot := aParts[len(aParts)-2] + "." + aParts[len(aParts)-1]
-	bRoot := bParts[len(bParts)-2] + "." + bParts[len(bParts)-1]
 	return aRoot == bRoot
+}
+
+func effectiveRootDomain(host string) string {
+	host = strings.ToLower(strings.TrimSpace(strings.Trim(host, "[]")))
+	if host == "" {
+		return ""
+	}
+	root, err := publicsuffix.EffectiveTLDPlusOne(host)
+	if err == nil {
+		return root
+	}
+	parts := strings.Split(host, ".")
+	if len(parts) >= 2 {
+		return parts[len(parts)-2] + "." + parts[len(parts)-1]
+	}
+	return host
 }
 
 var wsUpgrader = websocket.Upgrader{
@@ -106,39 +119,26 @@ var wsUpgrader = websocket.Upgrader{
 
 type WsApi struct{}
 
-const defaultMaxWSConnsPerIP = 8
+const (
+	defaultMaxWSConnsPerIP int64 = 8
 
-var (
-	wsMaxConnsPerIP  = loadWSMaxConnsPerIP()
-	wsAllowQueryAuth = loadWSAllowQueryAuth()
+	wsMaxConnsPerIPConfigKey = "security_ws_max_conns_per_ip"
+	wsMaxConnsPerIPEnvKey    = "CS_WS_MAX_CONNS_PER_IP"
+
+	wsAllowQueryTokenConfigKey = "security_ws_allow_query_token"
+	wsAllowQueryTokenEnvKey    = "CS_WS_ALLOW_QUERY_TOKEN"
 )
 
-func loadWSMaxConnsPerIP() int {
-	v := strings.TrimSpace(os.Getenv("CS_WS_MAX_CONNS_PER_IP"))
-	if v == "" {
-		return defaultMaxWSConnsPerIP
+func getWSMaxConnsPerIP() int {
+	maxConns := utils.GetInt64Setting(wsMaxConnsPerIPConfigKey, wsMaxConnsPerIPEnvKey, defaultMaxWSConnsPerIP)
+	if maxConns < 1 {
+		maxConns = defaultMaxWSConnsPerIP
 	}
-	n, err := strconv.Atoi(v)
-	if err != nil || n < 1 {
-		return defaultMaxWSConnsPerIP
-	}
-	return n
+	return int(maxConns)
 }
 
-func loadWSAllowQueryAuth() bool {
-	v := strings.TrimSpace(strings.ToLower(os.Getenv("CS_WS_ALLOW_QUERY_TOKEN")))
-	if v == "" {
-		// 默认关闭 query token，避免 token 经 URL 透传导致泄漏风险。
-		return false
-	}
-	switch v {
-	case "1", "true", "yes", "on":
-		return true
-	case "0", "false", "no", "off":
-		return false
-	default:
-		return false
-	}
+func isWSQueryTokenAllowed() bool {
+	return utils.GetBoolSetting(wsAllowQueryTokenConfigKey, wsAllowQueryTokenEnvKey, false)
 }
 
 func tokenFromProtocolHeader(v string) string {
@@ -197,7 +197,7 @@ func (a *WsApi) UserWS(c *gin.Context) {
 		return
 	}
 	if tokenSource == "query" {
-		if !wsAllowQueryAuth {
+		if !isWSQueryTokenAllowed() {
 			response.FailWithMessage("当前环境禁止通过URL传递token，请升级客户端", c)
 			return
 		}
@@ -229,9 +229,10 @@ func (a *WsApi) UserWS(c *gin.Context) {
 		return
 	}
 
-	wsConn, regErr := service.CSHub.RegisterUser(clientUserID, c.ClientIP(), conn, wsMaxConnsPerIP)
+	maxConnsPerIP := getWSMaxConnsPerIP()
+	wsConn, regErr := service.CSHub.RegisterUser(clientUserID, c.ClientIP(), conn, maxConnsPerIP)
 	if regErr != nil {
-		global.GVA_LOG.Warn("WebSocket 用户连接被IP限流", zap.String("ip", c.ClientIP()), zap.Uint("userID", clientUserID), zap.Int("limit", wsMaxConnsPerIP))
+		global.GVA_LOG.Warn("WebSocket 用户连接被IP限流", zap.String("ip", c.ClientIP()), zap.Uint("userID", clientUserID), zap.Int("limit", maxConnsPerIP))
 		_ = conn.WriteMessage(websocket.TextMessage, service.MakeFrame(service.WSEventError, map[string]string{
 			"message": regErr.Error(),
 		}))
@@ -343,7 +344,7 @@ func (a *WsApi) AgentWS(c *gin.Context) {
 		return
 	}
 	if tokenSource == "query" {
-		if !wsAllowQueryAuth {
+		if !isWSQueryTokenAllowed() {
 			response.FailWithMessage("当前环境禁止通过URL传递token，请升级客户端", c)
 			return
 		}
@@ -380,9 +381,10 @@ func (a *WsApi) AgentWS(c *gin.Context) {
 		return
 	}
 
-	wsConn, regErr := service.CSHub.RegisterAgent(agentSysUserID, c.ClientIP(), conn, wsMaxConnsPerIP)
+	maxConnsPerIP := getWSMaxConnsPerIP()
+	wsConn, regErr := service.CSHub.RegisterAgent(agentSysUserID, c.ClientIP(), conn, maxConnsPerIP)
 	if regErr != nil {
-		global.GVA_LOG.Warn("WebSocket 坐席连接被IP限流", zap.String("ip", c.ClientIP()), zap.Uint("userID", agentSysUserID), zap.Int("limit", wsMaxConnsPerIP))
+		global.GVA_LOG.Warn("WebSocket 坐席连接被IP限流", zap.String("ip", c.ClientIP()), zap.Uint("userID", agentSysUserID), zap.Int("limit", maxConnsPerIP))
 		_ = conn.WriteMessage(websocket.TextMessage, service.MakeFrame(service.WSEventError, map[string]string{
 			"message": regErr.Error(),
 		}))

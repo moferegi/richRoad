@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import messages, { t, localText } from '@/utils/i18n.js'
+import { t, localText } from '@/utils/i18n.js'
 import { getEnabledLanguages } from '@/api/language.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 

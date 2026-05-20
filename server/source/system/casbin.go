@@ -115,6 +115,7 @@ func (i *initCasbin) InitializeData(ctx context.Context) (context.Context, error
 		{Ptype: "p", V0: "888", V1: "/system/getSystemConfig", V2: "POST"},
 		{Ptype: "p", V0: "888", V1: "/system/setSystemConfig", V2: "POST"},
 		{Ptype: "p", V0: "888", V1: "/system/getServerInfo", V2: "POST"},
+		{Ptype: "p", V0: "888", V1: "/system/reloadSystem", V2: "POST"},
 
 		{Ptype: "p", V0: "888", V1: "/skills/getTools", V2: "GET"},
 		{Ptype: "p", V0: "888", V1: "/skills/getSkillList", V2: "POST"},
@@ -451,6 +452,7 @@ func (i *initCasbin) InitializeData(ctx context.Context) (context.Context, error
 		{Ptype: "p", V0: "8080", V1: "/cart/cutCart", V2: "POST"},
 		{Ptype: "p", V0: "8080", V1: "/cart/getSelfCart", V2: "GET"},
 		{Ptype: "p", V0: "8080", V1: "/clientUser/getUserInfo", V2: "GET"},
+		{Ptype: "p", V0: "8080", V1: "/clientUser/setClientUserInfo", V2: "POST"},
 		{Ptype: "p", V0: "8080", V1: "/collect/createCollect", V2: "POST"},
 		{Ptype: "p", V0: "8080", V1: "/collect/deleteCollect", V2: "DELETE"},
 		{Ptype: "p", V0: "8080", V1: "/collect/deleteCollectByIds", V2: "DELETE"},

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,6 +25,49 @@ var (
 	exportTokenExpiration = make(map[string]time.Time)
 	tokenMutex            sync.RWMutex
 )
+
+const (
+	exportTokenHeaderName          = "X-Export-Token"
+	exportAllowQueryTokenConfigKey = "security_export_allow_query_token"
+	exportAllowQueryTokenEnvKey    = "CS_EXPORT_ALLOW_QUERY_TOKEN"
+)
+
+func isExportQueryTokenAllowed() bool {
+	return utils.GetBoolSetting(exportAllowQueryTokenConfigKey, exportAllowQueryTokenEnvKey, false)
+}
+
+func extractExportToken(c *gin.Context) (string, string) {
+	auth := strings.TrimSpace(c.GetHeader("Authorization"))
+	if auth != "" {
+		lower := strings.ToLower(auth)
+		if strings.HasPrefix(lower, "exporttoken ") {
+			return strings.TrimSpace(auth[len("exporttoken "):]), "authorization"
+		}
+		if strings.HasPrefix(lower, "bearer ") {
+			return strings.TrimSpace(auth[len("bearer "):]), "authorization"
+		}
+		return auth, "authorization"
+	}
+
+	if headerToken := strings.TrimSpace(c.GetHeader(exportTokenHeaderName)); headerToken != "" {
+		return headerToken, "header"
+	}
+
+	if queryToken := strings.TrimSpace(c.Query("token")); queryToken != "" {
+		return queryToken, "query"
+	}
+
+	return "", ""
+}
+
+func buildExportDownloadPayload(urlPath, token string) gin.H {
+	return gin.H{
+		"url":         urlPath,
+		"token":       token,
+		"tokenHeader": exportTokenHeaderName,
+		"legacyUrl":   fmt.Sprintf("%s?token=%s", urlPath, token),
+	}
+}
 
 // 五分钟检测窗口过期
 func cleanupExpiredTokens() {
@@ -61,21 +105,21 @@ var sysExportTemplateService = service.ServiceGroupApp.SystemServiceGroup.SysExp
 // @Success  200  {object}  response.Response{data=map[string]string} "获取成功"
 // @Router   /sysExportTemplate/previewSQL [get]
 func (sysExportTemplateApi *SysExportTemplateApi) PreviewSQL(c *gin.Context) {
-    templateID := c.Query("templateID")
-    if templateID == "" {
-        response.FailWithMessage("模板ID不能为空", c)
-        return
-    }
+	templateID := c.Query("templateID")
+	if templateID == "" {
+		response.FailWithMessage("模板ID不能为空", c)
+		return
+	}
 
-    // 直接复用导出接口的参数组织方式：使用 URL Query，其中 params 为内部编码的查询字符串
-    queryParams := c.Request.URL.Query()
+	// 直接复用导出接口的参数组织方式：使用 URL Query，其中 params 为内部编码的查询字符串
+	queryParams := c.Request.URL.Query()
 
-    if sqlPreview, err := sysExportTemplateService.PreviewSQL(templateID, queryParams); err != nil {
-        global.GVA_LOG.Error("获取失败!", zap.Error(err))
-        response.FailWithMessage("获取失败", c)
-    } else {
-        response.OkWithData(gin.H{"sql": sqlPreview}, c)
-    }
+	if sqlPreview, err := sysExportTemplateService.PreviewSQL(templateID, queryParams); err != nil {
+		global.GVA_LOG.Error("获取失败!", zap.Error(err))
+		response.FailWithMessage("获取失败", c)
+	} else {
+		response.OkWithData(gin.H{"sql": sqlPreview}, c)
+	}
 }
 
 // CreateSysExportTemplate 创建导出模板
@@ -91,14 +135,14 @@ func (sysExportTemplateApi *SysExportTemplateApi) CreateSysExportTemplate(c *gin
 	var sysExportTemplate system.SysExportTemplate
 	err := c.ShouldBindJSON(&sysExportTemplate)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	verify := utils.Rules{
 		"Name": {utils.NotEmpty()},
 	}
 	if err := utils.Verify(sysExportTemplate, verify); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := sysExportTemplateService.CreateSysExportTemplate(&sysExportTemplate); err != nil {
@@ -122,7 +166,7 @@ func (sysExportTemplateApi *SysExportTemplateApi) DeleteSysExportTemplate(c *gin
 	var sysExportTemplate system.SysExportTemplate
 	err := c.ShouldBindJSON(&sysExportTemplate)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := sysExportTemplateService.DeleteSysExportTemplate(sysExportTemplate); err != nil {
@@ -146,7 +190,7 @@ func (sysExportTemplateApi *SysExportTemplateApi) DeleteSysExportTemplateByIds(c
 	var IDS request.IdsReq
 	err := c.ShouldBindJSON(&IDS)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := sysExportTemplateService.DeleteSysExportTemplateByIds(IDS); err != nil {
@@ -170,14 +214,14 @@ func (sysExportTemplateApi *SysExportTemplateApi) UpdateSysExportTemplate(c *gin
 	var sysExportTemplate system.SysExportTemplate
 	err := c.ShouldBindJSON(&sysExportTemplate)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	verify := utils.Rules{
 		"Name": {utils.NotEmpty()},
 	}
 	if err := utils.Verify(sysExportTemplate, verify); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := sysExportTemplateService.UpdateSysExportTemplate(sysExportTemplate); err != nil {
@@ -201,7 +245,7 @@ func (sysExportTemplateApi *SysExportTemplateApi) FindSysExportTemplate(c *gin.C
 	var sysExportTemplate system.SysExportTemplate
 	err := c.ShouldBindQuery(&sysExportTemplate)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if resysExportTemplate, err := sysExportTemplateService.GetSysExportTemplate(sysExportTemplate.ID); err != nil {
@@ -225,7 +269,7 @@ func (sysExportTemplateApi *SysExportTemplateApi) GetSysExportTemplateList(c *gi
 	var pageInfo systemReq.SysExportTemplateSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if list, total, err := sysExportTemplateService.GetSysExportTemplateInfoList(pageInfo); err != nil {
@@ -272,9 +316,7 @@ func (sysExportTemplateApi *SysExportTemplateApi) ExportExcel(c *gin.Context) {
 	exportTokenExpiration[token] = time.Now().Add(30 * time.Minute)
 	tokenMutex.Unlock()
 
-	// 生成一次性链接
-	exportUrl := fmt.Sprintf("/sysExportTemplate/exportExcelByToken?token=%s", token)
-	response.OkWithData(exportUrl, c)
+	response.OkWithData(buildExportDownloadPayload("/sysExportTemplate/exportExcelByToken", token), c)
 }
 
 // ExportExcelByToken 导出表格
@@ -285,10 +327,20 @@ func (sysExportTemplateApi *SysExportTemplateApi) ExportExcel(c *gin.Context) {
 // @Produce application/json
 // @Router /sysExportTemplate/exportExcelByToken [get]
 func (sysExportTemplateApi *SysExportTemplateApi) ExportExcelByToken(c *gin.Context) {
-	token := c.Query("token")
+	token, source := extractExportToken(c)
 	if token == "" {
 		response.FailWithMessage("导出token不能为空", c)
 		return
+	}
+	if source == "query" && !isExportQueryTokenAllowed() {
+		response.FailWithMessage("当前环境禁止通过URL传递导出token，请使用请求头", c)
+		return
+	}
+	if source == "query" {
+		global.GVA_LOG.Warn("导出接口使用 query token，建议升级客户端改为请求头传递",
+			zap.String("path", c.Request.URL.Path),
+			zap.String("ip", c.ClientIP()),
+		)
 	}
 
 	// 获取token并且从缓存中剔除
@@ -361,9 +413,7 @@ func (sysExportTemplateApi *SysExportTemplateApi) ExportTemplate(c *gin.Context)
 	exportTokenExpiration[token] = time.Now().Add(30 * time.Minute)
 	tokenMutex.Unlock()
 
-	// 生成一次性链接
-	exportUrl := fmt.Sprintf("/sysExportTemplate/exportTemplateByToken?token=%s", token)
-	response.OkWithData(exportUrl, c)
+	response.OkWithData(buildExportDownloadPayload("/sysExportTemplate/exportTemplateByToken", token), c)
 }
 
 // ExportTemplateByToken 通过token导出表格模板
@@ -374,10 +424,20 @@ func (sysExportTemplateApi *SysExportTemplateApi) ExportTemplate(c *gin.Context)
 // @Produce application/json
 // @Router /sysExportTemplate/exportTemplateByToken [get]
 func (sysExportTemplateApi *SysExportTemplateApi) ExportTemplateByToken(c *gin.Context) {
-	token := c.Query("token")
+	token, source := extractExportToken(c)
 	if token == "" {
 		response.FailWithMessage("导出token不能为空", c)
 		return
+	}
+	if source == "query" && !isExportQueryTokenAllowed() {
+		response.FailWithMessage("当前环境禁止通过URL传递导出token，请使用请求头", c)
+		return
+	}
+	if source == "query" {
+		global.GVA_LOG.Warn("导出模板接口使用 query token，建议升级客户端改为请求头传递",
+			zap.String("path", c.Request.URL.Path),
+			zap.String("ip", c.ClientIP()),
+		)
 	}
 
 	// 获取token并且从缓存中剔除
@@ -449,7 +509,7 @@ func (sysExportTemplateApi *SysExportTemplateApi) ImportExcel(c *gin.Context) {
 	}
 	if err := sysExportTemplateService.ImportExcel(templateID, file); err != nil {
 		global.GVA_LOG.Error(err.Error(), zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("导入失败", c)
 	} else {
 		response.OkWithMessage("导入成功", c)
 	}

@@ -43,7 +43,7 @@ func (a *ConfigApi) UpdateCsConfig(c *gin.Context) {
 		DefaultAvatarURL *string `json:"defaultAvatarUrl"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 

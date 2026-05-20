@@ -57,7 +57,6 @@
 </template>
 
 <script setup>
-  import { computed } from 'vue'
   import {
     GvaPluginTable,
     GvaTable,
@@ -69,18 +68,6 @@
     GvaBanner
   } from './components'
 
-  const today = computed(() => {
-    try {
-      const d = new Date()
-      return d.toLocaleDateString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      })
-    } catch (e) {
-      return new Date().toISOString().slice(0, 10)
-    }
-  })
   defineOptions({
     name: 'Dashboard'
   })

@@ -392,7 +392,7 @@ const validateForm = () => {
 }
 
 // 单个图片上传
-const uploadSingleImage = (tempFilePath, index, itemIndex) => {
+const uploadSingleImage = (tempFilePath, _index, _itemIndex) => {
 	return new Promise((resolve, reject) => {
 		uni.uploadFile({
 			url: baseUrl + '/fileUploadAndDownload/upload',

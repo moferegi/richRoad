@@ -30,7 +30,7 @@ func (addressApi *AddressApi) CreateAddress(c *gin.Context) {
 	var address client.Address
 	err := c.ShouldBindJSON(&address)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	authID := utils.GetUserAuthorityId(c)
@@ -39,7 +39,7 @@ func (addressApi *AddressApi) CreateAddress(c *gin.Context) {
 	}
 	if err := addressService.CreateAddress(&address); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "createFail"), c)
+		failClientWithKey(c, "createFail")
 	} else {
 		response.OkWithMessage(i18n.T(c, "createSuccess"), c)
 	}
@@ -63,7 +63,7 @@ func (addressApi *AddressApi) DeleteAddress(c *gin.Context) {
 	}
 	if err := addressService.DeleteAddress(ID, UserID); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "deleteFail"), c)
+		failClientWithKey(c, "deleteFail")
 	} else {
 		response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
 	}
@@ -86,7 +86,7 @@ func (addressApi *AddressApi) DeleteAddressByIds(c *gin.Context) {
 	}
 	if err := addressService.DeleteAddressByIds(IDs, UserID); err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "batchDeleteFail"), c)
+		failClientWithKey(c, "batchDeleteFail")
 	} else {
 		response.OkWithMessage(i18n.T(c, "batchDeleteSuccess"), c)
 	}
@@ -105,7 +105,7 @@ func (addressApi *AddressApi) UpdateAddress(c *gin.Context) {
 	var address client.Address
 	err := c.ShouldBindJSON(&address)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
@@ -116,7 +116,7 @@ func (addressApi *AddressApi) UpdateAddress(c *gin.Context) {
 
 	if err := addressService.UpdateAddress(address); err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "updateFail"), c)
+		failClientWithKey(c, "updateFail")
 	} else {
 		response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
 	}
@@ -140,7 +140,7 @@ func (addressApi *AddressApi) FindAddress(c *gin.Context) {
 	}
 	if readdress, err := addressService.GetAddress(ID, UserID); err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "queryFail"), c)
+		failClientWithKey(c, "queryFail")
 	} else {
 		response.OkWithData(i18n.LocalizeResponseData(c, gin.H{"readdress": readdress}), c)
 	}
@@ -164,7 +164,7 @@ func (addressApi *AddressApi) GetDefaultAddress(c *gin.Context) {
 	address, err := addressService.GetDefaultAddress(UserID) // 接收两个返回值
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 	} else {
 		response.OkWithData(i18n.LocalizeResponseData(c, address), c) // 使用返回的地址数据
 	}
@@ -183,7 +183,7 @@ func (addressApi *AddressApi) GetAddressList(c *gin.Context) {
 	var pageInfo clientReq.AddressSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	authID := utils.GetUserAuthorityId(c)
@@ -192,7 +192,7 @@ func (addressApi *AddressApi) GetAddressList(c *gin.Context) {
 	}
 	if list, total, err := addressService.GetAddressInfoList(pageInfo); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 	} else {
 		response.OkWithDetailed(i18n.LocalizeResponseData(c, response.PageResult{
 			List:     list,
@@ -214,7 +214,7 @@ func (addressApi *AddressApi) GetAddressDataSource(c *gin.Context) {
 	// 此接口为获取数据源定义的数据
 	if dataSource, err := addressService.GetAddressDataSource(); err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "queryFail"), c)
+		failClientWithKey(c, "queryFail")
 	} else {
 		response.OkWithData(i18n.LocalizeResponseData(c, dataSource), c)
 	}

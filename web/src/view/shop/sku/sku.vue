@@ -636,7 +636,7 @@ import SelectImage from '@/components/selectImage/selectImage.vue'
 import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
 import { useRoute } from 'vue-router'
 // 全量引入格式化工具 请按需保留
-import { getDictFunc, formatDate, formatBoolean, filterDict, ReturnArrImg, onDownloadFile } from '@/utils/format'
+import { formatDate, ReturnArrImg } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, reactive, onMounted } from 'vue'
 
@@ -679,17 +679,17 @@ const loadSkuSpecDict = async () => {
 const selectAttrFromDict = (dictItem) => {
   if (!formData.value.attrs) formData.value.attrs = []
   const labelI18n = {}
-  try { Object.assign(labelI18n, typeof dictItem.labelI18n === 'string' ? JSON.parse(dictItem.labelI18n || '{}') : (dictItem.labelI18n || {})) } catch {}
+  try { Object.assign(labelI18n, typeof dictItem.labelI18n === 'string' ? JSON.parse(dictItem.labelI18n || '{}') : (dictItem.labelI18n || {})) } catch { /* ignore parse error */ }
   const valueI18n = {}
-  try { Object.assign(valueI18n, typeof dictItem.valueI18n === 'string' ? JSON.parse(dictItem.valueI18n || '{}') : (dictItem.valueI18n || {})) } catch {}
+  try { Object.assign(valueI18n, typeof dictItem.valueI18n === 'string' ? JSON.parse(dictItem.valueI18n || '{}') : (dictItem.valueI18n || {})) } catch { /* ignore parse error */ }
   formData.value.attrs.push({ label: dictItem.label, value: dictItem.value, labelI18n, valueI18n })
 }
 const selectSpecFromDict = (dictItem) => {
   if (!formData.value.specs) formData.value.specs = []
   const labelI18n = {}
-  try { Object.assign(labelI18n, typeof dictItem.labelI18n === 'string' ? JSON.parse(dictItem.labelI18n || '{}') : (dictItem.labelI18n || {})) } catch {}
+  try { Object.assign(labelI18n, typeof dictItem.labelI18n === 'string' ? JSON.parse(dictItem.labelI18n || '{}') : (dictItem.labelI18n || {})) } catch { /* ignore parse error */ }
   const valueI18n = {}
-  try { Object.assign(valueI18n, typeof dictItem.valueI18n === 'string' ? JSON.parse(dictItem.valueI18n || '{}') : (dictItem.valueI18n || {})) } catch {}
+  try { Object.assign(valueI18n, typeof dictItem.valueI18n === 'string' ? JSON.parse(dictItem.valueI18n || '{}') : (dictItem.valueI18n || {})) } catch { /* ignore parse error */ }
   formData.value.specs.push({ label: dictItem.label, value: dictItem.value, labelI18n, valueI18n })
 }
 
@@ -1038,13 +1038,13 @@ const formatSkuAttrs = (attrsStr) => {
       if (lang) {
         // 尝试从 i18n 对象取值
         if (a.labelI18n && typeof a.labelI18n === 'object' && a.labelI18n[lang]) label = a.labelI18n[lang]
-        else if (typeof label === 'string' && label.startsWith('{')) { try { const o = JSON.parse(label); if (o[lang]) label = o[lang] } catch {} }
+        else if (typeof label === 'string' && label.startsWith('{')) { try { const o = JSON.parse(label); if (o[lang]) label = o[lang] } catch { /* ignore parse error */ } }
         if (a.valueI18n && typeof a.valueI18n === 'object' && a.valueI18n[lang]) value = a.valueI18n[lang]
-        else if (typeof value === 'string' && value.startsWith('{')) { try { const o = JSON.parse(value); if (o[lang]) value = o[lang] } catch {} }
+        else if (typeof value === 'string' && value.startsWith('{')) { try { const o = JSON.parse(value); if (o[lang]) value = o[lang] } catch { /* ignore parse error */ } }
       } else {
         // 默认模式：label/value 可能是JSON字符串，取zh或首个值
-        if (typeof label === 'string' && label.startsWith('{')) { try { const o = JSON.parse(label); label = o['zh'] || Object.values(o)[0] || label } catch {} }
-        if (typeof value === 'string' && value.startsWith('{')) { try { const o = JSON.parse(value); value = o['zh'] || Object.values(o)[0] || value } catch {} }
+        if (typeof label === 'string' && label.startsWith('{')) { try { const o = JSON.parse(label); label = o['zh'] || Object.values(o)[0] || label } catch { /* ignore parse error */ } }
+        if (typeof value === 'string' && value.startsWith('{')) { try { const o = JSON.parse(value); value = o['zh'] || Object.values(o)[0] || value } catch { /* ignore parse error */ } }
       }
       return `${label}：${value}`
     }).join('，')
@@ -1075,10 +1075,10 @@ const getAttr = async() => {
       if (!Array.isArray(arr)) return []
       arr.forEach(item => {
         if (!item.nameI18n && item.name && typeof item.name === 'string' && item.name.startsWith('{')) {
-          try { item.nameI18n = JSON.parse(item.name) } catch {}
+          try { item.nameI18n = JSON.parse(item.name) } catch { /* ignore parse error */ }
         }
         if (!item.valueI18n && item.value && typeof item.value === 'string' && item.value.startsWith('{')) {
-          try { item.valueI18n = JSON.parse(item.value) } catch {}
+          try { item.valueI18n = JSON.parse(item.value) } catch { /* ignore parse error */ }
         }
       })
       return arr
@@ -1371,11 +1371,11 @@ const openDialog = () => {
     const parsedNameI18n = (typeof item.nameI18n === 'object' && item.nameI18n) ? { ...item.nameI18n } : {}
     // label 取 zh 值或原始 name
     let label = item.name || ''
-    if (typeof label === 'string' && label.startsWith('{')) { try { const o = JSON.parse(label); label = o['zh'] || Object.values(o)[0] || label } catch {} }
+    if (typeof label === 'string' && label.startsWith('{')) { try { const o = JSON.parse(label); label = o['zh'] || Object.values(o)[0] || label } catch { /* ignore parse error */ } }
     // value 也可能有 i18n
     const parsedValueI18n = (typeof item.valueI18n === 'object' && item.valueI18n) ? { ...item.valueI18n } : {}
     let value = item.value || ''
-    if (typeof value === 'string' && value.startsWith('{')) { try { const o = JSON.parse(value); value = o['zh'] || Object.values(o)[0] || value } catch {} }
+    if (typeof value === 'string' && value.startsWith('{')) { try { const o = JSON.parse(value); value = o['zh'] || Object.values(o)[0] || value } catch { /* ignore parse error */ } }
     formData.value.attrs.push({
       label,
       value,
@@ -1386,10 +1386,10 @@ const openDialog = () => {
   specs.value.forEach(item => {
     const parsedNameI18n = (typeof item.nameI18n === 'object' && item.nameI18n) ? { ...item.nameI18n } : {}
     let label = item.name || ''
-    if (typeof label === 'string' && label.startsWith('{')) { try { const o = JSON.parse(label); label = o['zh'] || Object.values(o)[0] || label } catch {} }
+    if (typeof label === 'string' && label.startsWith('{')) { try { const o = JSON.parse(label); label = o['zh'] || Object.values(o)[0] || label } catch { /* ignore parse error */ } }
     const parsedValueI18n = (typeof item.valueI18n === 'object' && item.valueI18n) ? { ...item.valueI18n } : {}
     let value = item.value || ''
-    if (typeof value === 'string' && value.startsWith('{')) { try { const o = JSON.parse(value); value = o['zh'] || Object.values(o)[0] || value } catch {} }
+    if (typeof value === 'string' && value.startsWith('{')) { try { const o = JSON.parse(value); value = o['zh'] || Object.values(o)[0] || value } catch { /* ignore parse error */ } }
     formData.value.specs.push({
       label,
       value,

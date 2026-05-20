@@ -857,12 +857,13 @@ const previewCurrentImageByIndex = (index) => {
   const current = list[index] || list[previewCurrentIndex.value] || list[0]
   if (previewNativeOpening.value) return
 
-  // #ifdef H5
-  h5ImagePreviewList.value = list
-  h5ImagePreviewCurrent.value = Math.max(0, list.findIndex(item => item === current))
-  h5ImagePreviewVisible.value = true
-  return
-  // #endif
+  const isH5Runtime = typeof window !== 'undefined' && typeof document !== 'undefined'
+  if (isH5Runtime) {
+    h5ImagePreviewList.value = list
+    h5ImagePreviewCurrent.value = Math.max(0, list.findIndex(item => item === current))
+    h5ImagePreviewVisible.value = true
+    return
+  }
 
   previewNativeOpening.value = true
 
@@ -881,9 +882,8 @@ const previewCurrentImageByIndex = (index) => {
 }
 
 const ensureAlbumPermission = async () => {
-  // #ifdef H5
-  return true
-  // #endif
+  const isH5Runtime = typeof window !== 'undefined' && typeof document !== 'undefined'
+  if (isH5Runtime) return true
 
   try {
     const settingRes = await uni.getSetting()
@@ -935,18 +935,19 @@ const downloadCurrentImage = async () => {
     return
   }
 
-  // #ifdef H5
-  const anchor = document.createElement('a')
-  anchor.href = fullUrl
-  anchor.target = '_blank'
-  anchor.rel = 'noopener'
-  anchor.download = `tryon-${Date.now()}`
-  document.body.appendChild(anchor)
-  anchor.click()
-  document.body.removeChild(anchor)
-  uni.showToast({ title: $t.value('downloadStarted'), icon: 'none' })
-  return
-  // #endif
+  const isH5Runtime = typeof window !== 'undefined' && typeof document !== 'undefined'
+  if (isH5Runtime) {
+    const anchor = document.createElement('a')
+    anchor.href = fullUrl
+    anchor.target = '_blank'
+    anchor.rel = 'noopener'
+    anchor.download = `tryon-${Date.now()}`
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+    uni.showToast({ title: $t.value('downloadStarted'), icon: 'none' })
+    return
+  }
 
   uni.showLoading({ title: $t.value('loading'), mask: true })
   try {

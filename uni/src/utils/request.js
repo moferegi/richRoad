@@ -1,4 +1,3 @@
-import { myRouter }from  '@/utils/permission.js'
 import { localText, t } from '@/utils/i18n.js'
 
 const BACKEND_ERROR_KEYS = [

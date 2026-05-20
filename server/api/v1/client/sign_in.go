@@ -28,7 +28,7 @@ func (api *SignInApi) DoSignIn(c *gin.Context) {
 	userID := utils.GetUserID(c)
 	if err := signInService.DoSignIn(userID); err != nil {
 		global.GVA_LOG.Error("签到失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 	} else {
 		// 触发签到奖励（积分+优惠券）
 		if err := marketingRewardService.TriggerReward(userID, "sign_in", "sign_in_reward", "签到奖励", 0); err != nil {
@@ -72,7 +72,7 @@ func (api *SignInApi) GetSignInRecords(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "30"))
 	if records, total, err := signInService.GetSignInRecords(userID, page, pageSize); err != nil {
 		global.GVA_LOG.Error("获取签到记录失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 	} else {
 		response.OkWithDetailed(i18n.LocalizeResponseData(c, response.PageResult{
 			List:     records,
@@ -114,7 +114,7 @@ func (api *SignInApi) GetSignInList(c *gin.Context) {
 
 	if list, total, err := signInService.GetSignInList(page, pageSize, userId, username, startDate, endDate, orderKey, desc); err != nil {
 		global.GVA_LOG.Error("获取签到列表失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 	} else {
 		response.OkWithDetailed(response.PageResult{
 			List:     list,
@@ -138,12 +138,12 @@ func (api *SignInApi) DeleteSignIn(c *gin.Context) {
 	idStr := c.Query("ID")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil || id == 0 {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	if err := signInService.DeleteSignIn(uint(id)); err != nil {
 		global.GVA_LOG.Error("删除签到记录失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "deleteFail"), c)
+		failClientWithKey(c, "deleteFail")
 	} else {
 		response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
 	}

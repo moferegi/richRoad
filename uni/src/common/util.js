@@ -99,13 +99,10 @@ export const timeFormat = (time, type = 'YYYY-MM-DD hh-mm-ss', line = "-") => {
  */
 export const getDate = (timeStamp) => {
 	const d = new Date(timeStamp * 1000)
-	let tiem = Math.ceil(new Date().getTime() / 1000)
-	const year = d.getFullYear()
 	const month = getHandledValue(d.getMonth() + 1)
 	const date = getHandledValue(d.getDate())
 	const hours = getHandledValue(d.getHours())
 	const minutes = getHandledValue(d.getMinutes())
-	const second = getHandledValue(d.getSeconds())
 	let resStr = ''
 	if (!isToday(timeStamp)) {
 		// 大于一天
@@ -145,7 +142,6 @@ export const dateTimeStamp = (dateTime) => {
 	let hour = minute * 60;
 	let day = hour * 24;
 	let week = day * 7;
-	let halfamonth = day * 15;
 	let month = day * 30;
 	let result = ''
 	let now = new Date().getTime(); //获取当前时间毫秒
@@ -201,7 +197,6 @@ export const getYearList = (min, max, callback) => {
 	let days = [];
 	let months = [];
 	let years = [];
-	let date = []
 	for (let i = 1; i <= 31; i++) {
 		let obj = {}
 		obj.label = i + '号'
@@ -340,7 +335,7 @@ export const getNumTo = (value) => {
 	// // 小数只能出现1位
 	val = val.replace(".", "$#$").replace(/\./g, "").replace("$#$", ".");
 	// // 小数点后面保留2位
-	val = val.replace(/^(\-)*(\d+)\.(\d\d).*$/, '$1$2.$3');
+	val = val.replace(/^(-)*(\d+)\.(\d\d).*$/, '$1$2.$3');
 	return val
 }
 // 限制输入框只能输入数字 
@@ -360,12 +355,12 @@ export const checkAuditTime = (beginTime, endTime) => {
 	var beginDate = new Date(nowDate);
 	var endDate = new Date(nowDate);
 
-	var beginIndex = beginTime.lastIndexOf("\:");
+	var beginIndex = beginTime.lastIndexOf(':');
 	var beginHour = beginTime.substring(0, beginIndex);
 	var beginMinue = beginTime.substring(beginIndex + 1, beginTime.length);
 	beginDate.setHours(beginHour, beginMinue, 0, 0);
 
-	var endIndex = endTime.lastIndexOf("\:");
+	var endIndex = endTime.lastIndexOf(':');
 	var endHour = endTime.substring(0, endIndex);
 	var endMinue = endTime.substring(endIndex + 1, endTime.length);
 	endDate.setHours(endHour, endMinue, 0, 0);

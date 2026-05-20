@@ -133,7 +133,7 @@ func (b *FileUploadAndDownloadApi) RemoveChunk(c *gin.Context) {
 	var file example.ExaFile
 	err := c.ShouldBindJSON(&file)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	// 路径穿越拦截
@@ -149,7 +149,7 @@ func (b *FileUploadAndDownloadApi) RemoveChunk(c *gin.Context) {
 	err = fileUploadAndDownloadService.DeleteFileChunk(file.FileMd5, file.FilePath)
 	if err != nil {
 		global.GVA_LOG.Error(err.Error(), zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("删除失败", c)
 		return
 	}
 	response.OkWithMessage("缓存切片删除成功", c)

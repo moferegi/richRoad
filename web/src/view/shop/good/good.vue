@@ -1111,17 +1111,17 @@ const loadSkuSpecDict = async () => {
 const selectSpecFromDict = (dictItem) => {
   if (!formData.value.specs) formData.value.specs = []
   const nameI18n = {}
-  try { Object.assign(nameI18n, typeof dictItem.labelI18n === 'string' ? JSON.parse(dictItem.labelI18n || '{}') : (dictItem.labelI18n || {})) } catch {}
+  try { Object.assign(nameI18n, typeof dictItem.labelI18n === 'string' ? JSON.parse(dictItem.labelI18n || '{}') : (dictItem.labelI18n || {})) } catch { /* ignore parse error */ }
   const valueI18n = {}
-  try { Object.assign(valueI18n, typeof dictItem.valueI18n === 'string' ? JSON.parse(dictItem.valueI18n || '{}') : (dictItem.valueI18n || {})) } catch {}
+  try { Object.assign(valueI18n, typeof dictItem.valueI18n === 'string' ? JSON.parse(dictItem.valueI18n || '{}') : (dictItem.valueI18n || {})) } catch { /* ignore parse error */ }
   formData.value.specs.push({ name: dictItem.label, nameI18n, value: dictItem.value, valueI18n })
 }
 const selectAttrFromDict = (dictItem) => {
   if (!formData.value.attrs) formData.value.attrs = []
   const nameI18n = {}
-  try { Object.assign(nameI18n, typeof dictItem.labelI18n === 'string' ? JSON.parse(dictItem.labelI18n || '{}') : (dictItem.labelI18n || {})) } catch {}
+  try { Object.assign(nameI18n, typeof dictItem.labelI18n === 'string' ? JSON.parse(dictItem.labelI18n || '{}') : (dictItem.labelI18n || {})) } catch { /* ignore parse error */ }
   const valueI18n = {}
-  try { Object.assign(valueI18n, typeof dictItem.valueI18n === 'string' ? JSON.parse(dictItem.valueI18n || '{}') : (dictItem.valueI18n || {})) } catch {}
+  try { Object.assign(valueI18n, typeof dictItem.valueI18n === 'string' ? JSON.parse(dictItem.valueI18n || '{}') : (dictItem.valueI18n || {})) } catch { /* ignore parse error */ }
   formData.value.attrs.push({ name: dictItem.label, nameI18n, value: dictItem.value, valueI18n })
 }
 

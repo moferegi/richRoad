@@ -1,4 +1,4 @@
-﻿package client
+package client
 
 import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
@@ -28,7 +28,7 @@ func isPointRecordAdmin(authorityId uint) bool {
 // @Router /cpr/createPointRecord [post]
 func (cprApi *PointRecordApi) CreatePointRecord(c *gin.Context) {
 	if !isPointRecordAdmin(utils.GetUserAuthorityId(c)) {
-		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		failClientWithKey(c, "noPermission")
 		return
 	}
 
@@ -38,13 +38,13 @@ func (cprApi *PointRecordApi) CreatePointRecord(c *gin.Context) {
 	var cpr client.PointRecord
 	err := c.ShouldBindJSON(&cpr)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	err = cprService.CreatePointRecord(ctx, &cpr)
 	if err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage(i18n.TWithSuffix(c, "createFail", err.Error()), c)
+		failClientWithKey(c, "createFail")
 		return
 	}
 	response.OkWithMessage(i18n.T(c, "createSuccess"), c)
@@ -61,7 +61,7 @@ func (cprApi *PointRecordApi) CreatePointRecord(c *gin.Context) {
 // @Router /cpr/deletePointRecord [delete]
 func (cprApi *PointRecordApi) DeletePointRecord(c *gin.Context) {
 	if !isPointRecordAdmin(utils.GetUserAuthorityId(c)) {
-		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		failClientWithKey(c, "noPermission")
 		return
 	}
 
@@ -72,7 +72,7 @@ func (cprApi *PointRecordApi) DeletePointRecord(c *gin.Context) {
 	err := cprService.DeletePointRecord(ctx, ID)
 	if err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage(i18n.TWithSuffix(c, "deleteFail", err.Error()), c)
+		failClientWithKey(c, "deleteFail")
 		return
 	}
 	response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
@@ -88,7 +88,7 @@ func (cprApi *PointRecordApi) DeletePointRecord(c *gin.Context) {
 // @Router /cpr/deletePointRecordByIds [delete]
 func (cprApi *PointRecordApi) DeletePointRecordByIds(c *gin.Context) {
 	if !isPointRecordAdmin(utils.GetUserAuthorityId(c)) {
-		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		failClientWithKey(c, "noPermission")
 		return
 	}
 
@@ -99,7 +99,7 @@ func (cprApi *PointRecordApi) DeletePointRecordByIds(c *gin.Context) {
 	err := cprService.DeletePointRecordByIds(ctx, IDs)
 	if err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
-		response.FailWithMessage(i18n.TWithSuffix(c, "batchDeleteFail", err.Error()), c)
+		failClientWithKey(c, "batchDeleteFail")
 		return
 	}
 	response.OkWithMessage(i18n.T(c, "batchDeleteSuccess"), c)
@@ -116,7 +116,7 @@ func (cprApi *PointRecordApi) DeletePointRecordByIds(c *gin.Context) {
 // @Router /cpr/updatePointRecord [put]
 func (cprApi *PointRecordApi) UpdatePointRecord(c *gin.Context) {
 	if !isPointRecordAdmin(utils.GetUserAuthorityId(c)) {
-		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		failClientWithKey(c, "noPermission")
 		return
 	}
 
@@ -126,13 +126,13 @@ func (cprApi *PointRecordApi) UpdatePointRecord(c *gin.Context) {
 	var cpr client.PointRecord
 	err := c.ShouldBindJSON(&cpr)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	err = cprService.UpdatePointRecord(ctx, cpr)
 	if err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage(i18n.TWithSuffix(c, "updateFail", err.Error()), c)
+		failClientWithKey(c, "updateFail")
 		return
 	}
 	response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
@@ -155,13 +155,13 @@ func (cprApi *PointRecordApi) FindPointRecord(c *gin.Context) {
 	recpr, err := cprService.GetPointRecord(ctx, ID)
 	if err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage(i18n.TWithSuffix(c, "queryFail", err.Error()), c)
+		failClientWithKey(c, "queryFail")
 		return
 	}
 	if !isPointRecordAdmin(utils.GetUserAuthorityId(c)) {
 		uid := int(utils.GetUserID(c))
 		if recpr.UserId == nil || *recpr.UserId != uid {
-			response.FailWithMessage(i18n.T(c, "noPermission"), c)
+			failClientWithKey(c, "noPermission")
 			return
 		}
 	}
@@ -184,7 +184,7 @@ func (cprApi *PointRecordApi) GetPointRecordList(c *gin.Context) {
 	var pageInfo clientReq.PointRecordSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	// 非管理员只能查看自己的积分记录
@@ -196,7 +196,7 @@ func (cprApi *PointRecordApi) GetPointRecordList(c *gin.Context) {
 	list, total, err := cprService.GetPointRecordInfoList(ctx, pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage(i18n.TWithSuffix(c, "getFail", err.Error()), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -221,7 +221,7 @@ func (cprApi *PointRecordApi) GetPointRecordStats(c *gin.Context) {
 
 	var search clientReq.TryonPointStatsSearch
 	if err := c.ShouldBindQuery(&search); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
@@ -234,7 +234,7 @@ func (cprApi *PointRecordApi) GetPointRecordStats(c *gin.Context) {
 	stats, err := cprService.GetTryonPointStats(ctx, search)
 	if err != nil {
 		global.GVA_LOG.Error("获取试衣币统计失败!", zap.Error(err))
-		response.FailWithMessage(i18n.TWithSuffix(c, "getFail", err.Error()), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 

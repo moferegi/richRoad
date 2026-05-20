@@ -63,7 +63,6 @@ defineOptions({
 })
 
 // 自动获取字典
-import { getDictFunc } from '@/utils/format'
 import { useRoute, useRouter } from "vue-router"
 import { ElMessage } from 'element-plus'
 import { ref, reactive, onMounted } from 'vue'
@@ -98,7 +97,9 @@ const loadEnabledLangs = async () => {
     if (res.code === 0 && res.data) {
       enabledLangs.value = Array.isArray(res.data) ? res.data : (res.data.list || [])
     }
-  } catch (e) {}
+  } catch {
+    /* ignore language loading error */
+  }
 }
 
 const parseNameI18n = (jsonStr) => {
@@ -106,7 +107,9 @@ const parseNameI18n = (jsonStr) => {
   try {
     const parsed = JSON.parse(jsonStr || '{}')
     Object.assign(nameI18nObj, parsed)
-  } catch (e) {}
+  } catch {
+    /* ignore i18n parse error */
+  }
 }
 
 const serializeNameI18n = () => {

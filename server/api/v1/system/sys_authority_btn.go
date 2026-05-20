@@ -23,7 +23,7 @@ func (a *AuthorityBtnApi) GetAuthorityBtn(c *gin.Context) {
 	var req request.SysAuthorityBtnReq
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	res, err := authorityBtnService.GetAuthorityBtn(req)
@@ -48,7 +48,7 @@ func (a *AuthorityBtnApi) SetAuthorityBtn(c *gin.Context) {
 	var req request.SysAuthorityBtnReq
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = authorityBtnService.SetAuthorityBtn(req)
@@ -73,7 +73,7 @@ func (a *AuthorityBtnApi) CanRemoveAuthorityBtn(c *gin.Context) {
 	err := authorityBtnService.CanRemoveAuthorityBtn(id)
 	if err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("删除失败", c)
 		return
 	}
 	response.OkWithMessage("删除成功", c)

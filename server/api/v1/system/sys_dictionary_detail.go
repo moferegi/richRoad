@@ -27,7 +27,7 @@ func (s *DictionaryDetailApi) CreateSysDictionaryDetail(c *gin.Context) {
 	var detail system.SysDictionaryDetail
 	err := c.ShouldBindJSON(&detail)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = dictionaryDetailService.CreateSysDictionaryDetail(detail)
@@ -52,7 +52,7 @@ func (s *DictionaryDetailApi) DeleteSysDictionaryDetail(c *gin.Context) {
 	var detail system.SysDictionaryDetail
 	err := c.ShouldBindJSON(&detail)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = dictionaryDetailService.DeleteSysDictionaryDetail(detail)
@@ -77,7 +77,7 @@ func (s *DictionaryDetailApi) UpdateSysDictionaryDetail(c *gin.Context) {
 	var detail system.SysDictionaryDetail
 	err := c.ShouldBindJSON(&detail)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = dictionaryDetailService.UpdateSysDictionaryDetail(&detail)
@@ -102,12 +102,12 @@ func (s *DictionaryDetailApi) FindSysDictionaryDetail(c *gin.Context) {
 	var detail system.SysDictionaryDetail
 	err := c.ShouldBindQuery(&detail)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(detail, utils.IdVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	reSysDictionaryDetail, err := dictionaryDetailService.GetSysDictionaryDetail(detail.ID)
@@ -132,7 +132,7 @@ func (s *DictionaryDetailApi) GetSysDictionaryDetailList(c *gin.Context) {
 	var pageInfo request.SysDictionaryDetailSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := dictionaryDetailService.GetSysDictionaryDetailInfoList(pageInfo)
@@ -220,7 +220,7 @@ func (s *DictionaryDetailApi) GetDictionaryDetailsByParent(c *gin.Context) {
 	var req request.GetDictionaryDetailsByParentRequest
 	err := c.ShouldBindQuery(&req)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	

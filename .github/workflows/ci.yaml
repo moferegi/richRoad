@@ -12,64 +12,116 @@ on:
         required: true
         type: string
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   init:
     if: github.repository_owner == 'flipped-aurora'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: init
         run: |
           echo "flipped-aurora"
-  frontend:
+  frontend-web:
     if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'release'
-    name: Frontend node ${{ matrix.node-version }}
+    name: Frontend web node 18.16.0
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [18.16.0]
+    timeout-minutes: 25
     steps:
       - name: Check out branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v1
+      - name: Use Node.js 18.16.0
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 18.16.0
+          cache: npm
+          cache-dependency-path: web/package-lock.json
 
-      - name: Build test
+      - name: Lint web
         run: |
-          npm install
+          npm ci --no-audit --no-fund
+          npm run lint
+        working-directory: ./web
+
+      - name: Build web
+        run: |
           npm run build
         working-directory: ./web
+
+  frontend-uni:
+    if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'release'
+    name: Frontend uni node 18.16.0
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 18.16.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.16.0
+          cache: npm
+          cache-dependency-path: uni/package-lock.json
+
+      - name: Lint uni
+        run: |
+          npm ci --no-audit --no-fund
+          npm run lint
+        working-directory: ./uni
+
+      - name: Build uni h5
+        run: |
+          npm run build:h5
+        working-directory: ./uni
+
+  frontend:
+    if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'release'
+    name: Frontend node 18.16.0
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - frontend-web
+      - frontend-uni
+    steps:
+      - name: Frontend summary
+        run: |
+          echo "frontend web/uni jobs passed"
 
   backend:
     if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'release'
     name: Backend go
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     strategy:
       matrix:
-        go-version: [1.22]
+        go-version: [1.24.2]
     steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+
       - name: Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
+          cache: true
+          cache-dependency-path: server/go.sum
         id: go
 
-      - name: Check out branch
-        uses: actions/checkout@v2
-
-      - name: Download dependencies
+      - name: Download modules
         run: |
-          go get -v -t -d ./...
-          if [ -f Gopkg.toml ]; then
-              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-              dep ensure
-          fi
+          go mod download
+          go mod verify
         working-directory: ./server
 
       - name: Test and Build
         run: |
+          go test ./... -run TestDoesNotExist -count=1
+          go test ./service/shop ./service/client ./task ./api/v1/client -count=1
           go build -v -race
         working-directory: ./server
 
@@ -81,13 +133,14 @@ jobs:
       - backend
       - frontend
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       matrix:
         node-version: [18.16.0]
-        go-version: [1.22]
+        go-version: [1.24.2]
     steps:
       - name: Check out branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Sed Config
         env:
           PROD: ${{ secrets.PROD }}
@@ -99,16 +152,20 @@ jobs:
           sed -i "s/${PROD}/${TESTING}/g" web/.env.production
           sed -i 's/${basePath}:${basePort}/${basePath}/g' web/src/view/systemTools/formCreate/index.vue
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2.1.2
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
       - name: Build-Node
         run: |
-          cd web/ && yarn install && yarn run build
+          cd web/ && npm ci --no-audit --no-fund && npm run build
       - name: Use Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
+          cache: true
+          cache-dependency-path: server/go.sum
       - name: Build-go
         run: |
           cd server/ && go mod tidy && CGO_ENABLED=0 go build && mkdir ../web/ser && mv server ../web/ser/ && cd ../web/ser/ && ls -s 
@@ -119,21 +176,28 @@ jobs:
           USER: ${{ secrets.USER }}
           PROT: ${{ secrets.PROT }}
           MKDIRTEST: ${{ secrets.MKDIRTEST }}
+          RETRY_MAX_ATTEMPTS: "3"
+          RETRY_BASE_SLEEP_SECONDS: "5"
         run: |
+          source .github/scripts/ci_retry.sh
+          echo "[deploy-test] retry strategy"
+          print_retry_policy
+          SSH_OPTS=(-o StrictHostKeyChecking=no -o ConnectTimeout=10 -o ConnectionAttempts=2)
           mkdir -p ~/.ssh/ && echo "$KEY" > ~/.ssh/id_rsa && chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
-          scp -P ${PROT} -o StrictHostKeyChecking=no -r web/dist/* ${USER}@${HOST}:${MKDIRTEST}dist/
-          scp -P ${PROT} -o StrictHostKeyChecking=no -r web/ser/* ${USER}@${HOST}:${MKDIRTEST}
-          ssh -p ${PROT} -o StrictHostKeyChecking=no ${USER}@${HOST} "cd ${MKDIRTEST}resource/ && rm -rf ${MKDIRTEST}resource/*"
-          scp -P ${PROT} -o StrictHostKeyChecking=no -r server/resource/* ${USER}@${HOST}:${MKDIRTEST}resource/
-          ssh -p ${PROT} -o StrictHostKeyChecking=no ${USER}@${HOST} "cd ${MKDIRTEST} && bash restart.sh > /dev/null  2>&1 &"
+          ssh-keyscan -T 10 github.com >> ~/.ssh/known_hosts
+          run_with_retry "[deploy-test] upload web dist" scp -P ${PROT} "${SSH_OPTS[@]}" -r web/dist/* ${USER}@${HOST}:${MKDIRTEST}dist/
+          run_with_retry "[deploy-test] upload web binary" scp -P ${PROT} "${SSH_OPTS[@]}" -r web/ser/* ${USER}@${HOST}:${MKDIRTEST}
+          run_with_retry "[deploy-test] clean remote resources" ssh -p ${PROT} "${SSH_OPTS[@]}" ${USER}@${HOST} "cd ${MKDIRTEST}resource/ && rm -rf ${MKDIRTEST}resource/*"
+          run_with_retry "[deploy-test] upload server resources" scp -P ${PROT} "${SSH_OPTS[@]}" -r server/resource/* ${USER}@${HOST}:${MKDIRTEST}resource/
+          run_with_retry "[deploy-test] restart remote service" ssh -p ${PROT} "${SSH_OPTS[@]}" ${USER}@${HOST} "cd ${MKDIRTEST} && bash restart.sh > /dev/null  2>&1 &"
 
   release-pr:
     if: ${{ github.event_name == 'workflow_dispatch' && github.repository_owner == 'flipped-aurora'}}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Check out branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Sed Config
         env:
           GVA_VERSION: ${{ inputs.gva_version }}
@@ -163,6 +227,7 @@ jobs:
   release-please:
     if: github.ref == 'refs/heads/main' || github.event_name == 'release'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs:
       - init
       - backend
@@ -188,6 +253,7 @@ jobs:
   devops-prod:
     if: needs.release-please.outputs.release_created || github.event_name == 'release'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     needs:
       - init
       - release-please
@@ -195,9 +261,9 @@ jobs:
     strategy:
       matrix:
         node-version: ['18.x']
-        go-version: ['1.22']
+        go-version: ['1.24.2']
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: tag major and minor versions
         run: |
           echo " ${{ needs.release-please.outputs.tag_name }}"
@@ -208,16 +274,20 @@ jobs:
           ls -l
           sed -i 's/${basePath}:${basePort}/${basePath}/g' web/src/view/systemTools/formCreate/index.vue
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2.1.2
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
       - name: Build-Node
         run: |
-          cd web/ && yarn install && yarn run build
+          cd web/ && npm ci --no-audit --no-fund && npm run build
       - name: Use Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
+          cache: true
+          cache-dependency-path: server/go.sum
       - name: Build-go
         run: |
           cd server/ && go mod tidy && CGO_ENABLED=0 go build && mkdir ../web/ser && mv server ../web/ser/ && cd ../web/ser/ && ls -s 
@@ -228,25 +298,32 @@ jobs:
           USER: ${{ secrets.USER }}
           PROT: ${{ secrets.PROT }}
           MKDIR: ${{ secrets.MKDIR }}
+          RETRY_MAX_ATTEMPTS: "5"
+          RETRY_BASE_SLEEP_SECONDS: "5"
         run: |
+          source .github/scripts/ci_retry.sh
+          echo "[deploy-prod] retry strategy"
+          print_retry_policy
+          SSH_OPTS=(-o StrictHostKeyChecking=no -o ConnectTimeout=10 -o ConnectionAttempts=2)
           mkdir -p ~/.ssh/ && echo "$KEY" > ~/.ssh/id_rsa && chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
-          scp -P ${PROT} -o StrictHostKeyChecking=no -r web/dist/* ${USER}@${HOST}:${MKDIR}dist/
-          scp -P ${PROT} -o StrictHostKeyChecking=no -r web/ser/* ${USER}@${HOST}:${MKDIR}
-          ssh -p ${PROT} -o StrictHostKeyChecking=no ${USER}@${HOST} "cd ${MKDIR}resource/ && rm -rf ${MKDIR}resource/*"
-          scp -P ${PROT} -o StrictHostKeyChecking=no -r server/resource/* ${USER}@${HOST}:${MKDIR}resource/
-          ssh -p ${PROT} -o StrictHostKeyChecking=no ${USER}@${HOST} "cd ${MKDIR} && bash restart.sh > /dev/null  2>&1 &"
+          ssh-keyscan -T 10 github.com >> ~/.ssh/known_hosts
+          run_with_retry "[deploy-prod] upload web dist" scp -P ${PROT} "${SSH_OPTS[@]}" -r web/dist/* ${USER}@${HOST}:${MKDIR}dist/
+          run_with_retry "[deploy-prod] upload web binary" scp -P ${PROT} "${SSH_OPTS[@]}" -r web/ser/* ${USER}@${HOST}:${MKDIR}
+          run_with_retry "[deploy-prod] clean remote resources" ssh -p ${PROT} "${SSH_OPTS[@]}" ${USER}@${HOST} "cd ${MKDIR}resource/ && rm -rf ${MKDIR}resource/*"
+          run_with_retry "[deploy-prod] upload server resources" scp -P ${PROT} "${SSH_OPTS[@]}" -r server/resource/* ${USER}@${HOST}:${MKDIR}resource/
+          run_with_retry "[deploy-prod] restart remote service" ssh -p ${PROT} "${SSH_OPTS[@]}" ${USER}@${HOST} "cd ${MKDIR} && bash restart.sh > /dev/null  2>&1 &"
 
   docker:
     name: docker
     if: github.ref == 'refs/heads/stop-stop-stop'
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     needs:
       - init
       - release-please
     steps:
       - name: Check out branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Login to Aliyun Registry
         uses: docker/login-action@v1
         with:

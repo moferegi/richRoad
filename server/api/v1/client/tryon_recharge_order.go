@@ -31,7 +31,7 @@ var tryonRechargeOrderService = service.ServiceGroupApp.ClientServiceGroup.Tryon
 func (api *TryonRechargeOrderApi) CreateTryonRechargeOrder(c *gin.Context) {
 	var req clientReq.CreateTryonRechargeOrderReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
@@ -39,7 +39,7 @@ func (api *TryonRechargeOrderApi) CreateTryonRechargeOrder(c *gin.Context) {
 	order, err := tryonRechargeOrderService.CreateTryonRechargeOrder(c.Request.Context(), userID, req)
 	if err != nil {
 		global.GVA_LOG.Error("创建充值订单失败", zap.Error(err), zap.Uint("userID", userID))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -58,14 +58,14 @@ func (api *TryonRechargeOrderApi) CreateTryonRechargeOrder(c *gin.Context) {
 func (api *TryonRechargeOrderApi) UpdateTryonRechargeOrderPayMethod(c *gin.Context) {
 	var req clientReq.UpdateTryonRechargeOrderPayMethodReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
 	userID := utils.GetUserID(c)
 	if err := tryonRechargeOrderService.UpdateTryonRechargeOrderPayMethod(userID, req); err != nil {
 		global.GVA_LOG.Error("更新充值订单支付方式失败", zap.Error(err), zap.Uint("userID", userID), zap.Uint("orderID", req.ID))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -84,14 +84,14 @@ func (api *TryonRechargeOrderApi) UpdateTryonRechargeOrderPayMethod(c *gin.Conte
 func (api *TryonRechargeOrderApi) SubmitTryonRechargeOrderPayment(c *gin.Context) {
 	var req clientReq.SubmitTryonRechargeOrderPaymentReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
 	userID := utils.GetUserID(c)
 	if err := tryonRechargeOrderService.SubmitTryonRechargeOrderPayment(userID, req.ID); err != nil {
 		global.GVA_LOG.Error("提交充值订单付款确认失败", zap.Error(err), zap.Uint("userID", userID), zap.Uint("orderID", req.ID))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -110,14 +110,14 @@ func (api *TryonRechargeOrderApi) SubmitTryonRechargeOrderPayment(c *gin.Context
 func (api *TryonRechargeOrderApi) CancelTryonRechargeOrder(c *gin.Context) {
 	id, err := strconv.ParseUint(strings.TrimSpace(c.Query("ID")), 10, 64)
 	if err != nil || id == 0 {
-		response.FailWithMessage(i18n.T(c, "invalidOrder"), c)
+		failClientWithKey(c, "invalidOrder")
 		return
 	}
 
 	userID := utils.GetUserID(c)
 	if err = tryonRechargeOrderService.CancelTryonRechargeOrder(userID, uint(id)); err != nil {
 		global.GVA_LOG.Error("取消充值订单失败", zap.Error(err), zap.Uint("userID", userID), zap.Uint64("orderID", id))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -136,20 +136,20 @@ func (api *TryonRechargeOrderApi) CancelTryonRechargeOrder(c *gin.Context) {
 // @Router /tryonRechargeOrder/confirmTryonRechargeOrderPayment [post]
 func (api *TryonRechargeOrderApi) ConfirmTryonRechargeOrderPayment(c *gin.Context) {
 	if authorityID := utils.GetUserAuthorityId(c); authorityID != 888 && authorityID != 8881 {
-		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		failClientWithKey(c, "noPermission")
 		return
 	}
 
 	id, err := strconv.ParseUint(strings.TrimSpace(c.Query("ID")), 10, 64)
 	if err != nil || id == 0 {
-		response.FailWithMessage(i18n.T(c, "invalidOrder"), c)
+		failClientWithKey(c, "invalidOrder")
 		return
 	}
 
 	remark := strings.TrimSpace(c.Query("remark"))
 	if err = tryonRechargeOrderService.ConfirmTryonRechargeOrderPayment(c.Request.Context(), uint(id), remark); err != nil {
 		global.GVA_LOG.Error("确认充值订单支付失败", zap.Error(err), zap.Uint64("orderID", id))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -168,7 +168,7 @@ func (api *TryonRechargeOrderApi) ConfirmTryonRechargeOrderPayment(c *gin.Contex
 func (api *TryonRechargeOrderApi) SelfTryonRechargeOrder(c *gin.Context) {
 	id, err := strconv.ParseUint(strings.TrimSpace(c.Query("ID")), 10, 64)
 	if err != nil || id == 0 {
-		response.FailWithMessage(i18n.T(c, "invalidOrder"), c)
+		failClientWithKey(c, "invalidOrder")
 		return
 	}
 
@@ -176,7 +176,7 @@ func (api *TryonRechargeOrderApi) SelfTryonRechargeOrder(c *gin.Context) {
 	order, err := tryonRechargeOrderService.GetMyTryonRechargeOrderByID(userID, uint(id))
 	if err != nil {
 		global.GVA_LOG.Error("查询我的充值订单失败", zap.Error(err), zap.Uint("userID", userID), zap.Uint64("orderID", id))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -194,20 +194,20 @@ func (api *TryonRechargeOrderApi) SelfTryonRechargeOrder(c *gin.Context) {
 // @Router /tryonRechargeOrder/findTryonRechargeOrder [get]
 func (api *TryonRechargeOrderApi) FindTryonRechargeOrder(c *gin.Context) {
 	if authorityID := utils.GetUserAuthorityId(c); authorityID != 888 && authorityID != 8881 {
-		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		failClientWithKey(c, "noPermission")
 		return
 	}
 
 	id, err := strconv.ParseUint(strings.TrimSpace(c.Query("ID")), 10, 64)
 	if err != nil || id == 0 {
-		response.FailWithMessage(i18n.T(c, "invalidOrder"), c)
+		failClientWithKey(c, "invalidOrder")
 		return
 	}
 
 	order, err := tryonRechargeOrderService.GetTryonRechargeOrderByID(uint(id))
 	if err != nil {
 		global.GVA_LOG.Error("查询充值订单失败", zap.Error(err), zap.Uint64("orderID", id))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -226,7 +226,7 @@ func (api *TryonRechargeOrderApi) FindTryonRechargeOrder(c *gin.Context) {
 func (api *TryonRechargeOrderApi) GetMyTryonRechargeOrderList(c *gin.Context) {
 	var search clientReq.TryonRechargeOrderSearch
 	if err := c.ShouldBindQuery(&search); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
@@ -234,7 +234,7 @@ func (api *TryonRechargeOrderApi) GetMyTryonRechargeOrderList(c *gin.Context) {
 	list, total, err := tryonRechargeOrderService.GetMyTryonRechargeOrderList(userID, search)
 	if err != nil {
 		global.GVA_LOG.Error("获取我的充值订单列表失败", zap.Error(err), zap.Uint("userID", userID))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -252,20 +252,20 @@ func (api *TryonRechargeOrderApi) GetMyTryonRechargeOrderList(c *gin.Context) {
 // @Router /tryonRechargeOrder/getTryonRechargeOrderList [get]
 func (api *TryonRechargeOrderApi) GetTryonRechargeOrderList(c *gin.Context) {
 	if authorityID := utils.GetUserAuthorityId(c); authorityID != 888 && authorityID != 8881 {
-		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		failClientWithKey(c, "noPermission")
 		return
 	}
 
 	var search clientReq.TryonRechargeOrderSearch
 	if err := c.ShouldBindQuery(&search); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
 	list, total, err := tryonRechargeOrderService.GetTryonRechargeOrderList(search)
 	if err != nil {
 		global.GVA_LOG.Error("获取充值订单列表失败", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 

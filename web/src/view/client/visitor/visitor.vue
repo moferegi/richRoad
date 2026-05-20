@@ -191,7 +191,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getVisitorLogList, getVisitorSummaryList, getTodayStats, getKefuGuideStats, aggregateDailySummary } from '@/api/client/visitor'
 import { formatDate } from '@/utils/format'
@@ -325,7 +325,6 @@ const getChartOption = () => {
   const textColor = isDark ? 'rgba(255,255,255,0.70)' : 'rgba(0,0,0,0.70)'
   const subtextColor = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)'
   const borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
-  const bgColor = isDark ? '#141414' : '#ffffff'
   const dates = chartData.value.map(item => item.date.slice(5)) // MM-DD 更简洁
   const pvData = chartData.value.map(item => item.pv)
   const uvData = chartData.value.map(item => item.uv)

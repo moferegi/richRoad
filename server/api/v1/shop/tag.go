@@ -27,13 +27,13 @@ func (tagApi *TagApi) CreateTag(c *gin.Context) {
 	var tag shop.Tag
 	err := c.ShouldBindJSON(&tag)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = tagService.CreateTag(ctx, &tag)
 	if err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage("创建失败:"+err.Error(), c)
+		response.FailWithMessage("创建失败", c)
 		return
 	}
 	response.OkWithMessage("创建成功", c)
@@ -56,7 +56,7 @@ func (tagApi *TagApi) DeleteTag(c *gin.Context) {
 	err := tagService.DeleteTag(ctx, ID)
 	if err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败:"+err.Error(), c)
+		response.FailWithMessage("删除失败", c)
 		return
 	}
 	response.OkWithMessage("删除成功", c)
@@ -78,7 +78,7 @@ func (tagApi *TagApi) DeleteTagByIds(c *gin.Context) {
 	err := tagService.DeleteTagByIds(ctx, IDs)
 	if err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
-		response.FailWithMessage("批量删除失败:"+err.Error(), c)
+		response.FailWithMessage("批量删除失败", c)
 		return
 	}
 	response.OkWithMessage("批量删除成功", c)
@@ -100,13 +100,13 @@ func (tagApi *TagApi) UpdateTag(c *gin.Context) {
 	var tag shop.Tag
 	err := c.ShouldBindJSON(&tag)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = tagService.UpdateTag(ctx, tag)
 	if err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage("更新失败:"+err.Error(), c)
+		response.FailWithMessage("更新失败", c)
 		return
 	}
 	response.OkWithMessage("更新成功", c)
@@ -129,7 +129,7 @@ func (tagApi *TagApi) FindTag(c *gin.Context) {
 	retag, err := tagService.GetTag(ctx, ID)
 	if err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage("查询失败:"+err.Error(), c)
+		response.FailWithMessage("查询失败", c)
 		return
 	}
 	response.OkWithData(retag, c)
@@ -151,13 +151,13 @@ func (tagApi *TagApi) GetTagList(c *gin.Context) {
 	var pageInfo shopReq.TagSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := tagService.GetTagInfoList(ctx, pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败:"+err.Error(), c)
+		response.FailWithMessage("获取失败", c)
 		return
 	}
 	response.OkWithDetailed(response.PageResult{

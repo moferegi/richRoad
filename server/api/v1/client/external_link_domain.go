@@ -24,12 +24,12 @@ type ExternalLinkDomainApi struct{}
 func (a *ExternalLinkDomainApi) CreateExternalLinkDomain(c *gin.Context) {
 	var domain client.ExternalLinkDomain
 	if err := c.ShouldBindJSON(&domain); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	if err := extDomainService.CreateExternalLinkDomain(domain); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "createFail"), c)
+		failClientWithKey(c, "createFail")
 		return
 	}
 	response.OkWithMessage(i18n.T(c, "createSuccess"), c)
@@ -49,12 +49,12 @@ func (a *ExternalLinkDomainApi) DeleteExternalLinkDomain(c *gin.Context) {
 		ID uint `json:"id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	if err := extDomainService.DeleteExternalLinkDomain(req.ID); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "deleteFail"), c)
+		failClientWithKey(c, "deleteFail")
 		return
 	}
 	response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
@@ -72,12 +72,12 @@ func (a *ExternalLinkDomainApi) DeleteExternalLinkDomain(c *gin.Context) {
 func (a *ExternalLinkDomainApi) UpdateExternalLinkDomain(c *gin.Context) {
 	var domain client.ExternalLinkDomain
 	if err := c.ShouldBindJSON(&domain); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	if err := extDomainService.UpdateExternalLinkDomain(domain); err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "updateFail"), c)
+		failClientWithKey(c, "updateFail")
 		return
 	}
 	response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
@@ -95,13 +95,13 @@ func (a *ExternalLinkDomainApi) UpdateExternalLinkDomain(c *gin.Context) {
 func (a *ExternalLinkDomainApi) GetExternalLinkDomainList(c *gin.Context) {
 	var pageInfo request.ExternalLinkDomainSearch
 	if err := c.ShouldBindQuery(&pageInfo); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	list, total, err := extDomainService.GetExternalLinkDomainList(pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -126,12 +126,12 @@ func (a *ExternalLinkDomainApi) SetDefaultDomain(c *gin.Context) {
 		ID uint `json:"id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	if err := extDomainService.SetDefaultDomain(req.ID); err != nil {
 		global.GVA_LOG.Error("设置失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "setFail"), c)
+		failClientWithKey(c, "setFail")
 		return
 	}
 	response.OkWithMessage(i18n.T(c, "setSuccess"), c)
@@ -148,7 +148,7 @@ func (a *ExternalLinkDomainApi) GetDefaultDomain(c *gin.Context) {
 	domain, err := extDomainService.GetDefaultDomain()
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 	response.OkWithDetailed(i18n.LocalizeResponseData(c, domain), i18n.T(c, "getSuccess"), c)

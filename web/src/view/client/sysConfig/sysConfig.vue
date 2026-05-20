@@ -1807,15 +1807,6 @@ const getModelUsageTagType = (model = {}) => {
   return usageTagTypeMap[usage] || 'primary'
 }
 
-const beautifyModelKeyOptions = computed(() => {
-  return Array.from(new Set(
-    tryonModels.value
-      .filter(model => isBeautifyUsageModel(model))
-      .map(model => String(model.key || '').trim())
-      .filter(Boolean)
-  ))
-})
-
 const refinerModelKeyOptions = computed(() => {
   return Array.from(new Set(
     tryonModels.value
@@ -3217,14 +3208,6 @@ const openEdit = (row) => {
   newJsonLang.value = ''
   newJsonVal.value = ''
   editVisible.value = true
-}
-
-const addJsonLang = () => {
-  if (newJsonLang.value) {
-    editJsonValue[newJsonLang.value] = newJsonVal.value
-    newJsonLang.value = ''
-    newJsonVal.value = ''
-  }
 }
 
 const quickToggle = async (row, val) => {

@@ -34,7 +34,7 @@
 	const langStore = useLangStore()
 	const $t = computed(() => langStore.$t)
 	const emit = defineEmits(['change'])
-	let props = defineProps({
+	defineProps({
 		// 上传样式宽高
 		upload_img_wh: {
 			type: String,
@@ -63,19 +63,6 @@
 			default: 300
 		}
 	})
-	const init = (imgs) => {
-		imgs.forEach(img => {
-			images.value.push({
-				path: img.src,
-				url: img.url,
-				uploadTask: null,
-				progress: 100,
-				uploadInfo: null,
-				status: 6
-			})
-		})
-		toEmit()
-	}
 	const toEmit = () => {
 		let list = []
 		let upSuccessCount = 0
@@ -119,7 +106,7 @@
 					img.status = 2
 					img.originalFileName = getOssImgName() + '.png'
 					img.fileKey = res
-				}).catch(e => {
+				}).catch(() => {
 					img.status = 99
 				})
 				promises.push(promise)
@@ -131,10 +118,10 @@
 		});
 		// console.log("promises===>",promises)
 		Promise.all(promises)
-			.then(res => {
+			.then(() => {
 				uni.hideLoading()
 				toEmit()
-			}).catch(function(e) {
+			}).catch(function() {
 				uni.hideLoading()
 			})
 	}

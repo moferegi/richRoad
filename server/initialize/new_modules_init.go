@@ -280,6 +280,13 @@ func initNewModulesCasbin(db *gorm.DB) {
 	var authorities []sysModel.SysAuthority
 	db.Find(&authorities)
 
+	seedAuthorities := make([]sysModel.SysAuthority, 0, len(authorities))
+	for _, auth := range authorities {
+		if auth.AuthorityId == 888 || auth.AuthorityId == 8881 || auth.AuthorityId == 8080 || auth.AuthorityId == 9528 {
+			seedAuthorities = append(seedAuthorities, auth)
+		}
+	}
+
 	paths := []struct {
 		Path   string
 		Method string
@@ -382,7 +389,7 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/dbInspector/deleteRecordsByRange", "POST"},
 	}
 
-	for _, auth := range authorities {
+	for _, auth := range seedAuthorities {
 		authId := fmt.Sprintf("%d", auth.AuthorityId)
 		for _, p := range paths {
 			var count int64
@@ -395,11 +402,15 @@ func initNewModulesCasbin(db *gorm.DB) {
 		}
 	}
 
+	cleanupLegacyManagedCasbinRules(db, "new_modules", paths, []string{"888", "8881", "8080", "9528"})
+
 	adminOnlyPaths := []struct {
 		Path   string
 		Method string
 	}{
 		{"/sysConfig/getSysConfigList", "GET"},
+		{"/sysConfig/getSysConfigByGroup", "GET"},
+		{"/sysConfig/getSysConfigByKey", "GET"},
 		{"/sysConfig/getAliyunTryonQuotaEstimate", "GET"},
 		{"/sysConfig/updateSysConfig", "PUT"},
 		{"/dbInspector/getOverview", "GET"},

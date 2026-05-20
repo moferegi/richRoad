@@ -32,6 +32,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	clientReq "github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -90,9 +91,74 @@ const (
 
 	tryonResultStoreFolder   = "cloth-on/middle-transfer"
 	tryonResultMaxImageBytes = 25 * 1024 * 1024
+
+	tryonCreateRateLimitConfigKey = "security_tryon_create_rate_limit_per_minute"
+	tryonCreateRateLimitEnvKey    = "CS_TRYON_CREATE_RATE_LIMIT_PER_MINUTE"
+
+	tryonCreateConcurrencyConfigKey = "security_tryon_create_concurrency_limit"
+	tryonCreateConcurrencyEnvKey    = "CS_TRYON_CREATE_CONCURRENCY_LIMIT"
+
+	defaultTryonCreateRateLimitPerMinute int64 = 20
+	defaultTryonCreateConcurrencyLimit   int64 = 2
 )
 
 type TryonTaskService struct{}
+
+func (s *TryonTaskService) enforceTryonCreateRateLimit(userID uint) error {
+	limit := utils.GetInt64Setting(tryonCreateRateLimitConfigKey, tryonCreateRateLimitEnvKey, defaultTryonCreateRateLimitPerMinute)
+	if limit <= 0 {
+		return nil
+	}
+
+	if global.GVA_REDIS != nil {
+		ctx := context.Background()
+		key := fmt.Sprintf("tryon:create:rate:user:%d", userID)
+		count, err := global.GVA_REDIS.Incr(ctx, key).Result()
+		if err == nil {
+			if count == 1 {
+				_ = global.GVA_REDIS.Expire(ctx, key, time.Minute).Err()
+			}
+			if count > limit {
+				return errors.New("tryonCreateTooFrequent")
+			}
+			return nil
+		}
+		global.GVA_LOG.Warn("试衣创建频率校验降级为DB", zap.Error(err), zap.Uint("userID", userID))
+	}
+
+	var recentCount int64
+	if err := global.GVA_DB.Model(&client.TryonTask{}).
+		Where("user_id = ? AND created_at >= ?", userID, time.Now().Add(-time.Minute)).
+		Count(&recentCount).Error; err != nil {
+		global.GVA_LOG.Warn("试衣创建频率DB校验失败，已降级放行", zap.Error(err), zap.Uint("userID", userID))
+		return nil
+	}
+
+	if recentCount >= limit {
+		return errors.New("tryonCreateTooFrequent")
+	}
+	return nil
+}
+
+func (s *TryonTaskService) enforceTryonCreateConcurrencyLimit(userID uint) error {
+	limit := utils.GetInt64Setting(tryonCreateConcurrencyConfigKey, tryonCreateConcurrencyEnvKey, defaultTryonCreateConcurrencyLimit)
+	if limit <= 0 {
+		return nil
+	}
+
+	var processingCount int64
+	if err := global.GVA_DB.Model(&client.TryonTask{}).
+		Where("user_id = ? AND status = ?", userID, tryonTaskStatusProcessing).
+		Count(&processingCount).Error; err != nil {
+		global.GVA_LOG.Warn("试衣创建并发校验失败，已降级放行", zap.Error(err), zap.Uint("userID", userID))
+		return nil
+	}
+
+	if processingCount >= limit {
+		return errors.New("tryonCreateConcurrencyLimited")
+	}
+	return nil
+}
 
 // DeleteTryonTask 删除单个试衣任务（管理端）
 func (s *TryonTaskService) DeleteTryonTask(id uint) error {
@@ -895,6 +961,13 @@ func (s *TryonTaskService) CreateTryonTask(ctx context.Context, userID uint, req
 	}
 	if !errors.Is(findErr, gorm.ErrRecordNotFound) {
 		return task, false, findErr
+	}
+
+	if err = s.enforceTryonCreateRateLimit(userID); err != nil {
+		return task, false, err
+	}
+	if err = s.enforceTryonCreateConcurrencyLimit(userID); err != nil {
+		return task, false, err
 	}
 
 	sysConfigService := SysConfigService{}
@@ -3310,8 +3383,7 @@ func (s *TryonTaskService) tryBuildAliyunParsedCompanionGarment(req clientReq.Cr
 			errMsg = "aliyunParsingNoUsableGarmentArea"
 		}
 		lastErr = errors.New(errMsg)
-
-		return "", strings.TrimSpace(cfgCopy.Key), lastErr
+		continue
 	}
 
 	return "", strings.TrimSpace(cfgCopy.Key), lastErr
@@ -5154,7 +5226,7 @@ func (s *TryonTaskService) refreshTryonTaskStatus(ctx context.Context, task *cli
 		if task.EnableRefiner && strings.EqualFold(strings.TrimSpace(task.RefinerStatus), tryonRefinerStatusPending) {
 			storedMainResultImage := s.persistTryonResultImage(strings.TrimSpace(result.ResultImage), task.TaskNo)
 			refinerModelCfg := modelCfg
-			if modelCfg != nil && strings.TrimSpace(task.RefinerModelKey) != "" {
+			if strings.TrimSpace(task.RefinerModelKey) != "" {
 				copied := *modelCfg
 				copied.RefinerModelKey = strings.TrimSpace(task.RefinerModelKey)
 				refinerModelCfg = &copied

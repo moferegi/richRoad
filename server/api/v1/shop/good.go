@@ -30,13 +30,13 @@ func (goodApi *GoodApi) CreateGood(c *gin.Context) {
 	var good shop.Good
 	err := c.ShouldBindJSON(&good)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
 	if err := goodService.CreateGood(&good); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage("创建失败: "+err.Error(), c)
+		response.FailWithMessage("创建失败", c)
 	} else {
 		response.OkWithMessage("创建成功", c)
 	}
@@ -92,13 +92,13 @@ func (goodApi *GoodApi) UpdateGood(c *gin.Context) {
 	var good shop.Good
 	err := c.ShouldBindJSON(&good)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
 	if err := goodService.UpdateGood(good); err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage("更新失败: "+err.Error(), c)
+		response.FailWithMessage("更新失败", c)
 	} else {
 		response.OkWithMessage("更新成功", c)
 	}
@@ -179,7 +179,7 @@ func (goodApi *GoodApi) GetGoodList(c *gin.Context) {
 	var pageInfo shopReq.GoodSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if list, total, err := goodService.GetGoodInfoList(pageInfo); err != nil {

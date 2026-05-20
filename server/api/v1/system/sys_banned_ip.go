@@ -26,7 +26,7 @@ var bannedIPService = service.ServiceGroupApp.SystemServiceGroup.BannedIPService
 func (b *BannedIPApi) BanIP(c *gin.Context) {
 	var req sysReq.BanIPRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
@@ -38,7 +38,7 @@ func (b *BannedIPApi) BanIP(c *gin.Context) {
 
 	if err := bannedIPService.BanIP(req.IP, req.Reason, userInfo.Username, req.Duration, false); err != nil {
 		global.GVA_LOG.Error("封禁IP失败", zap.Error(err))
-		response.FailWithMessage("封禁失败："+err.Error(), c)
+		response.FailWithMessage("封禁失败", c)
 		return
 	}
 	response.OkWithMessage("封禁成功", c)
@@ -56,13 +56,13 @@ func (b *BannedIPApi) BanIP(c *gin.Context) {
 func (b *BannedIPApi) UnbanIP(c *gin.Context) {
 	var req sysReq.UnbanIPRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
 	if err := bannedIPService.UnbanIP(req.IP); err != nil {
 		global.GVA_LOG.Error("解封IP失败", zap.Error(err))
-		response.FailWithMessage("解封失败："+err.Error(), c)
+		response.FailWithMessage("解封失败", c)
 		return
 	}
 	response.OkWithMessage("解封成功", c)
@@ -80,14 +80,14 @@ func (b *BannedIPApi) UnbanIP(c *gin.Context) {
 func (b *BannedIPApi) GetBannedIPList(c *gin.Context) {
 	var req sysReq.BannedIPSearch
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
 	list, total, err := bannedIPService.GetBannedIPList(req)
 	if err != nil {
 		global.GVA_LOG.Error("获取封禁IP列表失败", zap.Error(err))
-		response.FailWithMessage("获取失败："+err.Error(), c)
+		response.FailWithMessage("获取失败", c)
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -110,14 +110,14 @@ func (b *BannedIPApi) GetBannedIPList(c *gin.Context) {
 func (b *BannedIPApi) GetAttackStats(c *gin.Context) {
 	var req sysReq.AttackStatsRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
 	items, err := bannedIPService.GetAttackStats(req.Hours)
 	if err != nil {
 		global.GVA_LOG.Error("获取攻击统计失败", zap.Error(err))
-		response.FailWithMessage("获取失败："+err.Error(), c)
+		response.FailWithMessage("获取失败", c)
 		return
 	}
 	response.OkWithDetailed(items, "获取成功", c)

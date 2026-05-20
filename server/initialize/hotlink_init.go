@@ -35,18 +35,24 @@ func initHotlinkApis(db *gorm.DB) {
 }
 
 func initHotlinkCasbin(db *gorm.DB) {
-	authIDs := []string{"888", "8881", "8080", "9528"}
-	rules := []struct {
+	commonAuthIDs := []string{"888", "8881", "8080", "9528"}
+	adminAuthIDs := []string{"888", "8881", "9528"}
+	commonRules := []struct {
 		Path   string
 		Method string
 	}{
 		{"/fileUploadAndDownload/signURL", "POST"},
 		{"/fileUploadAndDownload/hotlinkConfig", "GET"},
+	}
+	adminRules := []struct {
+		Path   string
+		Method string
+	}{
 		{"/fileUploadAndDownload/listFolders", "GET"},
 	}
 
-	for _, authID := range authIDs {
-		for _, rule := range rules {
+	for _, authID := range commonAuthIDs {
+		for _, rule := range commonRules {
 			var count int64
 			db.Table("casbin_rule").Where("ptype = ? AND v0 = ? AND v1 = ? AND v2 = ?",
 				"p", authID, rule.Path, rule.Method).Count(&count)
@@ -55,5 +61,23 @@ func initHotlinkCasbin(db *gorm.DB) {
 					"p", authID, rule.Path, rule.Method)
 			}
 		}
+	}
+
+	for _, authID := range adminAuthIDs {
+		for _, rule := range adminRules {
+			var count int64
+			db.Table("casbin_rule").Where("ptype = ? AND v0 = ? AND v1 = ? AND v2 = ?",
+				"p", authID, rule.Path, rule.Method).Count(&count)
+			if count == 0 {
+				db.Exec("INSERT INTO casbin_rule (ptype, v0, v1, v2) VALUES (?, ?, ?, ?)",
+					"p", authID, rule.Path, rule.Method)
+			}
+		}
+	}
+
+	// 收口历史授权：8080 不应拥有目录枚举权限
+	if err := db.Exec("DELETE FROM casbin_rule WHERE ptype = ? AND v0 = ? AND v1 = ? AND v2 = ?",
+		"p", "8080", "/fileUploadAndDownload/listFolders", "GET").Error; err != nil {
+		global.GVA_LOG.Error("移除listFolders历史权限失败", zap.Error(err))
 	}
 }

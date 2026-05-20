@@ -28,7 +28,7 @@ func (api *QrcodePaymentApi) CreateQrcodePayment(c *gin.Context) {
 	var info shop.QrcodePayment
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := qrcodePaymentService.CreateQrcodePayment(&info); err != nil {
@@ -71,7 +71,7 @@ func (api *QrcodePaymentApi) UpdateQrcodePayment(c *gin.Context) {
 	var info shop.QrcodePayment
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := qrcodePaymentService.UpdateQrcodePayment(info); err != nil {
@@ -95,7 +95,7 @@ func (api *QrcodePaymentApi) GetQrcodePaymentList(c *gin.Context) {
 	var pageInfo shopReq.QrcodePaymentSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if list, total, err := qrcodePaymentService.GetQrcodePaymentList(pageInfo); err != nil {

@@ -201,16 +201,17 @@ const shareLink = () => {
   const code = String(inviteInfo.value.inviteCode || '').trim()
   if (!code) return
   const encodedCode = encodeURIComponent(code)
+  let link = ''
   // #ifdef H5
-  const origin = window.location.origin
+  const h5Origin = window.location.origin
   const pathname = window.location.pathname || '/'
   const entryPath = pathname.endsWith('/') ? `${pathname}index.html` : pathname
   const registerHash = `#/pages/user/register?inviteCode=${encodedCode}`
-  const link = `${origin}${entryPath}?inviteCode=${encodedCode}${registerHash}`
+  link = `${h5Origin}${entryPath}?inviteCode=${encodedCode}${registerHash}`
   // #endif
   // #ifndef H5
-  const origin = 'https://your-domain.com'
-  const link = `${origin}/#/pages/user/register?inviteCode=${encodedCode}`
+  const appOrigin = 'https://your-domain.com'
+  link = `${appOrigin}/#/pages/user/register?inviteCode=${encodedCode}`
   // #endif
   uni.setClipboardData({
     data: link,

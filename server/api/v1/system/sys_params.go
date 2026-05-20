@@ -24,13 +24,13 @@ func (sysParamsApi *SysParamsApi) CreateSysParams(c *gin.Context) {
 	var sysParams system.SysParams
 	err := c.ShouldBindJSON(&sysParams)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = sysParamsService.CreateSysParams(&sysParams)
 	if err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage("创建失败:"+err.Error(), c)
+		response.FailWithMessage("创建失败", c)
 		return
 	}
 	response.OkWithMessage("创建成功", c)
@@ -50,7 +50,7 @@ func (sysParamsApi *SysParamsApi) DeleteSysParams(c *gin.Context) {
 	err := sysParamsService.DeleteSysParams(ID)
 	if err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败:"+err.Error(), c)
+		response.FailWithMessage("删除失败", c)
 		return
 	}
 	response.OkWithMessage("删除成功", c)
@@ -69,7 +69,7 @@ func (sysParamsApi *SysParamsApi) DeleteSysParamsByIds(c *gin.Context) {
 	err := sysParamsService.DeleteSysParamsByIds(IDs)
 	if err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
-		response.FailWithMessage("批量删除失败:"+err.Error(), c)
+		response.FailWithMessage("批量删除失败", c)
 		return
 	}
 	response.OkWithMessage("批量删除成功", c)
@@ -88,13 +88,13 @@ func (sysParamsApi *SysParamsApi) UpdateSysParams(c *gin.Context) {
 	var sysParams system.SysParams
 	err := c.ShouldBindJSON(&sysParams)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = sysParamsService.UpdateSysParams(sysParams)
 	if err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage("更新失败:"+err.Error(), c)
+		response.FailWithMessage("更新失败", c)
 		return
 	}
 	response.OkWithMessage("更新成功", c)
@@ -114,7 +114,7 @@ func (sysParamsApi *SysParamsApi) FindSysParams(c *gin.Context) {
 	resysParams, err := sysParamsService.GetSysParams(ID)
 	if err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage("查询失败:"+err.Error(), c)
+		response.FailWithMessage("查询失败", c)
 		return
 	}
 	response.OkWithData(resysParams, c)
@@ -133,13 +133,13 @@ func (sysParamsApi *SysParamsApi) GetSysParamsList(c *gin.Context) {
 	var pageInfo systemReq.SysParamsSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := sysParamsService.GetSysParamsInfoList(pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败:"+err.Error(), c)
+		response.FailWithMessage("获取失败", c)
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -164,7 +164,7 @@ func (sysParamsApi *SysParamsApi) GetSysParam(c *gin.Context) {
 	params, err := sysParamsService.GetSysParam(k)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败:"+err.Error(), c)
+		response.FailWithMessage("获取失败", c)
 		return
 	}
 	response.OkWithDetailed(params, "获取成功", c)

@@ -29,7 +29,7 @@ var tryonClothService = service.ServiceGroupApp.ClientServiceGroup.TryonClothSer
 func (api *TryonClothApi) CreateTryonCloth(c *gin.Context) {
 	var req clientReq.CreateTryonClothReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
@@ -37,7 +37,7 @@ func (api *TryonClothApi) CreateTryonCloth(c *gin.Context) {
 	cloth, err := tryonClothService.CreateTryonCloth(userID, req)
 	if err != nil {
 		global.GVA_LOG.Error("创建我的衣橱失败!", zap.Error(err), zap.Uint("userID", userID))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -56,7 +56,7 @@ func (api *TryonClothApi) CreateTryonCloth(c *gin.Context) {
 func (api *TryonClothApi) UpdateTryonCloth(c *gin.Context) {
 	var req clientReq.UpdateTryonClothReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
@@ -65,7 +65,7 @@ func (api *TryonClothApi) UpdateTryonCloth(c *gin.Context) {
 	err := tryonClothService.UpdateTryonCloth(userID, authorityID, req)
 	if err != nil {
 		global.GVA_LOG.Error("更新我的衣橱失败!", zap.Error(err), zap.Uint("userID", userID), zap.Uint("ID", req.ID))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -85,7 +85,7 @@ func (api *TryonClothApi) DeleteTryonCloth(c *gin.Context) {
 	idStr := c.Query("ID")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil || id == 0 {
-		response.FailWithMessage(i18n.T(c, "invalidID"), c)
+		failClientWithKey(c, "invalidID")
 		return
 	}
 
@@ -94,7 +94,7 @@ func (api *TryonClothApi) DeleteTryonCloth(c *gin.Context) {
 	err = tryonClothService.DeleteTryonCloth(userID, authorityID, uint(id))
 	if err != nil {
 		global.GVA_LOG.Error("删除我的衣橱失败!", zap.Error(err), zap.Uint("userID", userID), zap.Uint64("ID", id))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -113,7 +113,7 @@ func (api *TryonClothApi) DeleteTryonCloth(c *gin.Context) {
 func (api *TryonClothApi) DeleteTryonClothByIds(c *gin.Context) {
 	idStrs := c.QueryArray("IDs[]")
 	if len(idStrs) == 0 {
-		response.FailWithMessage(i18n.T(c, "invalidIDs"), c)
+		failClientWithKey(c, "invalidIDs")
 		return
 	}
 
@@ -121,7 +121,7 @@ func (api *TryonClothApi) DeleteTryonClothByIds(c *gin.Context) {
 	for _, idStr := range idStrs {
 		id, err := strconv.ParseUint(idStr, 10, 64)
 		if err != nil || id == 0 {
-			response.FailWithMessage(i18n.T(c, "invalidIDs"), c)
+			failClientWithKey(c, "invalidIDs")
 			return
 		}
 		ids = append(ids, uint(id))
@@ -132,7 +132,7 @@ func (api *TryonClothApi) DeleteTryonClothByIds(c *gin.Context) {
 	err := tryonClothService.DeleteTryonClothByIds(userID, authorityID, ids)
 	if err != nil {
 		global.GVA_LOG.Error("批量删除我的衣橱失败!", zap.Error(err), zap.Uint("userID", userID))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -159,7 +159,7 @@ func (api *TryonClothApi) GetMyTryonClothList(c *gin.Context) {
 	list, err := tryonClothService.GetMyTryonClothList(userID, categories)
 	if err != nil {
 		global.GVA_LOG.Error("获取我的衣橱列表失败!", zap.Error(err), zap.Uint("userID", userID))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -178,7 +178,7 @@ func (api *TryonClothApi) GetMyTryonClothList(c *gin.Context) {
 func (api *TryonClothApi) GetTryonClothList(c *gin.Context) {
 	var pageInfo clientReq.TryonClothSearch
 	if err := c.ShouldBindQuery(&pageInfo); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
@@ -189,7 +189,7 @@ func (api *TryonClothApi) GetTryonClothList(c *gin.Context) {
 	list, total, err := tryonClothService.GetTryonClothList(pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取我的衣橱列表失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 

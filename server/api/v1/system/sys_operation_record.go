@@ -26,7 +26,7 @@ func (s *OperationRecordApi) DeleteSysOperationRecord(c *gin.Context) {
 	var sysOperationRecord system.SysOperationRecord
 	err := c.ShouldBindJSON(&sysOperationRecord)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = operationRecordService.DeleteSysOperationRecord(sysOperationRecord)
@@ -51,7 +51,7 @@ func (s *OperationRecordApi) DeleteSysOperationRecordByIds(c *gin.Context) {
 	var IDS request.IdsReq
 	err := c.ShouldBindJSON(&IDS)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = operationRecordService.DeleteSysOperationRecordByIds(IDS)
@@ -76,12 +76,12 @@ func (s *OperationRecordApi) FindSysOperationRecord(c *gin.Context) {
 	var sysOperationRecord system.SysOperationRecord
 	err := c.ShouldBindQuery(&sysOperationRecord)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(sysOperationRecord, utils.IdVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	reSysOperationRecord, err := operationRecordService.GetSysOperationRecord(sysOperationRecord.ID)
@@ -106,7 +106,7 @@ func (s *OperationRecordApi) GetSysOperationRecordList(c *gin.Context) {
 	var pageInfo systemReq.SysOperationRecordSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := operationRecordService.GetSysOperationRecordInfoList(pageInfo)

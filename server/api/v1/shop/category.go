@@ -31,7 +31,7 @@ func (categoryApi *CategoryApi) CreateCategory(c *gin.Context) {
 	var category shop.Category
 	err := c.ShouldBindJSON(&category)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
@@ -93,7 +93,7 @@ func (categoryApi *CategoryApi) UpdateCategory(c *gin.Context) {
 	var category shop.Category
 	err := c.ShouldBindJSON(&category)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
@@ -137,7 +137,7 @@ func (categoryApi *CategoryApi) GetCategoryList(c *gin.Context) {
 	var pageInfo shopReq.CategorySearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if list, total, err := categoryService.GetCategoryInfoList(pageInfo); err != nil {

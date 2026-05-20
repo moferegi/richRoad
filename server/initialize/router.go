@@ -3,15 +3,46 @@ package initialize
 import (
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/docs"
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/middleware"
 	"github.com/flipped-aurora/gin-vue-admin/server/router"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"go.uber.org/zap"
 )
+
+const (
+	trustedProxiesConfigKey = "security_trusted_proxies"
+	trustedProxiesEnvKey    = "CS_TRUSTED_PROXIES"
+)
+
+func getTrustedProxies() []string {
+	raw, ok := utils.GetSysConfigRawValue(trustedProxiesConfigKey)
+	if !ok || strings.TrimSpace(raw) == "" {
+		raw = strings.TrimSpace(os.Getenv(trustedProxiesEnvKey))
+	}
+	if strings.TrimSpace(raw) == "" {
+		return []string{"127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"}
+	}
+
+	parts := strings.Split(raw, ",")
+	trusted := make([]string, 0, len(parts))
+	for _, part := range parts {
+		item := strings.TrimSpace(part)
+		if item != "" {
+			trusted = append(trusted, item)
+		}
+	}
+	if len(trusted) == 0 {
+		return []string{"127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"}
+	}
+	return trusted
+}
 
 type justFilesFilesystem struct {
 	fs http.FileSystem
@@ -35,6 +66,15 @@ func (fs justFilesFilesystem) Open(name string) (http.File, error) {
 
 func Routers() *gin.Engine {
 	Router := gin.New()
+	cleanupSensitiveIgnoreApis(global.GVA_DB)
+	ensureClientSelfProfilePermission(global.GVA_DB)
+	ensureSystemReloadPermission(global.GVA_DB)
+	trustedProxies := getTrustedProxies()
+	if err := Router.SetTrustedProxies(trustedProxies); err != nil {
+		global.GVA_LOG.Error("set trusted proxies failed", zap.Error(err))
+	} else {
+		global.GVA_LOG.Info("trusted proxies configured", zap.Strings("proxies", trustedProxies))
+	}
 	Router.MaxMultipartMemory = 8 << 20 // 8MB 内存缓冲，超出自动写磁盘临时文件（支持大视频上传）
 	// 使用自定义的 Recovery 中间件，记录 panic 并入库
 	Router.Use(middleware.GinRecovery(true))
@@ -78,8 +118,9 @@ func Routers() *gin.Engine {
 
 	PublicGroup := Router.Group(global.GVA_CONFIG.System.RouterPrefix)
 	PublicGroup.Use(middleware.Locale())
-	PublicGroup.Use(middleware.Maintenance()) // 维护模式拦截（仅拦截客户端业务请求）
-	PublicGroup.Use(middleware.BanIPCheck())  // IP封禁检查
+	PublicGroup.Use(middleware.Maintenance())     // 维护模式拦截（仅拦截客户端业务请求）
+	PublicGroup.Use(middleware.BanIPCheck())      // IP封禁检查
+	PublicGroup.Use(middleware.PublicRateLimit()) // 公开接口统一限流（支持后台参数）
 	PrivateGroup := Router.Group(global.GVA_CONFIG.System.RouterPrefix)
 	PrivateGroup.Use(middleware.Locale())
 
@@ -93,7 +134,12 @@ func Routers() *gin.Engine {
 	}
 	{
 		systemRouter.InitBaseRouter(PublicGroup) // 注册基础功能路由 不做鉴权
-		systemRouter.InitInitRouter(PublicGroup) // 自动初始化相关
+		defaultInitAPIEnabled := global.GVA_DB == nil
+		if utils.GetBoolSetting("security_init_api_enabled", "CS_INIT_API_ENABLED", defaultInitAPIEnabled) {
+			systemRouter.InitInitRouter(PublicGroup) // 自动初始化相关
+		} else {
+			global.GVA_LOG.Info("skip init routers by security_init_api_enabled")
+		}
 	}
 
 	{

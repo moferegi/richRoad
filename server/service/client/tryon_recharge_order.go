@@ -14,6 +14,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	clientReq "github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"go.uber.org/zap"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -26,6 +27,19 @@ const (
 	tryonRechargeOrderStatusCanceled = "4"
 
 	defaultTryonRechargeCloseMinutes = 20
+
+	tryonRechargeCreateRateLimitConfigKey = "security_tryon_recharge_create_rate_limit_per_minute"
+	tryonRechargeCreateRateLimitEnvKey    = "CS_TRYON_RECHARGE_CREATE_RATE_LIMIT_PER_MINUTE"
+
+	tryonRechargePendingLimitConfigKey = "security_tryon_recharge_pending_limit_per_user"
+	tryonRechargePendingLimitEnvKey    = "CS_TRYON_RECHARGE_PENDING_LIMIT_PER_USER"
+
+	tryonRechargePendingConfirmCloseMinutesConfigKey = "tryon_recharge_pending_confirm_close_minutes"
+	tryonRechargePendingConfirmCloseMinutesEnvKey    = "CS_TRYON_RECHARGE_PENDING_CONFIRM_CLOSE_MINUTES"
+
+	defaultTryonRechargeCreateRateLimitPerMinute   int64 = 20
+	defaultTryonRechargePendingLimitPerUser        int64 = 8
+	defaultTryonRechargePendingConfirmCloseMinutes       = 180
 )
 
 var paymentMethodPriorityKeys = []string{"zh", "en", "mn", "zh-TW", "th", "hi", "id", "vi", "ar", "ja", "ko", "ms"}
@@ -368,6 +382,72 @@ func (s *TryonRechargeOrderService) getOrderCloseMinutes(tx *gorm.DB) int {
 	return minutes
 }
 
+func (s *TryonRechargeOrderService) getPendingConfirmCloseMinutes() int {
+	minutes := utils.GetInt64Setting(tryonRechargePendingConfirmCloseMinutesConfigKey, tryonRechargePendingConfirmCloseMinutesEnvKey, int64(defaultTryonRechargePendingConfirmCloseMinutes))
+	if minutes <= 0 {
+		return defaultTryonRechargePendingConfirmCloseMinutes
+	}
+	return int(minutes)
+}
+
+func (s *TryonRechargeOrderService) enforceTryonRechargeCreateRateLimit(userID uint) error {
+	limit := utils.GetInt64Setting(tryonRechargeCreateRateLimitConfigKey, tryonRechargeCreateRateLimitEnvKey, defaultTryonRechargeCreateRateLimitPerMinute)
+	if limit <= 0 {
+		return nil
+	}
+
+	if global.GVA_REDIS != nil {
+		ctx := context.Background()
+		key := fmt.Sprintf("tryon:recharge:create:rate:user:%d", userID)
+		count, err := global.GVA_REDIS.Incr(ctx, key).Result()
+		if err == nil {
+			if count == 1 {
+				_ = global.GVA_REDIS.Expire(ctx, key, time.Minute).Err()
+			}
+			if count > limit {
+				return errors.New("requestTooFrequent")
+			}
+			return nil
+		}
+		global.GVA_LOG.Warn("试衣币充值建单频率校验降级为DB", zap.Error(err), zap.Uint("userID", userID))
+	}
+
+	var recentCount int64
+	if err := global.GVA_DB.Model(&client.TryonRechargeOrder{}).
+		Where("user_id = ? AND created_at >= ?", userID, time.Now().Add(-time.Minute)).
+		Count(&recentCount).Error; err != nil {
+		global.GVA_LOG.Warn("试衣币充值建单频率DB校验失败，已降级放行", zap.Error(err), zap.Uint("userID", userID))
+		return nil
+	}
+
+	if recentCount >= limit {
+		return errors.New("requestTooFrequent")
+	}
+
+	return nil
+}
+
+func (s *TryonRechargeOrderService) enforceTryonRechargePendingLimit(tx *gorm.DB, userID uint) error {
+	limit := utils.GetInt64Setting(tryonRechargePendingLimitConfigKey, tryonRechargePendingLimitEnvKey, defaultTryonRechargePendingLimitPerUser)
+	if limit <= 0 {
+		return nil
+	}
+
+	var pendingCount int64
+	err := tx.Model(&client.TryonRechargeOrder{}).
+		Where("user_id = ? AND status IN ? AND (close_time IS NULL OR close_time > ?)", userID, []string{tryonRechargeOrderStatusPending, tryonRechargeOrderStatusReview}, time.Now()).
+		Count(&pendingCount).Error
+	if err != nil {
+		return err
+	}
+
+	if pendingCount >= limit {
+		return errors.New("tryonRechargePendingLimitExceeded")
+	}
+
+	return nil
+}
+
 func (s *TryonRechargeOrderService) generateUniqueTryonRechargeOrderNo(tx *gorm.DB) (string, error) {
 	for i := 0; i < 10; i++ {
 		orderNo, err := utils.GenerateBusinessOrderNo("sy")
@@ -455,9 +535,16 @@ func (s *TryonRechargeOrderService) CreateTryonRechargeOrder(ctx context.Context
 	if amountCents <= 0 {
 		return order, errors.New("tryonRechargeAmountMustPositive")
 	}
+	if err = s.enforceTryonRechargeCreateRateLimit(userID); err != nil {
+		return order, err
+	}
 
 	payMethod := normalizePayMethod(req.PayMethod)
 	err = global.GVA_DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err = s.enforceTryonRechargePendingLimit(tx, userID); err != nil {
+			return err
+		}
+
 		settlementCurrency, settlementCurrencySymbol := s.resolveSettlementCurrencyAndSymbol(tx, req)
 
 		matchedPlan, matchedPlanAmount, matchErr := s.findMatchedRechargePlan(tx, req.Points, amountCents, settlementCurrency)
@@ -532,11 +619,19 @@ func (s *TryonRechargeOrderService) SubmitTryonRechargeOrderPayment(userID uint,
 		if order.Status != tryonRechargeOrderStatusPending {
 			return errors.New("tryonRechargeOrderStateInvalidForSubmitPayment")
 		}
+		if !order.CloseTime.IsZero() && time.Now().After(order.CloseTime) {
+			return errors.New("tryonRechargeOrderExpired")
+		}
 		if normalizePayMethod(order.PayMethod) != "qrcode" {
 			return errors.New("tryonRechargeOrderPayMethodNotQrcode")
 		}
 
-		return tx.Model(&client.TryonRechargeOrder{}).Where("id = ?", order.ID).Update("status", tryonRechargeOrderStatusReview).Error
+		updates := map[string]interface{}{"status": tryonRechargeOrderStatusReview}
+		pendingConfirmCloseMinutes := s.getPendingConfirmCloseMinutes()
+		if pendingConfirmCloseMinutes > 0 {
+			updates["close_time"] = time.Now().Add(time.Duration(pendingConfirmCloseMinutes) * time.Minute)
+		}
+		return tx.Model(&client.TryonRechargeOrder{}).Where("id = ?", order.ID).Updates(updates).Error
 	})
 }
 
@@ -549,9 +644,11 @@ func (s *TryonRechargeOrderService) UpdateTryonRechargeOrderPayMethod(userID uin
 	if payMethod == "" {
 		return errors.New("payMethodRequired")
 	}
+	now := time.Now()
 
 	result := global.GVA_DB.Model(&client.TryonRechargeOrder{}).
 		Where("id = ? AND user_id = ? AND status = ?", req.ID, userID, tryonRechargeOrderStatusPending).
+		Where("(close_time IS NULL OR close_time > ?)", now).
 		Updates(map[string]interface{}{"pay_method": payMethod})
 	if result.Error != nil {
 		return result.Error
@@ -608,6 +705,9 @@ func (s *TryonRechargeOrderService) ConfirmTryonRechargeOrderPayment(ctx context
 			// continue
 		default:
 			return errors.New("tryonRechargeOrderStateInvalidForConfirm")
+		}
+		if !order.CloseTime.IsZero() && time.Now().After(order.CloseTime) {
+			return errors.New("tryonRechargeOrderExpired")
 		}
 
 		now := time.Now()

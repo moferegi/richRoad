@@ -17,7 +17,6 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, getCurrentInstance } from 'vue'
-import { getUrl } from '@/utils/url'
 import { useLangStore } from '@/pinia/modules/lang.js'
 
 const langStore = useLangStore()

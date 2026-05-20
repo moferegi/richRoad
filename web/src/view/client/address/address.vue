@@ -38,11 +38,8 @@
         :data="tableData"
         row-key="ID"
         max-height="70vh"
-        @selection-change="handleSelectionChange"
         @sort-change="sortChange"
         >
-        <el-table-column type="selection" width="55" />
-
         <el-table-column align="left" label="日期" width="180" sortable="custom" prop="created_at">
             <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
         </el-table-column>
@@ -122,22 +119,19 @@
 
 <script setup>
 import {
-    getAddressDataSource,
+  getAddressDataSource,
   createAddress,
-  deleteAddress,
-  deleteAddressByIds,
   updateAddress,
-  findAddress,
   getAddressList
 } from '@/api/client/address'
 
 // 全量引入格式化工具 请按需保留
-import { getDictFunc, formatDate, formatBoolean, filterDict,filterDataSource, ReturnArrImg, onDownloadFile } from '@/utils/format'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { formatDate } from '@/utils/format'
+import { ElMessage } from 'element-plus'
 import { ref, reactive } from 'vue'
 
 defineOptions({
-    name: 'Address'
+  name: 'ClientAddress'
 })
 
 // 自动化生成的字典（可能为空）以及字段
@@ -316,94 +310,11 @@ const setOptions = async () =>{
 setOptions()
 
 
-// 多选数据
-const multipleSelection = ref([])
-// 多选
-const handleSelectionChange = (val) => {
-    multipleSelection.value = val
-}
-
-// 删除行
-const deleteRow = (row) => {
-    ElMessageBox.confirm('确定要删除吗?', '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-    }).then(() => {
-            deleteAddressFunc(row)
-        })
-    }
-
-// 多选删除
-const onDelete = async() => {
-  ElMessageBox.confirm('确定要删除吗?', '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(async() => {
-      const IDs = []
-      if (multipleSelection.value.length === 0) {
-        ElMessage({
-          type: 'warning',
-          message: '请选择要删除的数据'
-        })
-        return
-      }
-      multipleSelection.value &&
-        multipleSelection.value.map(item => {
-          IDs.push(item.ID)
-        })
-      const res = await deleteAddressByIds({ IDs })
-      if (res.code === 0) {
-        ElMessage({
-          type: 'success',
-          message: '删除成功'
-        })
-        if (tableData.value.length === IDs.length && page.value > 1) {
-          page.value--
-        }
-        getTableData()
-      }
-      })
-    }
-
 // 行为控制标记（弹窗内部需要增还是改）
-const type = ref('')
-
-// 更新行
-const updateAddressFunc = async(row) => {
-    const res = await findAddress({ ID: row.ID })
-    type.value = 'update'
-    if (res.code === 0) {
-        formData.value = res.data.readdress
-        dialogFormVisible.value = true
-    }
-}
-
-
-// 删除行
-const deleteAddressFunc = async (row) => {
-    const res = await deleteAddress({ ID: row.ID })
-    if (res.code === 0) {
-        ElMessage({
-                type: 'success',
-                message: '删除成功'
-            })
-            if (tableData.value.length === 1 && page.value > 1) {
-            page.value--
-        }
-        getTableData()
-    }
-}
+const type = ref('create')
 
 // 弹窗控制标记
 const dialogFormVisible = ref(false)
-
-// 打开弹窗
-const openDialog = () => {
-    type.value = 'create'
-    dialogFormVisible.value = true
-}
 
 // 关闭弹窗
 const closeDialog = () => {

@@ -29,7 +29,7 @@ var tryonModelService = service.ServiceGroupApp.ClientServiceGroup.TryonModelSer
 func (api *TryonModelApi) CreateTryonModel(c *gin.Context) {
 	var req clientReq.CreateTryonModelReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
@@ -37,7 +37,7 @@ func (api *TryonModelApi) CreateTryonModel(c *gin.Context) {
 	model, err := tryonModelService.CreateTryonModel(userID, req)
 	if err != nil {
 		global.GVA_LOG.Error("创建我的模特失败!", zap.Error(err), zap.Uint("userID", userID))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -56,7 +56,7 @@ func (api *TryonModelApi) CreateTryonModel(c *gin.Context) {
 func (api *TryonModelApi) UpdateTryonModel(c *gin.Context) {
 	var req clientReq.UpdateTryonModelReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
@@ -65,7 +65,7 @@ func (api *TryonModelApi) UpdateTryonModel(c *gin.Context) {
 	err := tryonModelService.UpdateTryonModel(userID, authorityID, req)
 	if err != nil {
 		global.GVA_LOG.Error("更新我的模特失败!", zap.Error(err), zap.Uint("userID", userID), zap.Uint("ID", req.ID))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -85,7 +85,7 @@ func (api *TryonModelApi) DeleteTryonModel(c *gin.Context) {
 	idStr := c.Query("ID")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil || id == 0 {
-		response.FailWithMessage(i18n.T(c, "invalidID"), c)
+		failClientWithKey(c, "invalidID")
 		return
 	}
 
@@ -94,7 +94,7 @@ func (api *TryonModelApi) DeleteTryonModel(c *gin.Context) {
 	err = tryonModelService.DeleteTryonModel(userID, authorityID, uint(id))
 	if err != nil {
 		global.GVA_LOG.Error("删除我的模特失败!", zap.Error(err), zap.Uint("userID", userID), zap.Uint64("ID", id))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -113,7 +113,7 @@ func (api *TryonModelApi) DeleteTryonModel(c *gin.Context) {
 func (api *TryonModelApi) DeleteTryonModelByIds(c *gin.Context) {
 	idStrs := c.QueryArray("IDs[]")
 	if len(idStrs) == 0 {
-		response.FailWithMessage(i18n.T(c, "invalidIDs"), c)
+		failClientWithKey(c, "invalidIDs")
 		return
 	}
 
@@ -121,7 +121,7 @@ func (api *TryonModelApi) DeleteTryonModelByIds(c *gin.Context) {
 	for _, idStr := range idStrs {
 		id, err := strconv.ParseUint(idStr, 10, 64)
 		if err != nil || id == 0 {
-			response.FailWithMessage(i18n.T(c, "invalidIDs"), c)
+			failClientWithKey(c, "invalidIDs")
 			return
 		}
 		ids = append(ids, uint(id))
@@ -132,7 +132,7 @@ func (api *TryonModelApi) DeleteTryonModelByIds(c *gin.Context) {
 	err := tryonModelService.DeleteTryonModelByIds(userID, authorityID, ids)
 	if err != nil {
 		global.GVA_LOG.Error("批量删除我的模特失败!", zap.Error(err), zap.Uint("userID", userID))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -152,7 +152,7 @@ func (api *TryonModelApi) GetMyTryonModelList(c *gin.Context) {
 	list, err := tryonModelService.GetMyTryonModelList(userID)
 	if err != nil {
 		global.GVA_LOG.Error("获取我的模特列表失败!", zap.Error(err), zap.Uint("userID", userID))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 		return
 	}
 
@@ -171,7 +171,7 @@ func (api *TryonModelApi) GetMyTryonModelList(c *gin.Context) {
 func (api *TryonModelApi) GetTryonModelList(c *gin.Context) {
 	var pageInfo clientReq.TryonModelSearch
 	if err := c.ShouldBindQuery(&pageInfo); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
@@ -182,7 +182,7 @@ func (api *TryonModelApi) GetTryonModelList(c *gin.Context) {
 	list, total, err := tryonModelService.GetTryonModelList(pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取模特列表失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 

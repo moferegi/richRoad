@@ -35,7 +35,7 @@ func BanIPCheck() gin.HandlerFunc {
 				expiry, parseErr := strconv.ParseInt(val, 10, 64)
 				if parseErr == nil && time.Now().Unix() < expiry {
 					// 临时封禁未到期
-					remaining := time.Unix(expiry, 0).Sub(time.Now()).Minutes()
+					remaining := time.Until(time.Unix(expiry, 0)).Minutes()
 					c.JSON(http.StatusForbidden, gin.H{
 						"code": response.ERROR,
 						"msg":  fmt.Sprintf("您的IP（%s）已被临时封禁，剩余 %.0f 分钟", ip, remaining),

@@ -18,12 +18,153 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type OrderService struct {
 }
 
-const shopOrderStatusPendingConfirm = "8"
+const (
+	shopOrderStatusPendingConfirm = "8"
+
+	orderCreateRateLimitConfigKey = "security_order_create_rate_limit_per_minute"
+	orderCreateRateLimitEnvKey    = "CS_ORDER_CREATE_RATE_LIMIT_PER_MINUTE"
+
+	orderPendingLimitConfigKey = "security_order_pending_limit_per_user"
+	orderPendingLimitEnvKey    = "CS_ORDER_PENDING_LIMIT_PER_USER"
+
+	orderPendingConfirmCloseMinutesConfigKey = "order_pending_confirm_close_minutes"
+	orderPendingConfirmCloseMinutesEnvKey    = "CS_ORDER_PENDING_CONFIRM_CLOSE_MINUTES"
+
+	defaultOrderCreateRateLimitPerMinute   int64 = 30
+	defaultOrderPendingLimitPerUser        int64 = 10
+	defaultOrderPendingConfirmCloseMinutes       = 180
+)
+
+func (orderService *OrderService) enforceOrderCreateRateLimit(userID uint) error {
+	limit := utils.GetInt64Setting(orderCreateRateLimitConfigKey, orderCreateRateLimitEnvKey, defaultOrderCreateRateLimitPerMinute)
+	if limit <= 0 {
+		return nil
+	}
+
+	if global.GVA_REDIS != nil {
+		ctx := context.Background()
+		key := fmt.Sprintf("shop:order:create:rate:user:%d", userID)
+		count, err := global.GVA_REDIS.Incr(ctx, key).Result()
+		if err == nil {
+			if count == 1 {
+				_ = global.GVA_REDIS.Expire(ctx, key, time.Minute).Err()
+			}
+			if count > limit {
+				return errors.New("orderCreateTooFrequent")
+			}
+			return nil
+		}
+		global.GVA_LOG.Warn("商城下单频率校验降级为DB", zap.Error(err), zap.Uint("userID", userID))
+	}
+
+	var recentCount int64
+	if err := global.GVA_DB.Model(&shop.Order{}).
+		Where("user_id = ? AND created_at >= ?", userID, time.Now().Add(-time.Minute)).
+		Count(&recentCount).Error; err != nil {
+		global.GVA_LOG.Warn("商城下单频率DB校验失败，已降级放行", zap.Error(err), zap.Uint("userID", userID))
+		return nil
+	}
+
+	if recentCount >= limit {
+		return errors.New("orderCreateTooFrequent")
+	}
+
+	return nil
+}
+
+func (orderService *OrderService) enforceOrderPendingLimit(tx *gorm.DB, userID uint) error {
+	limit := utils.GetInt64Setting(orderPendingLimitConfigKey, orderPendingLimitEnvKey, defaultOrderPendingLimitPerUser)
+	if limit <= 0 {
+		return nil
+	}
+
+	var pendingCount int64
+	err := tx.Model(&shop.Order{}).
+		Where("user_id = ? AND status IN ? AND (close_time IS NULL OR close_time > ?)", userID, []string{"0", shopOrderStatusPendingConfirm}, time.Now()).
+		Count(&pendingCount).Error
+	if err != nil {
+		return err
+	}
+
+	if pendingCount >= limit {
+		return errors.New("orderPendingLimitExceeded")
+	}
+
+	return nil
+}
+
+func (orderService *OrderService) ensureOrderPendingAndNotExpired(order *shop.Order) error {
+	if order == nil {
+		return errors.New("orderNotFound")
+	}
+	if order.Status != "0" {
+		return errors.New("orderStateInvalidForUpdate")
+	}
+	if !order.CloseTime.IsZero() && time.Now().After(order.CloseTime) {
+		return errors.New("orderExpiredRecreate")
+	}
+	return nil
+}
+
+func (orderService *OrderService) getOrderPendingConfirmCloseMinutes(tx *gorm.DB) int {
+	_ = tx
+	minutes := utils.GetInt64Setting(orderPendingConfirmCloseMinutesConfigKey, orderPendingConfirmCloseMinutesEnvKey, int64(defaultOrderPendingConfirmCloseMinutes))
+	if minutes <= 0 {
+		return defaultOrderPendingConfirmCloseMinutes
+	}
+	return int(minutes)
+}
+
+func (orderService *OrderService) validateOrderStatusTransition(order *shop.Order, status string) error {
+	if order == nil {
+		return errors.New("orderNotFound")
+	}
+	if strings.TrimSpace(status) == "" {
+		return errors.New("orderStatusInvalid")
+	}
+	if order.Status == status {
+		return nil
+	}
+
+	switch status {
+	case "1":
+		if order.Status != "0" && order.Status != shopOrderStatusPendingConfirm {
+			return errors.New("orderStateInvalidForConfirmPayment")
+		}
+	case "3":
+		if order.Status != "2" {
+			return errors.New("orderStateInvalidForConfirmReceive")
+		}
+	case "4":
+		if order.Status != "0" && order.Status != shopOrderStatusPendingConfirm {
+			return errors.New("orderStateInvalidForCancel")
+		}
+	case "5":
+		if order.Status != "6" {
+			return errors.New("orderStateInvalidForRefund")
+		}
+	case shopOrderStatusPendingConfirm:
+		if order.Status != "0" {
+			return errors.New("orderStateInvalidForSubmitPayment")
+		}
+		if strings.ToLower(strings.TrimSpace(order.PayMethod)) != "qrcode" {
+			return errors.New("orderPayMethodNotQrcodeForSubmit")
+		}
+		if !order.CloseTime.IsZero() && time.Now().After(order.CloseTime) {
+			return errors.New("orderExpiredRecreate")
+		}
+	default:
+		return errors.New("orderStatusInvalid")
+	}
+
+	return nil
+}
 
 func normalizeSettlementCurrency(value string) string {
 	normalized := strings.TrimSpace(value)
@@ -125,17 +266,26 @@ func (orderService *OrderService) generateUniqueShopOutTradeNo(tx *gorm.DB) (str
 		}
 	}
 
-	return "", errors.New("订单号生成失败，请稍后重试")
+	return "", errors.New("orderNoGenFail")
 }
 
 func (orderService *OrderService) ChangeOrderCoupon(userID uint, orderID string, couponNum string) (err error) {
-	var order shop.Order
-	err = global.GVA_DB.Where("id = ? and user_id = ?", orderID, userID).Preload("Detail").First(&order).Error
-	if err != nil {
-		return err
-	}
-
 	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		var order shop.Order
+		err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? and user_id = ?", orderID, userID).
+			Preload("Detail").
+			First(&order).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("orderNotFound")
+			}
+			return err
+		}
+		if err = orderService.ensureOrderPendingAndNotExpired(&order); err != nil {
+			return err
+		}
+
 		// 把原来的券解锁
 		if order.CouponNum != "" {
 			// 解锁原来的券
@@ -162,7 +312,7 @@ func (orderService *OrderService) ChangeOrderCoupon(userID uint, orderID string,
 		shopUserID := int(userID)
 		err = tx.Where("coupon_num = ? AND order_id IS NULL AND shop_user_id = ?", couponNum, shopUserID).First(&couponOrderUser).Error
 		if err != nil {
-			return errors.New("优惠券不可用")
+			return errors.New("orderCouponUnavailable")
 		}
 		var coupon shop.Coupon
 		err = tx.Where("id = ?", couponOrderUser.CouponID).First(&coupon).Error
@@ -171,7 +321,7 @@ func (orderService *OrderService) ChangeOrderCoupon(userID uint, orderID string,
 		}
 		// 校验优惠券是否过期
 		if coupon.EndTime != nil && time.Now().After(*coupon.EndTime) {
-			return errors.New("\u4f18\u60e0\u5238\u5df2\u8fc7\u671f")
+			return errors.New("orderCouponExpired")
 		}
 		if coupon.ProductID != nil || coupon.ProductIDs != "" {
 			allowedIDs := couponAllowedProductIDs(coupon)
@@ -184,7 +334,7 @@ func (orderService *OrderService) ChangeOrderCoupon(userID uint, orderID string,
 					}
 				}
 				if !hasGoods {
-					return errors.New("当前订单不可使用此券")
+					return errors.New("orderCouponNotApplicable")
 				}
 			}
 		}
@@ -220,13 +370,22 @@ func (orderService *OrderService) ChangeOrderCoupon(userID uint, orderID string,
 
 // ChangeOrderPoints 变更订单积分抵扣
 func (orderService *OrderService) ChangeOrderPoints(userID uint, orderID string, usePoints bool) (err error) {
-	var order shop.Order
-	err = global.GVA_DB.Where("id = ? and user_id = ?", orderID, userID).Preload("Detail").First(&order).Error
-	if err != nil {
-		return err
-	}
-
 	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		var order shop.Order
+		err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? and user_id = ?", orderID, userID).
+			Preload("Detail").
+			First(&order).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("orderNotFound")
+			}
+			return err
+		}
+		if err = orderService.ensureOrderPendingAndNotExpired(&order); err != nil {
+			return err
+		}
+
 		// 1. 如果之前使用了积分，需要先恢复积分
 		if order.UsePoints && order.PointsUsed > 0 {
 			pointRecordService := clientService.PointRecordService{}
@@ -267,7 +426,7 @@ func (orderService *OrderService) ChangeOrderPoints(userID uint, orderID string,
 			for _, detail := range order.Detail {
 				var good shop.Good
 				if e := tx.Where("id = ?", detail.GoodID).First(&good).Error; e != nil {
-					return errors.New("查询商品信息失败")
+					return errors.New("orderGoodInfoQueryFailed")
 				}
 				if good.PointsEnabled == nil || !*good.PointsEnabled {
 					allGoodsAllow = false
@@ -282,7 +441,7 @@ func (orderService *OrderService) ChangeOrderPoints(userID uint, orderID string,
 						Where("shop_order_detail.good_id = ?", detail.GoodID).
 						Count(&usedCount)
 					if int(usedCount) >= *good.PointsUseTimes {
-						return fmt.Errorf("商品积分抵扣次数已达上限(%d次)", *good.PointsUseTimes)
+						return errors.New("orderPointsUseTimesLimitReached")
 					}
 				}
 				// 累加每个商品的最大可用积分（按数量乘）
@@ -291,7 +450,7 @@ func (orderService *OrderService) ChangeOrderPoints(userID uint, orderID string,
 				}
 			}
 			if !allGoodsAllow {
-				return errors.New("订单中存在不支持积分抵扣的商品")
+				return errors.New("orderContainsGoodsNotSupportPoints")
 			}
 
 			var user client.ClientUser
@@ -357,7 +516,21 @@ func (orderService *OrderService) ChangeOrderPoints(userID uint, orderID string,
 }
 
 func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, orderNo string, err error) {
+	if order == nil {
+		return 0, "", errors.New("invalidOrder")
+	}
+	if order.UserID == 0 {
+		return 0, "", errors.New("loginRequired")
+	}
+	if err = orderService.enforceOrderCreateRateLimit(order.UserID); err != nil {
+		return 0, "", err
+	}
+
 	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		if err = orderService.enforceOrderPendingLimit(tx, order.UserID); err != nil {
+			return err
+		}
+
 		order.OriginPrice = 0
 		presaleService := PresaleService{}
 		for i := range order.Detail {
@@ -368,7 +541,7 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, o
 				return err
 			}
 			if sku.Inventory < order.Detail[i].Quantity {
-				return errors.New("库存不足")
+				return errors.New("orderInventoryInsufficient")
 			}
 
 			// 预售商品检查与防超卖
@@ -399,7 +572,7 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, o
 				return result.Error
 			}
 			if result.RowsAffected == 0 {
-				return errors.New("库存不足，请重试")
+				return errors.New("orderInventoryInsufficientRetry")
 			}
 			// sale_num 在付款确认时增加，而非下单时
 			order.Detail[i].Price = sku.Price
@@ -413,7 +586,7 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, o
 			shopUserID := int(order.UserID)
 			err = tx.Where("coupon_num = ? AND order_id IS NULL AND shop_user_id = ?", order.CouponNum, shopUserID).First(&couponOrderUser).Error
 			if err != nil {
-				return errors.New("优惠券不可用")
+				return errors.New("orderCouponUnavailable")
 			}
 			var coupon shop.Coupon
 			err = tx.Where("id = ?", couponOrderUser.CouponID).First(&coupon).Error
@@ -422,7 +595,7 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, o
 			}
 			// 校验优惠券是否过期
 			if coupon.EndTime != nil && time.Now().After(*coupon.EndTime) {
-				return errors.New("\u4f18\u60e0\u5238\u5df2\u8fc7\u671f")
+				return errors.New("orderCouponExpired")
 			}
 			if coupon.ProductID != nil {
 				hasGoods := false
@@ -433,7 +606,7 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, o
 					}
 				}
 				if !hasGoods {
-					return errors.New("当前订单不可使用此券")
+					return errors.New("orderCouponNotApplicable")
 				}
 			}
 			order.TotalPrice = 0
@@ -500,16 +673,27 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, o
 
 // 购物车下单
 func (orderService *OrderService) PlaceOrderByCart(userID uint, req shopReq.PlaceOrderByCartRequest) (OrderID uint, orderNo string, err error) {
+	if userID == 0 {
+		return 0, "", errors.New("loginRequired")
+	}
+	if err = orderService.enforceOrderCreateRateLimit(userID); err != nil {
+		return 0, "", err
+	}
+
 	// 1. 获取购物车中的商品
 	var carts []shop.Cart
 	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		if err = orderService.enforceOrderPendingLimit(tx, userID); err != nil {
+			return err
+		}
+
 		query := tx.Where("user_id = ?", userID).Preload("Good").Preload("SKU")
 		if len(req.CartIDs) > 0 {
 			query = query.Where("id IN ?", req.CartIDs)
 		}
 		query.Find(&carts)
 		if len(carts) == 0 {
-			return errors.New("购物车为空")
+			return errors.New("orderCartEmpty")
 		}
 		// 2. 创建订单
 		order := shop.Order{
@@ -526,7 +710,7 @@ func (orderService *OrderService) PlaceOrderByCart(userID uint, req shopReq.Plac
 		for i := range carts {
 			// 判断当前库存是否充足
 			if carts[i].SKU.Inventory < carts[i].Quantity {
-				return errors.New("库存不足")
+				return errors.New("orderInventoryInsufficient")
 			}
 
 			// 预售商品检查与防超卖
@@ -559,7 +743,7 @@ func (orderService *OrderService) PlaceOrderByCart(userID uint, req shopReq.Plac
 				return result.Error
 			}
 			if result.RowsAffected == 0 {
-				return errors.New("库存不足，请重试")
+				return errors.New("orderInventoryInsufficientRetry")
 			}
 			// sale_num 在付款确认时增加，而非下单时
 		}
@@ -629,11 +813,26 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 	err = db.Transaction(func(tx *gorm.DB) error {
 		var order shop.Order
 		var user client.ClientUser
-		err = tx.First(&order, "id = ?", orderID).Error
+		err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&order, "id = ?", orderID).Error
 		if err != nil {
 			return err
 		}
-		err = tx.Model(&order).Update("status", status).Error
+
+		if err = orderService.validateOrderStatusTransition(&order, status); err != nil {
+			return err
+		}
+		if order.Status == status {
+			return nil
+		}
+
+		updates := map[string]interface{}{"status": status}
+		if status == shopOrderStatusPendingConfirm {
+			pendingConfirmCloseMinutes := orderService.getOrderPendingConfirmCloseMinutes(tx)
+			if pendingConfirmCloseMinutes > 0 {
+				updates["close_time"] = time.Now().Add(time.Duration(pendingConfirmCloseMinutes) * time.Minute)
+			}
+		}
+		err = tx.Model(&order).Updates(updates).Error
 		if err != nil {
 			return err
 		}
@@ -839,39 +1038,42 @@ func (orderService *OrderService) UpdateOrderStatus(db *gorm.DB, orderID string,
 // UpdateOrderStatusForUser 普通用户更新订单状态（仅本人订单，且严格限制状态迁移）
 func (orderService *OrderService) UpdateOrderStatusForUser(userID uint, orderID string, status string) error {
 	if userID == 0 {
-		return errors.New("请先登录")
+		return errors.New("loginRequired")
 	}
 	if strings.TrimSpace(orderID) == "" {
-		return errors.New("订单ID不能为空")
+		return errors.New("orderIDRequired")
 	}
 	if status != "3" && status != "4" && status != shopOrderStatusPendingConfirm {
-		return errors.New("状态错误")
+		return errors.New("orderStatusInvalid")
 	}
 
 	var order shop.Order
 	err := global.GVA_DB.Where("id = ? AND user_id = ?", orderID, userID).First(&order).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("订单不存在")
+			return errors.New("orderNotFound")
 		}
 		return err
 	}
 
 	if status == "4" && order.Status != "0" {
-		return errors.New("当前订单状态不支持取消")
+		return errors.New("orderStateInvalidForCancel")
 	}
 	if status == "3" && order.Status != "2" {
-		return errors.New("当前订单状态不支持确认收货")
+		return errors.New("orderStateInvalidForConfirmReceive")
 	}
 	if status == shopOrderStatusPendingConfirm {
 		if order.Status == shopOrderStatusPendingConfirm {
 			return nil
 		}
 		if order.Status != "0" {
-			return errors.New("当前订单状态不支持提交付款确认")
+			return errors.New("orderStateInvalidForSubmitPayment")
+		}
+		if !order.CloseTime.IsZero() && time.Now().After(order.CloseTime) {
+			return errors.New("orderExpiredRecreate")
 		}
 		if strings.ToLower(strings.TrimSpace(order.PayMethod)) != "qrcode" {
-			return errors.New("仅扫码支付订单可提交付款确认")
+			return errors.New("orderPayMethodNotQrcodeForSubmit")
 		}
 	}
 
@@ -892,7 +1094,7 @@ func (orderService *OrderService) ConfirmPayment(orderID string) (err error) {
 		return err
 	}
 	if order.Status != "0" && order.Status != shopOrderStatusPendingConfirm {
-		return fmt.Errorf("只能对待付款/待后台确认订单确认收款，当前状态: %s", order.Status)
+		return errors.New("orderConfirmPaymentStateInvalid")
 	}
 	now := time.Now()
 	// 先设置 paidAt
@@ -920,23 +1122,23 @@ func (orderService *OrderService) UpdateOrder(order shop.Order) (err error) {
 // UpdateOrderForUser 普通用户更新订单（仅允许本人待支付订单修改地址和支付方式）
 func (orderService *OrderService) UpdateOrderForUser(userID uint, order shop.Order) (err error) {
 	if userID == 0 {
-		return errors.New("请先登录")
+		return errors.New("loginRequired")
 	}
 	if order.ID == 0 {
-		return errors.New("订单参数错误")
+		return errors.New("invalidOrder")
 	}
 
 	var existing shop.Order
 	err = global.GVA_DB.Where("id = ? AND user_id = ?", order.ID, userID).First(&existing).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("订单不存在")
+			return errors.New("orderNotFound")
 		}
 		return err
 	}
 
 	if existing.Status != "0" {
-		return errors.New("当前订单状态不支持修改")
+		return errors.New("orderStateInvalidForUpdate")
 	}
 
 	updates := map[string]interface{}{}
@@ -1073,23 +1275,23 @@ func (orderService *OrderService) ApplyRefund(userID uint, req shopReq.RefundApp
 	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
 		var order shop.Order
 		if err := tx.Where("id = ? and user_id = ?", req.OrderID, userID).First(&order).Error; err != nil {
-			return errors.New("订单不存在")
+			return errors.New("orderNotFound")
 		}
 		switch order.Status {
 		case "0":
-			return errors.New("订单未支付，无法申请退款")
+			return errors.New("orderRefundNotPaid")
 		case shopOrderStatusPendingConfirm:
-			return errors.New("订单待后台确认，暂不支持退款")
+			return errors.New("orderRefundPendingConfirmUnsupported")
 		case "4":
-			return errors.New("订单已取消，无法申请退款")
+			return errors.New("orderRefundCanceled")
 		case "5":
-			return errors.New("订单已退款")
+			return errors.New("orderAlreadyRefunded")
 		case "6":
-			return errors.New("退款申请处理中")
+			return errors.New("orderRefundProcessing")
 		}
 		allowStatus := map[string]bool{"1": true, "2": true, "3": true, "7": true}
 		if !allowStatus[order.Status] {
-			return errors.New("当前订单状态不允许退款")
+			return errors.New("orderStateInvalidForApplyRefund")
 		}
 
 		imagesJSON := []byte("[]")
@@ -1118,10 +1320,10 @@ func (orderService *OrderService) RefundOrder(orderID uint, remark string) (err 
 	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
 		var order shop.Order
 		if err := tx.First(&order, "id = ?", orderID).Error; err != nil {
-			return errors.New("订单不存在")
+			return errors.New("orderNotFound")
 		}
 		if order.Status != "6" {
-			return errors.New("订单未处于退款申请中")
+			return errors.New("orderRefundStateNotApplying")
 		}
 		if err := orderService.UpdateOrderStatus(tx, strconv.Itoa(int(orderID)), "5"); err != nil {
 			return err
@@ -1141,7 +1343,14 @@ func (orderService *OrderService) RefundOrder(orderID uint, remark string) (err 
 
 // BatchUpdateOrderStatus 批量更新订单状态
 func (orderService *OrderService) BatchUpdateOrderStatus(IDs []string, status string) error {
-	return global.GVA_DB.Model(&shop.Order{}).
-		Where("id IN ?", IDs).
-		Update("status", status).Error
+	for _, id := range IDs {
+		orderID := strings.TrimSpace(id)
+		if orderID == "" {
+			continue
+		}
+		if err := orderService.UpdateOrderStatus(nil, orderID, status); err != nil {
+			return err
+		}
+	}
+	return nil
 }

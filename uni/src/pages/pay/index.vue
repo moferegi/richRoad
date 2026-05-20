@@ -694,7 +694,9 @@ const loadOrderCloseTime = async () => {
         }
         rebuildOrderSummaryName()
       }
-    } catch (e) {}
+    } catch {
+      // ignore fetch order status failure
+    }
   }
   if (closeTime.value && orderStatus.value === '0') startPayCountdown()
 }

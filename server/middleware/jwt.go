@@ -40,7 +40,7 @@ func JWTAuth() gin.HandlerFunc {
 				c.Abort()
 				return
 			}
-			response.NoAuth(err.Error(), c)
+			response.NoAuth(i18n.T(c, "tokenInvalid"), c)
 			utils.ClearToken(c)
 			c.Abort()
 			return
@@ -51,7 +51,7 @@ func JWTAuth() gin.HandlerFunc {
 
 		//if user, err := userService.FindUserByUuid(claims.UUID.String()); err != nil || user.Enable == 2 {
 		//	_ = jwtService.JsonInBlacklist(system.JwtBlacklist{Jwt: token})
-		//	response.FailWithDetailed(gin.H{"reload": true}, err.Error(), c)
+		//	response.FailWithDetailed(gin.H{"reload": true}, i18n.T(c, "userDisabled"), c)
 		//	c.Abort()
 		//}
 		// 客户端用户封禁检查(AuthorityId=8080)

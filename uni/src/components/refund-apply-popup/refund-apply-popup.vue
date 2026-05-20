@@ -107,7 +107,7 @@ const previewImage = (index) => {
   })
 }
 
-const uploadSingleImage = (tempFilePath, index) => {
+const uploadSingleImage = (tempFilePath, _index) => {
   return new Promise((resolve, reject) => {
     uni.uploadFile({
       url: baseUrl + '/fileUploadAndDownload/upload',

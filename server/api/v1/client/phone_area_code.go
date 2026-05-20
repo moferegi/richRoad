@@ -28,12 +28,12 @@ func (api *PhoneAreaCodeApi) CreatePhoneAreaCode(c *gin.Context) {
 	var info client.PhoneAreaCode
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	if err := phoneAreaCodeService.CreatePhoneAreaCode(&info); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "createFail"), c)
+		failClientWithKey(c, "createFail")
 	} else {
 		response.OkWithMessage(i18n.T(c, "createSuccess"), c)
 	}
@@ -52,7 +52,7 @@ func (api *PhoneAreaCodeApi) DeletePhoneAreaCode(c *gin.Context) {
 	ID := c.Query("ID")
 	if err := phoneAreaCodeService.DeletePhoneAreaCode(ID); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "deleteFail"), c)
+		failClientWithKey(c, "deleteFail")
 	} else {
 		response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
 	}
@@ -71,12 +71,12 @@ func (api *PhoneAreaCodeApi) UpdatePhoneAreaCode(c *gin.Context) {
 	var info client.PhoneAreaCode
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	if err := phoneAreaCodeService.UpdatePhoneAreaCode(info); err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "updateFail"), c)
+		failClientWithKey(c, "updateFail")
 	} else {
 		response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
 	}
@@ -95,12 +95,12 @@ func (api *PhoneAreaCodeApi) GetPhoneAreaCodeList(c *gin.Context) {
 	var pageInfo clientReq.PhoneAreaCodeSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	if list, total, err := phoneAreaCodeService.GetPhoneAreaCodeList(pageInfo); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 	} else {
 		response.OkWithDetailed(response.PageResult{
 			List:     list,
@@ -121,7 +121,7 @@ func (api *PhoneAreaCodeApi) GetPhoneAreaCodeList(c *gin.Context) {
 func (api *PhoneAreaCodeApi) GetEnabledPhoneAreaCodes(c *gin.Context) {
 	if list, err := phoneAreaCodeService.GetEnabledPhoneAreaCodes(); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 	} else {
 		response.OkWithDetailed(i18n.LocalizeResponseData(c, list), i18n.T(c, "getSuccess"), c)
 	}

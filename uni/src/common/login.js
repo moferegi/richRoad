@@ -1,4 +1,3 @@
-import {getMinProLoginInfo} from '@/api/loginApi.js'
 import { t } from '@/utils/i18n.js'
 /**
  * 微信登陆方法

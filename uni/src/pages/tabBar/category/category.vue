@@ -229,15 +229,6 @@ const handleScrollToLower = () => {
   // 新的数据结构一次性加载所有分类和商品，不需要分页
 }
 
-// 点击商品
-const clickitem = (item) => {
-  getgoods(item)
-}
-
-const getgoods = (item) => {
-  // debug removed
-}
-
 const goto = (item) => {
   uni.navigateTo({
     url: '/pages/player/index?id=' + item.ID

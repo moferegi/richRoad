@@ -26,13 +26,13 @@ func (api *SkuSpecApi) CreateSkuSpec(c *gin.Context) {
 	var spec shop.SkuSpec
 	err := c.ShouldBindJSON(&spec)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = skuSpecService.CreateSkuSpec(ctx, &spec)
 	if err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage("创建失败:"+err.Error(), c)
+		response.FailWithMessage("创建失败", c)
 		return
 	}
 	response.OkWithMessage("创建成功", c)
@@ -53,7 +53,7 @@ func (api *SkuSpecApi) DeleteSkuSpec(c *gin.Context) {
 	err := skuSpecService.DeleteSkuSpec(ctx, ID)
 	if err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败:"+err.Error(), c)
+		response.FailWithMessage("删除失败", c)
 		return
 	}
 	response.OkWithMessage("删除成功", c)
@@ -73,13 +73,13 @@ func (api *SkuSpecApi) DeleteSkuSpecByIds(c *gin.Context) {
 	var IDS request.IdsReq
 	err := c.ShouldBindJSON(&IDS)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = skuSpecService.DeleteSkuSpecByIds(ctx, IDS.Ids)
 	if err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
-		response.FailWithMessage("批量删除失败:"+err.Error(), c)
+		response.FailWithMessage("批量删除失败", c)
 		return
 	}
 	response.OkWithMessage("批量删除成功", c)
@@ -99,13 +99,13 @@ func (api *SkuSpecApi) UpdateSkuSpec(c *gin.Context) {
 	var spec shop.SkuSpec
 	err := c.ShouldBindJSON(&spec)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = skuSpecService.UpdateSkuSpec(ctx, spec)
 	if err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage("更新失败:"+err.Error(), c)
+		response.FailWithMessage("更新失败", c)
 		return
 	}
 	response.OkWithMessage("更新成功", c)
@@ -126,7 +126,7 @@ func (api *SkuSpecApi) FindSkuSpec(c *gin.Context) {
 	spec, err := skuSpecService.GetSkuSpec(ctx, ID)
 	if err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage("查询失败:"+err.Error(), c)
+		response.FailWithMessage("查询失败", c)
 		return
 	}
 	response.OkWithDetailed(spec, "获取成功", c)
@@ -146,13 +146,13 @@ func (api *SkuSpecApi) GetSkuSpecList(c *gin.Context) {
 	var pageInfo shopReq.SkuSpecSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := skuSpecService.GetSkuSpecInfoList(ctx, pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败:"+err.Error(), c)
+		response.FailWithMessage("获取失败", c)
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -178,7 +178,7 @@ func (api *SkuSpecApi) GetAllSkuSpecs(c *gin.Context) {
 	list, err := skuSpecService.GetAllSkuSpecs(ctx, specType)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败:"+err.Error(), c)
+		response.FailWithMessage("获取失败", c)
 		return
 	}
 	response.OkWithDetailed(list, "获取成功", c)

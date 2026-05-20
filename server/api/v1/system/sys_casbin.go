@@ -25,12 +25,12 @@ func (cas *CasbinApi) UpdateCasbin(c *gin.Context) {
 	var cmr request.CasbinInReceive
 	err := c.ShouldBindJSON(&cmr)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(cmr, utils.AuthorityIdVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	adminAuthorityID := utils.GetUserAuthorityId(c)
@@ -56,12 +56,12 @@ func (cas *CasbinApi) GetPolicyPathByAuthorityId(c *gin.Context) {
 	var casbin request.CasbinInReceive
 	err := c.ShouldBindJSON(&casbin)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(casbin, utils.AuthorityIdVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	paths := casbinService.GetPolicyPathByAuthorityId(casbin.AuthorityId)

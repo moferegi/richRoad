@@ -27,7 +27,7 @@ func (api *MarketingRewardApi) CreateMarketingReward(c *gin.Context) {
 	var info shop.MarketingReward
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := marketingRewardService.CreateMarketingReward(&info); err != nil {
@@ -70,7 +70,7 @@ func (api *MarketingRewardApi) UpdateMarketingReward(c *gin.Context) {
 	var info shop.MarketingReward
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := marketingRewardService.UpdateMarketingReward(info); err != nil {
@@ -94,7 +94,7 @@ func (api *MarketingRewardApi) GetMarketingRewardList(c *gin.Context) {
 	var pageInfo shopReq.MarketingRewardSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if list, total, err := marketingRewardService.GetMarketingRewardList(pageInfo); err != nil {

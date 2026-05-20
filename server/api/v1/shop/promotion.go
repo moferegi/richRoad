@@ -28,13 +28,13 @@ func (promoApi *PromotionApi) CreatePromotion(c *gin.Context) {
 	var Promo shop.Promotion
 	err := c.ShouldBindJSON(&Promo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = promoService.CreatePromotion(ctx, &Promo)
 	if err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage("创建失败:"+err.Error(), c)
+		response.FailWithMessage("创建失败", c)
 		return
 	}
 	response.OkWithMessage("创建成功", c)
@@ -57,7 +57,7 @@ func (promoApi *PromotionApi) DeletePromotion(c *gin.Context) {
 	err := promoService.DeletePromotion(ctx, ID)
 	if err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败:"+err.Error(), c)
+		response.FailWithMessage("删除失败", c)
 		return
 	}
 	response.OkWithMessage("删除成功", c)
@@ -79,7 +79,7 @@ func (promoApi *PromotionApi) DeletePromotionByIds(c *gin.Context) {
 	err := promoService.DeletePromotionByIds(ctx, IDs)
 	if err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
-		response.FailWithMessage("批量删除失败:"+err.Error(), c)
+		response.FailWithMessage("批量删除失败", c)
 		return
 	}
 	response.OkWithMessage("批量删除成功", c)
@@ -101,13 +101,13 @@ func (promoApi *PromotionApi) UpdatePromotion(c *gin.Context) {
 	var Promo shop.Promotion
 	err := c.ShouldBindJSON(&Promo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = promoService.UpdatePromotion(ctx, Promo)
 	if err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage("更新失败:"+err.Error(), c)
+		response.FailWithMessage("更新失败", c)
 		return
 	}
 	response.OkWithMessage("更新成功", c)
@@ -130,7 +130,7 @@ func (promoApi *PromotionApi) FindPromotion(c *gin.Context) {
 	rePromo, err := promoService.GetPromotion(ctx, ID)
 	if err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage("查询失败:"+err.Error(), c)
+		response.FailWithMessage("查询失败", c)
 		return
 	}
 	response.OkWithData(rePromo, c)
@@ -152,13 +152,13 @@ func (promoApi *PromotionApi) GetPromotionList(c *gin.Context) {
 	var pageInfo shopReq.PromotionSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := promoService.GetPromotionInfoList(ctx, pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败:"+err.Error(), c)
+		response.FailWithMessage("获取失败", c)
 		return
 	}
 	response.OkWithDetailed(response.PageResult{

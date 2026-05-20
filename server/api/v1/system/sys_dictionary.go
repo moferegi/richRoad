@@ -24,7 +24,7 @@ func (s *DictionaryApi) CreateSysDictionary(c *gin.Context) {
 	var dictionary system.SysDictionary
 	err := c.ShouldBindJSON(&dictionary)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = dictionaryService.CreateSysDictionary(dictionary)
@@ -49,7 +49,7 @@ func (s *DictionaryApi) DeleteSysDictionary(c *gin.Context) {
 	var dictionary system.SysDictionary
 	err := c.ShouldBindJSON(&dictionary)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = dictionaryService.DeleteSysDictionary(dictionary)
@@ -74,7 +74,7 @@ func (s *DictionaryApi) UpdateSysDictionary(c *gin.Context) {
 	var dictionary system.SysDictionary
 	err := c.ShouldBindJSON(&dictionary)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = dictionaryService.UpdateSysDictionary(&dictionary)
@@ -99,7 +99,7 @@ func (s *DictionaryApi) FindSysDictionary(c *gin.Context) {
 	var dictionary system.SysDictionary
 	err := c.ShouldBindQuery(&dictionary)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	sysDictionary, err := dictionaryService.GetSysDictionary(dictionary.Type, dictionary.ID, dictionary.Status)
@@ -124,7 +124,7 @@ func (s *DictionaryApi) GetSysDictionaryList(c *gin.Context) {
 	var dictionary request.SysDictionarySearch
 	err := c.ShouldBindQuery(&dictionary)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, err := dictionaryService.GetSysDictionaryInfoList(c, dictionary)
@@ -149,7 +149,7 @@ func (s *DictionaryApi) ExportSysDictionary(c *gin.Context) {
 	var dictionary system.SysDictionary
 	err := c.ShouldBindQuery(&dictionary)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if dictionary.ID == 0 {
@@ -178,13 +178,13 @@ func (s *DictionaryApi) ImportSysDictionary(c *gin.Context) {
 	var req request.ImportSysDictionaryRequest
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = dictionaryService.ImportSysDictionary(req.Json)
 	if err != nil {
 		global.GVA_LOG.Error("导入失败!", zap.Error(err))
-		response.FailWithMessage("导入失败: "+err.Error(), c)
+		response.FailWithMessage("导入失败", c)
 		return
 	}
 	response.OkWithMessage("导入成功", c)

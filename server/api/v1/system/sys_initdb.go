@@ -1,15 +1,58 @@
 package system
 
 import (
+	"net"
+	"strings"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/system/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"go.uber.org/zap"
 
 	"github.com/gin-gonic/gin"
 )
 
 type DBApi struct{}
+
+const (
+	initAPIEnabledConfigKey = "security_init_api_enabled"
+	initAPIEnabledEnvKey    = "CS_INIT_API_ENABLED"
+
+	initAPIPrivateOnlyConfigKey = "security_init_api_private_network_only"
+	initAPIPrivateOnlyEnvKey    = "CS_INIT_API_PRIVATE_NETWORK_ONLY"
+)
+
+func isPrivateOrLoopbackIP(ip string) bool {
+	parsed := net.ParseIP(strings.TrimSpace(ip))
+	if parsed == nil {
+		return false
+	}
+	if parsed.IsLoopback() || parsed.IsPrivate() || parsed.IsLinkLocalUnicast() {
+		return true
+	}
+	return false
+}
+
+func (i *DBApi) checkInitAPIAccess(c *gin.Context) bool {
+	defaultEnabled := global.GVA_DB == nil
+	if !utils.GetBoolSetting(initAPIEnabledConfigKey, initAPIEnabledEnvKey, defaultEnabled) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return false
+	}
+
+	if !utils.GetBoolSetting(initAPIPrivateOnlyConfigKey, initAPIPrivateOnlyEnvKey, true) {
+		return true
+	}
+
+	if !isPrivateOrLoopbackIP(c.ClientIP()) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return false
+	}
+
+	return true
+}
 
 // InitDB
 // @Tags     InitDB
@@ -19,6 +62,10 @@ type DBApi struct{}
 // @Success  200   {object}  response.Response{data=string}  "初始化用户数据库"
 // @Router   /init/initdb [post]
 func (i *DBApi) InitDB(c *gin.Context) {
+	if !i.checkInitAPIAccess(c) {
+		return
+	}
+
 	if global.GVA_DB != nil {
 		global.GVA_LOG.Error("已存在数据库配置!")
 		response.FailWithMessage("已存在数据库配置", c)
@@ -45,6 +92,10 @@ func (i *DBApi) InitDB(c *gin.Context) {
 // @Success  200  {object}  response.Response{data=map[string]interface{},msg=string}  "初始化用户数据库"
 // @Router   /init/checkdb [post]
 func (i *DBApi) CheckDB(c *gin.Context) {
+	if !i.checkInitAPIAccess(c) {
+		return
+	}
+
 	var (
 		message  = "前往初始化数据库"
 		needInit = true

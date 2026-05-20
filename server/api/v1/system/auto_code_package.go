@@ -26,7 +26,7 @@ func (a *AutoCodePackageApi) Create(c *gin.Context) {
 	var info request.SysAutoCodePackageCreate
 	_ = c.ShouldBindJSON(&info)
 	if err := utils.Verify(info, utils.AutoPackageVerify); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if strings.Contains(info.PackageName, "\\") || strings.Contains(info.PackageName, "/") || strings.Contains(info.PackageName, "..") {

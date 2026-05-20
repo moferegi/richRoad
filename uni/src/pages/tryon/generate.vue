@@ -1063,9 +1063,8 @@ const initTaskFromHistory = async (taskID) => {
 }
 
 const ensureAlbumPermission = async () => {
-  // #ifdef H5
-  return true
-  // #endif
+  const isH5Runtime = typeof window !== 'undefined' && typeof document !== 'undefined'
+  if (isH5Runtime) return true
 
   try {
     const settingRes = await uni.getSetting()
@@ -1110,18 +1109,19 @@ const downloadResult = async () => {
     return
   }
 
-  // #ifdef H5
-  const anchor = document.createElement('a')
-  anchor.href = activeResultPreview.value
-  anchor.target = '_blank'
-  anchor.rel = 'noopener'
-  anchor.download = `tryon-${Date.now()}`
-  document.body.appendChild(anchor)
-  anchor.click()
-  document.body.removeChild(anchor)
-  uni.showToast({ title: $t.value('downloadAction'), icon: 'none' })
-  return
-  // #endif
+  const isH5Runtime = typeof window !== 'undefined' && typeof document !== 'undefined'
+  if (isH5Runtime) {
+    const anchor = document.createElement('a')
+    anchor.href = activeResultPreview.value
+    anchor.target = '_blank'
+    anchor.rel = 'noopener'
+    anchor.download = `tryon-${Date.now()}`
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+    uni.showToast({ title: $t.value('downloadAction'), icon: 'none' })
+    return
+  }
 
   try {
     uni.showLoading({ title: $t.value('loading'), mask: true })

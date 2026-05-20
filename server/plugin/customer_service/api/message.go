@@ -166,7 +166,7 @@ func (a *MessageApi) UploadImage(c *gin.Context) {
 	authID := utils.GetUserAuthorityId(c)
 	if authID != 8080 && authID != 888 {
 		if _, err := service.Service.AgentService.GetEnabledByUserID(utils.GetUserID(c)); err != nil {
-			response.FailWithMessage(err.Error(), c)
+			response.FailWithMessage("坐席不可用", c)
 			return
 		}
 	}
@@ -183,7 +183,7 @@ func (a *MessageApi) UploadImage(c *gin.Context) {
 		return
 	}
 
-	file, err := gvaService.ServiceGroupApp.ExampleServiceGroup.FileUploadAndDownloadService.UploadFile(header, "0", 0, "cloth-on/kefu", "", "kefu")
+	file, err := gvaService.ServiceGroupApp.ExampleServiceGroup.FileUploadAndDownloadService.UploadFile(header, "0", 0, "cloth-on/kefu", "", "kefu", utils.GetUserID(c))
 	if err != nil {
 		global.GVA_LOG.Error("客服图片上传失败", zap.Error(err))
 		response.FailWithMessage("上传失败", c)
@@ -208,7 +208,7 @@ func (a *MessageApi) UploadImage(c *gin.Context) {
 func (a *MessageApi) GetMessageHistory(c *gin.Context) {
 	var search csReq.MessageSearch
 	if err := c.ShouldBindQuery(&search); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	userID := utils.GetUserID(c)
@@ -216,16 +216,16 @@ func (a *MessageApi) GetMessageHistory(c *gin.Context) {
 
 	if authID == 8080 {
 		if err := service.Service.ConversationService.CheckClientOwnership(userID, search.ConversationID); err != nil {
-			response.FailWithMessage(err.Error(), c)
+			response.FailWithMessage("无权限访问该会话", c)
 			return
 		}
 	} else if authID != 888 {
 		if _, err := service.Service.AgentService.GetEnabledByUserID(userID); err != nil {
-			response.FailWithMessage(err.Error(), c)
+			response.FailWithMessage("坐席不可用", c)
 			return
 		}
 		if err := service.Service.ConversationService.CheckAgentAccess(userID, search.ConversationID, true); err != nil {
-			response.FailWithMessage(err.Error(), c)
+			response.FailWithMessage("无权限访问该会话", c)
 			return
 		}
 	}
@@ -256,7 +256,7 @@ func (a *MessageApi) GetMessageHistory(c *gin.Context) {
 func (a *MessageApi) SendMessage(c *gin.Context) {
 	var req csReq.SendMessageReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	senderID := utils.GetUserID(c)
@@ -267,11 +267,11 @@ func (a *MessageApi) SendMessage(c *gin.Context) {
 	}
 	if authID != 888 {
 		if _, err := service.Service.AgentService.GetEnabledByUserID(senderID); err != nil {
-			response.FailWithMessage(err.Error(), c)
+			response.FailWithMessage("坐席不可用", c)
 			return
 		}
 		if err := service.Service.ConversationService.CheckAgentAccess(senderID, req.ConversationID, true); err != nil {
-			response.FailWithMessage(err.Error(), c)
+			response.FailWithMessage("无权限访问该会话", c)
 			return
 		}
 	}
@@ -281,7 +281,7 @@ func (a *MessageApi) SendMessage(c *gin.Context) {
 		req.MsgType, req.Content, req.ClientMsgID,
 	)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("发送失败", c)
 		return
 	}
 	response.OkWithDetailed(msg, "发送成功", c)
@@ -299,7 +299,7 @@ func (a *MessageApi) SendMessage(c *gin.Context) {
 func (a *MessageApi) RevokeMessage(c *gin.Context) {
 	var req csReq.RevokeMessageReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	senderID := utils.GetUserID(c)
@@ -310,12 +310,12 @@ func (a *MessageApi) RevokeMessage(c *gin.Context) {
 		senderType = "user"
 	} else if authID != 888 {
 		if _, err := service.Service.AgentService.GetEnabledByUserID(senderID); err != nil {
-			response.FailWithMessage(err.Error(), c)
+			response.FailWithMessage("坐席不可用", c)
 			return
 		}
 	}
 	if err := service.Service.MessageService.Revoke(req.MessageID, senderID, senderType); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("撤回失败", c)
 		return
 	}
 	response.OkWithMessage("撤回成功", c)

@@ -68,11 +68,11 @@ func (a *AuthorityMenuApi) AddMenuAuthority(c *gin.Context) {
 	var authorityMenu systemReq.AddMenuAuthorityInfo
 	err := c.ShouldBindJSON(&authorityMenu)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := utils.Verify(authorityMenu, utils.AuthorityIdVerify); err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	adminAuthorityID := utils.GetUserAuthorityId(c)
@@ -97,12 +97,12 @@ func (a *AuthorityMenuApi) GetMenuAuthority(c *gin.Context) {
 	var param request.GetAuthorityId
 	err := c.ShouldBindJSON(&param)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(param, utils.AuthorityIdVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	menus, err := menuService.GetMenuAuthority(&param)
@@ -127,23 +127,23 @@ func (a *AuthorityMenuApi) AddBaseMenu(c *gin.Context) {
 	var menu system.SysBaseMenu
 	err := c.ShouldBindJSON(&menu)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(menu, utils.MenuVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(menu.Meta, utils.MenuMetaVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = menuService.AddBaseMenu(menu)
 	if err != nil {
 		global.GVA_LOG.Error("添加失败!", zap.Error(err))
-		response.FailWithMessage("添加失败："+err.Error(), c)
+		response.FailWithMessage("添加失败", c)
 		return
 	}
 	response.OkWithMessage("添加成功", c)
@@ -162,18 +162,18 @@ func (a *AuthorityMenuApi) DeleteBaseMenu(c *gin.Context) {
 	var menu request.GetById
 	err := c.ShouldBindJSON(&menu)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(menu, utils.IdVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = baseMenuService.DeleteBaseMenu(menu.ID)
 	if err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败:"+err.Error(), c)
+		response.FailWithMessage("删除失败", c)
 		return
 	}
 	response.OkWithMessage("删除成功", c)
@@ -192,17 +192,17 @@ func (a *AuthorityMenuApi) UpdateBaseMenu(c *gin.Context) {
 	var menu system.SysBaseMenu
 	err := c.ShouldBindJSON(&menu)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(menu, utils.MenuVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(menu.Meta, utils.MenuMetaVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = baseMenuService.UpdateBaseMenu(menu)
@@ -227,12 +227,12 @@ func (a *AuthorityMenuApi) GetBaseMenuById(c *gin.Context) {
 	var idInfo request.GetById
 	err := c.ShouldBindJSON(&idInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(idInfo, utils.IdVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	menu, err := baseMenuService.GetBaseMenuById(idInfo.ID)

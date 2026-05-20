@@ -530,9 +530,9 @@ const destroyPlayer = () => {
   document.removeEventListener('fullscreenchange', onFsChange)
   document.removeEventListener('webkitfullscreenchange', onFsChange)
   if (document.fullscreenElement || document.webkitFullscreenElement) {
-    try { (document.exitFullscreen || document.webkitExitFullscreen)?.call(document) } catch(e) {}
+    try { (document.exitFullscreen || document.webkitExitFullscreen)?.call(document) } catch { /* ignore */ }
   }
-  try { screen.orientation?.unlock?.() } catch(e) {}
+  try { screen.orientation?.unlock?.() } catch { /* ignore */ }
   // 清理 CSS 全屏
   removeCssOrientation(playerRef.value)
   playerRef.value?.classList.remove('nf-vp-css-fs', 'nf-vp-css-fs-portrait')
@@ -545,7 +545,7 @@ const onFsChange = () => {
   if (!isNativeFs && vpFs.value && !playerRef.value?.classList.contains('nf-vp-css-fs')) {
     vpFs.value = false
     removeCssOrientation(playerRef.value)
-    try { screen.orientation?.unlock?.() } catch(e) {}
+    try { screen.orientation?.unlock?.() } catch { /* ignore */ }
   }
   if (isNativeFs) vpFs.value = true
   if (!vpFs.value) {
@@ -575,7 +575,7 @@ const vpToggleFs = () => {
   if (vpFs.value) {
     if (document.fullscreenElement || document.webkitFullscreenElement) {
       (document.exitFullscreen || document.webkitExitFullscreen)?.call(document)
-      try { screen.orientation?.unlock?.() } catch(e) {}
+      try { screen.orientation?.unlock?.() } catch { /* ignore */ }
     } else {
       // CSS 全屏回退
       vpFs.value = false
@@ -854,7 +854,9 @@ const resolveVideoUrl = (ep) => {
         const url = d.videoUrl || d.video_url || d.url || ''
         if (url) return url
       }
-    } catch (e) {}
+    } catch {
+      // ignore JSON parse failure
+    }
   }
   return ''
 }
@@ -929,7 +931,9 @@ const applyRenewedVideoUrl = (nextUrl) => {
     cleanup()
     try {
       if (resumeTime > 0) v.currentTime = resumeTime
-    } catch (e) {}
+    } catch {
+      // ignore JSON parse failure
+    }
     v.playbackRate = keepRate
     isBuffering.value = false
     if (!wasPaused) v.play().catch(() => {})

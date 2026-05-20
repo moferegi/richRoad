@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/no-mutating-props -->
 <template>
   <div class="multi-lang-editor">
     <div class="multi-lang-editor__toolbar">
@@ -117,6 +118,7 @@
 </template>
 
 <script setup>
+/* eslint-disable vue/no-mutating-props */
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getLanguageList, translateI18n } from '@/api/client/language'

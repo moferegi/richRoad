@@ -28,7 +28,7 @@ func (skuApi *SkuApi) CreateSku(c *gin.Context) {
 	var sku shop.Sku
 	err := c.ShouldBindJSON(&sku)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
@@ -90,7 +90,7 @@ func (skuApi *SkuApi) UpdateSku(c *gin.Context) {
 	var sku shop.Sku
 	err := c.ShouldBindJSON(&sku)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
@@ -134,7 +134,7 @@ func (skuApi *SkuApi) GetSkuList(c *gin.Context) {
 	var pageInfo shopReq.SkuSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if list, total, err := skuService.GetSkuInfoList(pageInfo); err != nil {

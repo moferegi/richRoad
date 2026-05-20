@@ -8,7 +8,7 @@ type AutoCodeRouter struct{}
 
 func (s *AutoCodeRouter) InitAutoCodeRouter(Router *gin.RouterGroup, RouterPublic *gin.RouterGroup) {
 	autoCodeRouter := Router.Group("autoCode")
-	publicAutoCodeRouter := RouterPublic.Group("autoCode")
+	_ = RouterPublic
 	{
 		autoCodeRouter.GET("getDB", autoCodeApi.GetDB)         // 获取数据库
 		autoCodeRouter.GET("getTables", autoCodeApi.GetTables) // 获取对应数据库的表
@@ -33,15 +33,15 @@ func (s *AutoCodeRouter) InitAutoCodeRouter(Router *gin.RouterGroup, RouterPubli
 		autoCodeRouter.GET("getTemplates", autoCodePackageApi.Templates) // 创建package包
 	}
 	{
-		autoCodeRouter.POST("pubPlug", autoCodePluginApi.Packaged)      // 打包插件
-		autoCodeRouter.POST("installPlugin", autoCodePluginApi.Install) // 自动安装插件
-		autoCodeRouter.POST("removePlugin", autoCodePluginApi.Remove)   // 自动删除插件
+		autoCodeRouter.POST("pubPlug", autoCodePluginApi.Packaged)           // 打包插件
+		autoCodeRouter.POST("installPlugin", autoCodePluginApi.Install)      // 自动安装插件
+		autoCodeRouter.POST("removePlugin", autoCodePluginApi.Remove)        // 自动删除插件
 		autoCodeRouter.GET("getPluginList", autoCodePluginApi.GetPluginList) // 获取插件列表
 	}
 	{
-		publicAutoCodeRouter.POST("llmAuto", autoCodeApi.LLMAuto)
-		publicAutoCodeRouter.POST("initMenu", autoCodePluginApi.InitMenu)             // 同步插件菜单
-		publicAutoCodeRouter.POST("initAPI", autoCodePluginApi.InitAPI)               // 同步插件API
-		publicAutoCodeRouter.POST("initDictionary", autoCodePluginApi.InitDictionary) // 同步插件字典
+		autoCodeRouter.POST("llmAuto", autoCodeApi.LLMAuto)
+		autoCodeRouter.POST("initMenu", autoCodePluginApi.InitMenu)             // 同步插件菜单
+		autoCodeRouter.POST("initAPI", autoCodePluginApi.InitAPI)               // 同步插件API
+		autoCodeRouter.POST("initDictionary", autoCodePluginApi.InitDictionary) // 同步插件字典
 	}
 }

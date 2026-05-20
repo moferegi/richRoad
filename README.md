@@ -41,6 +41,8 @@
 # 项目文档
 [在线文档](https://www.gin-vue-admin.com) : https://www.gin-vue-admin.com
 
+[安全加固上线手册](./docs/security-hardening-runbook.md)
+
 [初始化](https://www.gin-vue-admin.com/guide/start-quickly/initialization.html)
 						       
 [从环境到部署教学视频](https://www.bilibili.com/video/BV1Rg411u7xH)

@@ -30,13 +30,13 @@ func (api *TryonTaskApi) DeleteTryonTask(c *gin.Context) {
 	idStr := c.Query("ID")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil || id == 0 {
-		response.FailWithMessage(i18n.T(c, "invalidID"), c)
+		failClientWithKey(c, "invalidID")
 		return
 	}
 
 	if err := tryonTaskService.DeleteTryonTask(uint(id)); err != nil {
 		global.GVA_LOG.Error("删除试衣任务失败!", zap.Error(err), zap.Uint64("taskID", id))
-		response.FailWithMessage(i18n.T(c, "deleteFail"), c)
+		failClientWithKey(c, "deleteFail")
 		return
 	}
 
@@ -55,7 +55,7 @@ func (api *TryonTaskApi) DeleteTryonTask(c *gin.Context) {
 func (api *TryonTaskApi) DeleteTryonTaskByIds(c *gin.Context) {
 	idStrs := c.QueryArray("IDs[]")
 	if len(idStrs) == 0 {
-		response.FailWithMessage(i18n.T(c, "invalidIDs"), c)
+		failClientWithKey(c, "invalidIDs")
 		return
 	}
 
@@ -63,7 +63,7 @@ func (api *TryonTaskApi) DeleteTryonTaskByIds(c *gin.Context) {
 	for _, idStr := range idStrs {
 		id, err := strconv.ParseUint(idStr, 10, 64)
 		if err != nil || id == 0 {
-			response.FailWithMessage(i18n.T(c, "invalidIDs"), c)
+			failClientWithKey(c, "invalidIDs")
 			return
 		}
 		ids = append(ids, uint(id))
@@ -71,7 +71,7 @@ func (api *TryonTaskApi) DeleteTryonTaskByIds(c *gin.Context) {
 
 	if err := tryonTaskService.DeleteTryonTaskByIds(ids); err != nil {
 		global.GVA_LOG.Error("批量删除试衣任务失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "batchDeleteFail"), c)
+		failClientWithKey(c, "batchDeleteFail")
 		return
 	}
 
@@ -90,14 +90,14 @@ func (api *TryonTaskApi) DeleteTryonTaskByIds(c *gin.Context) {
 func (api *TryonTaskApi) DeleteMyTryonTask(c *gin.Context) {
 	taskNo := c.Query("taskNo")
 	if taskNo == "" {
-		response.FailWithMessage(i18n.T(c, "invalidTaskNo"), c)
+		failClientWithKey(c, "invalidTaskNo")
 		return
 	}
 
 	userID := utils.GetUserID(c)
 	if err := tryonTaskService.DeleteMyTryonTaskByTaskNo(userID, taskNo); err != nil {
 		global.GVA_LOG.Error("删除我的试衣任务失败!", zap.Error(err), zap.Uint("userID", userID), zap.String("taskNo", taskNo))
-		response.FailWithMessage(i18n.T(c, "deleteFail"), c)
+		failClientWithKey(c, "deleteFail")
 		return
 	}
 
@@ -116,7 +116,7 @@ func (api *TryonTaskApi) DeleteMyTryonTask(c *gin.Context) {
 func (api *TryonTaskApi) CreateTryonTask(c *gin.Context) {
 	var req clientReq.CreateTryonTaskReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
@@ -124,7 +124,7 @@ func (api *TryonTaskApi) CreateTryonTask(c *gin.Context) {
 	task, reused, err := tryonTaskService.CreateTryonTask(c.Request.Context(), userID, req)
 	if err != nil {
 		global.GVA_LOG.Error("创建试衣任务失败!", zap.Error(err), zap.Uint("userID", userID), zap.Uint("taskID", task.ID))
-		response.FailWithDetailed(gin.H{"task": task, "reused": reused}, i18n.T(c, err.Error()), c)
+		response.FailWithDetailed(gin.H{"task": task, "reused": reused}, resolveClientErrMessage(c, err, "fail"), c)
 		return
 	}
 
@@ -150,7 +150,7 @@ func (api *TryonTaskApi) CreateTryonTask(c *gin.Context) {
 func (api *TryonTaskApi) ApplyTryonBeautify(c *gin.Context) {
 	var req clientReq.ApplyTryonBeautifyReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
@@ -158,7 +158,7 @@ func (api *TryonTaskApi) ApplyTryonBeautify(c *gin.Context) {
 	task, err := tryonTaskService.ApplyTryonBeautify(c.Request.Context(), userID, req)
 	if err != nil {
 		global.GVA_LOG.Error("执行智能美肤失败!", zap.Error(err), zap.Uint("userID", userID), zap.Uint("taskID", req.TaskID))
-		response.FailWithDetailed(gin.H{"task": task}, i18n.T(c, err.Error()), c)
+		response.FailWithDetailed(gin.H{"task": task}, resolveClientErrMessage(c, err, "fail"), c)
 		return
 	}
 
@@ -182,7 +182,7 @@ func (api *TryonTaskApi) FindTryonTask(c *gin.Context) {
 	idStr := c.Query("ID")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil || id == 0 {
-		response.FailWithMessage(i18n.T(c, "invalidID"), c)
+		failClientWithKey(c, "invalidID")
 		return
 	}
 
@@ -190,7 +190,7 @@ func (api *TryonTaskApi) FindTryonTask(c *gin.Context) {
 	task, err := tryonTaskService.GetTryonTaskByID(c.Request.Context(), uint(id), userID)
 	if err != nil {
 		global.GVA_LOG.Error("查询试衣任务失败!", zap.Error(err), zap.Uint("userID", userID), zap.Uint64("taskID", id))
-		response.FailWithMessage(i18n.T(c, "queryFail"), c)
+		failClientWithKey(c, "queryFail")
 		return
 	}
 
@@ -209,7 +209,7 @@ func (api *TryonTaskApi) FindTryonTask(c *gin.Context) {
 func (api *TryonTaskApi) GetMyTryonTaskList(c *gin.Context) {
 	var pageInfo clientReq.TryonTaskSearch
 	if err := c.ShouldBindQuery(&pageInfo); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
@@ -217,7 +217,7 @@ func (api *TryonTaskApi) GetMyTryonTaskList(c *gin.Context) {
 	list, total, err := tryonTaskService.GetMyTryonTaskList(userID, pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取试衣任务列表失败!", zap.Error(err), zap.Uint("userID", userID))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 
@@ -241,14 +241,14 @@ func (api *TryonTaskApi) GetMyTryonTaskList(c *gin.Context) {
 func (api *TryonTaskApi) GetTryonTaskList(c *gin.Context) {
 	var pageInfo clientReq.TryonTaskSearch
 	if err := c.ShouldBindQuery(&pageInfo); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
 	list, total, err := tryonTaskService.GetTryonTaskList(pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取试衣任务列表失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 
@@ -272,14 +272,14 @@ func (api *TryonTaskApi) GetTryonTaskList(c *gin.Context) {
 func (api *TryonTaskApi) GetTryonTaskStats(c *gin.Context) {
 	var search clientReq.TryonTaskSearch
 	if err := c.ShouldBindQuery(&search); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
 	stats, err := tryonTaskService.GetTryonTaskStats(search)
 	if err != nil {
 		global.GVA_LOG.Error("获取试衣任务统计失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 
@@ -298,14 +298,14 @@ func (api *TryonTaskApi) GetTryonTaskStats(c *gin.Context) {
 func (api *TryonTaskApi) GetTryonTaskTrend(c *gin.Context) {
 	var search clientReq.TryonTaskSearch
 	if err := c.ShouldBindQuery(&search); err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
 	list, err := tryonTaskService.GetTryonTaskTrend(search)
 	if err != nil {
 		global.GVA_LOG.Error("获取试衣任务趋势失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 		return
 	}
 

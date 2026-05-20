@@ -26,7 +26,7 @@ func (commentApi *CommentApi) CreateComment(c *gin.Context) {
 	var comment shop.Comment
 	err := c.ShouldBindJSON(&comment)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	comment.UserID = utils.GetUserID(c)
@@ -91,7 +91,7 @@ func (commentApi *CommentApi) UpdateComment(c *gin.Context) {
 	var comment shop.Comment
 	err := c.ShouldBindJSON(&comment)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = commentService.UpdateComment(comment)
@@ -156,7 +156,7 @@ func (commentApi *CommentApi) GetCommentList(c *gin.Context) {
 	var pageInfo shopReq.CommentSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := commentService.GetCommentInfoList(pageInfo)

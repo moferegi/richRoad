@@ -28,12 +28,12 @@ func (b *BaseApi) Login(c *gin.Context) {
 	var l systemReq.Login
 	err := c.ShouldBindJSON(&l)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(l, utils.LoginVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
@@ -171,12 +171,12 @@ func (b *BaseApi) Register(c *gin.Context) {
 	var r systemReq.Register
 	err := c.ShouldBindJSON(&r)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(r, utils.RegisterVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	var authorities []system.SysAuthority
@@ -207,12 +207,12 @@ func (b *BaseApi) ChangePassword(c *gin.Context) {
 	var req systemReq.ChangePasswordReq
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(req, utils.ChangePasswordVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	uid := utils.GetUserID(c)
@@ -239,12 +239,12 @@ func (b *BaseApi) GetUserList(c *gin.Context) {
 	var pageInfo systemReq.GetUserList
 	err := c.ShouldBindJSON(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(pageInfo, utils.PageInfoVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := userService.GetUserInfoList(pageInfo)
@@ -274,18 +274,18 @@ func (b *BaseApi) SetUserAuthority(c *gin.Context) {
 	var sua systemReq.SetUserAuth
 	err := c.ShouldBindJSON(&sua)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if UserVerifyErr := utils.Verify(sua, utils.SetUserAuthorityVerify); UserVerifyErr != nil {
-		response.FailWithMessage(UserVerifyErr.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	userID := utils.GetUserID(c)
 	err = userService.SetUserAuthority(userID, sua.AuthorityId)
 	if err != nil {
 		global.GVA_LOG.Error("修改失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("修改失败", c)
 		return
 	}
 	claims := utils.GetUserInfo(c)
@@ -293,7 +293,7 @@ func (b *BaseApi) SetUserAuthority(c *gin.Context) {
 	token, err := utils.NewJWT().CreateToken(*claims)
 	if err != nil {
 		global.GVA_LOG.Error("修改失败!", zap.Error(err))
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("修改失败", c)
 		return
 	}
 	c.Header("new-token", token)
@@ -315,7 +315,7 @@ func (b *BaseApi) SetUserAuthorities(c *gin.Context) {
 	var sua systemReq.SetUserAuthorities
 	err := c.ShouldBindJSON(&sua)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	authorityID := utils.GetUserAuthorityId(c)
@@ -341,12 +341,12 @@ func (b *BaseApi) DeleteUser(c *gin.Context) {
 	var reqId request.GetById
 	err := c.ShouldBindJSON(&reqId)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(reqId, utils.IdVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	jwtId := utils.GetUserID(c)
@@ -376,12 +376,12 @@ func (b *BaseApi) SetUserInfo(c *gin.Context) {
 	var user systemReq.ChangeUserInfo
 	err := c.ShouldBindJSON(&user)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = utils.Verify(user, utils.IdVerify)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if len(user.AuthorityIds) != 0 {
@@ -424,7 +424,7 @@ func (b *BaseApi) SetSelfInfo(c *gin.Context) {
 	var user systemReq.ChangeUserInfo
 	err := c.ShouldBindJSON(&user)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	user.ID = utils.GetUserID(c)
@@ -459,7 +459,7 @@ func (b *BaseApi) SetSelfSetting(c *gin.Context) {
 	var req common.JSONMap
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
@@ -503,13 +503,13 @@ func (b *BaseApi) ResetPassword(c *gin.Context) {
 	var rps systemReq.ResetPassword
 	err := c.ShouldBindJSON(&rps)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = userService.ResetPassword(rps.ID, rps.Password)
 	if err != nil {
 		global.GVA_LOG.Error("重置失败!", zap.Error(err))
-		response.FailWithMessage("重置失败"+err.Error(), c)
+		response.FailWithMessage("重置失败", c)
 		return
 	}
 	response.OkWithMessage("重置成功", c)

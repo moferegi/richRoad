@@ -16,7 +16,7 @@ func (s *LoginLogApi) DeleteLoginLog(c *gin.Context) {
 	var loginLog system.SysLoginLog
 	err := c.ShouldBindJSON(&loginLog)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = loginLogService.DeleteLoginLog(loginLog)
@@ -32,7 +32,7 @@ func (s *LoginLogApi) DeleteLoginLogByIds(c *gin.Context) {
 	var SDS request.IdsReq
 	err := c.ShouldBindJSON(&SDS)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = loginLogService.DeleteLoginLogByIds(SDS)
@@ -48,7 +48,7 @@ func (s *LoginLogApi) FindLoginLog(c *gin.Context) {
 	var loginLog system.SysLoginLog
 	err := c.ShouldBindQuery(&loginLog)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	reLoginLog, err := loginLogService.GetLoginLog(loginLog.ID)
@@ -64,7 +64,7 @@ func (s *LoginLogApi) GetLoginLogList(c *gin.Context) {
 	var pageInfo systemReq.SysLoginLogSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := loginLogService.GetLoginLogInfoList(pageInfo)

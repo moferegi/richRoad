@@ -40,7 +40,7 @@ func (s *EmailApi) SendEmail(c *gin.Context) {
 	var email email_response.Email
 	err := c.ShouldBindJSON(&email)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = service.ServiceGroupApp.SendEmail(email.To, email.Subject, email.Body)

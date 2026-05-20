@@ -30,13 +30,13 @@ func (collectApi *CollectApi) CreateCollect(c *gin.Context) {
 	var collect client.Collect
 	err := c.ShouldBindJSON(&collect)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	collect.UserID = utils.GetUserID(c)
 	if err := collectService.CreateCollect(&collect); err != nil {
 		global.GVA_LOG.Error("失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, err.Error()), c)
+		failClientWithErr(c, err)
 	} else {
 		response.OkWithMessage(i18n.T(c, "success"), c)
 	}
@@ -55,7 +55,7 @@ func (collectApi *CollectApi) DeleteCollect(c *gin.Context) {
 	ID := c.Query("ID")
 	if err := collectService.DeleteCollect(ID); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "deleteFail"), c)
+		failClientWithKey(c, "deleteFail")
 	} else {
 		response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
 	}
@@ -73,7 +73,7 @@ func (collectApi *CollectApi) DeleteCollectByIds(c *gin.Context) {
 	IDs := c.QueryArray("IDs[]")
 	if err := collectService.DeleteCollectByIds(IDs); err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "batchDeleteFail"), c)
+		failClientWithKey(c, "batchDeleteFail")
 	} else {
 		response.OkWithMessage(i18n.T(c, "batchDeleteSuccess"), c)
 	}
@@ -92,13 +92,13 @@ func (collectApi *CollectApi) UpdateCollect(c *gin.Context) {
 	var collect client.Collect
 	err := c.ShouldBindJSON(&collect)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 
 	if err := collectService.UpdateCollect(collect); err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "updateFail"), c)
+		failClientWithKey(c, "updateFail")
 	} else {
 		response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
 	}
@@ -118,7 +118,7 @@ func (collectApi *CollectApi) FindCollect(c *gin.Context) {
 	userID := utils.GetUserID(c)
 	if ok, err := collectService.GetCollect(userID, ID); err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "queryFail"), c)
+		failClientWithKey(c, "queryFail")
 	} else {
 		response.OkWithData(i18n.LocalizeResponseData(c, ok), c)
 	}
@@ -137,13 +137,13 @@ func (collectApi *CollectApi) GetCollectList(c *gin.Context) {
 	var pageInfo clientReq.CollectSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		failClientWithKey(c, "invalidParams")
 		return
 	}
 	pageInfo.UserID = utils.GetUserID(c)
 	if list, total, err := collectService.GetCollectInfoList(pageInfo); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		failClientWithKey(c, "getFail")
 	} else {
 		pageResult := response.PageResult{
 			List:     list,

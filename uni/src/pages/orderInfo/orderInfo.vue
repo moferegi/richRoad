@@ -300,12 +300,6 @@ const previewPointsUsed = computed(() => {
   return Math.min(userPoints.value, max)
 })
 
-const totalPrice = computed(() => {
-  let price = originPrice.value - selectedCouponDiscount.value
-  if (usePoints.value) price -= previewPointsUsed.value
-  return Math.max(0, price)
-})
-
 const localizedOriginPrice = computed(() => {
   return goodsList.value.reduce((sum, detail) => {
     const detailPrice = Number(detail?.price)

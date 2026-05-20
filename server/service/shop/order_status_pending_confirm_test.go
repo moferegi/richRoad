@@ -24,8 +24,10 @@ func setupShopOrderPendingConfirmTestDB(t *testing.T) *gorm.DB {
 	if err := db.AutoMigrate(
 		&clientModel.ClientUser{},
 		&clientModel.PointRecord{},
+		&clientModel.SysConfig{},
 		&shopModel.Order{},
 		&shopModel.OrderDetail{},
+		&shopModel.MarketingReward{},
 	); err != nil {
 		t.Fatalf("auto migrate failed: %v", err)
 	}
@@ -94,7 +96,7 @@ func TestUpdateOrderStatusForUser_ToPendingConfirmRejectsNonQRCode(t *testing.T)
 	if err == nil {
 		t.Fatalf("expected error for non-qrcode payment method, got nil")
 	}
-	if !strings.Contains(err.Error(), "仅扫码支付订单可提交付款确认") {
+	if !strings.Contains(err.Error(), "orderPayMethodNotQrcodeForSubmit") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -171,7 +173,7 @@ func TestConfirmPayment_RejectsNonPendingStatuses(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error for non pending status, got nil")
 	}
-	if !strings.Contains(err.Error(), "只能对待付款/待后台确认订单确认收款") {
+	if !strings.Contains(err.Error(), "orderConfirmPaymentStateInvalid") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

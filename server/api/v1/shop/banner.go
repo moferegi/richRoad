@@ -29,7 +29,7 @@ func (bannerApi *BannerApi) CreateBanner(c *gin.Context) {
 	var banner shop.Banner
 	err := c.ShouldBindJSON(&banner)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
@@ -91,7 +91,7 @@ func (bannerApi *BannerApi) UpdateBanner(c *gin.Context) {
 	var banner shop.Banner
 	err := c.ShouldBindJSON(&banner)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
@@ -135,7 +135,7 @@ func (bannerApi *BannerApi) GetBannerList(c *gin.Context) {
 	var pageInfo shopReq.BannerSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if list, total, err := bannerService.GetBannerInfoList(pageInfo); err != nil {

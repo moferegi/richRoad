@@ -26,7 +26,7 @@ func (a *info) CreateInfo(c *gin.Context) {
 	var info model.Info
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = serviceInfo.CreateInfo(&info)
@@ -89,7 +89,7 @@ func (a *info) UpdateInfo(c *gin.Context) {
 	var info model.Info
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = serviceInfo.UpdateInfo(info)
@@ -134,7 +134,7 @@ func (a *info) GetInfoList(c *gin.Context) {
 	var pageInfo request.InfoSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := serviceInfo.GetInfoInfoList(pageInfo)

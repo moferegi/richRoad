@@ -186,12 +186,10 @@ import { ref, computed, onUnmounted } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { findGood } from '@/api/product.js'
 import { SelfOrderList } from '@/api/order.js'
-import { myRouter } from '@/utils/permission'
 import { findCollect, createCollect } from '@/api/collect.js'
 import { claimCouponByUser, getAllClaimCoupon } from '@/api/coupon.js'
 import { useUserStore } from '@/pinia/modules/user'
 import { usePlayHistoryStore } from '@/pinia/modules/playHistory.js'
-import { getUrl } from '@/utils/url.js'
 import { localText } from '@/utils/i18n.js'
 import { useI18nDisplay } from '@/composables/useI18nDisplay.js'
 import { formatLocalizedPrice } from '@/utils/price-i18n.js'
@@ -373,10 +371,6 @@ const goTo = (path) => {
 }
 
 const goToKefu = () => { uni.navigateTo({ url: '/pages/kefu/index' }) }
-
-const toOrder = () => {
-  myRouter(`/pages/orderInfo/orderInfo?skuID=${data.value.skus[0].ID}&goodID=${data.value.skus[0].goodID}`)
-}
 
 const goodsTapPay = async () => {
   // 预售已结束，不能购买

@@ -29,13 +29,13 @@ func (couApi *CouponOrderUserApi) CreateCouponOrderUser(c *gin.Context) {
 	var cou shop.CouponOrderUser
 	err := c.ShouldBindJSON(&cou)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = couService.CreateCouponOrderUser(ctx, &cou)
 	if err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage("创建失败:"+err.Error(), c)
+		response.FailWithMessage("创建失败", c)
 		return
 	}
 	response.OkWithMessage("创建成功", c)
@@ -58,7 +58,7 @@ func (couApi *CouponOrderUserApi) DeleteCouponOrderUser(c *gin.Context) {
 	err := couService.DeleteCouponOrderUser(ctx, ID)
 	if err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败:"+err.Error(), c)
+		response.FailWithMessage("删除失败", c)
 		return
 	}
 	response.OkWithMessage("删除成功", c)
@@ -80,7 +80,7 @@ func (couApi *CouponOrderUserApi) DeleteCouponOrderUserByIds(c *gin.Context) {
 	err := couService.DeleteCouponOrderUserByIds(ctx, IDs)
 	if err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
-		response.FailWithMessage("批量删除失败:"+err.Error(), c)
+		response.FailWithMessage("批量删除失败", c)
 		return
 	}
 	response.OkWithMessage("批量删除成功", c)
@@ -102,13 +102,13 @@ func (couApi *CouponOrderUserApi) UpdateCouponOrderUser(c *gin.Context) {
 	var cou shop.CouponOrderUser
 	err := c.ShouldBindJSON(&cou)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	err = couService.UpdateCouponOrderUser(ctx, cou)
 	if err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage("更新失败:"+err.Error(), c)
+		response.FailWithMessage("更新失败", c)
 		return
 	}
 	response.OkWithMessage("更新成功", c)
@@ -131,7 +131,7 @@ func (couApi *CouponOrderUserApi) FindCouponOrderUser(c *gin.Context) {
 	recou, err := couService.GetCouponOrderUser(ctx, ID)
 	if err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage("查询失败:"+err.Error(), c)
+		response.FailWithMessage("查询失败", c)
 		return
 	}
 	response.OkWithData(recou, c)
@@ -153,13 +153,13 @@ func (couApi *CouponOrderUserApi) GetCouponOrderUserList(c *gin.Context) {
 	var pageInfo shopReq.CouponOrderUserSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	list, total, err := couService.GetCouponOrderUserInfoList(ctx, pageInfo)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败:"+err.Error(), c)
+		response.FailWithMessage("获取失败", c)
 		return
 	}
 	response.OkWithDetailed(response.PageResult{
@@ -185,7 +185,7 @@ func (couApi *CouponOrderUserApi) GetCouponOrderUserDataSource(c *gin.Context) {
 	dataSource, err := couService.GetCouponOrderUserDataSource(ctx)
 	if err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage("查询失败:"+err.Error(), c)
+		response.FailWithMessage("查询失败", c)
 		return
 	}
 	response.OkWithData(dataSource, c)
@@ -216,7 +216,7 @@ func (couApi *CouponOrderUserApi) GetAllClaimCoupon(c *gin.Context) {
 	var req shopReq.GetClaimCouponRequest
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
@@ -229,7 +229,7 @@ func (couApi *CouponOrderUserApi) GetAllClaimCoupon(c *gin.Context) {
 	coupons, err := couService.GetAllClaimCoupon(ctx, userID, req.GoodIds)
 	if err != nil {
 		global.GVA_LOG.Error("获取优惠券列表失败!", zap.Error(err), zap.Uint("userID", userID))
-		response.FailWithMessage("获取失败: "+err.Error(), c)
+		response.FailWithMessage("获取失败", c)
 		return
 	}
 	response.OkWithData(i18n.LocalizeResponseData(c, coupons), c)
@@ -249,7 +249,7 @@ func (couApi *CouponOrderUserApi) ClaimCouponByUser(c *gin.Context) {
 	var req shopReq.ClaimCouponRequest
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
@@ -262,7 +262,7 @@ func (couApi *CouponOrderUserApi) ClaimCouponByUser(c *gin.Context) {
 	couponNum, err := couService.ClaimCouponByUser(ctx, userID, req.CouponID)
 	if err != nil {
 		global.GVA_LOG.Error("用户领取优惠券失败!", zap.Error(err), zap.Uint("userID", userID), zap.Int("couponID", req.CouponID))
-		response.FailWithMessage("领取失败: "+err.Error(), c)
+		response.FailWithMessage("领取失败", c)
 		return
 	}
 	response.OkWithData(i18n.LocalizeResponseData(c, couponNum), c)
@@ -282,14 +282,14 @@ func (couApi *CouponOrderUserApi) AdminIssueCouponToAll(c *gin.Context) {
 	var req shopReq.AdminIssueCouponRequest // 使用 AdminIssueCouponRequest，即使只用 CouponID，保持一致性或未来扩展
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 
 	err = couService.IssueCouponToAllUsers(ctx, req.CouponID)
 	if err != nil {
 		global.GVA_LOG.Error("管理员发放优惠券失败!", zap.Error(err), zap.Int("couponID", req.CouponID))
-		response.FailWithMessage("发放失败: "+err.Error(), c)
+		response.FailWithMessage("发放失败", c)
 		return
 	}
 	response.OkWithMessage("发放成功", c)

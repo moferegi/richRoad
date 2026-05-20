@@ -29,7 +29,7 @@ func (api *GoodPurchaseApi) CreateGoodPurchase(c *gin.Context) {
 	var info shop.GoodPurchase
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := goodPurchaseService.CreateGoodPurchase(&info); err != nil {
@@ -72,7 +72,7 @@ func (api *GoodPurchaseApi) UpdateGoodPurchase(c *gin.Context) {
 	var info shop.GoodPurchase
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if err := goodPurchaseService.UpdateGoodPurchase(info); err != nil {
@@ -96,7 +96,7 @@ func (api *GoodPurchaseApi) GetGoodPurchaseList(c *gin.Context) {
 	var pageInfo shopReq.GoodPurchaseSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if list, total, err := goodPurchaseService.GetGoodPurchaseList(pageInfo); err != nil {
