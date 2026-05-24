@@ -5,6 +5,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -21,6 +22,10 @@ type TagApi struct{}
 // @Success 200 {object} response.Response{msg=string} "创建成功"
 // @Router /tag/createTag [post]
 func (tagApi *TagApi) CreateTag(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -49,6 +54,10 @@ func (tagApi *TagApi) CreateTag(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "删除成功"
 // @Router /tag/deleteTag [delete]
 func (tagApi *TagApi) DeleteTag(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -71,6 +80,10 @@ func (tagApi *TagApi) DeleteTag(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "批量删除成功"
 // @Router /tag/deleteTagByIds [delete]
 func (tagApi *TagApi) DeleteTagByIds(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -94,6 +107,10 @@ func (tagApi *TagApi) DeleteTagByIds(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "更新成功"
 // @Router /tag/updateTag [put]
 func (tagApi *TagApi) UpdateTag(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 从ctx获取标准context进行业务行为
 	ctx := c.Request.Context()
 
@@ -122,6 +139,10 @@ func (tagApi *TagApi) UpdateTag(c *gin.Context) {
 // @Success 200 {object} response.Response{data=shop.Tag,msg=string} "查询成功"
 // @Router /tag/findTag [get]
 func (tagApi *TagApi) FindTag(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -145,6 +166,10 @@ func (tagApi *TagApi) FindTag(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /tag/getTagList [get]
 func (tagApi *TagApi) GetTagList(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 

@@ -33,7 +33,7 @@ func (addressService *AddressService) DeleteAddressByIds(IDs []string, UserID ui
 // UpdateAddress 更新用户地址记录
 // Author [piexlmax](https://github.com/piexlmax)
 func (addressService *AddressService) UpdateAddress(address client.Address) (err error) {
-	if *address.Active {
+	if address.Active != nil && *address.Active {
 		// 如果用户设置默认地址，那么其他的都要改为非默认
 		global.GVA_DB.Model(&client.Address{}).Where("user_id = ?", address.UserID).Update("active", false)
 	}

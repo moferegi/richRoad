@@ -26,6 +26,9 @@ type AutoCodePluginApi struct{}
 // @Success   200   {object}  response.Response{data=[]interface{},msg=string}  "安装插件成功"
 // @Router    /autoCode/installPlugin [post]
 func (a *AutoCodePluginApi) Install(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	header, err := c.FormFile("plug")
 	if err != nil {
 		response.FailWithMessage("参数错误", c)
@@ -65,6 +68,9 @@ func (a *AutoCodePluginApi) Install(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=map[string]interface{},msg=string}  "打包插件成功"
 // @Router    /autoCode/pubPlug [post]
 func (a *AutoCodePluginApi) Packaged(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	plugName := c.Query("plugName")
 	zipPath, err := autoCodePluginService.PubPlug(plugName)
 	if err != nil {
@@ -84,6 +90,9 @@ func (a *AutoCodePluginApi) Packaged(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=map[string]interface{},msg=string}  "打包插件成功"
 // @Router    /autoCode/initMenu [post]
 func (a *AutoCodePluginApi) InitMenu(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var menuInfo request.InitMenu
 	err := c.ShouldBindJSON(&menuInfo)
 	if err != nil {
@@ -108,6 +117,9 @@ func (a *AutoCodePluginApi) InitMenu(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=map[string]interface{},msg=string}  "打包插件成功"
 // @Router    /autoCode/initAPI [post]
 func (a *AutoCodePluginApi) InitAPI(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var apiInfo request.InitApi
 	err := c.ShouldBindJSON(&apiInfo)
 	if err != nil {
@@ -132,6 +144,9 @@ func (a *AutoCodePluginApi) InitAPI(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=map[string]interface{},msg=string}  "打包插件成功"
 // @Router    /autoCode/initDictionary [post]
 func (a *AutoCodePluginApi) InitDictionary(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var dictInfo request.InitDictionary
 	err := c.ShouldBindJSON(&dictInfo)
 	if err != nil {
@@ -155,6 +170,9 @@ func (a *AutoCodePluginApi) InitDictionary(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=[]systemRes.PluginInfo}  "获取插件列表成功"
 // @Router    /autoCode/getPluginList [get]
 func (a *AutoCodePluginApi) GetPluginList(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	serverDir := filepath.Join(global.GVA_CONFIG.AutoCode.Root, global.GVA_CONFIG.AutoCode.Server, "plugin")
 	webDir := filepath.Join(global.GVA_CONFIG.AutoCode.Root, global.GVA_CONFIG.AutoCode.Web, "plugin")
 
@@ -206,6 +224,9 @@ func (a *AutoCodePluginApi) GetPluginList(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "删除插件成功"
 // @Router    /autoCode/removePlugin [post]
 func (a *AutoCodePluginApi) Remove(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	pluginName := c.Query("pluginName")
 	pluginType := c.Query("pluginType")
 	err := autoCodePluginService.Remove(pluginName, pluginType)

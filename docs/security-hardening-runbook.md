@@ -8,6 +8,9 @@ The runbook covers:
 - Casbin legacy over-grant cleanup switch: `CS_CLEANUP_LEGACY_CASBIN_OVERGRANT`
 - Export download token transport switch: `CS_EXPORT_ALLOW_QUERY_TOKEN`
 - Upload size guardrail: `CS_UPLOAD_MAX_SIZE_MB`
+- Scan upload ticket TTL switch: `CS_SCAN_UPLOAD_TICKET_TTL_SECONDS`
+- AutoCode SQL identifier hardening (MSSQL/SQLite/DropTable)
+- Web/Uni WebSocket query-token fallback switch: `VITE_WS_ALLOW_QUERY_TOKEN`
 
 Sensitive API ignore cleanup:
 - `/init/initdb` and `/init/checkdb` are no longer recommended in `sys_ignore_apis`.
@@ -48,6 +51,30 @@ File ownership isolation:
 Attack observability:
 - When `POST /sysError/createSysError` hits rate limit, backend records attack type `sys_error_rate_limit` into `sys_attack_logs` and surfaces it in `/sysBannedIP/getAttackStats` as `sysErrorRate`.
 - Auto-ban counters are tracked per attack type; `sys_error_rate_limit` has an independent threshold (`security_attack_auto_ban_threshold_sys_error_rate_limit`) and no longer mixes with login-fail counters.
+- `POST /fileUploadAndDownload/uploadByTicket` now records:
+  - `scan_upload_ticket_rate_limit` (shown as `scanTicketRate` in attack stats)
+  - `scan_upload_ticket_invalid` (shown as `scanTicketInvalid` in attack stats)
+- Scan-upload ticket attack types have independent auto-ban thresholds:
+  - `security_attack_auto_ban_threshold_scan_upload_ticket_rate_limit`
+  - `security_attack_auto_ban_threshold_scan_upload_ticket_invalid`
+
+AutoCode SQL hardening:
+- MSSQL metadata queries now normalize database identifiers and use bound parameters for table names.
+- SQLite metadata query (`PRAGMA table_info`) now quotes identifiers safely.
+- AutoCode rollback `DropTable` now enforces strict table-name validation before executing DDL.
+
+WebSocket token transport hardening:
+- Web/Uni client fallback from subprotocol to query token is disabled by default.
+- Only when `VITE_WS_ALLOW_QUERY_TOKEN=true` is explicitly configured should query-token fallback be used as temporary compatibility.
+
+Scan upload token transport hardening:
+- Web admin QR upload now uses one-time short-lived ticket and no longer places long-lived JWT in URL query.
+- New ticket flow:
+  - `POST /fileUploadAndDownload/createScanUploadTicket` (issue ticket, requires JWT-authenticated file manager role)
+  - `POST /fileUploadAndDownload/uploadByTicket` (consume one-time ticket on upload, ticket only accepted from form-data body)
+- Ticket lifetime defaults to 180 seconds and can be configured by `security_scan_upload_ticket_ttl_seconds` / `CS_SCAN_UPLOAD_TICKET_TTL_SECONDS`.
+- Ticket consume is one-time by design (Redis `GET+DEL`; local in-memory fallback when Redis unavailable).
+- `uploadByTicket` endpoint now applies upload rate-limit by `IP + User-Agent` window (Redis first, local-memory fallback).
 
 ## Runtime Config Priority
 
@@ -62,6 +89,9 @@ Priority order:
 
 - `security_upload_max_size_mb`
 - `security_upload_strict_validation_enabled`
+- `security_scan_upload_ticket_ttl_seconds`
+- `security_scan_upload_ticket_upload_rate_limit_per_ip`
+- `security_scan_upload_ticket_upload_rate_limit_window_seconds`
 - `security_export_allow_query_token`
 - `security_ws_allow_query_token`
 - `security_ws_max_conns_per_ip`
@@ -80,6 +110,8 @@ Priority order:
 - `security_attack_auto_ban_duration_minutes`
 - `security_attack_auto_ban_threshold_default`
 - `security_attack_auto_ban_threshold_sys_error_rate_limit`
+- `security_attack_auto_ban_threshold_scan_upload_ticket_rate_limit`
+- `security_attack_auto_ban_threshold_scan_upload_ticket_invalid`
 - `security_sys_error_create_rate_limit_per_minute`
 - `security_sys_error_create_rate_limit_window_seconds`
 - `security_visitor_heartbeat_rate_limit_per_minute`
@@ -96,6 +128,9 @@ Apply one of the following profiles based on your environment.
 
 - `security_upload_max_size_mb = 20`
 - `security_upload_strict_validation_enabled = true`
+- `security_scan_upload_ticket_ttl_seconds = 180`
+- `security_scan_upload_ticket_upload_rate_limit_per_ip = 30`
+- `security_scan_upload_ticket_upload_rate_limit_window_seconds = 60`
 - `security_export_allow_query_token = false`
 - `security_ws_allow_query_token = false`
 - `security_ws_max_conns_per_ip = 8`
@@ -114,6 +149,8 @@ Apply one of the following profiles based on your environment.
 - `security_attack_auto_ban_duration_minutes = 60`
 - `security_attack_auto_ban_threshold_default = 10`
 - `security_attack_auto_ban_threshold_sys_error_rate_limit = 30`
+- `security_attack_auto_ban_threshold_scan_upload_ticket_rate_limit = 30`
+- `security_attack_auto_ban_threshold_scan_upload_ticket_invalid = 50`
 - `security_sys_error_create_rate_limit_per_minute = 30`
 - `security_sys_error_create_rate_limit_window_seconds = 60`
 - `security_visitor_heartbeat_rate_limit_per_minute = 120`
@@ -128,6 +165,9 @@ Recommended for public traffic and long-term stable operation.
 
 - `security_upload_max_size_mb = 20`
 - `security_upload_strict_validation_enabled = true`
+- `security_scan_upload_ticket_ttl_seconds = 300`
+- `security_scan_upload_ticket_upload_rate_limit_per_ip = 60`
+- `security_scan_upload_ticket_upload_rate_limit_window_seconds = 60`
 - `security_export_allow_query_token = true`
 - `security_ws_allow_query_token = true`
 - `security_ws_max_conns_per_ip = 16`
@@ -146,6 +186,8 @@ Recommended for public traffic and long-term stable operation.
 - `security_attack_auto_ban_duration_minutes = 60`
 - `security_attack_auto_ban_threshold_default = 20`
 - `security_attack_auto_ban_threshold_sys_error_rate_limit = 60`
+- `security_attack_auto_ban_threshold_scan_upload_ticket_rate_limit = 60`
+- `security_attack_auto_ban_threshold_scan_upload_ticket_invalid = 100`
 - `security_sys_error_create_rate_limit_per_minute = 120`
 - `security_sys_error_create_rate_limit_window_seconds = 60`
 - `security_visitor_heartbeat_rate_limit_per_minute = 240`
@@ -163,6 +205,9 @@ UPDATE client_sys_config
 SET config_value = CASE config_key
   WHEN 'security_upload_max_size_mb' THEN '20'
   WHEN 'security_upload_strict_validation_enabled' THEN 'true'
+  WHEN 'security_scan_upload_ticket_ttl_seconds' THEN '180'
+  WHEN 'security_scan_upload_ticket_upload_rate_limit_per_ip' THEN '30'
+  WHEN 'security_scan_upload_ticket_upload_rate_limit_window_seconds' THEN '60'
   WHEN 'security_export_allow_query_token' THEN 'false'
   WHEN 'security_ws_allow_query_token' THEN 'false'
   WHEN 'security_ws_max_conns_per_ip' THEN '8'
@@ -181,6 +226,8 @@ SET config_value = CASE config_key
   WHEN 'security_attack_auto_ban_duration_minutes' THEN '60'
   WHEN 'security_attack_auto_ban_threshold_default' THEN '10'
   WHEN 'security_attack_auto_ban_threshold_sys_error_rate_limit' THEN '30'
+  WHEN 'security_attack_auto_ban_threshold_scan_upload_ticket_rate_limit' THEN '30'
+  WHEN 'security_attack_auto_ban_threshold_scan_upload_ticket_invalid' THEN '50'
   WHEN 'security_sys_error_create_rate_limit_per_minute' THEN '30'
   WHEN 'security_sys_error_create_rate_limit_window_seconds' THEN '60'
   WHEN 'security_visitor_heartbeat_rate_limit_per_minute' THEN '120'
@@ -194,6 +241,9 @@ WHERE config_group = 'security'
   AND config_key IN (
     'security_upload_max_size_mb',
     'security_upload_strict_validation_enabled',
+    'security_scan_upload_ticket_ttl_seconds',
+    'security_scan_upload_ticket_upload_rate_limit_per_ip',
+    'security_scan_upload_ticket_upload_rate_limit_window_seconds',
     'security_export_allow_query_token',
     'security_ws_allow_query_token',
     'security_ws_max_conns_per_ip',
@@ -212,6 +262,8 @@ WHERE config_group = 'security'
     'security_attack_auto_ban_duration_minutes',
     'security_attack_auto_ban_threshold_default',
     'security_attack_auto_ban_threshold_sys_error_rate_limit',
+    'security_attack_auto_ban_threshold_scan_upload_ticket_rate_limit',
+    'security_attack_auto_ban_threshold_scan_upload_ticket_invalid',
     'security_sys_error_create_rate_limit_per_minute',
     'security_sys_error_create_rate_limit_window_seconds',
     'security_visitor_heartbeat_rate_limit_per_minute',
@@ -343,6 +395,11 @@ After deployment:
 - Role 8080 must fail on file library management endpoints, including `/fileUploadAndDownload/deleteFile`, `/fileUploadAndDownload/getFileList`, and `/fileUploadAndDownload/listFolders`.
 - Roles 888/8881 must still pass on admin endpoints.
 - Public `getTryonConfig` should not expose token/secret fields inside `tryon_models` payload.
+- QR scan upload URL should contain `ticket=` and must not contain `token=`.
+- Reusing the same scan upload ticket for a second upload should fail.
+- Repeated high-frequency calls to `uploadByTicket` from same `IP + User-Agent` should hit `requestTooFrequent`.
+- Trigger repeated invalid/expired ticket requests and verify `/sysBannedIP/getAttackStats` shows `scanTicketInvalid` growth.
+- Trigger repeated rate-limited uploadByTicket requests and verify `/sysBannedIP/getAttackStats` shows `scanTicketRate` growth.
 
 ## 5. Export Token Transport Rollout
 
@@ -397,3 +454,108 @@ export CS_CLEANUP_LEGACY_CASBIN_OVERGRANT=false
 4. Run verification SQL.
 5. Disable cleanup switch.
 6. Keep `CS_EXPORT_ALLOW_QUERY_TOKEN` only as temporary compatibility fallback.
+
+## 9. Uni Dependency Remediation (Manual, Rollback-Friendly)
+
+Current verified baseline:
+- `npm audit` on `uni/`: `51` vulnerabilities (`34 high`, `8 moderate`, `9 low`).
+- `npm run build:h5`: exit code `0`.
+
+Important constraints validated in this workspace:
+- Single-package bump `vite -> 5.4.21` increased vulnerabilities (`51 -> 54`) under current `@dcloudio/uni-* 3.0.0-405...` ecosystem.
+- `npm audit fix --force` is currently unreliable and fails with:
+  - `ETARGET No matching version found for undefined@undefined`
+- Full-train DCloud alpha upgrade (`@dcloudio/* -> 3.0.0-alpha-5000920260515001`) keeps build green but increases vulnerabilities (`51 -> 61`), so it is rejected by release gate and should be rolled back.
+
+Do not use one-shot force remediation in CI. Use grouped manual upgrades with checkpoint validation.
+
+### 9.1 Upgrade Grouping
+
+Group A (highest coupling, must upgrade together):
+- `@dcloudio/uni-app`
+- `@dcloudio/uni-app-plus`
+- `@dcloudio/uni-h5`
+- `@dcloudio/vite-plugin-uni`
+- `@dcloudio/uni-cli-shared`
+
+Group B (platform adapters, upgrade after Group A is stable):
+- `@dcloudio/uni-mp-*`
+- `@dcloudio/uni-quickapp-webview`
+- `@dcloudio/uni-app-harmony`
+
+Group C (transitive chain usually fixed by Group A):
+- `@intlify/core-base`
+- `@intlify/message-resolver`
+- `esbuild`
+
+### 9.2 One Group = One Change Window
+
+For each group:
+
+1. Backup manifests.
+
+```powershell
+Copy-Item package.json package.json.group.bak -Force
+Copy-Item package-lock.json package-lock.json.group.bak -Force
+```
+
+2. Upgrade only one group (pin exact versions).
+
+3. Validate immediately.
+
+```powershell
+npm install
+npm run build:h5
+npm audit --omit=dev
+npm audit
+```
+
+4. If build or runtime smoke fails, rollback immediately.
+
+```powershell
+Copy-Item package.json.group.bak package.json -Force
+Copy-Item package-lock.json.group.bak package-lock.json -Force
+npm install
+```
+
+### 9.3 Release Gate Recommendation
+
+Before shipping:
+- Build must pass (`npm run build:h5` exit `0`).
+- Vulnerability count must be non-increasing versus baseline.
+- Any remaining high vulnerabilities must have explicit risk acceptance and owner.
+
+### 9.4 Risk Acceptance Tracking
+
+Use `docs/uni-vulnerability-risk-register.md` as the source of truth for:
+- temporary risk acceptance
+- owner assignment
+- target remediation date
+
+### 9.5 Automated Gate Command
+
+Use the repository command below in `uni/`:
+
+```bash
+npm run security:gate
+```
+
+CI integration:
+- `.github/workflows/ci.yaml` (`frontend-uni` job) now runs `npm run security:gate` with baseline env values.
+
+The command runs:
+1. `npm run build:h5`
+2. `npm audit --json`
+3. baseline comparison (`total/high/moderate/low` must be non-increasing)
+
+Default baseline values are:
+- total: `51`
+- high: `34`
+- moderate: `8`
+- low: `9`
+
+Override when needed:
+
+```bash
+UNI_AUDIT_BASELINE_TOTAL=51 UNI_AUDIT_BASELINE_HIGH=34 UNI_AUDIT_BASELINE_MODERATE=8 UNI_AUDIT_BASELINE_LOW=9 npm run security:gate
+```

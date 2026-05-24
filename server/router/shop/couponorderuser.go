@@ -19,12 +19,12 @@ func (s *CouponOrderUserRouter) InitCouponOrderUserRouter(Router *gin.RouterGrou
 		couRouter.PUT("updateCouponOrderUser", couApi.UpdateCouponOrderUser)              // 更新优惠券
 	}
 	{
-		couRouterWithoutRecord.GET("findCouponOrderUser", couApi.FindCouponOrderUser)       // 根据ID获取优惠券
-		couRouterWithoutRecord.GET("getCouponOrderUserList", couApi.GetCouponOrderUserList) // 获取优惠券列表
+		couRouterWithoutRecord.GET("findCouponOrderUser", couApi.FindCouponOrderUser)                   // 根据ID获取优惠券
+		couRouterWithoutRecord.GET("getCouponOrderUserList", couApi.GetCouponOrderUserList)             // 获取优惠券列表
+		couRouterWithoutRecord.GET("getCouponOrderUserDataSource", couApi.GetCouponOrderUserDataSource) // 获取优惠券数据源
 	}
 	{
-		couRouterWithoutAuth.GET("getCouponOrderUserDataSource", couApi.GetCouponOrderUserDataSource) // 获取优惠券数据源
-		couRouterWithoutAuth.GET("getCouponOrderUserPublic", couApi.GetCouponOrderUserPublic)         // 优惠券开放接口
+		couRouterWithoutAuth.GET("getCouponOrderUserPublic", couApi.GetCouponOrderUserPublic) // 优惠券开放接口
 	}
 	{
 		couRouter.POST("getAllClaimCoupon", couApi.GetAllClaimCoupon)         // 用户查询可领可用优惠券

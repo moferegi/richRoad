@@ -11,6 +11,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	commonReq "github.com/flipped-aurora/gin-vue-admin/server/model/common/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
+	systemReq "github.com/flipped-aurora/gin-vue-admin/server/model/system/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/customer_service/model"
 	csReq "github.com/flipped-aurora/gin-vue-admin/server/plugin/customer_service/model/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/customer_service/service"
@@ -124,9 +125,6 @@ const (
 
 	wsMaxConnsPerIPConfigKey = "security_ws_max_conns_per_ip"
 	wsMaxConnsPerIPEnvKey    = "CS_WS_MAX_CONNS_PER_IP"
-
-	wsAllowQueryTokenConfigKey = "security_ws_allow_query_token"
-	wsAllowQueryTokenEnvKey    = "CS_WS_ALLOW_QUERY_TOKEN"
 )
 
 func getWSMaxConnsPerIP() int {
@@ -137,51 +135,18 @@ func getWSMaxConnsPerIP() int {
 	return int(maxConns)
 }
 
-func isWSQueryTokenAllowed() bool {
-	return utils.GetBoolSetting(wsAllowQueryTokenConfigKey, wsAllowQueryTokenEnvKey, false)
-}
-
-func tokenFromProtocolHeader(v string) string {
-	if strings.TrimSpace(v) == "" {
-		return ""
+func getWSClaims(c *gin.Context) (*systemReq.CustomClaims, bool) {
+	claimsValue, exists := c.Get("claims")
+	if !exists {
+		response.NoAuth("请先登录", c)
+		return nil, false
 	}
-	parts := strings.Split(v, ",")
-	tokens := make([]string, 0, len(parts))
-	for _, p := range parts {
-		t := strings.TrimSpace(p)
-		if t != "" {
-			tokens = append(tokens, t)
-		}
+	claims, ok := claimsValue.(*systemReq.CustomClaims)
+	if !ok || claims == nil {
+		response.NoAuth("登录状态无效", c)
+		return nil, false
 	}
-	if len(tokens) == 0 {
-		return ""
-	}
-	if len(tokens) >= 2 && (strings.EqualFold(tokens[0], "bearer") || strings.EqualFold(tokens[0], "token")) {
-		return tokens[1]
-	}
-	for _, t := range tokens {
-		if strings.Count(t, ".") >= 2 {
-			return t
-		}
-	}
-	return ""
-}
-
-func extractWSToken(c *gin.Context) (string, string) {
-	if auth := strings.TrimSpace(c.GetHeader("Authorization")); auth != "" {
-		const bearer = "Bearer "
-		if len(auth) > len(bearer) && strings.EqualFold(auth[:len(bearer)], bearer) {
-			return strings.TrimSpace(auth[len(bearer):]), "authorization"
-		}
-		return auth, "authorization"
-	}
-	if t := tokenFromProtocolHeader(c.GetHeader("Sec-WebSocket-Protocol")); t != "" {
-		return t, "protocol"
-	}
-	if t := strings.TrimSpace(c.Query("token")); t != "" {
-		return t, "query"
-	}
-	return "", ""
+	return claims, true
 }
 
 // UserWS 客户端用户 WebSocket 连接入口
@@ -190,26 +155,8 @@ func extractWSToken(c *gin.Context) (string, string) {
 // @Security ApiKeyAuth
 // @Router /cs/ws [get]
 func (a *WsApi) UserWS(c *gin.Context) {
-	// 兼容多来源：Authorization / Sec-WebSocket-Protocol / query(token)
-	tokenStr, tokenSource := extractWSToken(c)
-	if tokenStr == "" {
-		response.FailWithMessage("token 不能为空", c)
-		return
-	}
-	if tokenSource == "query" {
-		if !isWSQueryTokenAllowed() {
-			response.FailWithMessage("当前环境禁止通过URL传递token，请升级客户端", c)
-			return
-		}
-		global.GVA_LOG.Warn("WebSocket 使用 query token，建议升级为子协议/Authorization",
-			zap.String("ip", c.ClientIP()),
-			zap.String("path", c.Request.URL.Path),
-		)
-	}
-	j := utils.NewJWT()
-	claims, err := j.ParseToken(tokenStr)
-	if err != nil {
-		response.FailWithMessage("token 无效", c)
+	claims, ok := getWSClaims(c)
+	if !ok {
 		return
 	}
 	if claims.AuthorityId != 8080 {
@@ -338,25 +285,8 @@ func (a *WsApi) handleUserMessage(clientUserID, convID uint, raw []byte) {
 // @Security ApiKeyAuth
 // @Router /cs/wsAgent [get]
 func (a *WsApi) AgentWS(c *gin.Context) {
-	tokenStr, tokenSource := extractWSToken(c)
-	if tokenStr == "" {
-		response.FailWithMessage("token 不能为空", c)
-		return
-	}
-	if tokenSource == "query" {
-		if !isWSQueryTokenAllowed() {
-			response.FailWithMessage("当前环境禁止通过URL传递token，请升级客户端", c)
-			return
-		}
-		global.GVA_LOG.Warn("WebSocket 使用 query token，建议升级为子协议/Authorization",
-			zap.String("ip", c.ClientIP()),
-			zap.String("path", c.Request.URL.Path),
-		)
-	}
-	j := utils.NewJWT()
-	claims, err := j.ParseToken(tokenStr)
-	if err != nil {
-		response.FailWithMessage("token 无效", c)
+	claims, ok := getWSClaims(c)
+	if !ok {
 		return
 	}
 	if claims.AuthorityId == 8080 {

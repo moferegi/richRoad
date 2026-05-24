@@ -15,6 +15,10 @@ import (
 
 type AuthorityMenuApi struct{}
 
+func isMenuManageRole(authorityID uint) bool {
+	return authorityID == 888 || authorityID == 8881
+}
+
 // GetMenu
 // @Tags      AuthorityMenu
 // @Summary   获取用户动态路由
@@ -65,6 +69,10 @@ func (a *AuthorityMenuApi) GetBaseMenuTree(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}   "增加menu和角色关联关系"
 // @Router    /menu/addMenuAuthority [post]
 func (a *AuthorityMenuApi) AddMenuAuthority(c *gin.Context) {
+	if !isMenuManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var authorityMenu systemReq.AddMenuAuthorityInfo
 	err := c.ShouldBindJSON(&authorityMenu)
 	if err != nil {
@@ -94,6 +102,10 @@ func (a *AuthorityMenuApi) AddMenuAuthority(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=map[string]interface{},msg=string}  "获取指定角色menu"
 // @Router    /menu/getMenuAuthority [post]
 func (a *AuthorityMenuApi) GetMenuAuthority(c *gin.Context) {
+	if !isMenuManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var param request.GetAuthorityId
 	err := c.ShouldBindJSON(&param)
 	if err != nil {
@@ -124,6 +136,10 @@ func (a *AuthorityMenuApi) GetMenuAuthority(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "新增菜单"
 // @Router    /menu/addBaseMenu [post]
 func (a *AuthorityMenuApi) AddBaseMenu(c *gin.Context) {
+	if !isMenuManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var menu system.SysBaseMenu
 	err := c.ShouldBindJSON(&menu)
 	if err != nil {
@@ -159,6 +175,10 @@ func (a *AuthorityMenuApi) AddBaseMenu(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "删除菜单"
 // @Router    /menu/deleteBaseMenu [post]
 func (a *AuthorityMenuApi) DeleteBaseMenu(c *gin.Context) {
+	if !isMenuManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var menu request.GetById
 	err := c.ShouldBindJSON(&menu)
 	if err != nil {
@@ -189,6 +209,10 @@ func (a *AuthorityMenuApi) DeleteBaseMenu(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "更新菜单"
 // @Router    /menu/updateBaseMenu [post]
 func (a *AuthorityMenuApi) UpdateBaseMenu(c *gin.Context) {
+	if !isMenuManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var menu system.SysBaseMenu
 	err := c.ShouldBindJSON(&menu)
 	if err != nil {
@@ -224,6 +248,10 @@ func (a *AuthorityMenuApi) UpdateBaseMenu(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=systemRes.SysBaseMenuResponse,msg=string}  "根据id获取菜单,返回包括系统菜单列表"
 // @Router    /menu/getBaseMenuById [post]
 func (a *AuthorityMenuApi) GetBaseMenuById(c *gin.Context) {
+	if !isMenuManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var idInfo request.GetById
 	err := c.ShouldBindJSON(&idInfo)
 	if err != nil {
@@ -254,6 +282,10 @@ func (a *AuthorityMenuApi) GetBaseMenuById(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=response.PageResult,msg=string}  "分页获取基础menu列表,返回包括列表,总数,页码,每页数量"
 // @Router    /menu/getMenuList [post]
 func (a *AuthorityMenuApi) GetMenuList(c *gin.Context) {
+	if !isMenuManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	authorityID := utils.GetUserAuthorityId(c)
 	menuList, err := menuService.GetInfoList(authorityID)
 	if err != nil {

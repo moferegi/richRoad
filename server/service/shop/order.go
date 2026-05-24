@@ -41,6 +41,21 @@ const (
 	defaultOrderPendingConfirmCloseMinutes       = 180
 )
 
+func (orderService *OrderService) UserOwnsExpress(userID uint, express string) (bool, error) {
+	if userID == 0 || strings.TrimSpace(express) == "" {
+		return false, nil
+	}
+
+	var count int64
+	err := global.GVA_DB.Model(&shop.Order{}).
+		Where("user_id = ? AND express = ?", userID, strings.TrimSpace(express)).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func (orderService *OrderService) enforceOrderCreateRateLimit(userID uint) error {
 	limit := utils.GetInt64Setting(orderCreateRateLimitConfigKey, orderCreateRateLimitEnvKey, defaultOrderCreateRateLimitPerMinute)
 	if limit <= 0 {
@@ -164,6 +179,23 @@ func (orderService *OrderService) validateOrderStatusTransition(order *shop.Orde
 	}
 
 	return nil
+}
+
+func ensurePublicGoodPurchasable(tx *gorm.DB, goodID uint) (shop.Good, error) {
+	var good shop.Good
+	if goodID == 0 {
+		return good, errors.New("orderGoodUnavailable")
+	}
+	err := tx.Where("id = ? AND status = ?", goodID, true).
+		Where("category_id IS NULL OR category_id NOT IN (SELECT id FROM shop_category WHERE show_in_uni = ?)", false).
+		First(&good).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return good, errors.New("orderGoodUnavailable")
+		}
+		return good, err
+	}
+	return good, nil
 }
 
 func normalizeSettlementCurrency(value string) string {
@@ -545,9 +577,9 @@ func (orderService *OrderService) PlaceOrder(order *shop.Order) (OrderID uint, o
 			}
 
 			// 预售商品检查与防超卖
-			var good shop.Good
-			err = tx.Where("id = ?", sku.GoodID).First(&good).Error
-			if err != nil {
+			good, goodErr := ensurePublicGoodPurchasable(tx, sku.GoodID)
+			if goodErr != nil {
+				err = goodErr
 				return err
 			}
 			if good.IsPresale != nil && *good.IsPresale {
@@ -708,13 +740,22 @@ func (orderService *OrderService) PlaceOrderByCart(userID uint, req shopReq.Plac
 		order.Detail = make([]shop.OrderDetail, 0)
 		presaleService := PresaleService{}
 		for i := range carts {
+			if carts[i].SKU.ID == 0 || carts[i].SKU.GoodID == 0 {
+				return errors.New("orderGoodUnavailable")
+			}
+			good, goodErr := ensurePublicGoodPurchasable(tx, carts[i].SKU.GoodID)
+			if goodErr != nil {
+				return goodErr
+			}
+			carts[i].GoodID = carts[i].SKU.GoodID
+
 			// 判断当前库存是否充足
 			if carts[i].SKU.Inventory < carts[i].Quantity {
 				return errors.New("orderInventoryInsufficient")
 			}
 
 			// 预售商品检查与防超卖
-			if carts[i].Good.IsPresale != nil && *carts[i].Good.IsPresale {
+			if good.IsPresale != nil && *good.IsPresale {
 				available, message, checkErr := presaleService.CheckPresaleAvailable(carts[i].GoodID)
 				if checkErr != nil {
 					return checkErr

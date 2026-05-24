@@ -4,13 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/flipped-aurora/gin-vue-admin/server/utils/ast"
-	"github.com/pkg/errors"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/ast"
+	"github.com/pkg/errors"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	common "github.com/flipped-aurora/gin-vue-admin/server/model/common/request"
@@ -23,7 +25,20 @@ import (
 
 var AutocodeHistory = new(autoCodeHistory)
 
+var dropTableNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
 type autoCodeHistory struct{}
+
+func normalizeDropTableName(raw string) (string, error) {
+	tableName := strings.TrimSpace(raw)
+	if tableName == "" {
+		return "", errors.New("表名不能为空")
+	}
+	if !dropTableNamePattern.MatchString(tableName) {
+		return "", errors.New("表名不合法")
+	}
+	return tableName, nil
+}
 
 // Create 创建代码生成器历史记录
 // Author [SliverHorn](https://github.com/SliverHorn)
@@ -209,9 +224,14 @@ func (s *autoCodeHistory) GetList(ctx context.Context, info common.PageInfo) (li
 // DropTable 获取指定数据库和指定数据表的所有字段名,类型值等
 // @author: [piexlmax](https://github.com/piexlmax)
 func (s *autoCodeHistory) DropTable(BusinessDb, tableName string) error {
+	safeTableName, err := normalizeDropTableName(tableName)
+	if err != nil {
+		return err
+	}
+
 	if BusinessDb != "" {
-		return global.MustGetGlobalDBByDBName(BusinessDb).Exec("DROP TABLE " + tableName).Error
+		return global.MustGetGlobalDBByDBName(BusinessDb).Exec("DROP TABLE " + safeTableName).Error
 	} else {
-		return global.GVA_DB.Exec("DROP TABLE " + tableName).Error
+		return global.GVA_DB.Exec("DROP TABLE " + safeTableName).Error
 	}
 }

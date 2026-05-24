@@ -21,6 +21,10 @@ func failClientWithKey(c *gin.Context, key string) {
 	response.FailWithMessage(i18n.T(c, key), c)
 }
 
+func isClientAdminAuthority(authorityID uint) bool {
+	return authorityID == 888 || authorityID == 8881
+}
+
 func resolveClientErrMessage(c *gin.Context, err error, fallbackKey string) string {
 	fallbackKey = strings.TrimSpace(fallbackKey)
 	if fallbackKey == "" {

@@ -21,6 +21,9 @@ type AutoCodeTemplateApi struct{}
 // @Success   200   {object}  response.Response{data=map[string]interface{},msg=string}  "预览创建后的代码"
 // @Router    /autoCode/preview [post]
 func (a *AutoCodeTemplateApi) Preview(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var info request.AutoCode
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
@@ -57,6 +60,9 @@ func (a *AutoCodeTemplateApi) Preview(c *gin.Context) {
 // @Success   200   {string}  string                 "{"success":true,"data":{},"msg":"创建成功"}"
 // @Router    /autoCode/createTemp [post]
 func (a *AutoCodeTemplateApi) Create(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var info request.AutoCode
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
@@ -92,6 +98,9 @@ func (a *AutoCodeTemplateApi) Create(c *gin.Context) {
 // @Success   200   {string}  string                 "{"success":true,"data":{},"msg":"创建成功"}"
 // @Router    /autoCode/addFunc [post]
 func (a *AutoCodeTemplateApi) AddFunc(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var info request.AutoFunc
 	err := c.ShouldBindJSON(&info)
 	if err != nil {

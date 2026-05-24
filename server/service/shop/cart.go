@@ -85,6 +85,20 @@ func (cartService *CartService) AddCart(cartReq *shopReq.CartCreate) (err error)
 	if cartReq.Quantity == 0 {
 		cartReq.Quantity = 1
 	}
+	var sku shop.Sku
+	if err = global.GVA_DB.First(&sku, "id = ?", cartReq.SKUID).Error; err != nil {
+		return errors.New("orderGoodUnavailable")
+	}
+	if sku.GoodID != cartReq.GoodID {
+		return errors.New("orderGoodUnavailable")
+	}
+	if _, err = ensurePublicGoodPurchasable(global.GVA_DB, sku.GoodID); err != nil {
+		return err
+	}
+	if sku.Inventory < cartReq.Quantity {
+		return errors.New("orderInventoryInsufficient")
+	}
+
 	ferr := global.GVA_DB.First(&cart, "user_id = ? AND good_id = ? AND sku_id = ?", cartReq.UserID, cartReq.GoodID, cartReq.SKUID).Error
 	if ferr != nil {
 		cart.Quantity = cartReq.Quantity

@@ -41,9 +41,9 @@ func (s *OrderRouter) InitOrderRouter(Router *gin.RouterGroup, PublicRouter *gin
 	{
 		orderRouterWithoutRecord.GET("findOrder", orderApi.FindOrder)       // 根据ID获取订单
 		orderRouterWithoutRecord.GET("getOrderList", orderApi.GetOrderList) // 获取订单列表
+		orderRouterWithoutRecord.GET("checkRouters", orderApi.CheckRouters) // 获取快递路径
 	}
 	{
 		orderRouterWithoutAuth.GET("getOrderPublic", orderApi.GetOrderPublic) // 获取订单列表
-		orderRouterWithoutAuth.GET("checkRouters", orderApi.CheckRouters)     // 获取订单列表
 	}
 }

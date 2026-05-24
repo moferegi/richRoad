@@ -37,11 +37,19 @@ const (
 	attackAutoBanThresholdSysErrorConfigKey = "security_attack_auto_ban_threshold_sys_error_rate_limit"
 	attackAutoBanThresholdSysErrorEnvKey    = "CS_ATTACK_AUTO_BAN_THRESHOLD_SYS_ERROR_RATE_LIMIT"
 
+	attackAutoBanThresholdScanTicketRateConfigKey = "security_attack_auto_ban_threshold_scan_upload_ticket_rate_limit"
+	attackAutoBanThresholdScanTicketRateEnvKey    = "CS_ATTACK_AUTO_BAN_THRESHOLD_SCAN_UPLOAD_TICKET_RATE_LIMIT"
+
+	attackAutoBanThresholdScanTicketInvalidConfigKey = "security_attack_auto_ban_threshold_scan_upload_ticket_invalid"
+	attackAutoBanThresholdScanTicketInvalidEnvKey    = "CS_ATTACK_AUTO_BAN_THRESHOLD_SCAN_UPLOAD_TICKET_INVALID"
+
 	defaultAttackAutoBanEnabled                 = true
 	defaultAttackAutoBanWindowSeconds     int64 = 3600
 	defaultAttackAutoBanDurationMins      int64 = 60
 	defaultAttackAutoBanThresholdDefault  int64 = 10
 	defaultAttackAutoBanThresholdSysError int64 = 30
+	defaultAttackAutoBanThresholdScanRate int64 = 30
+	defaultAttackAutoBanThresholdScanBad  int64 = 50
 )
 
 // BanIP 封禁指定IP
@@ -152,15 +160,17 @@ func (s *BannedIPService) GetBannedIPList(req sysReq.BannedIPSearch) (list []sys
 
 // AttackStatItem 攻击统计条目（全来源合并）
 type AttackStatItem struct {
-	IP            string    `json:"ip"`
-	TotalCount    int64     `json:"totalCount"`    // 总攻击次数
-	LoginFail     int64     `json:"loginFail"`     // 密码错误（客户端）
-	CaptchaFail   int64     `json:"captchaFail"`   // 验证码错误
-	RegisterLimit int64     `json:"registerLimit"` // 注册IP超限
-	SysErrorRate  int64     `json:"sysErrorRate"`  // 错误上报频率超限
-	AdminFail     int64     `json:"adminFail"`     // 管理员登录失败
-	LastTime      time.Time `json:"lastTime"`
-	IsBanned      bool      `json:"isBanned"`
+	IP                string    `json:"ip"`
+	TotalCount        int64     `json:"totalCount"`        // 总攻击次数
+	LoginFail         int64     `json:"loginFail"`         // 密码错误（客户端）
+	CaptchaFail       int64     `json:"captchaFail"`       // 验证码错误
+	RegisterLimit     int64     `json:"registerLimit"`     // 注册IP超限
+	SysErrorRate      int64     `json:"sysErrorRate"`      // 错误上报频率超限
+	ScanTicketRate    int64     `json:"scanTicketRate"`    // 扫码上传票据上传频率超限
+	ScanTicketInvalid int64     `json:"scanTicketInvalid"` // 扫码上传票据无效/过期
+	AdminFail         int64     `json:"adminFail"`         // 管理员登录失败
+	LastTime          time.Time `json:"lastTime"`
+	IsBanned          bool      `json:"isBanned"`
 }
 
 // GetAttackStats 全面统计各来源攻击行为，合并 sys_attack_logs + sys_login_logs
@@ -205,6 +215,10 @@ func (s *BannedIPService) GetAttackStats(hours int) ([]AttackStatItem, error) {
 			item.RegisterLimit += r.Count
 		case "sys_error_rate_limit":
 			item.SysErrorRate += r.Count
+		case "scan_upload_ticket_rate_limit":
+			item.ScanTicketRate += r.Count
+		case "scan_upload_ticket_invalid":
+			item.ScanTicketInvalid += r.Count
 		}
 		item.TotalCount += r.Count
 		if r.LastTime.After(item.LastTime) {
@@ -251,7 +265,7 @@ func (s *BannedIPService) GetAttackStats(hours int) ([]AttackStatItem, error) {
 }
 
 // RecordAttack 记录攻击行为并触发自动封禁
-// attackType: "login_fail" | "captcha_fail" | "register_limit" | "sys_error_rate_limit"
+// attackType: "login_fail" | "captcha_fail" | "register_limit" | "sys_error_rate_limit" | "scan_upload_ticket_rate_limit" | "scan_upload_ticket_invalid"
 // 日志写入异步执行，不阻塞请求响应
 func (s *BannedIPService) RecordAttack(ip, attackType, username, detail string) {
 	ip = strings.TrimSpace(ip)
@@ -313,11 +327,32 @@ func normalizeAttackType(attackType string) string {
 }
 
 func (s *BannedIPService) getAutoBanThreshold(attackType string) int64 {
-	if attackType == "sys_error_rate_limit" {
+	switch attackType {
+	case "sys_error_rate_limit":
 		threshold := utils.GetInt64Setting(
 			attackAutoBanThresholdSysErrorConfigKey,
 			attackAutoBanThresholdSysErrorEnvKey,
 			defaultAttackAutoBanThresholdSysError,
+		)
+		if threshold < 1 {
+			return 0
+		}
+		return threshold
+	case "scan_upload_ticket_rate_limit":
+		threshold := utils.GetInt64Setting(
+			attackAutoBanThresholdScanTicketRateConfigKey,
+			attackAutoBanThresholdScanTicketRateEnvKey,
+			defaultAttackAutoBanThresholdScanRate,
+		)
+		if threshold < 1 {
+			return 0
+		}
+		return threshold
+	case "scan_upload_ticket_invalid":
+		threshold := utils.GetInt64Setting(
+			attackAutoBanThresholdScanTicketInvalidConfigKey,
+			attackAutoBanThresholdScanTicketInvalidEnvKey,
+			defaultAttackAutoBanThresholdScanBad,
 		)
 		if threshold < 1 {
 			return 0

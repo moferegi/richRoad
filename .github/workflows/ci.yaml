@@ -74,9 +74,14 @@ jobs:
           npm run lint
         working-directory: ./uni
 
-      - name: Build uni h5
+      - name: Security gate uni
+        env:
+          UNI_AUDIT_BASELINE_TOTAL: "51"
+          UNI_AUDIT_BASELINE_HIGH: "34"
+          UNI_AUDIT_BASELINE_MODERATE: "8"
+          UNI_AUDIT_BASELINE_LOW: "9"
         run: |
-          npm run build:h5
+          npm run security:gate
         working-directory: ./uni
 
   frontend:

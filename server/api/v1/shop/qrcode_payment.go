@@ -6,6 +6,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -14,6 +15,26 @@ import (
 type QrcodePaymentApi struct{}
 
 var qrcodePaymentService = service.ServiceGroupApp.ShopServiceGroup.QrcodePaymentService
+
+type publicQrcodePaymentResponse struct {
+	Name         string `json:"name"`
+	NameI18n     string `json:"nameI18n"`
+	Image        string `json:"image"`
+	ExternalPath string `json:"externalPath"`
+}
+
+func toPublicQrcodePaymentResponses(list []shop.QrcodePayment) []publicQrcodePaymentResponse {
+	result := make([]publicQrcodePaymentResponse, 0, len(list))
+	for _, item := range list {
+		result = append(result, publicQrcodePaymentResponse{
+			Name:         item.Name,
+			NameI18n:     item.NameI18n,
+			Image:        item.Image,
+			ExternalPath: item.ExternalPath,
+		})
+	}
+	return result
+}
 
 // CreateQrcodePayment 创建收款码
 // @Tags QrcodePayment
@@ -25,6 +46,10 @@ var qrcodePaymentService = service.ServiceGroupApp.ShopServiceGroup.QrcodePaymen
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"创建成功"}"
 // @Router /qrcodePayment/createQrcodePayment [post]
 func (api *QrcodePaymentApi) CreateQrcodePayment(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	var info shop.QrcodePayment
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
@@ -49,6 +74,10 @@ func (api *QrcodePaymentApi) CreateQrcodePayment(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"删除成功"}"
 // @Router /qrcodePayment/deleteQrcodePayment [delete]
 func (api *QrcodePaymentApi) DeleteQrcodePayment(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	ID := c.Query("ID")
 	if err := qrcodePaymentService.DeleteQrcodePayment(ID); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
@@ -68,6 +97,10 @@ func (api *QrcodePaymentApi) DeleteQrcodePayment(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"更新成功"}"
 // @Router /qrcodePayment/updateQrcodePayment [put]
 func (api *QrcodePaymentApi) UpdateQrcodePayment(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	var info shop.QrcodePayment
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
@@ -92,6 +125,10 @@ func (api *QrcodePaymentApi) UpdateQrcodePayment(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /qrcodePayment/getQrcodePaymentList [get]
 func (api *QrcodePaymentApi) GetQrcodePaymentList(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	var pageInfo shopReq.QrcodePaymentSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
@@ -116,13 +153,13 @@ func (api *QrcodePaymentApi) GetQrcodePaymentList(c *gin.Context) {
 // @Summary 获取启用的收款码列表
 // @accept application/json
 // @Produce application/json
-// @Success 200 {object} response.Response{data=[]shop.QrcodePayment,msg=string} "获取成功"
+// @Success 200 {object} response.Response{data=[]publicQrcodePaymentResponse,msg=string} "获取成功"
 // @Router /qrcodePayment/getEnabledQrcodePayments [get]
 func (api *QrcodePaymentApi) GetEnabledQrcodePayments(c *gin.Context) {
 	if list, err := qrcodePaymentService.GetEnabledQrcodePayments(); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
 		response.FailWithMessage("获取失败", c)
 	} else {
-		response.OkWithDetailed(i18n.LocalizeResponseData(c, list), "获取成功", c)
+		response.OkWithDetailed(i18n.LocalizeResponseData(c, toPublicQrcodePaymentResponses(list)), "获取成功", c)
 	}
 }

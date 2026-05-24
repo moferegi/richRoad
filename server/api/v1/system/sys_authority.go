@@ -13,6 +13,14 @@ import (
 
 type AuthorityApi struct{}
 
+func isAuthorityManageRole(authorityID uint) bool {
+	return authorityID == 888 || authorityID == 8881
+}
+
+func canManageAuthorityTarget(adminAuthorityID uint, targetAuthorityID uint) bool {
+	return adminAuthorityID == 888 || targetAuthorityID != 888
+}
+
 // CreateAuthority
 // @Tags      Authority
 // @Summary   创建角色
@@ -23,6 +31,11 @@ type AuthorityApi struct{}
 // @Success   200   {object}  response.Response{data=systemRes.SysAuthorityResponse,msg=string}  "创建角色,返回包括系统角色详情"
 // @Router    /authority/createAuthority [post]
 func (a *AuthorityApi) CreateAuthority(c *gin.Context) {
+	adminAuthorityID := utils.GetUserAuthorityId(c)
+	if !isAuthorityManageRole(adminAuthorityID) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var authority, authBack system.SysAuthority
 	var err error
 
@@ -36,8 +49,18 @@ func (a *AuthorityApi) CreateAuthority(c *gin.Context) {
 		return
 	}
 
-	if *authority.ParentId == 0 && global.GVA_CONFIG.System.UseStrictAuth {
-		authority.ParentId = utils.Pointer(utils.GetUserAuthorityId(c))
+	if (authority.ParentId == nil || *authority.ParentId == 0) && global.GVA_CONFIG.System.UseStrictAuth {
+		authority.ParentId = utils.Pointer(adminAuthorityID)
+	}
+	if authority.ParentId != nil && *authority.ParentId != 0 {
+		if !canManageAuthorityTarget(adminAuthorityID, *authority.ParentId) {
+			response.FailWithMessage("权限不足", c)
+			return
+		}
+		if err := authorityService.CheckAuthorityIDAuth(adminAuthorityID, *authority.ParentId); err != nil {
+			response.FailWithMessage("权限不足", c)
+			return
+		}
 	}
 
 	if authBack, err = authorityService.CreateAuthority(authority); err != nil {
@@ -64,6 +87,10 @@ func (a *AuthorityApi) CreateAuthority(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=systemRes.SysAuthorityResponse,msg=string}  "拷贝角色,返回包括系统角色详情"
 // @Router    /authority/copyAuthority [post]
 func (a *AuthorityApi) CopyAuthority(c *gin.Context) {
+	if !isAuthorityManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var copyInfo systemRes.SysAuthorityCopyResponse
 	err := c.ShouldBindJSON(&copyInfo)
 	if err != nil {
@@ -81,6 +108,14 @@ func (a *AuthorityApi) CopyAuthority(c *gin.Context) {
 		return
 	}
 	adminAuthorityID := utils.GetUserAuthorityId(c)
+	if !canManageAuthorityTarget(adminAuthorityID, copyInfo.OldAuthorityId) {
+		response.FailWithMessage("权限不足", c)
+		return
+	}
+	if err := authorityService.CheckAuthorityIDAuth(adminAuthorityID, copyInfo.OldAuthorityId); err != nil {
+		response.FailWithMessage("权限不足", c)
+		return
+	}
 	authBack, err := authorityService.CopyAuthority(adminAuthorityID, copyInfo)
 	if err != nil {
 		global.GVA_LOG.Error("拷贝失败!", zap.Error(err))
@@ -100,6 +135,10 @@ func (a *AuthorityApi) CopyAuthority(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "删除角色"
 // @Router    /authority/deleteAuthority [post]
 func (a *AuthorityApi) DeleteAuthority(c *gin.Context) {
+	if !isAuthorityManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var authority system.SysAuthority
 	var err error
 	if err = c.ShouldBindJSON(&authority); err != nil {
@@ -108,6 +147,15 @@ func (a *AuthorityApi) DeleteAuthority(c *gin.Context) {
 	}
 	if err = utils.Verify(authority, utils.AuthorityIdVerify); err != nil {
 		response.FailWithMessage("参数错误", c)
+		return
+	}
+	adminAuthorityID := utils.GetUserAuthorityId(c)
+	if !canManageAuthorityTarget(adminAuthorityID, authority.AuthorityId) {
+		response.FailWithMessage("权限不足", c)
+		return
+	}
+	if err := authorityService.CheckAuthorityIDAuth(adminAuthorityID, authority.AuthorityId); err != nil {
+		response.FailWithMessage("权限不足", c)
 		return
 	}
 	// 删除角色之前需要判断是否有用户正在使用此角色
@@ -130,6 +178,10 @@ func (a *AuthorityApi) DeleteAuthority(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=systemRes.SysAuthorityResponse,msg=string}  "更新角色信息,返回包括系统角色详情"
 // @Router    /authority/updateAuthority [put]
 func (a *AuthorityApi) UpdateAuthority(c *gin.Context) {
+	if !isAuthorityManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var auth system.SysAuthority
 	err := c.ShouldBindJSON(&auth)
 	if err != nil {
@@ -139,6 +191,15 @@ func (a *AuthorityApi) UpdateAuthority(c *gin.Context) {
 	err = utils.Verify(auth, utils.AuthorityVerify)
 	if err != nil {
 		response.FailWithMessage("参数错误", c)
+		return
+	}
+	adminAuthorityID := utils.GetUserAuthorityId(c)
+	if !canManageAuthorityTarget(adminAuthorityID, auth.AuthorityId) {
+		response.FailWithMessage("权限不足", c)
+		return
+	}
+	if err := authorityService.CheckAuthorityIDAuth(adminAuthorityID, auth.AuthorityId); err != nil {
+		response.FailWithMessage("权限不足", c)
 		return
 	}
 	authority, err := authorityService.UpdateAuthority(auth)
@@ -160,6 +221,10 @@ func (a *AuthorityApi) UpdateAuthority(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=response.PageResult,msg=string}  "分页获取角色列表,返回包括列表,总数,页码,每页数量"
 // @Router    /authority/getAuthorityList [post]
 func (a *AuthorityApi) GetAuthorityList(c *gin.Context) {
+	if !isAuthorityManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	authorityID := utils.GetUserAuthorityId(c)
 	list, err := authorityService.GetAuthorityInfoList(authorityID)
 	if err != nil {
@@ -180,6 +245,10 @@ func (a *AuthorityApi) GetAuthorityList(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "设置角色资源权限"
 // @Router    /authority/setDataAuthority [post]
 func (a *AuthorityApi) SetDataAuthority(c *gin.Context) {
+	if !isAuthorityManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var auth system.SysAuthority
 	err := c.ShouldBindJSON(&auth)
 	if err != nil {
@@ -192,6 +261,10 @@ func (a *AuthorityApi) SetDataAuthority(c *gin.Context) {
 		return
 	}
 	adminAuthorityID := utils.GetUserAuthorityId(c)
+	if !canManageAuthorityTarget(adminAuthorityID, auth.AuthorityId) {
+		response.FailWithMessage("权限不足", c)
+		return
+	}
 	err = authorityService.SetDataAuthority(adminAuthorityID, auth)
 	if err != nil {
 		global.GVA_LOG.Error("设置失败!", zap.Error(err))

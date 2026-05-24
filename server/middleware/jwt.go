@@ -3,6 +3,7 @@ package middleware
 import (
 	"errors"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
@@ -15,10 +16,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	wsAllowQueryTokenConfigKey = "security_ws_allow_query_token"
+	wsAllowQueryTokenEnvKey    = "CS_WS_ALLOW_QUERY_TOKEN"
+)
+
 func JWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 我们这里jwt鉴权取头部信息 x-token 登录时回返回token信息 这里前端需要把token存储到cookie或者本地localStorage中 不过需要跟后端协商过期时间 可以约定刷新令牌或者重新登录
-		token := utils.GetToken(c)
+		token := getTokenFromRequest(c)
 		if token == "" {
 			response.NoAuth(i18n.T(c, "notLogin"), c)
 			c.Abort()
@@ -103,4 +109,79 @@ func JWTAuth() gin.HandlerFunc {
 func isBlacklist(jwt string) bool {
 	_, ok := global.BlackCache.Get(jwt)
 	return ok
+}
+
+func getTokenFromRequest(c *gin.Context) string {
+	token := strings.TrimSpace(c.GetHeader("x-token"))
+	if token != "" {
+		return token
+	}
+
+	token = tokenFromAuthorization(c.GetHeader("Authorization"))
+	if token != "" {
+		return token
+	}
+
+	token = tokenFromSecWebSocketProtocol(c.GetHeader("Sec-WebSocket-Protocol"))
+	if token != "" {
+		return token
+	}
+
+	queryToken := strings.TrimSpace(c.Query("token"))
+	if queryToken != "" && isWSQueryTokenAllowed(c.Request.URL.Path) {
+		return queryToken
+	}
+
+	// cookie 兜底（保留现有兼容行为）
+	return utils.GetToken(c)
+}
+
+func tokenFromAuthorization(auth string) string {
+	auth = strings.TrimSpace(auth)
+	if auth == "" {
+		return ""
+	}
+	const bearer = "Bearer "
+	if len(auth) > len(bearer) && strings.EqualFold(auth[:len(bearer)], bearer) {
+		return strings.TrimSpace(auth[len(bearer):])
+	}
+	if strings.Count(auth, ".") >= 2 {
+		return auth
+	}
+	return ""
+}
+
+func tokenFromSecWebSocketProtocol(v string) string {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return ""
+	}
+	parts := strings.Split(v, ",")
+	tokens := make([]string, 0, len(parts))
+	for _, p := range parts {
+		t := strings.TrimSpace(p)
+		if t != "" {
+			tokens = append(tokens, t)
+		}
+	}
+	if len(tokens) == 0 {
+		return ""
+	}
+	if len(tokens) >= 2 && (strings.EqualFold(tokens[0], "bearer") || strings.EqualFold(tokens[0], "token")) {
+		return tokens[1]
+	}
+	for _, t := range tokens {
+		if strings.Count(t, ".") >= 2 {
+			return t
+		}
+	}
+	return ""
+}
+
+func isWSQueryTokenAllowed(path string) bool {
+	path = strings.TrimSpace(path)
+	if !(strings.HasSuffix(path, "/cs/ws") || strings.HasSuffix(path, "/cs/wsAgent")) {
+		return false
+	}
+	return utils.GetBoolSetting(wsAllowQueryTokenConfigKey, wsAllowQueryTokenEnvKey, false)
 }

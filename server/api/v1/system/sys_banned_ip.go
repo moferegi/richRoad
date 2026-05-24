@@ -14,6 +14,10 @@ type BannedIPApi struct{}
 
 var bannedIPService = service.ServiceGroupApp.SystemServiceGroup.BannedIPService
 
+func isBannedIPManageRole(authorityID uint) bool {
+	return authorityID == 888 || authorityID == 8881
+}
+
 // BanIP 手动封禁IP
 // @Tags     安全管理
 // @Summary  封禁指定IP
@@ -24,6 +28,10 @@ var bannedIPService = service.ServiceGroupApp.SystemServiceGroup.BannedIPService
 // @Success  200  {object} response.Response{msg=string} "封禁成功"
 // @Router   /sysBannedIP/banIP [post]
 func (b *BannedIPApi) BanIP(c *gin.Context) {
+	if !isBannedIPManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var req sysReq.BanIPRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.FailWithMessage("参数错误", c)
@@ -54,6 +62,10 @@ func (b *BannedIPApi) BanIP(c *gin.Context) {
 // @Success  200  {object} response.Response{msg=string} "解封成功"
 // @Router   /sysBannedIP/unbanIP [post]
 func (b *BannedIPApi) UnbanIP(c *gin.Context) {
+	if !isBannedIPManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var req sysReq.UnbanIPRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.FailWithMessage("参数错误", c)
@@ -78,6 +90,10 @@ func (b *BannedIPApi) UnbanIP(c *gin.Context) {
 // @Success  200  {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router   /sysBannedIP/getBannedIPList [get]
 func (b *BannedIPApi) GetBannedIPList(c *gin.Context) {
+	if !isBannedIPManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var req sysReq.BannedIPSearch
 	if err := c.ShouldBindQuery(&req); err != nil {
 		response.FailWithMessage("参数错误", c)
@@ -108,6 +124,10 @@ func (b *BannedIPApi) GetBannedIPList(c *gin.Context) {
 // @Success  200  {object} response.Response{data=[]system.AttackStatItem,msg=string} "获取成功"
 // @Router   /sysBannedIP/getAttackStats [get]
 func (b *BannedIPApi) GetAttackStats(c *gin.Context) {
+	if !isBannedIPManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var req sysReq.AttackStatsRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
 		response.FailWithMessage("参数错误", c)

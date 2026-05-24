@@ -21,7 +21,6 @@
 	import {
 		uploadFile
 	} from '@/js_sdk/lyz-aloss-uploader/lyz-aloss-uploader.js'
-	import configData from '@/common/config.js'
 	import {
 		getOssImgName
 	} from '@/common/util.js'
@@ -70,7 +69,7 @@
 		images.value.forEach(img => {
 			if (img.status == 2 || img.status == 6) {
 				upSuccessCount++
-				list.push(configData.uploadImageUrl + img.fileKey)
+				list.push(img.fileURL || img.fileKey)
 			}
 			if (img.status == 1) {
 				upLoadingCount++
@@ -105,6 +104,7 @@
 					img.progress = 100
 					img.status = 2
 					img.originalFileName = getOssImgName() + '.png'
+					img.fileURL = res
 					img.fileKey = res
 				}).catch(() => {
 					img.status = 99

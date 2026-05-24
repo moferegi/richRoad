@@ -25,7 +25,15 @@ type AuthorityService struct{}
 
 var AuthorityServiceApp = new(AuthorityService)
 
+func normalizeAuthorityParentID(auth *system.SysAuthority) {
+	if auth.ParentId == nil {
+		rootParentID := uint(0)
+		auth.ParentId = &rootParentID
+	}
+}
+
 func (authorityService *AuthorityService) CreateAuthority(auth system.SysAuthority) (authority system.SysAuthority, err error) {
+	normalizeAuthorityParentID(&auth)
 
 	if err = global.GVA_DB.Where("authority_id = ?", auth.AuthorityId).First(&system.SysAuthority{}).Error; !errors.Is(err, gorm.ErrRecordNotFound) {
 		return auth, ErrRoleExistence
@@ -60,6 +68,13 @@ func (authorityService *AuthorityService) CreateAuthority(auth system.SysAuthori
 //@return: authority system.SysAuthority, err error
 
 func (authorityService *AuthorityService) CopyAuthority(adminAuthorityID uint, copyInfo response.SysAuthorityCopyResponse) (authority system.SysAuthority, err error) {
+	if adminAuthorityID != 888 && copyInfo.OldAuthorityId == 888 {
+		return authority, errors.New("您提交的角色ID不合法")
+	}
+	if err = authorityService.CheckAuthorityIDAuth(adminAuthorityID, copyInfo.OldAuthorityId); err != nil {
+		return authority, err
+	}
+	normalizeAuthorityParentID(&copyInfo.Authority)
 	var authorityBox system.SysAuthority
 	if !errors.Is(global.GVA_DB.Where("authority_id = ?", copyInfo.Authority.AuthorityId).First(&authorityBox).Error, gorm.ErrRecordNotFound) {
 		return authority, ErrRoleExistence
@@ -112,6 +127,7 @@ func (authorityService *AuthorityService) CopyAuthority(adminAuthorityID uint, c
 //@return: authority system.SysAuthority, err error
 
 func (authorityService *AuthorityService) UpdateAuthority(auth system.SysAuthority) (authority system.SysAuthority, err error) {
+	normalizeAuthorityParentID(&auth)
 	var oldAuthority system.SysAuthority
 	err = global.GVA_DB.Where("authority_id = ?", auth.AuthorityId).First(&oldAuthority).Error
 	if err != nil {
@@ -192,8 +208,12 @@ func (authorityService *AuthorityService) GetAuthorityInfoList(authorityID uint)
 	var authorities []system.SysAuthority
 	db := global.GVA_DB.Model(&system.SysAuthority{})
 	if global.GVA_CONFIG.System.UseStrictAuth {
+		parentID := uint(0)
+		if authority.ParentId != nil {
+			parentID = *authority.ParentId
+		}
 		// 当开启了严格树形结构后
-		if *authority.ParentId == 0 {
+		if parentID == 0 {
 			// 只有顶级角色可以修改自己的权限和以下权限
 			err = db.Preload("DataAuthorityId").Where("authority_id = ?", authorityID).Find(&authorities).Error
 		} else {
@@ -230,7 +250,11 @@ func (authorityService *AuthorityService) GetStructAuthorityList(authorityID uin
 			}
 		}
 	}
-	if *auth.ParentId == 0 {
+	parentID := uint(0)
+	if auth.ParentId != nil {
+		parentID = *auth.ParentId
+	}
+	if parentID == 0 {
 		list = append(list, authorityID)
 	}
 	return list, err
@@ -328,6 +352,9 @@ func (authorityService *AuthorityService) GetParentAuthorityID(authorityID uint)
 	err = global.GVA_DB.Where("authority_id = ?", authorityID).First(&authority).Error
 	if err != nil {
 		return
+	}
+	if authority.ParentId == nil {
+		return 0, nil
 	}
 	return *authority.ParentId, nil
 }

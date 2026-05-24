@@ -2,10 +2,11 @@
 package shop
 
 import (
+	"time"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	"gorm.io/datatypes"
-	"time"
 )
 
 // 用户评论 结构体  Comment
@@ -22,6 +23,25 @@ type Comment struct {
 	Content     string             `json:"content" form:"content" gorm:"column:content;comment:;" binding:"required"`      //评论内容
 	ShopReply   string             `json:"shopReply" form:"shopReply" gorm:"column:shop_reply;comment:;"`                  //商家回复
 	ShopReplyAt *time.Time         `json:"shopReplyAt" form:"shopReplyAt" gorm:"column:shop_reply_at;comment:;"`           //商家回复创建时间
+}
+
+type CommentPublicUser struct {
+	ID       uint   `json:"ID"`
+	Avatar   string `json:"avatar"`
+	Nickname string `json:"nickname"`
+}
+
+type CommentPublic struct {
+	ID          uint              `json:"ID"`
+	CreatedAt   time.Time         `json:"CreatedAt"`
+	User        CommentPublicUser `json:"user"`
+	GoodID      uint              `json:"goodID"`
+	SKUID       uint              `json:"SKUID"`
+	Pics        datatypes.JSON    `json:"pics"`
+	Rating      uint              `json:"rating"`
+	Content     string            `json:"content"`
+	ShopReply   string            `json:"shopReply"`
+	ShopReplyAt *time.Time        `json:"shopReplyAt"`
 }
 
 // TableName 用户评论 Comment自定义表名 shop_comment

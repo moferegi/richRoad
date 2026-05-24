@@ -5,11 +5,16 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/system"
 	systemReq "github.com/flipped-aurora/gin-vue-admin/server/model/system/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
 type SysParamsApi struct{}
+
+func isSysParamsManageRole(authorityID uint) bool {
+	return authorityID == 888
+}
 
 // CreateSysParams 创建参数
 // @Tags SysParams
@@ -21,6 +26,10 @@ type SysParamsApi struct{}
 // @Success 200 {object} response.Response{msg=string} "创建成功"
 // @Router /sysParams/createSysParams [post]
 func (sysParamsApi *SysParamsApi) CreateSysParams(c *gin.Context) {
+	if !isSysParamsManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var sysParams system.SysParams
 	err := c.ShouldBindJSON(&sysParams)
 	if err != nil {
@@ -46,6 +55,10 @@ func (sysParamsApi *SysParamsApi) CreateSysParams(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "删除成功"
 // @Router /sysParams/deleteSysParams [delete]
 func (sysParamsApi *SysParamsApi) DeleteSysParams(c *gin.Context) {
+	if !isSysParamsManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	ID := c.Query("ID")
 	err := sysParamsService.DeleteSysParams(ID)
 	if err != nil {
@@ -65,6 +78,10 @@ func (sysParamsApi *SysParamsApi) DeleteSysParams(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "批量删除成功"
 // @Router /sysParams/deleteSysParamsByIds [delete]
 func (sysParamsApi *SysParamsApi) DeleteSysParamsByIds(c *gin.Context) {
+	if !isSysParamsManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	IDs := c.QueryArray("IDs[]")
 	err := sysParamsService.DeleteSysParamsByIds(IDs)
 	if err != nil {
@@ -85,6 +102,10 @@ func (sysParamsApi *SysParamsApi) DeleteSysParamsByIds(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "更新成功"
 // @Router /sysParams/updateSysParams [put]
 func (sysParamsApi *SysParamsApi) UpdateSysParams(c *gin.Context) {
+	if !isSysParamsManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var sysParams system.SysParams
 	err := c.ShouldBindJSON(&sysParams)
 	if err != nil {
@@ -110,6 +131,10 @@ func (sysParamsApi *SysParamsApi) UpdateSysParams(c *gin.Context) {
 // @Success 200 {object} response.Response{data=system.SysParams,msg=string} "查询成功"
 // @Router /sysParams/findSysParams [get]
 func (sysParamsApi *SysParamsApi) FindSysParams(c *gin.Context) {
+	if !isSysParamsManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	ID := c.Query("ID")
 	resysParams, err := sysParamsService.GetSysParams(ID)
 	if err != nil {
@@ -130,6 +155,10 @@ func (sysParamsApi *SysParamsApi) FindSysParams(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /sysParams/getSysParamsList [get]
 func (sysParamsApi *SysParamsApi) GetSysParamsList(c *gin.Context) {
+	if !isSysParamsManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var pageInfo systemReq.SysParamsSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
@@ -160,6 +189,10 @@ func (sysParamsApi *SysParamsApi) GetSysParamsList(c *gin.Context) {
 // @Success 200 {object} response.Response{data=system.SysParams,msg=string} "获取成功"
 // @Router /sysParams/getSysParam [get]
 func (sysParamsApi *SysParamsApi) GetSysParam(c *gin.Context) {
+	if !isSysParamsManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	k := c.Query("key")
 	params, err := sysParamsService.GetSysParam(k)
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -14,6 +15,38 @@ import (
 type PopupApi struct{}
 
 var popupService = service.ServiceGroupApp.ShopServiceGroup.PopupService
+
+type publicPopupResponse struct {
+	ID           uint   `json:"ID"`
+	Title        string `json:"title"`
+	Image        string `json:"image"`
+	ExternalPath string `json:"externalPath"`
+	Link         string `json:"link"`
+	Content      string `json:"content"`
+	PopupType    string `json:"popupType"`
+	OnceOnly     *bool  `json:"onceOnly"`
+	Closeable    *bool  `json:"closeable"`
+	Position     string `json:"position"`
+}
+
+func toPublicPopupResponses(list []shop.Popup) []publicPopupResponse {
+	result := make([]publicPopupResponse, 0, len(list))
+	for _, item := range list {
+		result = append(result, publicPopupResponse{
+			ID:           item.ID,
+			Title:        item.Title,
+			Image:        item.Image,
+			ExternalPath: item.ExternalPath,
+			Link:         item.Link,
+			Content:      item.Content,
+			PopupType:    item.PopupType,
+			OnceOnly:     item.OnceOnly,
+			Closeable:    item.Closeable,
+			Position:     item.Position,
+		})
+	}
+	return result
+}
 
 // CreatePopup 创建弹窗
 // @Tags Popup
@@ -25,6 +58,10 @@ var popupService = service.ServiceGroupApp.ShopServiceGroup.PopupService
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"创建成功"}"
 // @Router /popup/createPopup [post]
 func (api *PopupApi) CreatePopup(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	var info shop.Popup
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
@@ -49,6 +86,10 @@ func (api *PopupApi) CreatePopup(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"删除成功"}"
 // @Router /popup/deletePopup [delete]
 func (api *PopupApi) DeletePopup(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	ID := c.Query("ID")
 	if err := popupService.DeletePopup(ID); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
@@ -68,6 +109,10 @@ func (api *PopupApi) DeletePopup(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"更新成功"}"
 // @Router /popup/updatePopup [put]
 func (api *PopupApi) UpdatePopup(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	var info shop.Popup
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
@@ -92,6 +137,10 @@ func (api *PopupApi) UpdatePopup(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /popup/getPopupList [get]
 func (api *PopupApi) GetPopupList(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	var pageInfo shopReq.PopupSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
@@ -119,7 +168,7 @@ func (api *PopupApi) GetPopupList(c *gin.Context) {
 // @Param position query string false "弹窗位置(兼容旧版)"
 // @Param clientType query string false "客户端类型(web/uni/all)"
 // @Param page query string false "当前页面路径"
-// @Success 200 {object} response.Response{data=[]shop.Popup,msg=string} "获取成功"
+// @Success 200 {object} response.Response{data=[]publicPopupResponse,msg=string} "获取成功"
 // @Router /popup/getActivePopups [get]
 func (api *PopupApi) GetActivePopups(c *gin.Context) {
 	position := c.Query("position")
@@ -129,7 +178,7 @@ func (api *PopupApi) GetActivePopups(c *gin.Context) {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
 		response.FailWithMessage("获取失败", c)
 	} else {
-		response.OkWithDetailed(i18n.LocalizeResponseData(c, list), "获取成功", c)
+		response.OkWithDetailed(i18n.LocalizeResponseData(c, toPublicPopupResponses(list)), "获取成功", c)
 	}
 }
 
@@ -143,6 +192,10 @@ func (api *PopupApi) GetActivePopups(c *gin.Context) {
 // @Success 200 {object} response.Response{data=[]string,msg=string} "获取成功"
 // @Router /popup/getPopupPagePathOptions [get]
 func (api *PopupApi) GetPopupPagePathOptions(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	clientType := c.Query("clientType")
 	if list, err := popupService.GetPopupPagePathOptions(clientType); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))

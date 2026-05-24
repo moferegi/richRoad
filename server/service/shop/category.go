@@ -4,6 +4,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
+	"gorm.io/gorm"
 )
 
 type CategoryService struct {
@@ -113,7 +114,10 @@ func (categoryService *CategoryService) GetCategoryMobile(parentID int) (list []
 func (categoryService *CategoryService) GetChildrenCategoryAndProduct(parentID int) (list []shop.Category, err error) {
 	// 查询当前分类及其商品
 	var currentCategory shop.Category
-	err = global.GVA_DB.Preload("Goods").Where("id = ?", parentID).First(&currentCategory).Error
+	publicGoods := func(db *gorm.DB) *gorm.DB {
+		return db.Where("status = ?", true)
+	}
+	err = global.GVA_DB.Preload("Goods", publicGoods).Where("id = ? AND (show_in_uni IS NULL OR show_in_uni = ?)", parentID, true).First(&currentCategory).Error
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +127,7 @@ func (categoryService *CategoryService) GetChildrenCategoryAndProduct(parentID i
 
 	// 查询子分类及其商品
 	var childCategories []shop.Category
-	err = global.GVA_DB.Preload("Goods").Where("parent_id = ?", parentID).Find(&childCategories).Error
+	err = global.GVA_DB.Preload("Goods", publicGoods).Where("parent_id = ? AND (show_in_uni IS NULL OR show_in_uni = ?)", parentID, true).Find(&childCategories).Error
 	if err != nil {
 		return nil, err
 	}

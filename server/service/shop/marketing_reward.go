@@ -13,6 +13,7 @@ import (
 	clientService "github.com/flipped-aurora/gin-vue-admin/server/service/client"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type MarketingRewardService struct{}
@@ -148,44 +149,55 @@ func (s *MarketingRewardService) issueCouponsToUser(userID uint, couponIDsStr st
 			continue
 		}
 
-		// 检查优惠券有效
-		var coupon shop.Coupon
-		if err := global.GVA_DB.Where("id = ? AND status = ?", couponID, true).First(&coupon).Error; err != nil {
-			global.GVA_LOG.Warn("奖励优惠券无效", zap.Int("couponID", couponID))
+		if err := global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+			var coupon shop.Coupon
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND status = ?", couponID, true).First(&coupon).Error; err != nil {
+				return err
+			}
+
+			claimed := 0
+			if coupon.Claimed != nil {
+				claimed = *coupon.Claimed
+			}
+			if coupon.Quantity != nil && claimed >= *coupon.Quantity {
+				return gorm.ErrRecordNotFound
+			}
+
+			snowflakeID, err := generateSnowflakeID()
+			if err != nil {
+				return err
+			}
+
+			status := false
+			uid := int(userID)
+			now := time.Now()
+			couponOrderUser := shop.CouponOrderUser{
+				CouponNum:  snowflakeID,
+				CouponID:   &couponID,
+				UserID:     userID,
+				ShopUserID: &uid,
+				Status:     &status,
+				ClaimedAt:  &now,
+			}
+			if err := tx.Create(&couponOrderUser).Error; err != nil {
+				return err
+			}
+
+			result := tx.Model(&shop.Coupon{}).
+				Where("id = ? AND (quantity IS NULL OR COALESCE(claimed, 0) + 1 <= quantity)", couponID).
+				UpdateColumn("claimed", gorm.Expr("COALESCE(claimed, 0) + 1"))
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected == 0 {
+				return gorm.ErrRecordNotFound
+			}
+
+			return nil
+		}); err != nil {
+			global.GVA_LOG.Warn("奖励优惠券发放失败或库存不足", zap.Int("couponID", couponID), zap.Uint("userID", userID), zap.Error(err))
 			continue
 		}
-
-		// 检查库存
-		if coupon.Quantity != nil && coupon.Claimed != nil && *coupon.Claimed >= *coupon.Quantity {
-			global.GVA_LOG.Warn("奖励优惠券库存不足", zap.Int("couponID", couponID))
-			continue
-		}
-
-		// 生成券码
-		snowflakeID, err := generateSnowflakeID()
-		if err != nil {
-			global.GVA_LOG.Error("生成券码失败", zap.Error(err))
-			continue
-		}
-
-		status := false
-		uid := int(userID)
-		now := time.Now()
-		couponOrderUser := shop.CouponOrderUser{
-			CouponNum:  snowflakeID,
-			CouponID:   &couponID,
-			UserID:     userID,
-			ShopUserID: &uid,
-			Status:     &status,
-			ClaimedAt:  &now,
-		}
-		if err := global.GVA_DB.Create(&couponOrderUser).Error; err != nil {
-			global.GVA_LOG.Error("奖励优惠券发放失败", zap.Error(err))
-			continue
-		}
-
-		// 更新已领取数
-		global.GVA_DB.Model(&shop.Coupon{}).Where("id = ?", couponID).UpdateColumn("claimed", gorm.Expr("claimed + 1"))
 	}
 }
 

@@ -50,7 +50,6 @@ func (i *initApiIgnore) InitializeData(ctx context.Context) (context.Context, er
 		{Method: "HEAD", Path: "/uploads/file/*filepath"},
 		{Method: "POST", Path: "/base/login"},
 		{Method: "POST", Path: "/base/captcha"},
-		{Method: "GET", Path: "/info/getInfoDataSource"},
 		{Method: "GET", Path: "/info/getInfoPublic"},
 	}
 	if err := db.Create(&entities).Error; err != nil {

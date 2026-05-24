@@ -21,6 +21,9 @@ type AutoCodeHistoryApi struct{}
 // @Success   200   {object}  response.Response{data=map[string]interface{},msg=string}  "获取meta信息"
 // @Router    /autoCode/getMeta [post]
 func (a *AutoCodeHistoryApi) First(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var info common.GetById
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
@@ -45,6 +48,9 @@ func (a *AutoCodeHistoryApi) First(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "删除回滚记录"
 // @Router    /autoCode/delSysHistory [post]
 func (a *AutoCodeHistoryApi) Delete(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var info common.GetById
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
@@ -70,6 +76,9 @@ func (a *AutoCodeHistoryApi) Delete(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "回滚自动生成代码"
 // @Router    /autoCode/rollback [post]
 func (a *AutoCodeHistoryApi) RollBack(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var info request.SysAutoHistoryRollBack
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
@@ -94,6 +103,9 @@ func (a *AutoCodeHistoryApi) RollBack(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=response.PageResult,msg=string}  "查询回滚记录,返回包括列表,总数,页码,每页数量"
 // @Router    /autoCode/getSysHistory [post]
 func (a *AutoCodeHistoryApi) GetList(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var info common.PageInfo
 	err := c.ShouldBindJSON(&info)
 	if err != nil {

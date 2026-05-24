@@ -24,11 +24,11 @@ func (s *GoodRouter) InitGoodRouter(Router *gin.RouterGroup, PublicRouter *gin.R
 		goodRouter.DELETE("clearGoodHistory", goodApi.ClearGoodHistory)
 	}
 	{
-		goodRouterWithoutAuth.GET("findGood", goodApi.FindGood)             // 根据ID获取商品
-		goodRouterWithoutAuth.GET("getGoodList", goodApi.GetGoodList)       // 获取商品列表
-		goodRouterWithoutAuth.GET("getGoodHistory", goodApi.GetGoodHistory) // 获取商品列表
+		goodRouterWithoutRecord.GET("findGood", goodApi.FindGood)             // 根据ID获取商品
+		goodRouterWithoutRecord.GET("getGoodList", goodApi.GetGoodList)       // 获取商品列表
+		goodRouterWithoutRecord.GET("getGoodHistory", goodApi.GetGoodHistory) // 获取用户商品浏览历史
 	}
 	{
-		goodRouterWithoutRecord.GET("getGoodPublic", goodApi.GetGoodPublic) // 获取商品列表
+		goodRouterWithoutAuth.GET("getGoodPublic", goodApi.GetGoodPublic) // 获取公开商品列表/详情
 	}
 }

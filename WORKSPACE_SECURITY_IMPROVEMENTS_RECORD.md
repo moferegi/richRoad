@@ -773,7 +773,9 @@
   1. web：执行 `npm audit fix` 并移除历史遗留 Vue CLI 依赖链（`@vue/cli-*`, `@vue/cli-service`）及 `npm` 运行时依赖。
   2. uni：执行 `npm audit fix` 完成非破坏性升级。
   3. 验证结论：uni 在当前 `@dcloudio/uni-* 3.0.0-405...` 生态下，单独升级 `vite` 到 `5.4.21` 会把漏洞从 51 提高到 54，已回退到 `5.2.8`。
-- 文件：web/package.json, web/package-lock.json, uni/package-lock.json
+  4. force 实验结论：`npm audit fix --force` 当前会触发 `ETARGET No matching version found for undefined@undefined`，无法作为稳定自动修复路径。
+  5. 整套 dcloud alpha 列车实验结论：将全部 `@dcloudio/*` 升级到 `3.0.0-alpha-5000920260515001` 后，`build:h5` 虽然可通过，但漏洞从 51 升到 61（`34 high`, `14 moderate`, `13 low`），不满足“漏洞不升高”门禁，已回滚。
+- 文件：web/package.json, web/package-lock.json, uni/package.json, uni/package-lock.json
 - 有什么用：前端漏洞面明显下降且不影响构建通过。
 - 能防止什么：
   1. 旧 CLI 链路引入的高危 transitive 漏洞长期残留。
@@ -782,6 +784,138 @@
   1. web 当前审计从 `31` 降到 `7`（剩余主要是 `wangeditor` 无官方修复与 `vue3-sfc-loader` 链路）。
   2. uni 当前审计从 `70` 降到 `51`（主要集中在 `@dcloudio/uni` 生态，修复多为 `--force` 级别，需单独联调窗口处理）。
   3. 构建验证：`web npm run build` 通过；`uni npm run build:h5` 退出码 `0`。
+
+### 12.13 Uni 漏洞风险台账落地（本轮新增）
+- 改了什么：新增 uni 依赖漏洞风险台账文档，沉淀当前基线、失败策略、major/force 阻塞包清单与发布门禁。
+- 文件：docs/uni-vulnerability-risk-register.md, docs/security-hardening-runbook.md
+- 有什么用：在“短期无法继续压降”场景下，仍可做到可审计、可追责、可回滚发布。
+- 能防止什么：
+  1. 漏洞遗留没有 owner 和截止时间，导致长期悬挂。
+  2. 发布时临时决策，重复尝试已验证失败的修复路径。
+- 小白怎么操作：
+  1. 发布前先更新 `docs/uni-vulnerability-risk-register.md` 里的 Owner/Due 字段。
+  2. 仅在满足“构建通过 + 漏洞不升高”时放行。
+  3. 若不满足，按文档回滚步骤恢复依赖。
+
+### 12.14 Uni 安全门禁脚本化（本轮新增）
+- 改了什么：新增 uni 安全门禁脚本与 npm 命令，自动执行“build + audit + 基线比较”。
+- 文件：uni/scripts/security-audit-gate.mjs, uni/package.json, docs/security-hardening-runbook.md, docs/uni-vulnerability-risk-register.md
+- CI 落地：`.github/workflows/ci.yaml` 的 `frontend-uni` 任务已改为执行 `npm run security:gate`（携带固定基线环境变量）。
+- 有什么用：把人工核对流程变成可重复执行的门禁，减少漏判与回归风险。
+- 能防止什么：
+  1. 升级后构建通过但漏洞数升高仍被误放行。
+  2. 人工比对基线时抄错/看漏。
+- 小白怎么操作：
+  1. 在 `uni/` 执行 `npm run security:gate`。
+  2. 看到 `gate passed` 才允许继续发布流程。
+  3. 若需要临时改基线，用环境变量 `UNI_AUDIT_BASELINE_*` 覆盖后再跑一次。
+
+### 12.15 AutoCode SQL 注入面与 WS token 泄露面加固（本轮新增）
+- 改了什么：
+  1. AutoCode MSSQL 查询将表名改为参数绑定，数据库名增加安全标识符规范化，阻断拼接注入。
+  2. AutoCode SQLite `PRAGMA table_info` 增加安全引用，避免表名拼接注入。
+  3. 自动回滚 `DropTable` 增加表名白名单校验（仅允许 `[A-Za-z_][A-Za-z0-9_]*`）。
+  4. Web/Uni 客服 WS 连接默认禁用 query-token 降级，只有显式 `VITE_WS_ALLOW_QUERY_TOKEN=true` 才启用兼容分支。
+  5. 扫码上传二维码去掉 token 明文日志，并对 token 做 URL 编码。
+- 文件：
+  - server/service/system/sys_auto_code_mssql.go
+  - server/service/system/sys_auto_code_sqlite.go
+  - server/service/system/auto_code_history.go
+  - web/src/plugin/customer_service/view/workbench.vue
+  - web/src/plugin/customer_service/view/chatWidget.vue
+  - uni/src/pages/kefu/chat.vue
+  - web/src/components/upload/QR-code.vue
+- 有什么用：
+  1. 把 AutoCode 链路中的动态 SQL 风险降为受控输入。
+  2. 防止前端在异常分支将 JWT 放入 URL query 造成泄露。
+- 能防止什么：
+  1. 管理端高权限接口中的 SQL 拼接被恶意参数放大成删表/探测风险。
+  2. token 出现在 URL 历史、代理日志、抓包链接中的泄露问题。
+- 小白怎么操作：
+  1. 默认不要配置 `VITE_WS_ALLOW_QUERY_TOKEN`（即保持 false）。
+  2. 若必须兼容旧端，临时设为 true，完成升级后立即恢复 false。
+  3. 发布前跑：`go test ./service/system ./api/v1/system -run TestDoesNotExist -count=1`、`web npm run build`、`uni npm run build:h5`。
+
+### 12.16 扫码上传长期 token 下线（本轮新增）
+- 改了什么：
+  1. 新增“扫码上传一次性短期票据”能力：后台先签发 ticket，再由扫码端用 ticket 上传，URL 不再携带长期 JWT。
+  2. 新增接口：
+     - `POST /fileUploadAndDownload/createScanUploadTicket`（签发票据，要求登录且文件库管理角色）
+     - `POST /fileUploadAndDownload/uploadByTicket`（消费票据上传，一次性）
+  3. 票据存储策略：Redis 优先（`GET+DEL` 一次性消费），Redis 不可用时降级本地内存缓存。
+  4. Web 端二维码改为携带 `ticket` 参数；扫码页上传改为走 `uploadByTicket`，不再透传 `x-token`。
+  5. 票据签发接口增加 JWT 中间件链路，避免纯 Public 路径通过工具函数直接解析 token。
+  6. 票据上传接口仅接受 form-data 中的 `ticket`，不再接受 query 回退，阻断 URL 传递票据。
+- 文件：
+  - server/service/example/exa_file_upload_ticket.go
+  - server/api/v1/example/exa_file_upload_download.go
+  - server/router/example/exa_file_upload_and_download.go
+  - server/initialize/router.go
+  - server/model/example/request/exa_file_upload_and_downloads.go
+  - server/model/example/response/exa_file_upload_download.go
+  - web/src/api/fileUploadAndDownload.js
+  - web/src/components/upload/QR-code.vue
+  - web/src/view/example/upload/scanUpload.vue
+- 有什么用：
+  1. 彻底去除“长期 token 出现在二维码 URL”的泄露面。
+  2. 扫码上传能力最小授权化（单用途、短时效、一次性）。
+- 能防止什么：
+  1. URL 历史、代理日志、截图传播导致的长期 token 泄露。
+  2. 被动旁路拿到二维码后反复复用同一凭证持续上传。
+- 小白怎么操作：
+  1. 保持默认票据有效期（180 秒）；如需调整可配置 `security_scan_upload_ticket_ttl_seconds`（或环境变量 `CS_SCAN_UPLOAD_TICKET_TTL_SECONDS`）。
+  2. 打开后台“扫码上传”后，检查二维码链接只有 `ticket=`，没有 `token=`。
+  3. 同一个二维码连续上传两次，第二次应失败（票据已消费）。
+
+### 12.17 扫码上传票据接口限流（本轮新增）
+- 改了什么：
+  1. `uploadByTicket` 新增按 `IP + User-Agent` 的窗口限流（Redis 优先，失败时降级本地内存窗口计数）。
+  2. 新增可配置项：
+     - `security_scan_upload_ticket_upload_rate_limit_per_ip`（环境变量 `CS_SCAN_UPLOAD_TICKET_UPLOAD_RATE_LIMIT_PER_IP`）
+     - `security_scan_upload_ticket_upload_rate_limit_window_seconds`（环境变量 `CS_SCAN_UPLOAD_TICKET_UPLOAD_RATE_LIMIT_WINDOW_SECONDS`）
+  3. 增加服务层最小回归测试：覆盖一次性消费、过期拒绝、格式校验、IP+UA 限流命中。
+- 文件：
+  - server/service/example/exa_file_upload_ticket.go
+  - server/service/example/exa_file_upload_ticket_test.go
+  - server/api/v1/example/exa_file_upload_download.go
+  - docs/security-hardening-runbook.md
+- 有什么用：
+  1. 限制攻击者对票据上传口的高频探测/重放尝试，降低接口被刷爆风险。
+  2. 在 Redis 波动时保持限流能力，不因依赖故障失去防护。
+- 能防止什么：
+  1. 单 IP/UA 高频提交无效 ticket 导致日志噪声和资源消耗。
+  2. 票据机制改造后因缺少测试导致的一次性消费回归。
+- 小白怎么操作：
+  1. 默认先用 `30/60s`，观察误伤后再调整。
+  2. 压测同一 IP+UA 连续请求，确认出现“请求过于频繁”。
+  3. 执行 `go test ./service/example ./api/v1/example -run ScanUploadTicket -count=1` 验证回归。
+
+### 12.18 扫码上传攻击日志接入与独立封禁阈值（本轮新增）
+- 改了什么：
+  1. `uploadByTicket` 在两类场景写入 `sys_attack_logs`：
+     - 限流命中：`scan_upload_ticket_rate_limit`
+     - 无效/过期票据：`scan_upload_ticket_invalid`
+  2. 攻击统计增加两列：`scanTicketRate`、`scanTicketInvalid`，并在后台安全看板展示。
+  3. 自动封禁阈值新增独立配置（避免沿用默认阈值误伤）：
+     - `security_attack_auto_ban_threshold_scan_upload_ticket_rate_limit`（默认 30）
+     - `security_attack_auto_ban_threshold_scan_upload_ticket_invalid`（默认 50）
+- 文件：
+  - server/api/v1/example/enter.go
+  - server/api/v1/example/exa_file_upload_download.go
+  - server/service/system/sys_banned_ip.go
+  - server/initialize/other.go
+  - web/src/view/superAdmin/security/ipBan.vue
+  - docs/security-hardening-runbook.md
+- 有什么用：
+  1. 让扫码上传异常行为进入统一攻击可观测面，便于运营与安全联动处置。
+  2. 使用独立阈值降低误封概率，同时保留自动封禁能力。
+- 能防止什么：
+  1. 高频无效票据探测长期无感知、无统计的问题。
+  2. 新接入攻击类型被默认阈值（过低）误触发自动封禁。
+- 小白怎么操作：
+  1. 在后台“安全管理 -> 攻击统计”观察 `scanTicketRate`、`scanTicketInvalid` 是否增长。
+  2. 先用默认阈值运行一段时间，再按真实流量调整两项阈值。
+  3. 如出现误封，先调高阈值，再从封禁列表解封对应 IP。
 
 ---
 

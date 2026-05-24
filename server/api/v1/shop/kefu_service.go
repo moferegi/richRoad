@@ -5,6 +5,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -22,6 +23,10 @@ type KefuApi struct{}
 // @Success 200 {object} response.Response{msg=string} "创建成功"
 // @Router /kefu/createKefu [post]
 func (kefuApi *KefuApi) CreateKefu(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -50,6 +55,10 @@ func (kefuApi *KefuApi) CreateKefu(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "删除成功"
 // @Router /kefu/deleteKefu [delete]
 func (kefuApi *KefuApi) DeleteKefu(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -72,6 +81,10 @@ func (kefuApi *KefuApi) DeleteKefu(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "批量删除成功"
 // @Router /kefu/deleteKefuByIds [delete]
 func (kefuApi *KefuApi) DeleteKefuByIds(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -95,6 +108,10 @@ func (kefuApi *KefuApi) DeleteKefuByIds(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "更新成功"
 // @Router /kefu/updateKefu [put]
 func (kefuApi *KefuApi) UpdateKefu(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 从ctx获取标准context进行业务行为
 	ctx := c.Request.Context()
 
@@ -123,6 +140,10 @@ func (kefuApi *KefuApi) UpdateKefu(c *gin.Context) {
 // @Success 200 {object} response.Response{data=shop.Kefu,msg=string} "查询成功"
 // @Router /kefu/findKefu [get]
 func (kefuApi *KefuApi) FindKefu(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -146,6 +167,10 @@ func (kefuApi *KefuApi) FindKefu(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /kefu/getKefuList [get]
 func (kefuApi *KefuApi) GetKefuList(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -174,7 +199,7 @@ func (kefuApi *KefuApi) GetKefuList(c *gin.Context) {
 // @Summary 获取客服列表（公开）
 // @Accept application/json
 // @Produce application/json
-// @Success 200 {object} response.Response{data=[]shop.Kefu,msg=string} "获取成功"
+// @Success 200 {object} response.Response{data=[]shop.KefuPublic,msg=string} "获取成功"
 // @Router /kefu/getKefuPublic [get]
 func (kefuApi *KefuApi) GetKefuPublic(c *gin.Context) {
 	ctx := c.Request.Context()

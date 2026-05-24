@@ -12,4 +12,5 @@ var (
 	customerService              = service.ServiceGroupApp.ExampleServiceGroup.CustomerService
 	attachmentCategoryService    = service.ServiceGroupApp.ExampleServiceGroup.AttachmentCategoryService
 	fileUploadAndDownloadService = service.ServiceGroupApp.ExampleServiceGroup.FileUploadAndDownloadService
+	exampleBannedIPService       = service.ServiceGroupApp.SystemServiceGroup.BannedIPService
 )

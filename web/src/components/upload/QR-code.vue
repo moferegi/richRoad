@@ -29,9 +29,10 @@
 
 <script setup>
 import logoSrc from '@/assets/logo.png'
+import { createScanUploadTicket } from '@/api/fileUploadAndDownload'
+import { ElMessage } from 'element-plus'
 import vueQr from 'vue-qr/src/packages/vue-qr.vue'
 import { ref } from 'vue'
-import { useUserStore } from '@/pinia/modules/user'
 
 defineOptions({
   name: 'QRCodeUpload'
@@ -51,15 +52,24 @@ const props = defineProps({
 })
 
 const dialogVisible = ref(false)
-const userStore = useUserStore()
 const codeUrl = ref('')
 
-const createQrCode = () => {
-  const local = window.location
-  const folderQuery = props.folder ? '&folder=' + encodeURIComponent(props.folder) : ''
-  codeUrl.value = local.protocol + '//' + local.host + '/#/scanUpload?id=' + props.classId + '&token=' + userStore.token + folderQuery + '&t=' + Date.now()
-  dialogVisible.value = true
-  console.log(codeUrl.value)
+const createQrCode = async () => {
+  try {
+    const local = window.location
+    const { data } = await createScanUploadTicket({
+      classId: props.classId,
+      folder: props.folder
+    })
+    const ticket = data?.ticket
+    if (!ticket) {
+      throw new Error('empty ticket')
+    }
+    codeUrl.value = `${local.protocol}//${local.host}/#/scanUpload?ticket=${encodeURIComponent(ticket)}&t=${Date.now()}`
+    dialogVisible.value = true
+  } catch {
+    ElMessage.error('生成扫码上传凭证失败，请稍后重试')
+  }
 }
 
 const onFinished = () => {

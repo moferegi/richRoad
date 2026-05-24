@@ -112,4 +112,11 @@ func initVisitorCasbin(db *gorm.DB) {
 			}
 		}
 	}
+
+	for _, p := range paths {
+		db.Exec(
+			"DELETE FROM casbin_rule WHERE ptype = ? AND v1 = ? AND v2 = ? AND v0 NOT IN (?, ?)",
+			"p", p.Path, p.Method, "888", "8881",
+		)
+	}
 }

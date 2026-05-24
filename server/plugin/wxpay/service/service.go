@@ -307,6 +307,23 @@ func queryOrderByOutTradeNo(ctx context.Context, client *payment.Payment, orderI
 	}
 
 	if order.TradeState == "SUCCESS" {
+		if result.AppID != wx_global.GlobalConfig.AppID || result.MchID != wx_global.GlobalConfig.MchID {
+			return errors.New("wxpay query merchant mismatch"), order
+		}
+		if strings.TrimSpace(result.OutTradeNo) != "" && strings.TrimSpace(result.OutTradeNo) != outTradeNo {
+			return errors.New("wxpay query out_trade_no mismatch"), order
+		}
+		if result.Amount == nil || int(result.Amount.Total) != shopOrder.TotalPrice || int(result.Amount.PayerTotal) != shopOrder.TotalPrice {
+			return errors.New("wxpay query amount mismatch"), order
+		}
+		if wxErr == nil && wxOrder.CustomerID != 0 && wxOrder.CustomerID != shopOrder.UserID {
+			return errors.New("wxpay query customer mismatch"), order
+		}
+		if wxErr == nil && strings.TrimSpace(wxOrder.Openid) != "" {
+			if result.Payer == nil || strings.TrimSpace(result.Payer.OpenID) != strings.TrimSpace(wxOrder.Openid) {
+				return errors.New("wxpay query payer mismatch"), order
+			}
+		}
 		soe := shopService.UpdateOrderStatus(nil, orderID, "1")
 		if soe != nil {
 			return soe, order
@@ -326,11 +343,6 @@ func (e *WxpayService) PayAction(pay model.PayAction) error {
 		return err
 	}
 	var payOrder model.PayOrder
-	if err != nil {
-		global.GVA_LOG.Info(p)
-		global.GVA_LOG.Info(err.Error())
-		return err
-	}
 	err = json.Unmarshal([]byte(p), &payOrder)
 	// payOrder 为回调信息 请自行根据回调信息做业务逻辑
 	if err != nil {
@@ -338,8 +350,19 @@ func (e *WxpayService) PayAction(pay model.PayAction) error {
 		global.GVA_LOG.Info(err.Error())
 		return err
 	}
+	return e.PayActionOrder(payOrder)
+}
 
+func (e *WxpayService) PayActionOrder(payOrder model.PayOrder) error {
+	var err error
 	err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		if strings.TrimSpace(payOrder.OutTradeNo) == "" {
+			return errors.New("wxpay callback missing out_trade_no")
+		}
+		if payOrder.Appid != wx_global.GlobalConfig.AppID || payOrder.Mchid != wx_global.GlobalConfig.MchID {
+			return errors.New("wxpay callback merchant mismatch")
+		}
+
 		update := map[string]any{
 			"trade_state":      payOrder.TradeState,
 			"trade_state_desc": payOrder.TradeStateDesc,
@@ -373,6 +396,12 @@ func (e *WxpayService) PayAction(pay model.PayAction) error {
 			}
 			if err != nil {
 				return err
+			}
+			if payOrder.Amount.Total != shopOrder.TotalPrice || payOrder.Amount.PayerTotal != shopOrder.TotalPrice {
+				return errors.New("wxpay callback amount mismatch")
+			}
+			if wxErr == nil && wxOrder.CustomerID != 0 && wxOrder.CustomerID != shopOrder.UserID {
+				return errors.New("wxpay callback customer mismatch")
 			}
 			err = shopService.UpdateOrderStatus(tx, strconv.Itoa(int(shopOrder.ID)), "1")
 			if err != nil {

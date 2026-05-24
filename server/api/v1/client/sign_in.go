@@ -98,6 +98,10 @@ func (api *SignInApi) GetSignInRecords(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /signIn/getSignInList [get]
 func (api *SignInApi) GetSignInList(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 	userId := c.Query("userId")
@@ -135,6 +139,10 @@ func (api *SignInApi) GetSignInList(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "删除成功"
 // @Router /signIn/deleteSignIn [delete]
 func (api *SignInApi) DeleteSignIn(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	idStr := c.Query("ID")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil || id == 0 {

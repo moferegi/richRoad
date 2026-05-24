@@ -200,6 +200,7 @@ const ratingScore = ref(5)
 let socketTask = null
 let convId = ref(0)
 let tempIdCounter = 0
+const wsAllowQueryTokenFallback = String(import.meta.env.VITE_WS_ALLOW_QUERY_TOKEN || '').toLowerCase() === 'true'
 
 // -------- 历史消息分页 --------
 const historyPage = ref(1)
@@ -361,7 +362,12 @@ function connectWs() {
       header: { Authorization: `Bearer ${token}` },
       complete: () => {}
     })
-  } catch {
+  } catch (err) {
+    if (!wsAllowQueryTokenFallback) {
+      wsStatus.value = 'disconnected'
+      console.error('[CS WS] protocol handshake failed and query-token fallback is disabled', err)
+      return
+    }
     socketTask = uni.connectSocket({
       url: `${wsBase}/cs/ws?token=${encodeURIComponent(token)}`,
       complete: () => {}

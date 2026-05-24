@@ -30,6 +30,8 @@ func (commentApi *CommentApi) CreateComment(c *gin.Context) {
 		return
 	}
 	comment.UserID = utils.GetUserID(c)
+	comment.ShopReply = ""
+	comment.ShopReplyAt = nil
 	err = commentService.CreateComment(&comment)
 	if err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
@@ -49,6 +51,10 @@ func (commentApi *CommentApi) CreateComment(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "删除成功"
 // @Router /comment/deleteComment [delete]
 func (commentApi *CommentApi) DeleteComment(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	ID := c.Query("ID")
 	err := commentService.DeleteComment(ID)
 	if err != nil {
@@ -68,6 +74,10 @@ func (commentApi *CommentApi) DeleteComment(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "批量删除成功"
 // @Router /comment/deleteCommentByIds [delete]
 func (commentApi *CommentApi) DeleteCommentByIds(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	IDs := c.QueryArray("IDs[]")
 	err := commentService.DeleteCommentByIds(IDs)
 	if err != nil {
@@ -88,6 +98,10 @@ func (commentApi *CommentApi) DeleteCommentByIds(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "更新成功"
 // @Router /comment/updateComment [put]
 func (commentApi *CommentApi) UpdateComment(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	var comment shop.Comment
 	err := c.ShouldBindJSON(&comment)
 	if err != nil {
@@ -133,6 +147,10 @@ func (commentApi *CommentApi) FindComment(c *gin.Context) {
 // @Success 200 {object} response.Response{data=shop.Comment,msg=string} "查询成功"
 // @Router /comment/getComment [get]
 func (commentApi *CommentApi) GetComment(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	ID := c.Query("ID")
 	recomment, err := commentService.GetCommentBk(ID)
 	if err != nil {
@@ -153,6 +171,10 @@ func (commentApi *CommentApi) GetComment(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /comment/getCommentList [get]
 func (commentApi *CommentApi) GetCommentList(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	var pageInfo shopReq.CommentSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {

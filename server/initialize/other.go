@@ -112,6 +112,8 @@ func initDefaultSysConfigs() {
 		{ConfigKey: "security_attack_auto_ban_duration_minutes", ConfigValue: "60", ConfigName: "攻击自动封禁时长(分钟)", ConfigGroup: "security", Remark: "达到阈值后自动封禁时长，单位分钟"},
 		{ConfigKey: "security_attack_auto_ban_threshold_default", ConfigValue: "10", ConfigName: "攻击自动封禁默认阈值", ConfigGroup: "security", Remark: "默认攻击类型自动封禁阈值，设为0表示关闭"},
 		{ConfigKey: "security_attack_auto_ban_threshold_sys_error_rate_limit", ConfigValue: "30", ConfigName: "错误上报自动封禁阈值", ConfigGroup: "security", Remark: "错误上报限流命中自动封禁阈值，设为0表示关闭"},
+		{ConfigKey: "security_attack_auto_ban_threshold_scan_upload_ticket_rate_limit", ConfigValue: "30", ConfigName: "扫码上传限流自动封禁阈值", ConfigGroup: "security", Remark: "扫码上传票据接口命中限流的自动封禁阈值，设为0表示关闭"},
+		{ConfigKey: "security_attack_auto_ban_threshold_scan_upload_ticket_invalid", ConfigValue: "50", ConfigName: "扫码上传无效票据自动封禁阈值", ConfigGroup: "security", Remark: "扫码上传票据无效/过期的自动封禁阈值，设为0表示关闭"},
 		{ConfigKey: "security_sys_error_create_rate_limit_per_minute", ConfigValue: "30", ConfigName: "错误上报每分钟上限", ConfigGroup: "security", Remark: "同一IP每分钟允许创建错误日志次数，设为0表示关闭"},
 		{ConfigKey: "security_sys_error_create_rate_limit_window_seconds", ConfigValue: "60", ConfigName: "错误上报限流窗口(秒)", ConfigGroup: "security", Remark: "错误上报限流统计窗口时长，单位秒"},
 		{ConfigKey: "security_visitor_heartbeat_rate_limit_per_minute", ConfigValue: "120", ConfigName: "访客心跳每分钟上限", ConfigGroup: "security", Remark: "同一IP每分钟允许的访客心跳请求次数"},

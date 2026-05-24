@@ -6,6 +6,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -13,6 +14,29 @@ import (
 type MarketingRewardApi struct{}
 
 var marketingRewardService = service.ServiceGroupApp.ShopServiceGroup.MarketingRewardService
+
+type publicMarketingRewardResponse struct {
+	TriggerType     string `json:"triggerType"`
+	Points          int    `json:"points"`
+	SubRequireOrder bool   `json:"subRequireOrder"`
+	OrderOnce       bool   `json:"orderOnce"`
+}
+
+func toPublicMarketingRewardResponse(reward shop.MarketingReward) publicMarketingRewardResponse {
+	res := publicMarketingRewardResponse{
+		TriggerType: reward.TriggerType,
+	}
+	if reward.Points != nil {
+		res.Points = *reward.Points
+	}
+	if reward.SubRequireOrder != nil {
+		res.SubRequireOrder = *reward.SubRequireOrder
+	}
+	if reward.OrderOnce != nil {
+		res.OrderOnce = *reward.OrderOnce
+	}
+	return res
+}
 
 // CreateMarketingReward 创建营销奖励规则
 // @Tags MarketingReward
@@ -24,6 +48,10 @@ var marketingRewardService = service.ServiceGroupApp.ShopServiceGroup.MarketingR
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"创建成功"}"
 // @Router /marketingReward/createMarketingReward [post]
 func (api *MarketingRewardApi) CreateMarketingReward(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	var info shop.MarketingReward
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
@@ -48,6 +76,10 @@ func (api *MarketingRewardApi) CreateMarketingReward(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"删除成功"}"
 // @Router /marketingReward/deleteMarketingReward [delete]
 func (api *MarketingRewardApi) DeleteMarketingReward(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	ID := c.Query("ID")
 	if err := marketingRewardService.DeleteMarketingReward(ID); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
@@ -67,6 +99,10 @@ func (api *MarketingRewardApi) DeleteMarketingReward(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"更新成功"}"
 // @Router /marketingReward/updateMarketingReward [put]
 func (api *MarketingRewardApi) UpdateMarketingReward(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	var info shop.MarketingReward
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
@@ -91,6 +127,10 @@ func (api *MarketingRewardApi) UpdateMarketingReward(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /marketingReward/getMarketingRewardList [get]
 func (api *MarketingRewardApi) GetMarketingRewardList(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	var pageInfo shopReq.MarketingRewardSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
@@ -116,7 +156,7 @@ func (api *MarketingRewardApi) GetMarketingRewardList(c *gin.Context) {
 // @accept application/json
 // @Produce application/json
 // @Param triggerType query string true "触发类型(register/sub_register/sign_in/order)"
-// @Success 200 {object} response.Response{data=shop.MarketingReward,msg=string} "获取成功"
+// @Success 200 {object} response.Response{data=object,msg=string} "获取成功"
 // @Router /marketingReward/getMarketingRewardByType [get]
 func (api *MarketingRewardApi) GetMarketingRewardByType(c *gin.Context) {
 	triggerType := c.Query("triggerType")
@@ -128,6 +168,6 @@ func (api *MarketingRewardApi) GetMarketingRewardByType(c *gin.Context) {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
 		response.FailWithMessage("获取失败", c)
 	} else {
-		response.OkWithDetailed(data, "获取成功", c)
+		response.OkWithDetailed(toPublicMarketingRewardResponse(data), "获取成功", c)
 	}
 }

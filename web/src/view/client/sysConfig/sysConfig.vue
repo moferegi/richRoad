@@ -1175,8 +1175,36 @@ const MAINTENANCE_BG_UPLOAD_FOLDER = 'cloth-on/web-else'
 const TUTORIAL_RICH_UPLOAD_FOLDER = 'cloth-on/web-else/tutorial'
 
 // 密钥键列表
-const secretKeys = []
-const isSecretConfig = (row) => secretKeys.includes(row.configKey)
+const secretKeys = [
+  'access_key',
+  'access_key_id',
+  'access_key_secret',
+  'api_key',
+  'authorization',
+  'mch_api_v3_key',
+  'secret',
+  'secret_access_key',
+  'secret_key',
+  'security_token',
+  'token'
+]
+const nonSecretKeys = [
+  'security_export_allow_query_token',
+  'security_ws_allow_query_token'
+]
+const normalizeConfigKey = (key) => String(key || '')
+  .trim()
+  .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+  .replace(/[^a-zA-Z0-9]+/g, '_')
+  .replace(/^_+|_+$/g, '')
+  .toLowerCase()
+const isSecretConfig = (row) => {
+  const key = normalizeConfigKey(row?.configKey)
+  if (!key || nonSecretKeys.includes(key) || isTryonModelsConfig(row)) {
+    return false
+  }
+  return secretKeys.some(secretKey => key === secretKey || key.endsWith(`_${secretKey}`))
+}
 
 const maskSecretValue = (value) => {
   if (!value) {

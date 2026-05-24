@@ -21,6 +21,9 @@ import (
 // @Success   200   {string}  string                 "{"success":true,"data":{},"msg":"创建成功"}"
 // @Router    /autoCode/mcp [post]
 func (a *AutoCodeTemplateApi) MCP(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var info request.AutoMcpTool
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
@@ -47,6 +50,9 @@ func (a *AutoCodeTemplateApi) MCP(c *gin.Context) {
 // @Success   200   {string}  string                 "{"success":true,"data":{},"msg":"创建成功"}"
 // @Router    /autoCode/mcpList [post]
 func (a *AutoCodeTemplateApi) MCPList(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 
 	baseUrl := fmt.Sprintf("http://127.0.0.1:%d%s", global.GVA_CONFIG.System.Addr, global.GVA_CONFIG.MCP.SSEPath)
 
@@ -90,6 +96,9 @@ func (a *AutoCodeTemplateApi) MCPList(c *gin.Context) {
 // @Success   200   {object}  response.Response  "{"success":true,"data":{},"msg":"测试成功"}"
 // @Router    /autoCode/mcpTest [post]
 func (a *AutoCodeTemplateApi) MCPTest(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	// 定义接口请求结构
 	var testRequest struct {
 		Name      string                 `json:"name" binding:"required"`      // 工具名称

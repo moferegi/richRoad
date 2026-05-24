@@ -79,6 +79,27 @@ func (goodService *GoodService) GetGood(ID string, userID uint, authority uint) 
 	return
 }
 
+func (goodService *GoodService) GetPublicGood(ID string) (good shop.Good, err error) {
+	err = global.GVA_DB.
+		Where("id = ? AND status = ?", ID, true).
+		Where("category_id IS NULL OR category_id NOT IN (SELECT id FROM shop_category WHERE show_in_uni = ?)", false).
+		Preload("SKUS", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id, good_id, inventory")
+		}).
+		First(&good).Error
+	if err != nil {
+		return good, errors.New("商品不存在")
+	}
+
+	if err = global.GVA_DB.Model(&good).Where("id = ?", ID).UpdateColumn("view_num", gorm.Expr("view_num + ?", 1)).Error; err != nil {
+		return good, err
+	}
+
+	goods := []shop.Good{good}
+	enrichGoodsTags(goods)
+	return goods[0], nil
+}
+
 func (goodService *GoodService) GetGoodHistory(userID uint) (goods []shop.Good, err error) {
 	var histories []shop.History
 	err = global.GVA_DB.Where("user_id = ?", userID).Order("updated_at DESC").Limit(30).Find(&histories).Error
@@ -87,7 +108,13 @@ func (goodService *GoodService) GetGoodHistory(userID uint) (goods []shop.Good, 
 	}
 	for _, history := range histories {
 		var good shop.Good
-		err = global.GVA_DB.Where("id = ?", history.GoodID).Preload("SKUS").First(&good).Error
+		err = global.GVA_DB.
+			Where("id = ? AND status = ?", history.GoodID, true).
+			Where("category_id IS NULL OR category_id NOT IN (SELECT id FROM shop_category WHERE show_in_uni = ?)", false).
+			Preload("SKUS", func(db *gorm.DB) *gorm.DB {
+				return db.Select("id, good_id, inventory")
+			}).
+			First(&good).Error
 		if err == nil {
 			good.CreatedAt = history.UpdatedAt
 			good.UpdatedAt = history.UpdatedAt

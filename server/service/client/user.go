@@ -6,7 +6,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
@@ -17,6 +19,16 @@ import (
 )
 
 type ClientUserService struct {
+}
+
+var clientUserPhoneLocks sync.Map
+
+func lockClientUserPhone(areaCode, phone string) func() {
+	key := strings.TrimSpace(areaCode) + ":" + strings.TrimSpace(phone)
+	lockValue, _ := clientUserPhoneLocks.LoadOrStore(key, &sync.Mutex{})
+	mu := lockValue.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
 }
 
 func (clientUserService *ClientUserService) Login(loginInfo *clientReq.Login) (clientUser client.ClientUser, err error) {
@@ -46,6 +58,11 @@ func (clientUserService *ClientUserService) CreateClientUser(clientUser *client.
 	clientUser.UUID, _ = uuid.NewUUID()
 	clientUser.Password = utils.BcryptHash(clientUser.Password)
 	clientUser.InviteCode = generateInviteCode()
+	clientUser.Point = 0
+	clientUser.TryonPoint = 0
+	clientUser.OpenID = ""
+	clientUser.InvitedBy = 0
+	clientUser.SubOrderRewarded = false
 	err = global.GVA_DB.Create(clientUser).Error
 	return err
 }
@@ -90,8 +107,18 @@ func (clientUserService *ClientUserService) DeleteClientUserByIds(IDs []string, 
 // UpdateClientUser 更新客户端用户记录
 // Author [piexlmax](https://github.com/piexlmax)
 func (clientUserService *ClientUserService) UpdateClientUser(clientUser client.ClientUser) (err error) {
-	var oldUser client.ClientUser
-	err = global.GVA_DB.First(&oldUser, "id = ?", clientUser.ID).Updates(&clientUser).Error
+	updates := map[string]interface{}{
+		"username":   clientUser.Username,
+		"avatar":     clientUser.Avatar,
+		"nickname":   clientUser.Nickname,
+		"gender":     clientUser.Gender,
+		"phone":      clientUser.Phone,
+		"email":      clientUser.Email,
+		"area_code":  clientUser.AreaCode,
+		"banned":     clientUser.Banned,
+		"updated_by": clientUser.UpdatedBy,
+	}
+	err = global.GVA_DB.Model(&client.ClientUser{}).Where("id = ?", clientUser.ID).Updates(updates).Error
 	return err
 }
 
@@ -108,7 +135,7 @@ func (clientUserService *ClientUserService) GetClientUserInfoList(info clientReq
 	limit := info.PageSize
 	offset := info.PageSize * (info.Page - 1)
 	// 创建db
-	db := global.GVA_DB.Model(&client.ClientUser{})
+	db := global.GVA_DB.Model(&client.ClientUser{}).Omit("password")
 	var clientUsers []client.ClientUser
 	// 如果有条件搜索 下方会自动创建搜索语句
 	if info.StartCreatedAt != nil && info.EndCreatedAt != nil {
@@ -150,6 +177,65 @@ func (clientUserService *ClientUserService) GetClientUserInfoList(info clientReq
 func (clientUserService *ClientUserService) SetClientUserInfo(key string, value string, userID uint) (err error) {
 	err = global.GVA_DB.Model(&client.ClientUser{}).Where("id = ?", userID).Update(key, value).Error
 	return err
+}
+
+func (clientUserService *ClientUserService) SetClientUserPhone(userID uint, phone string) error {
+	phone = strings.TrimSpace(phone)
+	if userID == 0 || phone == "" {
+		return errors.New("phoneRequired")
+	}
+
+	return global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		var user client.ClientUser
+		if err := tx.Where("id = ?", userID).First(&user).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("userNotExist")
+			}
+			return err
+		}
+
+		areaCode := strings.TrimSpace(user.AreaCode)
+		var phoneAreaCode client.PhoneAreaCode
+		query := tx.Where("is_enabled = ?", true)
+		if areaCode != "" {
+			query = query.Where("area_code = ?", areaCode)
+		}
+		if err := query.Order("sort ASC, id ASC").First(&phoneAreaCode).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("areaCodeInvalid")
+			}
+			return err
+		}
+		areaCode = strings.TrimSpace(phoneAreaCode.AreaCode)
+		if areaCode == "" {
+			return errors.New("areaCodeInvalid")
+		}
+
+		unlock := lockClientUserPhone(areaCode, phone)
+		defer unlock()
+
+		if phoneAreaCode.PhoneRegex != "" {
+			matched, err := regexp.MatchString(phoneAreaCode.PhoneRegex, phone)
+			if err != nil || !matched {
+				return errors.New("phoneFormatError")
+			}
+		}
+
+		var count int64
+		if err := tx.Model(&client.ClientUser{}).
+			Where("area_code = ? AND phone = ? AND id <> ?", areaCode, phone, userID).
+			Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return errors.New("phoneAlreadyRegistered")
+		}
+
+		return tx.Model(&client.ClientUser{}).Where("id = ?", userID).Updates(map[string]interface{}{
+			"area_code": areaCode,
+			"phone":     phone,
+		}).Error
+	})
 }
 
 // AdjustTryonPoint 后台调整用户试衣币，统一写入试衣币流水
@@ -220,6 +306,9 @@ func (clientUserService *ClientUserService) LoginByPhone(areaCode, phone, passwo
 	if err != nil {
 		return clientUser, errors.New("phoneLoginFail")
 	}
+	if clientUser.Banned != nil && *clientUser.Banned {
+		return clientUser, errors.New("accountBanned")
+	}
 	if !utils.BcryptCheck(password, clientUser.Password) {
 		return clientUser, errors.New("phoneLoginFail")
 	}
@@ -228,6 +317,16 @@ func (clientUserService *ClientUserService) LoginByPhone(areaCode, phone, passwo
 
 // RegisterByPhone 手机号注册
 func (clientUserService *ClientUserService) RegisterByPhone(areaCode, phone, password string, inviteCode string) (clientUser client.ClientUser, err error) {
+	areaCode = strings.TrimSpace(areaCode)
+	phone = strings.TrimSpace(phone)
+	inviteCode = strings.TrimSpace(inviteCode)
+	if areaCode == "" || phone == "" || password == "" {
+		return clientUser, errors.New("invalidParams")
+	}
+
+	unlock := lockClientUserPhone(areaCode, phone)
+	defer unlock()
+
 	// 检查手机号是否已注册
 	var count int64
 	global.GVA_DB.Model(&client.ClientUser{}).Where("area_code = ? AND phone = ?", areaCode, phone).Count(&count)
@@ -249,7 +348,7 @@ func (clientUserService *ClientUserService) RegisterByPhone(areaCode, phone, pas
 
 	clientUser.UUID, _ = uuid.NewUUID()
 	clientUser.Username = username
-	clientUser.Nickname = phone[:3] + "****" + phone[len(phone)-2:]
+	clientUser.Nickname = maskedPhoneNickname(phone)
 	clientUser.Password = utils.BcryptHash(password)
 	clientUser.Phone = phone
 	clientUser.AreaCode = areaCode
@@ -268,6 +367,13 @@ func (clientUserService *ClientUserService) RegisterByPhone(areaCode, phone, pas
 	return
 }
 
+func maskedPhoneNickname(phone string) string {
+	if len(phone) <= 5 {
+		return phone
+	}
+	return phone[:3] + "****" + phone[len(phone)-2:]
+}
+
 // generateRandomUsername 生成随机8位数字用户名
 func generateRandomUsername() string {
 	b := make([]byte, 4)
@@ -282,16 +388,18 @@ func generateRandomUsername() string {
 
 // ChangePassword 修改密码
 func (clientUserService *ClientUserService) ChangePassword(userID uint, oldPassword, newPassword, method string) error {
+	if strings.TrimSpace(method) != "old_password" || strings.TrimSpace(oldPassword) == "" || strings.TrimSpace(newPassword) == "" {
+		return errors.New("invalidParams")
+	}
+
 	var user client.ClientUser
 	err := global.GVA_DB.Where("id = ?", userID).First(&user).Error
 	if err != nil {
 		return errors.New("userNotExist")
 	}
 
-	if method == "old_password" {
-		if !utils.BcryptCheck(oldPassword, user.Password) {
-			return errors.New("passwordError")
-		}
+	if !utils.BcryptCheck(oldPassword, user.Password) {
+		return errors.New("passwordError")
 	}
 
 	newHash := utils.BcryptHash(newPassword)

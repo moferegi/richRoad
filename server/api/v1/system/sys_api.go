@@ -1,6 +1,8 @@
 package system
 
 import (
+	"strings"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
@@ -15,6 +17,109 @@ import (
 
 type SystemApiApi struct{}
 
+func isApiManageRole(authorityID uint) bool {
+	return authorityID == 888
+}
+
+func isSensitiveIgnoreApi(method string, apiPath string) bool {
+	method = strings.ToUpper(strings.TrimSpace(method))
+	apiPath = strings.TrimSpace(apiPath)
+	sensitivePrefixes := []string{
+		"/address/",
+		"/api/",
+		"/autoCode/",
+		"/authority/",
+		"/banner/",
+		"/cart/",
+		"/category/",
+		"/authorityBtn/",
+		"/casbin/",
+		"/clientUser/",
+		"/collect/",
+		"/comment/",
+		"/coupon/",
+		"/cou/",
+		"/cpr/",
+		"/customer/",
+		"/extDomain/",
+		"/good/",
+		"/goodPurchase/",
+		"/kefu/",
+		"/language/",
+		"/marketingReward/",
+		"/menu/",
+		"/order/",
+		"/phoneAreaCode/",
+		"/presale/",
+		"/promo/",
+		"/qrcodePayment/",
+		"/signIn/",
+		"/sku/",
+		"/skuSpec/",
+		"/sysBannedIP/",
+		"/sysConfig/",
+		"/sysDictionary/",
+		"/sysDictionaryDetail/",
+		"/sysExportTemplate/",
+		"/sysLoginLog/",
+		"/sysOperationRecord/",
+		"/sysParams/",
+		"/sysVersion/",
+		"/tag/",
+		"/tryonCloth/",
+		"/tryonModel/",
+		"/tryonRechargeOrder/",
+		"/tryonTask/",
+		"/visitor/",
+	}
+	for _, prefix := range sensitivePrefixes {
+		if strings.HasPrefix(apiPath, prefix) {
+			return true
+		}
+	}
+	fileLibraryManagePaths := map[string]struct{}{
+		"/fileUploadAndDownload/createScanUploadTicket": {},
+		"/fileUploadAndDownload/deleteFile":             {},
+		"/fileUploadAndDownload/editFileName":           {},
+		"/fileUploadAndDownload/getFileList":            {},
+		"/fileUploadAndDownload/importURL":              {},
+		"/fileUploadAndDownload/listFolders":            {},
+	}
+	if _, ok := fileLibraryManagePaths[apiPath]; ok {
+		return true
+	}
+	targets := map[string]struct{}{
+		"POST /init/initdb":             {},
+		"POST /init/checkdb":            {},
+		"POST /system/reloadSystem":     {},
+		"POST /system/getSystemConfig":  {},
+		"POST /system/setSystemConfig":  {},
+		"POST /api/ignoreApi":           {},
+		"POST /api/enterSyncApi":        {},
+		"POST /api/createApi":           {},
+		"POST /api/deleteApi":           {},
+		"DELETE /api/deleteApisByIds":   {},
+		"POST /api/updateApi":           {},
+		"POST /user/admin_register":     {},
+		"POST /user/resetPassword":      {},
+		"POST /user/setUserAuthority":   {},
+		"POST /user/setUserAuthorities": {},
+		"DELETE /user/deleteUser":       {},
+		"PUT /user/setUserInfo":         {},
+		"GET /info/getInfoDataSource":   {},
+	}
+	_, ok := targets[method+" "+apiPath]
+	return ok
+}
+
+func ensureApiManageRole(c *gin.Context) bool {
+	if !isApiManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return false
+	}
+	return true
+}
+
 // CreateApi
 // @Tags      SysApi
 // @Summary   创建基础api
@@ -25,6 +130,9 @@ type SystemApiApi struct{}
 // @Success   200   {object}  response.Response{msg=string}  "创建基础api"
 // @Router    /api/createApi [post]
 func (s *SystemApiApi) CreateApi(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var api system.SysApi
 	err := c.ShouldBindJSON(&api)
 	if err != nil {
@@ -54,6 +162,9 @@ func (s *SystemApiApi) CreateApi(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "同步API"
 // @Router    /api/syncApi [get]
 func (s *SystemApiApi) SyncApi(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	newApis, deleteApis, ignoreApis, err := apiService.SyncApi()
 	if err != nil {
 		global.GVA_LOG.Error("同步失败!", zap.Error(err))
@@ -97,10 +208,21 @@ func (s *SystemApiApi) GetApiGroups(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "同步API"
 // @Router    /api/ignoreApi [post]
 func (s *SystemApiApi) IgnoreApi(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var ignoreApi system.SysIgnoreApi
 	err := c.ShouldBindJSON(&ignoreApi)
 	if err != nil {
 		response.FailWithMessage("参数错误", c)
+		return
+	}
+	if strings.TrimSpace(ignoreApi.Path) == "" || strings.TrimSpace(ignoreApi.Method) == "" {
+		response.FailWithMessage("参数错误", c)
+		return
+	}
+	if ignoreApi.Flag && isSensitiveIgnoreApi(ignoreApi.Method, ignoreApi.Path) {
+		response.FailWithMessage("敏感接口禁止加入忽略列表", c)
 		return
 	}
 	err = apiService.IgnoreApi(ignoreApi)
@@ -121,6 +243,9 @@ func (s *SystemApiApi) IgnoreApi(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "确认同步API"
 // @Router    /api/enterSyncApi [post]
 func (s *SystemApiApi) EnterSyncApi(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var syncApi systemRes.SysSyncApis
 	err := c.ShouldBindJSON(&syncApi)
 	if err != nil {
@@ -146,6 +271,9 @@ func (s *SystemApiApi) EnterSyncApi(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "删除api"
 // @Router    /api/deleteApi [post]
 func (s *SystemApiApi) DeleteApi(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var api system.SysApi
 	err := c.ShouldBindJSON(&api)
 	if err != nil {
@@ -241,6 +369,9 @@ func (s *SystemApiApi) GetApiById(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "修改基础api"
 // @Router    /api/updateApi [post]
 func (s *SystemApiApi) UpdateApi(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var api system.SysApi
 	err := c.ShouldBindJSON(&api)
 	if err != nil {
@@ -290,6 +421,9 @@ func (s *SystemApiApi) GetAllApis(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "删除选中Api"
 // @Router    /api/deleteApisByIds [delete]
 func (s *SystemApiApi) DeleteApisByIds(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var ids request.IdsReq
 	err := c.ShouldBindJSON(&ids)
 	if err != nil {
@@ -314,9 +448,7 @@ func (s *SystemApiApi) DeleteApisByIds(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "刷新成功"
 // @Router    /api/freshCasbin [get]
 func (s *SystemApiApi) FreshCasbin(c *gin.Context) {
-	authorityID := utils.GetUserAuthorityId(c)
-	if authorityID != 888 && authorityID != 8881 {
-		response.FailWithMessage("无权限操作", c)
+	if !ensureApiManageRole(c) {
 		return
 	}
 

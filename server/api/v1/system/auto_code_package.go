@@ -1,6 +1,8 @@
 package system
 
 import (
+	"strings"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	common "github.com/flipped-aurora/gin-vue-admin/server/model/common/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
@@ -8,7 +10,6 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-	"strings"
 )
 
 type AutoCodePackageApi struct{}
@@ -23,8 +24,14 @@ type AutoCodePackageApi struct{}
 // @Success   200   {object}  response.Response{data=map[string]interface{},msg=string}  "创建package成功"
 // @Router    /autoCode/createPackage [post]
 func (a *AutoCodePackageApi) Create(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var info request.SysAutoCodePackageCreate
-	_ = c.ShouldBindJSON(&info)
+	if err := c.ShouldBindJSON(&info); err != nil {
+		response.FailWithMessage("参数错误", c)
+		return
+	}
 	if err := utils.Verify(info, utils.AutoPackageVerify); err != nil {
 		response.FailWithMessage("参数错误", c)
 		return
@@ -52,8 +59,18 @@ func (a *AutoCodePackageApi) Create(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=map[string]interface{},msg=string}  "删除package成功"
 // @Router    /autoCode/delPackage [post]
 func (a *AutoCodePackageApi) Delete(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var info common.GetById
-	_ = c.ShouldBindJSON(&info)
+	if err := c.ShouldBindJSON(&info); err != nil {
+		response.FailWithMessage("参数错误", c)
+		return
+	}
+	if err := utils.Verify(info, utils.IdVerify); err != nil {
+		response.FailWithMessage("参数错误", c)
+		return
+	}
 	err := autoCodePackageService.Delete(c.Request.Context(), info)
 	if err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
@@ -72,6 +89,9 @@ func (a *AutoCodePackageApi) Delete(c *gin.Context) {
 // @Success   200  {object}  response.Response{data=map[string]interface{},msg=string}  "创建package成功"
 // @Router    /autoCode/getPackage [post]
 func (a *AutoCodePackageApi) All(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	data, err := autoCodePackageService.All(c.Request.Context())
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
@@ -90,6 +110,9 @@ func (a *AutoCodePackageApi) All(c *gin.Context) {
 // @Success   200  {object}  response.Response{data=map[string]interface{},msg=string}  "创建package成功"
 // @Router    /autoCode/getTemplates [get]
 func (a *AutoCodePackageApi) Templates(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	data, err := autoCodePackageService.Templates(c.Request.Context())
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))

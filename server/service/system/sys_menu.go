@@ -253,7 +253,11 @@ func (menuService *MenuService) AddMenuAuthority(menus []system.SysBaseMenu, adm
 	var menuIds []string
 
 	// 当开启了严格的树角色并且父角色不为0时需要进行菜单筛选
-	if global.GVA_CONFIG.System.UseStrictAuth && *authority.ParentId != 0 {
+	parentID := uint(0)
+	if authority.ParentId != nil {
+		parentID = *authority.ParentId
+	}
+	if global.GVA_CONFIG.System.UseStrictAuth && parentID != 0 {
 		var authorityMenus []system.SysAuthorityMenu
 		err = global.GVA_DB.Where("sys_authority_authority_id = ?", adminAuthorityID).Find(&authorityMenus).Error
 		if err != nil {

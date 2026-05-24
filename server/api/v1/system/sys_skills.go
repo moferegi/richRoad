@@ -4,13 +4,25 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/system/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
 type SkillsApi struct{}
 
+func ensureSkillsManageRole(c *gin.Context) bool {
+	if utils.GetUserAuthorityId(c) != 888 && utils.GetUserAuthorityId(c) != 8881 {
+		response.FailWithMessage("无权限操作", c)
+		return false
+	}
+	return true
+}
+
 func (s *SkillsApi) GetTools(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	data, err := skillsService.Tools(c.Request.Context())
 	if err != nil {
 		global.GVA_LOG.Error("获取工具列表失败", zap.Error(err))
@@ -21,6 +33,9 @@ func (s *SkillsApi) GetTools(c *gin.Context) {
 }
 
 func (s *SkillsApi) GetSkillList(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	var req request.SkillToolRequest
 	_ = c.ShouldBindJSON(&req)
 	data, err := skillsService.List(c.Request.Context(), req.Tool)
@@ -33,6 +48,9 @@ func (s *SkillsApi) GetSkillList(c *gin.Context) {
 }
 
 func (s *SkillsApi) GetSkillDetail(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	var req request.SkillDetailRequest
 	_ = c.ShouldBindJSON(&req)
 	data, err := skillsService.Detail(c.Request.Context(), req.Tool, req.Skill)
@@ -45,6 +63,9 @@ func (s *SkillsApi) GetSkillDetail(c *gin.Context) {
 }
 
 func (s *SkillsApi) SaveSkill(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	var req request.SkillSaveRequest
 	_ = c.ShouldBindJSON(&req)
 	if err := skillsService.Save(c.Request.Context(), req); err != nil {
@@ -56,6 +77,9 @@ func (s *SkillsApi) SaveSkill(c *gin.Context) {
 }
 
 func (s *SkillsApi) CreateScript(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	var req request.SkillScriptCreateRequest
 	_ = c.ShouldBindJSON(&req)
 	fileName, content, err := skillsService.CreateScript(c.Request.Context(), req)
@@ -68,6 +92,9 @@ func (s *SkillsApi) CreateScript(c *gin.Context) {
 }
 
 func (s *SkillsApi) GetScript(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	var req request.SkillFileRequest
 	_ = c.ShouldBindJSON(&req)
 	content, err := skillsService.GetScript(c.Request.Context(), req)
@@ -80,6 +107,9 @@ func (s *SkillsApi) GetScript(c *gin.Context) {
 }
 
 func (s *SkillsApi) SaveScript(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	var req request.SkillFileSaveRequest
 	_ = c.ShouldBindJSON(&req)
 	if err := skillsService.SaveScript(c.Request.Context(), req); err != nil {
@@ -91,6 +121,9 @@ func (s *SkillsApi) SaveScript(c *gin.Context) {
 }
 
 func (s *SkillsApi) CreateResource(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	var req request.SkillResourceCreateRequest
 	_ = c.ShouldBindJSON(&req)
 	fileName, content, err := skillsService.CreateResource(c.Request.Context(), req)
@@ -103,6 +136,9 @@ func (s *SkillsApi) CreateResource(c *gin.Context) {
 }
 
 func (s *SkillsApi) GetResource(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	var req request.SkillFileRequest
 	_ = c.ShouldBindJSON(&req)
 	content, err := skillsService.GetResource(c.Request.Context(), req)
@@ -115,6 +151,9 @@ func (s *SkillsApi) GetResource(c *gin.Context) {
 }
 
 func (s *SkillsApi) SaveResource(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	var req request.SkillFileSaveRequest
 	_ = c.ShouldBindJSON(&req)
 	if err := skillsService.SaveResource(c.Request.Context(), req); err != nil {
@@ -126,6 +165,9 @@ func (s *SkillsApi) SaveResource(c *gin.Context) {
 }
 
 func (s *SkillsApi) CreateReference(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	var req request.SkillReferenceCreateRequest
 	_ = c.ShouldBindJSON(&req)
 	fileName, content, err := skillsService.CreateReference(c.Request.Context(), req)
@@ -138,6 +180,9 @@ func (s *SkillsApi) CreateReference(c *gin.Context) {
 }
 
 func (s *SkillsApi) GetReference(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	var req request.SkillFileRequest
 	_ = c.ShouldBindJSON(&req)
 	content, err := skillsService.GetReference(c.Request.Context(), req)
@@ -150,6 +195,9 @@ func (s *SkillsApi) GetReference(c *gin.Context) {
 }
 
 func (s *SkillsApi) SaveReference(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	var req request.SkillFileSaveRequest
 	_ = c.ShouldBindJSON(&req)
 	if err := skillsService.SaveReference(c.Request.Context(), req); err != nil {
@@ -161,6 +209,9 @@ func (s *SkillsApi) SaveReference(c *gin.Context) {
 }
 
 func (s *SkillsApi) CreateTemplate(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	var req request.SkillTemplateCreateRequest
 	_ = c.ShouldBindJSON(&req)
 	fileName, content, err := skillsService.CreateTemplate(c.Request.Context(), req)
@@ -173,6 +224,9 @@ func (s *SkillsApi) CreateTemplate(c *gin.Context) {
 }
 
 func (s *SkillsApi) GetTemplate(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	var req request.SkillFileRequest
 	_ = c.ShouldBindJSON(&req)
 	content, err := skillsService.GetTemplate(c.Request.Context(), req)
@@ -185,6 +239,9 @@ func (s *SkillsApi) GetTemplate(c *gin.Context) {
 }
 
 func (s *SkillsApi) SaveTemplate(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	var req request.SkillFileSaveRequest
 	_ = c.ShouldBindJSON(&req)
 	if err := skillsService.SaveTemplate(c.Request.Context(), req); err != nil {
@@ -196,6 +253,9 @@ func (s *SkillsApi) SaveTemplate(c *gin.Context) {
 }
 
 func (s *SkillsApi) GetGlobalConstraint(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	var req request.SkillToolRequest
 	_ = c.ShouldBindJSON(&req)
 	content, exists, err := skillsService.GetGlobalConstraint(c.Request.Context(), req.Tool)
@@ -208,6 +268,9 @@ func (s *SkillsApi) GetGlobalConstraint(c *gin.Context) {
 }
 
 func (s *SkillsApi) SaveGlobalConstraint(c *gin.Context) {
+	if !ensureSkillsManageRole(c) {
+		return
+	}
 	var req request.SkillGlobalConstraintSaveRequest
 	_ = c.ShouldBindJSON(&req)
 	if err := skillsService.SaveGlobalConstraint(c.Request.Context(), req); err != nil {

@@ -7,6 +7,8 @@ import (
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type SignInService struct{}
@@ -16,23 +18,29 @@ func (s *SignInService) DoSignIn(userID uint) (err error) {
 	today := time.Now().Format("2006-01-02")
 	todayTime, _ := time.Parse("2006-01-02", today)
 
-	// 检查今日是否已签到
-	var count int64
-	global.GVA_DB.Model(&client.SignIn{}).Where("user_id = ? AND sign_date = ?", userID, today).Count(&count)
-	if count > 0 {
-		return errors.New("signInAlreadyToday")
-	}
+	return global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		var user client.ClientUser
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", userID).First(&user).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("userNotExist")
+			}
+			return err
+		}
 
-	signIn := client.SignIn{
-		UserID:   userID,
-		SignDate: todayTime,
-	}
-	err = global.GVA_DB.Create(&signIn).Error
-	if err != nil {
-		return
-	}
+		var count int64
+		if err := tx.Model(&client.SignIn{}).Where("user_id = ? AND sign_date = ?", userID, todayTime).Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return errors.New("signInAlreadyToday")
+		}
 
-	return
+		signIn := client.SignIn{
+			UserID:   userID,
+			SignDate: todayTime,
+		}
+		return tx.Create(&signIn).Error
+	})
 }
 
 // GetSignInStatus 获取用户今日签到状态

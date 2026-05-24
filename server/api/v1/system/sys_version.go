@@ -20,6 +20,10 @@ import (
 
 type SysVersionApi struct{}
 
+func isSysVersionManageRole(authorityID uint) bool {
+	return authorityID == 888 || authorityID == 8881
+}
+
 // buildMenuTree 构建菜单树结构
 func buildMenuTree(menus []system.SysBaseMenu) []system.SysBaseMenu {
 	// 创建菜单映射
@@ -116,6 +120,10 @@ func convertMenuToStruct(menu system.SysBaseMenu, menuMap map[uint]*system.SysBa
 // @Success 200 {object} response.Response{msg=string} "删除成功"
 // @Router /sysVersion/deleteSysVersion [delete]
 func (sysVersionApi *SysVersionApi) DeleteSysVersion(c *gin.Context) {
+	if !isSysVersionManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -138,6 +146,10 @@ func (sysVersionApi *SysVersionApi) DeleteSysVersion(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "批量删除成功"
 // @Router /sysVersion/deleteSysVersionByIds [delete]
 func (sysVersionApi *SysVersionApi) DeleteSysVersionByIds(c *gin.Context) {
+	if !isSysVersionManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -161,6 +173,10 @@ func (sysVersionApi *SysVersionApi) DeleteSysVersionByIds(c *gin.Context) {
 // @Success 200 {object} response.Response{data=system.SysVersion,msg=string} "查询成功"
 // @Router /sysVersion/findSysVersion [get]
 func (sysVersionApi *SysVersionApi) FindSysVersion(c *gin.Context) {
+	if !isSysVersionManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -184,6 +200,10 @@ func (sysVersionApi *SysVersionApi) FindSysVersion(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /sysVersion/getSysVersionList [get]
 func (sysVersionApi *SysVersionApi) GetSysVersionList(c *gin.Context) {
+	if !isSysVersionManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -236,6 +256,10 @@ func (sysVersionApi *SysVersionApi) GetSysVersionPublic(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "创建成功"
 // @Router /sysVersion/exportVersion [post]
 func (sysVersionApi *SysVersionApi) ExportVersion(c *gin.Context) {
+	if !isSysVersionManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	ctx := c.Request.Context()
 
 	var req systemReq.ExportVersionRequest
@@ -302,7 +326,7 @@ func (sysVersionApi *SysVersionApi) ExportVersion(c *gin.Context) {
 			Status: dict.Status,
 			Desc:   dict.Desc,
 		}
-		
+
 		// 处理字典详情数据，清除ID和时间戳字段
 		cleanDetails := make([]system.SysDictionaryDetail, 0, len(dict.SysDictionaryDetails))
 		for _, detail := range dict.SysDictionaryDetails {
@@ -317,7 +341,7 @@ func (sysVersionApi *SysVersionApi) ExportVersion(c *gin.Context) {
 			cleanDetails = append(cleanDetails, cleanDetail)
 		}
 		cleanDict.SysDictionaryDetails = cleanDetails
-		
+
 		processedDicts = append(processedDicts, cleanDict)
 	}
 
@@ -370,6 +394,10 @@ func (sysVersionApi *SysVersionApi) ExportVersion(c *gin.Context) {
 // @Success 200 {object} response.Response{data=object,msg=string} "下载成功"
 // @Router /sysVersion/downloadVersionJson [get]
 func (sysVersionApi *SysVersionApi) DownloadVersionJson(c *gin.Context) {
+	if !isSysVersionManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	ctx := c.Request.Context()
 
 	ID := c.Query("ID")
@@ -424,6 +452,10 @@ func (sysVersionApi *SysVersionApi) DownloadVersionJson(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "导入成功"
 // @Router /sysVersion/importVersion [post]
 func (sysVersionApi *SysVersionApi) ImportVersion(c *gin.Context) {
+	if !isSysVersionManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	ctx := c.Request.Context()
 
 	// 获取JSON数据

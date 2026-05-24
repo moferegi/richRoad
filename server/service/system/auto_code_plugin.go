@@ -30,6 +30,21 @@ var AutoCodePlugin = new(autoCodePlugin)
 
 type autoCodePlugin struct{}
 
+func sanitizePluginArchiveName(raw string) (string, error) {
+	raw = strings.TrimSpace(strings.ReplaceAll(raw, "\\", "/"))
+	name := filepath.Base(raw)
+	if name == "" || name == "." || name == ".." {
+		return "", errors.New("上传文件名不合法")
+	}
+	if strings.Contains(name, "/") || strings.Contains(name, "\\") {
+		return "", errors.New("上传文件名不合法")
+	}
+	if strings.ToLower(filepath.Ext(name)) != ".zip" {
+		return "", errors.New("仅支持 zip 插件包")
+	}
+	return name, nil
+}
+
 // Install 插件安装
 func (s *autoCodePlugin) Install(file *multipart.FileHeader) (web, server int, err error) {
 	const GVAPLUGPINATH = "./gva-plug-temp/"
@@ -45,9 +60,16 @@ func (s *autoCodePlugin) Install(file *multipart.FileHeader) (web, server int, e
 	}
 	defer src.Close()
 
+	safeFilename, err := sanitizePluginArchiveName(file.Filename)
+	if err != nil {
+		return -1, -1, err
+	}
+
+	archivePath := filepath.Join(GVAPLUGPINATH, safeFilename)
+
 	// 在临时目录创建目标文件
 	// 使用完整路径拼接的好处：明确文件位置，避免路径混乱
-	out, err := os.Create(GVAPLUGPINATH + file.Filename)
+	out, err := os.Create(archivePath)
 	if err != nil {
 		return -1, -1, err
 	}
@@ -67,7 +89,7 @@ func (s *autoCodePlugin) Install(file *multipart.FileHeader) (web, server int, e
 		return -1, -1, err
 	}
 
-	paths, err := utils.Unzip(GVAPLUGPINATH+file.Filename, GVAPLUGPINATH)
+	paths, err := utils.Unzip(archivePath, GVAPLUGPINATH)
 	paths = filterFile(paths)
 	var webIndex = -1
 	var serverIndex = -1
@@ -445,7 +467,7 @@ func GetMenuIds(menu system.SysBaseMenu, ids *[]int) {
 	var children []system.SysBaseMenu
 	global.GVA_DB.Where("parent_id = ?", menu.ID).Find(&children)
 	for _, child := range children {
-        // 先递归收集子菜单
+		// 先递归收集子菜单
 		GetMenuIds(child, ids)
 	}
 }
@@ -471,9 +493,9 @@ func removePluginRegisterImport(packageName string) error {
 	}
 
 	importPath := fmt.Sprintf("%s/plugin/%s", module, packageName)
-    importLit := fmt.Sprintf("%q", importPath)
+	importLit := fmt.Sprintf("%q", importPath)
 
-    // 移除 import
+	// 移除 import
 	var newDecls []goast.Decl
 	for _, decl := range astFile.Decls {
 		genDecl, ok := decl.(*goast.GenDecl)
@@ -493,7 +515,7 @@ func removePluginRegisterImport(packageName string) error {
 					newSpecs = append(newSpecs, spec)
 				}
 			}
-            // 如果还有其他import，保留该 decl
+			// 如果还有其他import，保留该 decl
 			if len(newSpecs) > 0 {
 				genDecl.Specs = newSpecs
 				newDecls = append(newDecls, genDecl)

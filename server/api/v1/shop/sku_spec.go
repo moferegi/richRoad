@@ -6,6 +6,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -22,6 +23,10 @@ type SkuSpecApi struct{}
 // @Success 200 {object} response.Response{msg=string} "创建成功"
 // @Router /skuSpec/createSkuSpec [post]
 func (api *SkuSpecApi) CreateSkuSpec(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	ctx := c.Request.Context()
 	var spec shop.SkuSpec
 	err := c.ShouldBindJSON(&spec)
@@ -48,6 +53,10 @@ func (api *SkuSpecApi) CreateSkuSpec(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "删除成功"
 // @Router /skuSpec/deleteSkuSpec [delete]
 func (api *SkuSpecApi) DeleteSkuSpec(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	ctx := c.Request.Context()
 	ID := c.Query("ID")
 	err := skuSpecService.DeleteSkuSpec(ctx, ID)
@@ -69,6 +78,10 @@ func (api *SkuSpecApi) DeleteSkuSpec(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "批量删除成功"
 // @Router /skuSpec/deleteSkuSpecByIds [delete]
 func (api *SkuSpecApi) DeleteSkuSpecByIds(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	ctx := c.Request.Context()
 	var IDS request.IdsReq
 	err := c.ShouldBindJSON(&IDS)
@@ -95,6 +108,10 @@ func (api *SkuSpecApi) DeleteSkuSpecByIds(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "更新成功"
 // @Router /skuSpec/updateSkuSpec [put]
 func (api *SkuSpecApi) UpdateSkuSpec(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	ctx := c.Request.Context()
 	var spec shop.SkuSpec
 	err := c.ShouldBindJSON(&spec)
@@ -121,6 +138,10 @@ func (api *SkuSpecApi) UpdateSkuSpec(c *gin.Context) {
 // @Success 200 {object} response.Response{data=shop.SkuSpec} "获取成功"
 // @Router /skuSpec/findSkuSpec [get]
 func (api *SkuSpecApi) FindSkuSpec(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	ctx := c.Request.Context()
 	ID := c.Query("ID")
 	spec, err := skuSpecService.GetSkuSpec(ctx, ID)
@@ -142,6 +163,10 @@ func (api *SkuSpecApi) FindSkuSpec(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult} "获取成功"
 // @Router /skuSpec/getSkuSpecList [get]
 func (api *SkuSpecApi) GetSkuSpecList(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	ctx := c.Request.Context()
 	var pageInfo shopReq.SkuSpecSearch
 	err := c.ShouldBindQuery(&pageInfo)
@@ -173,6 +198,10 @@ func (api *SkuSpecApi) GetSkuSpecList(c *gin.Context) {
 // @Success 200 {object} response.Response{data=[]shop.SkuSpec} "获取成功"
 // @Router /skuSpec/getAllSkuSpecs [get]
 func (api *SkuSpecApi) GetAllSkuSpecs(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	ctx := c.Request.Context()
 	specType := c.Query("type")
 	list, err := skuSpecService.GetAllSkuSpecs(ctx, specType)

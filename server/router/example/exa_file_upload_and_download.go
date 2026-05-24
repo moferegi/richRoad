@@ -1,10 +1,20 @@
 package example
 
 import (
+	"github.com/flipped-aurora/gin-vue-admin/server/middleware"
 	"github.com/gin-gonic/gin"
 )
 
 type FileUploadAndDownloadRouter struct{}
+
+func (e *FileUploadAndDownloadRouter) InitFileUploadAndDownloadPublicRouter(Router *gin.RouterGroup) {
+	fileUploadAndDownloadPublicRouter := Router.Group("fileUploadAndDownload")
+	fileUploadAndDownloadTicketIssueRouter := Router.Group("fileUploadAndDownload").Use(middleware.JWTAuth())
+	{
+		fileUploadAndDownloadPublicRouter.POST("uploadByTicket", exaFileUploadAndDownloadApi.UploadFileByTicket)                  // 使用票据上传文件
+		fileUploadAndDownloadTicketIssueRouter.POST("createScanUploadTicket", exaFileUploadAndDownloadApi.CreateScanUploadTicket) // 生成扫码上传票据
+	}
+}
 
 func (e *FileUploadAndDownloadRouter) InitFileUploadAndDownloadRouter(Router *gin.RouterGroup) {
 	fileUploadAndDownloadRouter := Router.Group("fileUploadAndDownload")

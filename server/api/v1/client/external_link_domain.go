@@ -5,6 +5,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -22,6 +23,10 @@ type ExternalLinkDomainApi struct{}
 // @Success 200 {object} response.Response{msg=string} "创建成功"
 // @Router /extDomain/createExternalLinkDomain [post]
 func (a *ExternalLinkDomainApi) CreateExternalLinkDomain(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var domain client.ExternalLinkDomain
 	if err := c.ShouldBindJSON(&domain); err != nil {
 		failClientWithKey(c, "invalidParams")
@@ -45,6 +50,10 @@ func (a *ExternalLinkDomainApi) CreateExternalLinkDomain(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "删除成功"
 // @Router /extDomain/deleteExternalLinkDomain [delete]
 func (a *ExternalLinkDomainApi) DeleteExternalLinkDomain(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var req struct {
 		ID uint `json:"id" binding:"required"`
 	}
@@ -70,6 +79,10 @@ func (a *ExternalLinkDomainApi) DeleteExternalLinkDomain(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "更新成功"
 // @Router /extDomain/updateExternalLinkDomain [put]
 func (a *ExternalLinkDomainApi) UpdateExternalLinkDomain(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var domain client.ExternalLinkDomain
 	if err := c.ShouldBindJSON(&domain); err != nil {
 		failClientWithKey(c, "invalidParams")
@@ -93,6 +106,10 @@ func (a *ExternalLinkDomainApi) UpdateExternalLinkDomain(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /extDomain/getExternalLinkDomainList [get]
 func (a *ExternalLinkDomainApi) GetExternalLinkDomainList(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var pageInfo request.ExternalLinkDomainSearch
 	if err := c.ShouldBindQuery(&pageInfo); err != nil {
 		failClientWithKey(c, "invalidParams")
@@ -122,6 +139,10 @@ func (a *ExternalLinkDomainApi) GetExternalLinkDomainList(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "设置成功"
 // @Router /extDomain/setDefaultDomain [post]
 func (a *ExternalLinkDomainApi) SetDefaultDomain(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var req struct {
 		ID uint `json:"id" binding:"required"`
 	}

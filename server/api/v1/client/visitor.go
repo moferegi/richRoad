@@ -1,10 +1,13 @@
 package client
 
 import (
+	"strings"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	clientReq "github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
+	systemReq "github.com/flipped-aurora/gin-vue-admin/server/model/system/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
@@ -16,6 +19,18 @@ type VisitorApi struct {
 }
 
 var visitorService = service.ServiceGroupApp.ClientServiceGroup.VisitorService
+
+func normalizeVisitorText(raw string, maxLen int) string {
+	text := strings.TrimSpace(raw)
+	if maxLen <= 0 {
+		return ""
+	}
+	runes := []rune(text)
+	if len(runes) > maxLen {
+		return string(runes[:maxLen])
+	}
+	return text
+}
 
 // Heartbeat 访客心跳上报
 // @Tags Visitor
@@ -31,14 +46,24 @@ func (visitorApi *VisitorApi) Heartbeat(c *gin.Context) {
 		failClientWithKey(c, "invalidParams")
 		return
 	}
+	req.VisitorID = normalizeVisitorText(req.VisitorID, 64)
 	if req.VisitorID == "" {
 		failClientWithKey(c, "visitorIDRequired")
 		return
 	}
+	req.PagePath = normalizeVisitorText(req.PagePath, 255)
+	req.Referer = normalizeVisitorText(req.Referer, 512)
+	req.Platform = normalizeVisitorText(req.Platform, 32)
+	req.EventCategory = normalizeVisitorText(req.EventCategory, 64)
+	req.EventAction = normalizeVisitorText(req.EventAction, 64)
+	req.EventLabel = normalizeVisitorText(req.EventLabel, 128)
+	req.EventExtra = normalizeVisitorText(req.EventExtra, 4096)
+	req.Language = normalizeVisitorText(req.Language, 16)
+	req.SessionID = normalizeVisitorText(req.SessionID, 64)
 
 	// 获取真实IP
 	ip := c.ClientIP()
-	userAgent := c.GetHeader("User-Agent")
+	userAgent := normalizeVisitorText(c.GetHeader("User-Agent"), 512)
 	if !visitorService.CheckHeartbeatRateLimit(ip) {
 		failClientWithKey(c, "visitorHeartbeatTooFrequent")
 		return
@@ -48,8 +73,13 @@ func (visitorApi *VisitorApi) Heartbeat(c *gin.Context) {
 		return
 	}
 
-	// 尝试获取登录用户ID（公开接口，可能未登录）
-	userID := utils.GetUserID(c)
+	// 公开接口不主动解析 token，只有经过鉴权中间件注入 claims 时才识别登录用户。
+	var userID uint
+	if claimsValue, exists := c.Get("claims"); exists {
+		if claims, ok := claimsValue.(*systemReq.CustomClaims); ok && claims != nil {
+			userID = claims.BaseClaims.ID
+		}
+	}
 
 	log := &client.VisitorLog{
 		VisitorID:     req.VisitorID,
@@ -88,6 +118,10 @@ func (visitorApi *VisitorApi) Heartbeat(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /visitor/getVisitorLogList [get]
 func (visitorApi *VisitorApi) GetVisitorLogList(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var pageInfo clientReq.VisitorLogSearch
 	if err := c.ShouldBindQuery(&pageInfo); err != nil {
 		failClientWithKey(c, "invalidParams")
@@ -117,6 +151,10 @@ func (visitorApi *VisitorApi) GetVisitorLogList(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /visitor/getVisitorSummaryList [get]
 func (visitorApi *VisitorApi) GetVisitorSummaryList(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var pageInfo clientReq.VisitorSummarySearch
 	if err := c.ShouldBindQuery(&pageInfo); err != nil {
 		failClientWithKey(c, "invalidParams")
@@ -145,6 +183,10 @@ func (visitorApi *VisitorApi) GetVisitorSummaryList(c *gin.Context) {
 // @Success 200 {object} response.Response{data=map[string]interface{},msg=string} "获取成功"
 // @Router /visitor/getTodayStats [get]
 func (visitorApi *VisitorApi) GetTodayStats(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	stats, err := visitorService.GetTodayStats()
 	if err != nil {
 		global.GVA_LOG.Error("获取今日统计失败!", zap.Error(err))
@@ -164,6 +206,10 @@ func (visitorApi *VisitorApi) GetTodayStats(c *gin.Context) {
 // @Success 200 {object} response.Response{data=map[string]interface{},msg=string} "获取成功"
 // @Router /visitor/getKefuGuideStats [get]
 func (visitorApi *VisitorApi) GetKefuGuideStats(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var query clientReq.KefuGuideStatsSearch
 	if err := c.ShouldBindQuery(&query); err != nil {
 		failClientWithKey(c, "invalidParams")
@@ -189,6 +235,10 @@ func (visitorApi *VisitorApi) GetKefuGuideStats(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "聚合成功"
 // @Router /visitor/aggregateDailySummary [post]
 func (visitorApi *VisitorApi) AggregateDailySummary(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	date := c.Query("date")
 	if date == "" {
 		failClientWithKey(c, "dateRequired")

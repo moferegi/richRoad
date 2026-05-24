@@ -90,7 +90,6 @@ func initInviteCasbin(db *gorm.DB) {
 		Path   string
 		Method string
 	}{
-		{"/clientUser/getSubordinates", "GET"},
 		{"/clientUser/getMyInviteInfo", "GET"},
 		{"/clientUser/getMySubordinates", "GET"},
 	}
@@ -102,6 +101,7 @@ func initInviteCasbin(db *gorm.DB) {
 		{"/sysConfig/getSysConfigList", "GET"},
 		{"/sysConfig/getAliyunTryonQuotaEstimate", "GET"},
 		{"/sysConfig/updateSysConfig", "PUT"},
+		{"/clientUser/getSubordinates", "GET"},
 		{"/clientUser/adjustTryonPoint", "POST"},
 	}
 
@@ -148,5 +148,9 @@ func initInviteCasbin(db *gorm.DB) {
 	db.Exec(
 		"DELETE FROM casbin_rule WHERE ptype = ? AND v1 = ? AND v2 = ? AND v0 NOT IN (?, ?)",
 		"p", "/clientUser/adjustTryonPoint", "POST", "888", "8881",
+	)
+	db.Exec(
+		"DELETE FROM casbin_rule WHERE ptype = ? AND v1 = ? AND v2 = ? AND v0 NOT IN (?, ?)",
+		"p", "/clientUser/getSubordinates", "GET", "888", "8881",
 	)
 }

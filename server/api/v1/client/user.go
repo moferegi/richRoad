@@ -29,6 +29,11 @@ var clientBannedIPService = service.ServiceGroupApp.SystemServiceGroup.BannedIPS
 
 var store = base64Captcha.DefaultMemStore
 
+type openIDResponse struct {
+	Openid  string `json:"openid"`
+	Unionid string `json:"unionid,omitempty"`
+}
+
 func (clientUserApi *ClientUserApi) GetOpenID(c *gin.Context) {
 	code := c.Query("code")
 	if code == "" {
@@ -41,7 +46,12 @@ func (clientUserApi *ClientUserApi) GetOpenID(c *gin.Context) {
 		failClientWithKey(c, "openidFail")
 		return
 	}
-	response.OkWithData(res, c)
+	if res.Errcode != 0 {
+		global.GVA_LOG.Warn("获取openid失败", zap.Int("errcode", res.Errcode), zap.String("errmsg", res.Errmsg))
+		failClientWithKey(c, "openidFail")
+		return
+	}
+	response.OkWithData(openIDResponse{Openid: res.Openid, Unionid: res.Unionid}, c)
 }
 
 func (clientUserApi *ClientUserApi) GetUserInfo(c *gin.Context) {
@@ -240,6 +250,10 @@ func (clientUserApi *ClientUserApi) AdjustClientUserTryonPoint(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"创建成功"}"
 // @Router /clientUser/createClientUser [post]
 func (clientUserApi *ClientUserApi) CreateClientUser(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var clientUser client.ClientUser
 	err := c.ShouldBindJSON(&clientUser)
 	if err != nil {
@@ -266,6 +280,10 @@ func (clientUserApi *ClientUserApi) CreateClientUser(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"删除成功"}"
 // @Router /clientUser/deleteClientUser [delete]
 func (clientUserApi *ClientUserApi) DeleteClientUser(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	ID := c.Query("ID")
 	userID := utils.GetUserID(c)
 	if err := clientUserService.DeleteClientUser(ID, userID); err != nil {
@@ -285,6 +303,10 @@ func (clientUserApi *ClientUserApi) DeleteClientUser(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"批量删除成功"}"
 // @Router /clientUser/deleteClientUserByIds [delete]
 func (clientUserApi *ClientUserApi) DeleteClientUserByIds(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	IDs := c.QueryArray("IDs[]")
 	userID := utils.GetUserID(c)
 	if err := clientUserService.DeleteClientUserByIds(IDs, userID); err != nil {
@@ -305,6 +327,10 @@ func (clientUserApi *ClientUserApi) DeleteClientUserByIds(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"更新成功"}"
 // @Router /clientUser/updateClientUser [put]
 func (clientUserApi *ClientUserApi) UpdateClientUser(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var clientUser client.ClientUser
 	err := c.ShouldBindJSON(&clientUser)
 	if err != nil {
@@ -331,6 +357,10 @@ func (clientUserApi *ClientUserApi) UpdateClientUser(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"查询成功"}"
 // @Router /clientUser/findClientUser [get]
 func (clientUserApi *ClientUserApi) FindClientUser(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	ID := c.Query("ID")
 	if reclientUser, err := clientUserService.GetClientUser(ID); err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
@@ -350,6 +380,10 @@ func (clientUserApi *ClientUserApi) FindClientUser(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"获取成功"}"
 // @Router /clientUser/getClientUserList [get]
 func (clientUserApi *ClientUserApi) GetClientUserList(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var pageInfo clientReq.ClientUserSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
@@ -399,7 +433,7 @@ func (clientUserApi *ClientUserApi) SetClientUserInfo(c *gin.Context) {
 	value := req.Value
 	userID := claims.BaseClaims.ID
 
-	keyWhiteList := []string{"avatar", "nickname", "gender", "phone", "email"}
+	keyWhiteList := []string{"avatar", "nickname", "gender", "email"}
 	inWhiteList := false
 	for i := range keyWhiteList {
 		if keyWhiteList[i] == key {
@@ -436,6 +470,7 @@ func (clientUserApi *ClientUserApi) TokenNext(c *gin.Context, user client.Client
 		failClientWithKey(c, "tokenFail")
 		return
 	}
+	user.Password = ""
 	maxDevices := global.GVA_CONFIG.System.MaxLoginDevices
 	if maxDevices == 0 {
 		// 未限制设备数，直接登录
@@ -488,6 +523,10 @@ func interfaceToInt(v interface{}) (i int) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /clientUser/getSubordinates [get]
 func (clientUserApi *ClientUserApi) GetSubordinates(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	userIDStr := c.Query("userID")
 	if userIDStr == "" {
 		failClientWithKey(c, "userIDRequired")
@@ -779,10 +818,9 @@ func (clientUserApi *ClientUserApi) SetPhoneVerified(c *gin.Context) {
 		return
 	}
 
-	// 设置手机号
-	if err := clientUserService.SetClientUserInfo("phone", req.Phone, userID); err != nil {
+	if err := clientUserService.SetClientUserPhone(userID, req.Phone); err != nil {
 		global.GVA_LOG.Error("设置手机号失败!", zap.Error(err))
-		failClientWithKey(c, "setFail")
+		failClientWithErr(c, err)
 		return
 	}
 

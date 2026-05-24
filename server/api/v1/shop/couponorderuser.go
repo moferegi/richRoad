@@ -23,6 +23,10 @@ type CouponOrderUserApi struct{}
 // @Success 200 {object} response.Response{msg=string} "创建成功"
 // @Router /cou/createCouponOrderUser [post]
 func (couApi *CouponOrderUserApi) CreateCouponOrderUser(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -51,6 +55,10 @@ func (couApi *CouponOrderUserApi) CreateCouponOrderUser(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "删除成功"
 // @Router /cou/deleteCouponOrderUser [delete]
 func (couApi *CouponOrderUserApi) DeleteCouponOrderUser(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -73,6 +81,10 @@ func (couApi *CouponOrderUserApi) DeleteCouponOrderUser(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "批量删除成功"
 // @Router /cou/deleteCouponOrderUserByIds [delete]
 func (couApi *CouponOrderUserApi) DeleteCouponOrderUserByIds(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -96,6 +108,10 @@ func (couApi *CouponOrderUserApi) DeleteCouponOrderUserByIds(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "更新成功"
 // @Router /cou/updateCouponOrderUser [put]
 func (couApi *CouponOrderUserApi) UpdateCouponOrderUser(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 从ctx获取标准context进行业务行为
 	ctx := c.Request.Context()
 
@@ -124,6 +140,10 @@ func (couApi *CouponOrderUserApi) UpdateCouponOrderUser(c *gin.Context) {
 // @Success 200 {object} response.Response{data=shop.CouponOrderUser,msg=string} "查询成功"
 // @Router /cou/findCouponOrderUser [get]
 func (couApi *CouponOrderUserApi) FindCouponOrderUser(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -147,6 +167,10 @@ func (couApi *CouponOrderUserApi) FindCouponOrderUser(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /cou/getCouponOrderUserList [get]
 func (couApi *CouponOrderUserApi) GetCouponOrderUserList(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -178,6 +202,10 @@ func (couApi *CouponOrderUserApi) GetCouponOrderUserList(c *gin.Context) {
 // @Success 200 {object} response.Response{data=object,msg=string} "查询成功"
 // @Router /cou/getCouponOrderUserDataSource [get]
 func (couApi *CouponOrderUserApi) GetCouponOrderUserDataSource(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -278,6 +306,10 @@ func (couApi *CouponOrderUserApi) ClaimCouponByUser(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "发放成功"
 // @Router /cou/adminIssueCouponToAll [post]
 func (couApi *CouponOrderUserApi) AdminIssueCouponToAll(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	ctx := c.Request.Context()
 	var req shopReq.AdminIssueCouponRequest // 使用 AdminIssueCouponRequest，即使只用 CouponID，保持一致性或未来扩展
 	err := c.ShouldBindJSON(&req)

@@ -19,6 +19,10 @@ import (
 
 type SysErrorApi struct{}
 
+func isSysErrorManageRole(authorityID uint) bool {
+	return authorityID == 888 || authorityID == 8881
+}
+
 const (
 	sysErrorCreateRateLimitConfigKey = "security_sys_error_create_rate_limit_per_minute"
 	sysErrorCreateRateLimitEnvKey    = "CS_SYS_ERROR_CREATE_RATE_LIMIT_PER_MINUTE"
@@ -101,6 +105,10 @@ func (sysErrorApi *SysErrorApi) CreateSysError(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "删除成功"
 // @Router /sysError/deleteSysError [delete]
 func (sysErrorApi *SysErrorApi) DeleteSysError(c *gin.Context) {
+	if !isSysErrorManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -123,6 +131,10 @@ func (sysErrorApi *SysErrorApi) DeleteSysError(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "批量删除成功"
 // @Router /sysError/deleteSysErrorByIds [delete]
 func (sysErrorApi *SysErrorApi) DeleteSysErrorByIds(c *gin.Context) {
+	if !isSysErrorManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -146,6 +158,10 @@ func (sysErrorApi *SysErrorApi) DeleteSysErrorByIds(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "更新成功"
 // @Router /sysError/updateSysError [put]
 func (sysErrorApi *SysErrorApi) UpdateSysError(c *gin.Context) {
+	if !isSysErrorManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return
+	}
 	// 从ctx获取标准context进行业务行为
 	ctx := c.Request.Context()
 
@@ -174,6 +190,10 @@ func (sysErrorApi *SysErrorApi) UpdateSysError(c *gin.Context) {
 // @Success 200 {object} response.Response{data=system.SysError,msg=string} "查询成功"
 // @Router /sysError/findSysError [get]
 func (sysErrorApi *SysErrorApi) FindSysError(c *gin.Context) {
+	if !isSysErrorManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -197,6 +217,10 @@ func (sysErrorApi *SysErrorApi) FindSysError(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /sysError/getSysErrorList [get]
 func (sysErrorApi *SysErrorApi) GetSysErrorList(c *gin.Context) {
+	if !isSysErrorManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 
@@ -230,6 +254,10 @@ func (sysErrorApi *SysErrorApi) GetSysErrorList(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "处理已提交"
 // @Router /sysError/getSysErrorSolution [get]
 func (sysErrorApi *SysErrorApi) GetSysErrorSolution(c *gin.Context) {
+	if !isSysErrorManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return
+	}
 	// 创建业务用Context
 	ctx := c.Request.Context()
 

@@ -27,6 +27,10 @@ var tryonTaskService = service.ServiceGroupApp.ClientServiceGroup.TryonTaskServi
 // @Success 200 {object} response.Response{msg=string} "删除成功"
 // @Router /tryonTask/deleteTryonTask [delete]
 func (api *TryonTaskApi) DeleteTryonTask(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	idStr := c.Query("ID")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil || id == 0 {
@@ -53,6 +57,10 @@ func (api *TryonTaskApi) DeleteTryonTask(c *gin.Context) {
 // @Success 200 {object} response.Response{msg=string} "批量删除成功"
 // @Router /tryonTask/deleteTryonTaskByIds [delete]
 func (api *TryonTaskApi) DeleteTryonTaskByIds(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	idStrs := c.QueryArray("IDs[]")
 	if len(idStrs) == 0 {
 		failClientWithKey(c, "invalidIDs")
@@ -239,6 +247,10 @@ func (api *TryonTaskApi) GetMyTryonTaskList(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /tryonTask/getTryonTaskList [get]
 func (api *TryonTaskApi) GetTryonTaskList(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var pageInfo clientReq.TryonTaskSearch
 	if err := c.ShouldBindQuery(&pageInfo); err != nil {
 		failClientWithKey(c, "invalidParams")
@@ -270,6 +282,10 @@ func (api *TryonTaskApi) GetTryonTaskList(c *gin.Context) {
 // @Success 200 {object} response.Response{data=map[string]interface{},msg=string} "获取成功"
 // @Router /tryonTask/getTryonTaskStats [get]
 func (api *TryonTaskApi) GetTryonTaskStats(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var search clientReq.TryonTaskSearch
 	if err := c.ShouldBindQuery(&search); err != nil {
 		failClientWithKey(c, "invalidParams")
@@ -296,6 +312,10 @@ func (api *TryonTaskApi) GetTryonTaskStats(c *gin.Context) {
 // @Success 200 {object} response.Response{data=map[string]interface{},msg=string} "获取成功"
 // @Router /tryonTask/getTryonTaskTrend [get]
 func (api *TryonTaskApi) GetTryonTaskTrend(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var search clientReq.TryonTaskSearch
 	if err := c.ShouldBindQuery(&search); err != nil {
 		failClientWithKey(c, "invalidParams")

@@ -14,7 +14,7 @@ import (
 type SystemApi struct{}
 
 func isSystemConfigRole(authorityID uint) bool {
-	return authorityID == 888 || authorityID == 8881 || authorityID == 9528
+	return authorityID == 888 || authorityID == 8881
 }
 
 func isSystemSensitiveRole(authorityID uint) bool {
@@ -29,7 +29,7 @@ func isSystemSensitiveRole(authorityID uint) bool {
 // @Success   200  {object}  response.Response{data=systemRes.SysConfigResponse,msg=string}  "获取配置文件内容,返回包括系统配置"
 // @Router    /system/getSystemConfig [post]
 func (s *SystemApi) GetSystemConfig(c *gin.Context) {
-	if !isSystemConfigRole(utils.GetUserAuthorityId(c)) {
+	if !isSystemSensitiveRole(utils.GetUserAuthorityId(c)) {
 		response.FailWithMessage(i18n.T(c, "noPermission"), c)
 		return
 	}
@@ -52,7 +52,7 @@ func (s *SystemApi) GetSystemConfig(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=string}  "设置配置文件内容"
 // @Router    /system/setSystemConfig [post]
 func (s *SystemApi) SetSystemConfig(c *gin.Context) {
-	if !isSystemConfigRole(utils.GetUserAuthorityId(c)) {
+	if !isSystemSensitiveRole(utils.GetUserAuthorityId(c)) {
 		response.FailWithMessage(i18n.T(c, "noPermission"), c)
 		return
 	}

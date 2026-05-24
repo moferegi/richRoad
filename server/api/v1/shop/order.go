@@ -3,6 +3,7 @@ package shop
 import (
 	"encoding/json"
 	"strings"
+	"time"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
@@ -14,6 +15,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"gorm.io/datatypes"
 )
 
 type OrderApi struct {
@@ -46,6 +48,172 @@ func failWithKey(c *gin.Context, key string) {
 	response.FailWithMessage(i18n.T(c, key), c)
 }
 
+type publicOrderDetailResponse struct {
+	ID        uint               `json:"ID"`
+	CreatedAt time.Time          `json:"CreatedAt"`
+	OrderID   uint               `json:"orderID"`
+	GoodID    uint               `json:"goodID"`
+	Good      publicGoodResponse `json:"good"`
+	SKUID     uint               `json:"skuID"`
+	SKU       publicSkuResponse  `json:"sku"`
+	Quantity  uint               `json:"quantity"`
+	Price     uint               `json:"price"`
+	PriceI18n string             `json:"priceI18n"`
+	IsComment bool               `json:"isComment"`
+}
+
+type publicOrderResponse struct {
+	ID                       uint                        `json:"ID"`
+	CreatedAt                time.Time                   `json:"CreatedAt"`
+	CouponNum                string                      `json:"couponNum"`
+	OriginPrice              uint                        `json:"originPrice"`
+	Discount                 uint                        `json:"discount"`
+	TotalPrice               uint                        `json:"totalPrice"`
+	UsePoints                bool                        `json:"usePoints"`
+	PointsUsed               uint                        `json:"pointsUsed"`
+	Status                   string                      `json:"status"`
+	RefundReason             string                      `json:"refundReason"`
+	RefundImages             datatypes.JSON              `json:"refundImages"`
+	RefundAppliedAt          *time.Time                  `json:"refundAppliedAt"`
+	RefundRemark             string                      `json:"refundRemark"`
+	RefundHandledAt          *time.Time                  `json:"refundHandledAt"`
+	Detail                   []publicOrderDetailResponse `json:"detail"`
+	Express                  string                      `json:"express"`
+	Phone                    string                      `json:"phone"`
+	Name                     string                      `json:"name"`
+	Province                 string                      `json:"province"`
+	City                     string                      `json:"city"`
+	Area                     string                      `json:"area"`
+	Street                   string                      `json:"street"`
+	CloseTime                time.Time                   `json:"closeTime"`
+	IsPresale                bool                        `json:"isPresale"`
+	PayMethod                string                      `json:"payMethod"`
+	SettlementCurrency       string                      `json:"settlementCurrency"`
+	SettlementCurrencySymbol string                      `json:"settlementCurrencySymbol"`
+	ExpireAt                 *time.Time                  `json:"expireAt"`
+	PaidAt                   *time.Time                  `json:"paidAt"`
+	ReceivedAt               *time.Time                  `json:"receivedAt"`
+	CancelledAt              *time.Time                  `json:"cancelledAt"`
+}
+
+type publicOrderCommentResponse struct {
+	ID                       uint                      `json:"ID"`
+	CreatedAt                time.Time                 `json:"CreatedAt"`
+	TotalPrice               uint                      `json:"totalPrice"`
+	Status                   string                    `json:"status"`
+	RefundReason             string                    `json:"refundReason"`
+	RefundImages             datatypes.JSON            `json:"refundImages"`
+	RefundAppliedAt          *time.Time                `json:"refundAppliedAt"`
+	RefundRemark             string                    `json:"refundRemark"`
+	RefundHandledAt          *time.Time                `json:"refundHandledAt"`
+	Detail                   publicOrderDetailResponse `json:"detail"`
+	Express                  string                    `json:"express"`
+	Phone                    string                    `json:"phone"`
+	Name                     string                    `json:"name"`
+	SettlementCurrency       string                    `json:"settlementCurrency"`
+	SettlementCurrencySymbol string                    `json:"settlementCurrencySymbol"`
+	Province                 string                    `json:"province"`
+	City                     string                    `json:"city"`
+	Area                     string                    `json:"area"`
+	Street                   string                    `json:"street"`
+	CloseTime                time.Time                 `json:"closeTime"`
+	Comment                  shop.Comment              `json:"comment"`
+}
+
+func toPublicOrderDetailResponse(item shop.OrderDetailRes) publicOrderDetailResponse {
+	return publicOrderDetailResponse{
+		ID:        item.ID,
+		CreatedAt: item.CreatedAt,
+		OrderID:   item.OrderID,
+		GoodID:    item.GoodID,
+		Good:      toPublicGoodResponse(item.Good),
+		SKUID:     item.SKUID,
+		SKU:       toPublicSkuResponse(item.SKU),
+		Quantity:  item.Quantity,
+		Price:     item.Price,
+		PriceI18n: item.PriceI18n,
+		IsComment: item.IsComment,
+	}
+}
+
+func toPublicOrderDetailResponses(list []shop.OrderDetailRes) []publicOrderDetailResponse {
+	result := make([]publicOrderDetailResponse, 0, len(list))
+	for _, item := range list {
+		result = append(result, toPublicOrderDetailResponse(item))
+	}
+	return result
+}
+
+func toPublicOrderResponse(item shop.OrderRes) publicOrderResponse {
+	return publicOrderResponse{
+		ID:                       item.ID,
+		CreatedAt:                item.CreatedAt,
+		CouponNum:                item.CouponNum,
+		OriginPrice:              item.OriginPrice,
+		Discount:                 item.Discount,
+		TotalPrice:               item.TotalPrice,
+		UsePoints:                item.UsePoints,
+		PointsUsed:               item.PointsUsed,
+		Status:                   item.Status,
+		RefundReason:             item.RefundReason,
+		RefundImages:             item.RefundImages,
+		RefundAppliedAt:          item.RefundAppliedAt,
+		RefundRemark:             item.RefundRemark,
+		RefundHandledAt:          item.RefundHandledAt,
+		Detail:                   toPublicOrderDetailResponses(item.Detail),
+		Express:                  item.Express,
+		Phone:                    item.Phone,
+		Name:                     item.Name,
+		Province:                 item.Province,
+		City:                     item.City,
+		Area:                     item.Area,
+		Street:                   item.Street,
+		CloseTime:                item.CloseTime,
+		IsPresale:                item.IsPresale,
+		PayMethod:                item.PayMethod,
+		SettlementCurrency:       item.SettlementCurrency,
+		SettlementCurrencySymbol: item.SettlementCurrencySymbol,
+		ExpireAt:                 item.ExpireAt,
+		PaidAt:                   item.PaidAt,
+		ReceivedAt:               item.ReceivedAt,
+		CancelledAt:              item.CancelledAt,
+	}
+}
+
+func toPublicOrderResponses(list []shop.OrderRes) []publicOrderResponse {
+	result := make([]publicOrderResponse, 0, len(list))
+	for _, item := range list {
+		result = append(result, toPublicOrderResponse(item))
+	}
+	return result
+}
+
+func toPublicOrderCommentResponse(item shop.OrderCommentRes) publicOrderCommentResponse {
+	return publicOrderCommentResponse{
+		ID:                       item.ID,
+		CreatedAt:                item.CreatedAt,
+		TotalPrice:               item.TotalPrice,
+		Status:                   item.Status,
+		RefundReason:             item.RefundReason,
+		RefundImages:             item.RefundImages,
+		RefundAppliedAt:          item.RefundAppliedAt,
+		RefundRemark:             item.RefundRemark,
+		RefundHandledAt:          item.RefundHandledAt,
+		Detail:                   toPublicOrderDetailResponse(item.Detail),
+		Express:                  item.Express,
+		Phone:                    item.Phone,
+		Name:                     item.Name,
+		SettlementCurrency:       item.SettlementCurrency,
+		SettlementCurrencySymbol: item.SettlementCurrencySymbol,
+		Province:                 item.Province,
+		City:                     item.City,
+		Area:                     item.Area,
+		Street:                   item.Street,
+		CloseTime:                item.CloseTime,
+		Comment:                  item.Comment,
+	}
+}
+
 // CreateOrder 创建订单
 // @Tags Order
 // @Summary 创建订单
@@ -56,6 +224,11 @@ func failWithKey(c *gin.Context, key string) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"创建成功"}"
 // @Router /order/createOrder [post]
 func (orderApi *OrderApi) CreateOrder(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
+
 	var order shop.Order
 	err := c.ShouldBindJSON(&order)
 	if err != nil {
@@ -310,7 +483,7 @@ func (orderApi *OrderApi) SelfOrderList(c *gin.Context) {
 		failWithKey(c, "getFail")
 	} else {
 		pageResult := response.PageResult{
-			List:     list,
+			List:     toPublicOrderResponses(list),
 			Total:    total,
 			Page:     order.Page,
 			PageSize: order.PageSize,
@@ -335,7 +508,7 @@ func (orderApi *OrderApi) SelfOrder(c *gin.Context) {
 		global.GVA_LOG.Error("查询失败："+err.Error(), zap.Error(err))
 		failWithKey(c, "queryFail")
 	} else {
-		response.OkWithData(i18n.LocalizeResponseData(c, order), c)
+		response.OkWithData(i18n.LocalizeResponseData(c, toPublicOrderResponse(order)), c)
 	}
 }
 
@@ -348,7 +521,7 @@ func (orderApi *OrderApi) SelfOrderComment(c *gin.Context) {
 		global.GVA_LOG.Error("查询失败："+err.Error(), zap.Error(err))
 		failWithKey(c, "queryFail")
 	} else {
-		response.OkWithData(i18n.LocalizeResponseData(c, order), c)
+		response.OkWithData(i18n.LocalizeResponseData(c, toPublicOrderCommentResponse(order)), c)
 	}
 }
 
@@ -506,7 +679,24 @@ func (orderApi *OrderApi) GetOrderPublic(c *gin.Context) {
 }
 
 func (orderApi *OrderApi) CheckRouters(c *gin.Context) {
-	express := c.Query("express")
+	express := strings.TrimSpace(c.Query("express"))
+	if express == "" || len(express) > 128 {
+		failWithKey(c, "paramError")
+		return
+	}
+	authorityID := utils.GetUserAuthorityId(c)
+	if !isOrderAdmin(authorityID) {
+		allowed, err := orderService.UserOwnsExpress(utils.GetUserID(c), express)
+		if err != nil {
+			global.GVA_LOG.Error("物流归属校验失败", zap.Error(err))
+			failWithKey(c, "queryFail")
+			return
+		}
+		if !allowed {
+			failWithKey(c, "noPermission")
+			return
+		}
+	}
 	if err, routers := sf.SfPassPort.SearchRouters(express); err != nil {
 		global.GVA_LOG.Error(err.Error(), zap.Error(err))
 		failWithKey(c, "queryFail")

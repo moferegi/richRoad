@@ -5,11 +5,16 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/system"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/system/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
 type DictionaryApi struct{}
+
+func isDictionaryManageRole(authorityID uint) bool {
+	return authorityID == 888 || authorityID == 8881
+}
 
 // CreateSysDictionary
 // @Tags      SysDictionary
@@ -21,6 +26,10 @@ type DictionaryApi struct{}
 // @Success   200   {object}  response.Response{msg=string}  "创建SysDictionary"
 // @Router    /sysDictionary/createSysDictionary [post]
 func (s *DictionaryApi) CreateSysDictionary(c *gin.Context) {
+	if !isDictionaryManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var dictionary system.SysDictionary
 	err := c.ShouldBindJSON(&dictionary)
 	if err != nil {
@@ -46,6 +55,10 @@ func (s *DictionaryApi) CreateSysDictionary(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "删除SysDictionary"
 // @Router    /sysDictionary/deleteSysDictionary [delete]
 func (s *DictionaryApi) DeleteSysDictionary(c *gin.Context) {
+	if !isDictionaryManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var dictionary system.SysDictionary
 	err := c.ShouldBindJSON(&dictionary)
 	if err != nil {
@@ -71,6 +84,10 @@ func (s *DictionaryApi) DeleteSysDictionary(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "更新SysDictionary"
 // @Router    /sysDictionary/updateSysDictionary [put]
 func (s *DictionaryApi) UpdateSysDictionary(c *gin.Context) {
+	if !isDictionaryManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var dictionary system.SysDictionary
 	err := c.ShouldBindJSON(&dictionary)
 	if err != nil {
@@ -96,6 +113,10 @@ func (s *DictionaryApi) UpdateSysDictionary(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=map[string]interface{},msg=string}  "用id查询SysDictionary"
 // @Router    /sysDictionary/findSysDictionary [get]
 func (s *DictionaryApi) FindSysDictionary(c *gin.Context) {
+	if !isDictionaryManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var dictionary system.SysDictionary
 	err := c.ShouldBindQuery(&dictionary)
 	if err != nil {
@@ -121,6 +142,10 @@ func (s *DictionaryApi) FindSysDictionary(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=response.PageResult,msg=string}  "分页获取SysDictionary列表,返回包括列表,总数,页码,每页数量"
 // @Router    /sysDictionary/getSysDictionaryList [get]
 func (s *DictionaryApi) GetSysDictionaryList(c *gin.Context) {
+	if !isDictionaryManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var dictionary request.SysDictionarySearch
 	err := c.ShouldBindQuery(&dictionary)
 	if err != nil {
@@ -146,6 +171,10 @@ func (s *DictionaryApi) GetSysDictionaryList(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=map[string]interface{},msg=string}  "导出字典JSON"
 // @Router    /sysDictionary/exportSysDictionary [get]
 func (s *DictionaryApi) ExportSysDictionary(c *gin.Context) {
+	if !isDictionaryManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var dictionary system.SysDictionary
 	err := c.ShouldBindQuery(&dictionary)
 	if err != nil {
@@ -175,6 +204,10 @@ func (s *DictionaryApi) ExportSysDictionary(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}          "导入字典"
 // @Router    /sysDictionary/importSysDictionary [post]
 func (s *DictionaryApi) ImportSysDictionary(c *gin.Context) {
+	if !isDictionaryManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var req request.ImportSysDictionaryRequest
 	err := c.ShouldBindJSON(&req)
 	if err != nil {

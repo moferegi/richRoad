@@ -20,12 +20,12 @@ func (r *info) Init(public *gin.RouterGroup, private *gin.RouterGroup) {
 	}
 	{
 		group := private.Group("info")
-		group.GET("findInfo", apiInfo.FindInfo)       // 根据ID获取公告
-		group.GET("getInfoList", apiInfo.GetInfoList) // 获取公告列表
+		group.GET("findInfo", apiInfo.FindInfo)                   // 根据ID获取公告
+		group.GET("getInfoList", apiInfo.GetInfoList)             // 获取公告列表
+		group.GET("getInfoDataSource", apiInfo.GetInfoDataSource) // 获取公告数据源
 	}
 	{
 		group := public.Group("info")
-		group.GET("getInfoDataSource", apiInfo.GetInfoDataSource) // 获取公告数据源
-		group.GET("getInfoPublic", apiInfo.GetInfoPublic)         // 获取公告列表
+		group.GET("getInfoPublic", apiInfo.GetInfoPublic) // 获取公告列表
 	}
 }

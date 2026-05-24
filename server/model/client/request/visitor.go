@@ -6,19 +6,19 @@ import (
 
 // HeartbeatRequest 心跳上报请求
 type HeartbeatRequest struct {
-	VisitorID     string `json:"visitorId" form:"visitorId"`
-	PagePath      string `json:"pagePath" form:"pagePath"`
-	Referer       string `json:"referer" form:"referer"`
-	Platform      string `json:"platform" form:"platform"`
-	EventCategory string `json:"eventCategory" form:"eventCategory"`
-	EventAction   string `json:"eventAction" form:"eventAction"`
-	EventLabel    string `json:"eventLabel" form:"eventLabel"`
+	VisitorID     string `json:"visitorId" form:"visitorId" binding:"max=64"`
+	PagePath      string `json:"pagePath" form:"pagePath" binding:"max=255"`
+	Referer       string `json:"referer" form:"referer" binding:"max=512"`
+	Platform      string `json:"platform" form:"platform" binding:"max=32"`
+	EventCategory string `json:"eventCategory" form:"eventCategory" binding:"max=64"`
+	EventAction   string `json:"eventAction" form:"eventAction" binding:"max=64"`
+	EventLabel    string `json:"eventLabel" form:"eventLabel" binding:"max=128"`
 	EventValue    int    `json:"eventValue" form:"eventValue"`
-	EventExtra    string `json:"eventExtra" form:"eventExtra"`
+	EventExtra    string `json:"eventExtra" form:"eventExtra" binding:"max=4096"`
 	ScreenWidth   int    `json:"screenWidth" form:"screenWidth"`
 	ScreenHeight  int    `json:"screenHeight" form:"screenHeight"`
-	Language      string `json:"language" form:"language"`
-	SessionID     string `json:"sessionId" form:"sessionId"`
+	Language      string `json:"language" form:"language" binding:"max=16"`
+	SessionID     string `json:"sessionId" form:"sessionId" binding:"max=64"`
 }
 
 // KefuGuideStatsSearch 客服引导统计查询条件

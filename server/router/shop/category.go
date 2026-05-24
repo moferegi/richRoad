@@ -1,7 +1,7 @@
 package shop
 
 import (
-	"github.com/flipped-aurora/gin-vue-admin/server/api/v1"
+	v1 "github.com/flipped-aurora/gin-vue-admin/server/api/v1"
 	"github.com/flipped-aurora/gin-vue-admin/server/middleware"
 	"github.com/gin-gonic/gin"
 )
@@ -24,7 +24,7 @@ func (s *CategoryRouter) InitCategoryRouter(Router *gin.RouterGroup, PublicRoute
 	}
 	{
 		categoryRouterWithoutRecord.GET("findCategory", categoryApi.FindCategory)                                 // 根据ID获取商品分类
-		categoryRouterWithoutAuth.GET("getCategoryList", categoryApi.GetCategoryList)                             // 获取商品分类列表
+		categoryRouterWithoutRecord.GET("getCategoryList", categoryApi.GetCategoryList)                           // 获取商品分类列表
 		categoryRouterWithoutAuth.GET("getCategoryMobile", categoryApi.GetCategoryMobile)                         // 获取商品分类列表
 		categoryRouterWithoutAuth.GET("getChildrenCategoryAndProduct", categoryApi.GetChildrenCategoryAndProduct) // 获取商品分类列表
 	}

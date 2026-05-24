@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"mime/multipart"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -25,9 +26,258 @@ type SysExportTemplateService struct {
 
 var SysExportTemplateServiceApp = new(SysExportTemplateService)
 
+const (
+	exportAllowRawSQLConfigKey    = "security_export_allow_raw_sql"
+	exportAllowRawSQLEnvKey       = "CS_EXPORT_ALLOW_RAW_SQL"
+	exportAllowImportSQLConfigKey = "security_export_allow_import_sql"
+	exportAllowImportSQLEnvKey    = "CS_EXPORT_ALLOW_IMPORT_SQL"
+
+	exportTemplateMaxLimit = 100000
+
+	sqlIdentifierPattern = "`?[A-Za-z_][A-Za-z0-9_]*`?(?:\\.`?[A-Za-z_][A-Za-z0-9_]*`?)?"
+
+	errExportTemplateOrderInvalid              = "exportTemplateOrderInvalid"
+	errExportTemplateOrderDirectionInvalid     = "exportTemplateOrderDirectionInvalid"
+	errExportTemplateRawSQLSelectOnly          = "exportTemplateRawSQLSelectOnly"
+	errExportTemplateRawSQLUnsafeFragment      = "exportTemplateRawSQLUnsafeFragment"
+	errExportTemplateRawSQLKeywordForbidden    = "exportTemplateRawSQLKeywordForbidden"
+	errExportTemplateImportSQLTypeInvalid      = "exportTemplateImportSQLTypeInvalid"
+	errExportTemplateImportSQLUnsafeFragment   = "exportTemplateImportSQLUnsafeFragment"
+	errExportTemplateImportSQLKeywordForbidden = "exportTemplateImportSQLKeywordForbidden"
+	errExportTemplateImportSQLWhereRequired    = "exportTemplateImportSQLWhereRequired"
+	errExportTemplateImportSQLParamRequired    = "exportTemplateImportSQLParamRequired"
+	errExportTemplateTableNameInvalid          = "exportTemplateTableNameInvalid"
+	errExportTemplateLimitNegative             = "exportTemplateLimitNegative"
+	errExportTemplateLimitExceeded             = "exportTemplateLimitExceeded"
+	errExportTemplateConditionFromInvalid      = "exportTemplateConditionFromInvalid"
+	errExportTemplateConditionColumnInvalid    = "exportTemplateConditionColumnInvalid"
+	errExportTemplateConditionOperatorInvalid  = "exportTemplateConditionOperatorInvalid"
+	errExportTemplateJoinTypeInvalid           = "exportTemplateJoinTypeInvalid"
+	errExportTemplateJoinTableInvalid          = "exportTemplateJoinTableInvalid"
+	errExportTemplateJoinOnInvalid             = "exportTemplateJoinOnInvalid"
+	errExportTemplateRawSQLDisabled            = "exportTemplateRawSQLDisabled"
+	errExportTemplateImportSQLDisabled         = "exportTemplateImportSQLDisabled"
+	errExportTemplateNil                       = "exportTemplateNil"
+	errExportTemplateOrderFieldInvalid         = "exportTemplateOrderFieldInvalid"
+	errExportTemplateParamsInvalid             = "exportParamsInvalid"
+	errExportTemplateExcelDataNotEnough        = "exportTemplateExcelDataNotEnough"
+)
+
+var (
+	allowedExportConditionOperators = map[string]struct{}{
+		"=":       {},
+		"!=":      {},
+		"<>":      {},
+		">":       {},
+		">=":      {},
+		"<":       {},
+		"<=":      {},
+		"LIKE":    {},
+		"IN":      {},
+		"NOT IN":  {},
+		"BETWEEN": {},
+	}
+	allowedExportJoinTypes = map[string]struct{}{
+		"JOIN":             {},
+		"INNER JOIN":       {},
+		"LEFT JOIN":        {},
+		"RIGHT JOIN":       {},
+		"LEFT OUTER JOIN":  {},
+		"RIGHT OUTER JOIN": {},
+	}
+
+	safeColumnIdentifierRegexp = regexp.MustCompile("^" + sqlIdentifierPattern + "$")
+	safeTableIdentifierRegexp  = regexp.MustCompile("^" + sqlIdentifierPattern + "(?:\\s+[A-Za-z_][A-Za-z0-9_]*)?$")
+	safeJoinOnRegexp           = regexp.MustCompile(`(?i)^\s*` + sqlIdentifierPattern + `\s*=\s*` + sqlIdentifierPattern + `(?:\s+AND\s+` + sqlIdentifierPattern + `\s*=\s*` + sqlIdentifierPattern + `)*\s*$`)
+	safeConditionFromKeyRegexp = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]{0,63}$`)
+)
+
+func isExportRawSQLAllowed() bool {
+	return utils.GetBoolSetting(exportAllowRawSQLConfigKey, exportAllowRawSQLEnvKey, false)
+}
+
+func isExportImportSQLAllowed() bool {
+	return utils.GetBoolSetting(exportAllowImportSQLConfigKey, exportAllowImportSQLEnvKey, false)
+}
+
+func normalizeSpaceUpper(value string) string {
+	return strings.ToUpper(strings.Join(strings.Fields(strings.TrimSpace(value)), " "))
+}
+
+func validateOrderClause(order string) error {
+	order = strings.TrimSpace(order)
+	if order == "" {
+		return nil
+	}
+	parts := strings.Fields(order)
+	if len(parts) == 0 || len(parts) > 2 {
+		return errors.New(errExportTemplateOrderInvalid)
+	}
+	if !safeColumnIdentifierRegexp.MatchString(parts[0]) {
+		return errors.New(errExportTemplateOrderInvalid)
+	}
+	if len(parts) == 2 {
+		direction := strings.ToUpper(parts[1])
+		if direction != "ASC" && direction != "DESC" {
+			return errors.New(errExportTemplateOrderDirectionInvalid)
+		}
+	}
+	return nil
+}
+
+func validateRawSelectSQL(raw string) error {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+
+	upper := strings.ToUpper(raw)
+	if !strings.HasPrefix(upper, "SELECT ") {
+		return errors.New(errExportTemplateRawSQLSelectOnly)
+	}
+
+	forbiddenFragments := []string{";", "--", "/*", "*/", "#"}
+	for _, fragment := range forbiddenFragments {
+		if strings.Contains(raw, fragment) {
+			return errors.New(errExportTemplateRawSQLUnsafeFragment)
+		}
+	}
+
+	checkSQL := " " + upper + " "
+	forbiddenKeywords := []string{
+		" INSERT ", " UPDATE ", " DELETE ", " DROP ", " ALTER ",
+		" TRUNCATE ", " CREATE ", " REPLACE ", " MERGE ", " CALL ",
+		" EXEC ", " GRANT ", " REVOKE ",
+	}
+	for _, keyword := range forbiddenKeywords {
+		if strings.Contains(checkSQL, keyword) {
+			return errors.New(errExportTemplateRawSQLKeywordForbidden)
+		}
+	}
+
+	return nil
+}
+
+func validateImportExecSQL(raw string) error {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+
+	upper := strings.ToUpper(raw)
+	if !(strings.HasPrefix(upper, "INSERT INTO ") || strings.HasPrefix(upper, "UPDATE ")) {
+		return errors.New(errExportTemplateImportSQLTypeInvalid)
+	}
+
+	forbiddenFragments := []string{";", "--", "/*", "*/", "#"}
+	for _, fragment := range forbiddenFragments {
+		if strings.Contains(raw, fragment) {
+			return errors.New(errExportTemplateImportSQLUnsafeFragment)
+		}
+	}
+
+	checkSQL := " " + upper + " "
+	forbiddenKeywords := []string{
+		" DROP ", " ALTER ", " TRUNCATE ", " CREATE ", " REPLACE ",
+		" MERGE ", " CALL ", " EXEC ", " GRANT ", " REVOKE ", " DELETE ",
+	}
+	for _, keyword := range forbiddenKeywords {
+		if strings.Contains(checkSQL, keyword) {
+			return errors.New(errExportTemplateImportSQLKeywordForbidden)
+		}
+	}
+
+	if strings.HasPrefix(upper, "UPDATE ") && !strings.Contains(checkSQL, " WHERE ") {
+		return errors.New(errExportTemplateImportSQLWhereRequired)
+	}
+
+	if !strings.Contains(raw, "@") {
+		return errors.New(errExportTemplateImportSQLParamRequired)
+	}
+
+	return nil
+}
+
+func validateExportTemplateQuerySafety(template system.SysExportTemplate) error {
+	if !safeTableIdentifierRegexp.MatchString(strings.TrimSpace(template.TableName)) {
+		return errors.New(errExportTemplateTableNameInvalid)
+	}
+
+	if template.Limit != nil {
+		if *template.Limit < 0 {
+			return errors.New(errExportTemplateLimitNegative)
+		}
+		if *template.Limit > exportTemplateMaxLimit {
+			return errors.New(errExportTemplateLimitExceeded)
+		}
+	}
+
+	if err := validateOrderClause(template.Order); err != nil {
+		return err
+	}
+
+	for _, condition := range template.Conditions {
+		fromKey := strings.TrimSpace(condition.From)
+		if !safeConditionFromKeyRegexp.MatchString(fromKey) {
+			return errors.New(errExportTemplateConditionFromInvalid)
+		}
+
+		column := strings.TrimSpace(condition.Column)
+		if !safeColumnIdentifierRegexp.MatchString(column) {
+			return errors.New(errExportTemplateConditionColumnInvalid)
+		}
+
+		op := normalizeSpaceUpper(condition.Operator)
+		if _, ok := allowedExportConditionOperators[op]; !ok {
+			return errors.New(errExportTemplateConditionOperatorInvalid)
+		}
+	}
+
+	for _, join := range template.JoinTemplate {
+		joinType := normalizeSpaceUpper(join.JOINS)
+		if _, ok := allowedExportJoinTypes[joinType]; !ok {
+			return errors.New(errExportTemplateJoinTypeInvalid)
+		}
+
+		if !safeTableIdentifierRegexp.MatchString(strings.TrimSpace(join.Table)) {
+			return errors.New(errExportTemplateJoinTableInvalid)
+		}
+
+		if !safeJoinOnRegexp.MatchString(strings.TrimSpace(join.ON)) {
+			return errors.New(errExportTemplateJoinOnInvalid)
+		}
+	}
+
+	if strings.TrimSpace(template.SQL) != "" {
+		if !isExportRawSQLAllowed() {
+			return errors.New(errExportTemplateRawSQLDisabled)
+		}
+		if err := validateRawSelectSQL(template.SQL); err != nil {
+			return err
+		}
+	}
+
+	if strings.TrimSpace(template.ImportSQL) != "" {
+		if !isExportImportSQLAllowed() {
+			return errors.New(errExportTemplateImportSQLDisabled)
+		}
+		if err := validateImportExecSQL(template.ImportSQL); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // CreateSysExportTemplate 创建导出模板记录
 // Author [piexlmax](https://github.com/piexlmax)
 func (sysExportTemplateService *SysExportTemplateService) CreateSysExportTemplate(sysExportTemplate *system.SysExportTemplate) (err error) {
+	if sysExportTemplate == nil {
+		return errors.New(errExportTemplateNil)
+	}
+	if err = validateExportTemplateQuerySafety(*sysExportTemplate); err != nil {
+		return err
+	}
 	err = global.GVA_DB.Create(sysExportTemplate).Error
 	return err
 }
@@ -49,6 +299,10 @@ func (sysExportTemplateService *SysExportTemplateService) DeleteSysExportTemplat
 // UpdateSysExportTemplate 更新导出模板记录
 // Author [piexlmax](https://github.com/piexlmax)
 func (sysExportTemplateService *SysExportTemplateService) UpdateSysExportTemplate(sysExportTemplate system.SysExportTemplate) (err error) {
+	if err = validateExportTemplateQuerySafety(sysExportTemplate); err != nil {
+		return err
+	}
+
 	return global.GVA_DB.Transaction(func(tx *gorm.DB) error {
 		conditions := sysExportTemplate.Conditions
 		e := tx.Delete(&[]system.Condition{}, "template_id = ?", sysExportTemplate.TemplateID).Error
@@ -131,11 +385,14 @@ func (sysExportTemplateService *SysExportTemplateService) ExportExcel(templateID
 	var params = values.Get("params")
 	paramsValues, err := url.ParseQuery(params)
 	if err != nil {
-		return nil, "", fmt.Errorf("解析 params 参数失败: %v", err)
+		return nil, "", errors.New(errExportTemplateParamsInvalid)
 	}
 	var template system.SysExportTemplate
 	err = global.GVA_DB.Preload("Conditions").Preload("JoinTemplate").First(&template, "template_id = ?", templateID).Error
 	if err != nil {
+		return nil, "", err
+	}
+	if err = validateExportTemplateQuerySafety(template); err != nil {
 		return nil, "", err
 	}
 	f := excelize.NewFile()
@@ -296,12 +553,12 @@ func (sysExportTemplateService *SysExportTemplateService) ExportExcel(templateID
 			orderStr := ""
 			// 检查请求的排序字段是否在字段列表中
 			if _, ok := fields[checkOrderArr[0]]; !ok {
-				return nil, "", fmt.Errorf("order by %s is not in the fields", order)
+				return nil, "", errors.New(errExportTemplateOrderFieldInvalid)
 			}
 			orderStr = checkOrderArr[0]
 			if len(checkOrderArr) > 1 {
 				if checkOrderArr[1] != "asc" && checkOrderArr[1] != "desc" {
-					return nil, "", fmt.Errorf("order by %s is not secure", order)
+					return nil, "", errors.New(errExportTemplateOrderDirectionInvalid)
 				}
 				orderStr = orderStr + " " + checkOrderArr[1]
 			}
@@ -379,6 +636,9 @@ func (sysExportTemplateService *SysExportTemplateService) PreviewSQL(templateID 
 	var template system.SysExportTemplate
 	err = global.GVA_DB.Preload("Conditions").Preload("JoinTemplate").First(&template, "template_id = ?", templateID).Error
 	if err != nil {
+		return "", err
+	}
+	if err = validateExportTemplateQuerySafety(template); err != nil {
 		return "", err
 	}
 
@@ -633,7 +893,7 @@ func (sysExportTemplateService *SysExportTemplateService) ImportExcel(templateID
 		return err
 	}
 	if len(rows) < 2 {
-		return errors.New("Excel data is not enough.\nIt should contain title row and data")
+		return errors.New(errExportTemplateExcelDataNotEnough)
 	}
 
 	var templateInfoMap = make(map[string]string)

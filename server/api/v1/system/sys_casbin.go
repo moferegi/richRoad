@@ -12,6 +12,18 @@ import (
 
 type CasbinApi struct{}
 
+func isCasbinManageRole(authorityID uint) bool {
+	return authorityID == 888
+}
+
+func ensureCasbinManageRole(c *gin.Context) bool {
+	if !isCasbinManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return false
+	}
+	return true
+}
+
 // UpdateCasbin
 // @Tags      Casbin
 // @Summary   更新角色api权限
@@ -22,6 +34,9 @@ type CasbinApi struct{}
 // @Success   200   {object}  response.Response{msg=string}  "更新角色api权限"
 // @Router    /casbin/UpdateCasbin [post]
 func (cas *CasbinApi) UpdateCasbin(c *gin.Context) {
+	if !ensureCasbinManageRole(c) {
+		return
+	}
 	var cmr request.CasbinInReceive
 	err := c.ShouldBindJSON(&cmr)
 	if err != nil {
@@ -53,6 +68,9 @@ func (cas *CasbinApi) UpdateCasbin(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=systemRes.PolicyPathResponse,msg=string}  "获取权限列表,返回包括casbin详情列表"
 // @Router    /casbin/getPolicyPathByAuthorityId [post]
 func (cas *CasbinApi) GetPolicyPathByAuthorityId(c *gin.Context) {
+	if !ensureCasbinManageRole(c) {
+		return
+	}
 	var casbin request.CasbinInReceive
 	err := c.ShouldBindJSON(&casbin)
 	if err != nil {

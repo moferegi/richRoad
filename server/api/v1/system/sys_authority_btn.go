@@ -4,11 +4,16 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/system/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
 type AuthorityBtnApi struct{}
+
+func isAuthorityBtnManageRole(authorityID uint) bool {
+	return authorityID == 888 || authorityID == 8881
+}
 
 // GetAuthorityBtn
 // @Tags      AuthorityBtn
@@ -20,10 +25,19 @@ type AuthorityBtnApi struct{}
 // @Success   200   {object}  response.Response{data=response.SysAuthorityBtnRes,msg=string}  "返回列表成功"
 // @Router    /authorityBtn/getAuthorityBtn [post]
 func (a *AuthorityBtnApi) GetAuthorityBtn(c *gin.Context) {
+	adminAuthorityID := utils.GetUserAuthorityId(c)
+	if !isAuthorityBtnManageRole(adminAuthorityID) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var req request.SysAuthorityBtnReq
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
 		response.FailWithMessage("参数错误", c)
+		return
+	}
+	if err := authorityService.CheckAuthorityIDAuth(adminAuthorityID, req.AuthorityId); err != nil {
+		response.FailWithMessage("无权限操作", c)
 		return
 	}
 	res, err := authorityBtnService.GetAuthorityBtn(req)
@@ -45,10 +59,19 @@ func (a *AuthorityBtnApi) GetAuthorityBtn(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "返回列表成功"
 // @Router    /authorityBtn/setAuthorityBtn [post]
 func (a *AuthorityBtnApi) SetAuthorityBtn(c *gin.Context) {
+	adminAuthorityID := utils.GetUserAuthorityId(c)
+	if !isAuthorityBtnManageRole(adminAuthorityID) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var req request.SysAuthorityBtnReq
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
 		response.FailWithMessage("参数错误", c)
+		return
+	}
+	if err := authorityService.CheckAuthorityIDAuth(adminAuthorityID, req.AuthorityId); err != nil {
+		response.FailWithMessage("无权限操作", c)
 		return
 	}
 	err = authorityBtnService.SetAuthorityBtn(req)
@@ -69,6 +92,10 @@ func (a *AuthorityBtnApi) SetAuthorityBtn(c *gin.Context) {
 // @Success   200  {object}  response.Response{msg=string}  "删除成功"
 // @Router    /authorityBtn/canRemoveAuthorityBtn [post]
 func (a *AuthorityBtnApi) CanRemoveAuthorityBtn(c *gin.Context) {
+	if !isAuthorityBtnManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	id := c.Query("id")
 	err := authorityBtnService.CanRemoveAuthorityBtn(id)
 	if err != nil {

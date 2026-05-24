@@ -14,6 +14,10 @@ import (
 
 type DictionaryDetailApi struct{}
 
+func isDictionaryDetailManageRole(authorityID uint) bool {
+	return authorityID == 888 || authorityID == 8881
+}
+
 // CreateSysDictionaryDetail
 // @Tags      SysDictionaryDetail
 // @Summary   创建SysDictionaryDetail
@@ -24,6 +28,10 @@ type DictionaryDetailApi struct{}
 // @Success   200   {object}  response.Response{msg=string}  "创建SysDictionaryDetail"
 // @Router    /sysDictionaryDetail/createSysDictionaryDetail [post]
 func (s *DictionaryDetailApi) CreateSysDictionaryDetail(c *gin.Context) {
+	if !isDictionaryDetailManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var detail system.SysDictionaryDetail
 	err := c.ShouldBindJSON(&detail)
 	if err != nil {
@@ -49,6 +57,10 @@ func (s *DictionaryDetailApi) CreateSysDictionaryDetail(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "删除SysDictionaryDetail"
 // @Router    /sysDictionaryDetail/deleteSysDictionaryDetail [delete]
 func (s *DictionaryDetailApi) DeleteSysDictionaryDetail(c *gin.Context) {
+	if !isDictionaryDetailManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var detail system.SysDictionaryDetail
 	err := c.ShouldBindJSON(&detail)
 	if err != nil {
@@ -74,6 +86,10 @@ func (s *DictionaryDetailApi) DeleteSysDictionaryDetail(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "更新SysDictionaryDetail"
 // @Router    /sysDictionaryDetail/updateSysDictionaryDetail [put]
 func (s *DictionaryDetailApi) UpdateSysDictionaryDetail(c *gin.Context) {
+	if !isDictionaryDetailManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var detail system.SysDictionaryDetail
 	err := c.ShouldBindJSON(&detail)
 	if err != nil {
@@ -99,6 +115,10 @@ func (s *DictionaryDetailApi) UpdateSysDictionaryDetail(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=map[string]interface{},msg=string}  "用id查询SysDictionaryDetail"
 // @Router    /sysDictionaryDetail/findSysDictionaryDetail [get]
 func (s *DictionaryDetailApi) FindSysDictionaryDetail(c *gin.Context) {
+	if !isDictionaryDetailManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var detail system.SysDictionaryDetail
 	err := c.ShouldBindQuery(&detail)
 	if err != nil {
@@ -129,6 +149,10 @@ func (s *DictionaryDetailApi) FindSysDictionaryDetail(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=response.PageResult,msg=string}  "分页获取SysDictionaryDetail列表,返回包括列表,总数,页码,每页数量"
 // @Router    /sysDictionaryDetail/getSysDictionaryDetailList [get]
 func (s *DictionaryDetailApi) GetSysDictionaryDetailList(c *gin.Context) {
+	if !isDictionaryDetailManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var pageInfo request.SysDictionaryDetailSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
@@ -159,6 +183,10 @@ func (s *DictionaryDetailApi) GetSysDictionaryDetailList(c *gin.Context) {
 // @Success   200              {object}  response.Response{data=[]system.SysDictionaryDetail,msg=string}  "获取字典详情树形结构"
 // @Router    /sysDictionaryDetail/getDictionaryTreeList [get]
 func (s *DictionaryDetailApi) GetDictionaryTreeList(c *gin.Context) {
+	if !isDictionaryDetailManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	sysDictionaryID := c.Query("sysDictionaryID")
 	if sysDictionaryID == "" {
 		response.FailWithMessage("字典ID不能为空", c)
@@ -172,7 +200,7 @@ func (s *DictionaryDetailApi) GetDictionaryTreeList(c *gin.Context) {
 	} else {
 		id = uint(idUint64)
 	}
-	
+
 	list, err := dictionaryDetailService.GetDictionaryTreeList(id)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
@@ -192,12 +220,16 @@ func (s *DictionaryDetailApi) GetDictionaryTreeList(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=[]system.SysDictionaryDetail,msg=string}  "获取字典详情树形结构"
 // @Router    /sysDictionaryDetail/getDictionaryTreeListByType [get]
 func (s *DictionaryDetailApi) GetDictionaryTreeListByType(c *gin.Context) {
+	if !isDictionaryDetailManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	dictType := c.Query("type")
 	if dictType == "" {
 		response.FailWithMessage("字典类型不能为空", c)
 		return
 	}
-	
+
 	list, err := dictionaryDetailService.GetDictionaryTreeListByType(dictType)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
@@ -217,13 +249,17 @@ func (s *DictionaryDetailApi) GetDictionaryTreeListByType(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=[]system.SysDictionaryDetail,msg=string}  "获取字典详情列表"
 // @Router    /sysDictionaryDetail/getDictionaryDetailsByParent [get]
 func (s *DictionaryDetailApi) GetDictionaryDetailsByParent(c *gin.Context) {
+	if !isDictionaryDetailManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var req request.GetDictionaryDetailsByParentRequest
 	err := c.ShouldBindQuery(&req)
 	if err != nil {
 		response.FailWithMessage("参数错误", c)
 		return
 	}
-	
+
 	list, err := dictionaryDetailService.GetDictionaryDetailsByParent(req)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
@@ -243,12 +279,16 @@ func (s *DictionaryDetailApi) GetDictionaryDetailsByParent(c *gin.Context) {
 // @Success   200 {object}  response.Response{data=[]system.SysDictionaryDetail,msg=string}  "获取字典详情路径"
 // @Router    /sysDictionaryDetail/getDictionaryPath [get]
 func (s *DictionaryDetailApi) GetDictionaryPath(c *gin.Context) {
+	if !isDictionaryDetailManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	idStr := c.Query("id")
 	if idStr == "" {
 		response.FailWithMessage("字典详情ID不能为空", c)
 		return
 	}
-	
+
 	var id uint
 	if idUint64, err := strconv.ParseUint(idStr, 10, 32); err != nil {
 		response.FailWithMessage("字典详情ID格式错误", c)
@@ -256,7 +296,7 @@ func (s *DictionaryDetailApi) GetDictionaryPath(c *gin.Context) {
 	} else {
 		id = uint(idUint64)
 	}
-	
+
 	path, err := dictionaryDetailService.GetDictionaryPath(id)
 	if err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))

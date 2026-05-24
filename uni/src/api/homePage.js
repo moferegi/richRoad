@@ -10,7 +10,7 @@ const withI18nFallback = (params = {}, options = {}) => {
 // 获取轮播图列表
 export const getBannerList  = (options = {}) => {
     return request({
-		url:'/banner/getBannerList',
+		url:'/banner/getBannerPublic',
         method: 'get',
         params: withI18nFallback({ isEnabled: true }, options)
     })
@@ -29,7 +29,7 @@ export const getCategoryMobile  = (params = {}, options = {}) => {
 // 获取商品推荐
 export const getGoodList = (params = {}, options = {}) => {
     return request({
-		url:`/good/getGoodList`,
+		url:`/good/getGoodPublic`,
         method: 'get',
         params: withI18nFallback({ ...params, status: true, excludeHiddenCategories: true, isPresale: false }, options)
     })

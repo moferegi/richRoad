@@ -6,6 +6,7 @@ import (
 	clientReq "github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -25,6 +26,10 @@ var languageService = service.ServiceGroupApp.ClientServiceGroup.SysLanguageServ
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"创建成功"}"
 // @Router /language/createLanguage [post]
 func (api *LanguageApi) CreateLanguage(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var info client.SysLanguage
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
@@ -49,6 +54,10 @@ func (api *LanguageApi) CreateLanguage(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"删除成功"}"
 // @Router /language/deleteLanguage [delete]
 func (api *LanguageApi) DeleteLanguage(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	ID := c.Query("ID")
 	if err := languageService.DeleteSysLanguage(ID); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
@@ -68,6 +77,10 @@ func (api *LanguageApi) DeleteLanguage(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"更新成功"}"
 // @Router /language/updateLanguage [put]
 func (api *LanguageApi) UpdateLanguage(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var info client.SysLanguage
 	err := c.ShouldBindJSON(&info)
 	if err != nil {
@@ -92,6 +105,10 @@ func (api *LanguageApi) UpdateLanguage(c *gin.Context) {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /language/getLanguageList [get]
 func (api *LanguageApi) GetLanguageList(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var pageInfo clientReq.SysLanguageSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
@@ -137,6 +154,10 @@ func (api *LanguageApi) GetEnabledLanguages(c *gin.Context) {
 // @Success 200 {object} response.Response{data=object,msg=string} "翻译成功"
 // @Router /language/translateI18n [post]
 func (api *LanguageApi) TranslateI18n(c *gin.Context) {
+	if !isClientAdminAuthority(utils.GetUserAuthorityId(c)) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	var req clientReq.TranslateI18nRequest
 	err := c.ShouldBindJSON(&req)
 	if err != nil {

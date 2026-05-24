@@ -15,6 +15,7 @@ import (
 	systemReq "github.com/flipped-aurora/gin-vue-admin/server/model/system/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -92,6 +93,40 @@ func init() {
 type SysExportTemplateApi struct {
 }
 
+func failExportTemplateWithKey(c *gin.Context, key string, fallbackKey string) {
+	key = strings.TrimSpace(key)
+	fallbackKey = strings.TrimSpace(fallbackKey)
+	if fallbackKey == "" {
+		fallbackKey = "fail"
+	}
+	if key == "" || !i18n.HasKey(key) {
+		response.FailWithMessage(i18n.T(c, fallbackKey), c)
+		return
+	}
+	response.FailWithMessage(i18n.T(c, key), c)
+}
+
+func failExportTemplateWithErr(c *gin.Context, err error, fallbackKey string) {
+	fallbackKey = strings.TrimSpace(fallbackKey)
+	if fallbackKey == "" {
+		fallbackKey = "fail"
+	}
+	if err == nil {
+		response.FailWithMessage(i18n.T(c, fallbackKey), c)
+		return
+	}
+	key := strings.TrimSpace(err.Error())
+	if key != "" && i18n.HasKey(key) {
+		response.FailWithMessage(i18n.T(c, key), c)
+		return
+	}
+	response.FailWithMessage(i18n.T(c, fallbackKey), c)
+}
+
+func isExportTemplateManageRole(authorityID uint) bool {
+	return authorityID == 888
+}
+
 var sysExportTemplateService = service.ServiceGroupApp.SystemServiceGroup.SysExportTemplateService
 
 // PreviewSQL 预览最终生成的SQL
@@ -105,9 +140,13 @@ var sysExportTemplateService = service.ServiceGroupApp.SystemServiceGroup.SysExp
 // @Success  200  {object}  response.Response{data=map[string]string} "获取成功"
 // @Router   /sysExportTemplate/previewSQL [get]
 func (sysExportTemplateApi *SysExportTemplateApi) PreviewSQL(c *gin.Context) {
+	if !isExportTemplateManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return
+	}
 	templateID := c.Query("templateID")
 	if templateID == "" {
-		response.FailWithMessage("模板ID不能为空", c)
+		failExportTemplateWithKey(c, "exportTemplateIDRequired", "invalidParams")
 		return
 	}
 
@@ -116,7 +155,7 @@ func (sysExportTemplateApi *SysExportTemplateApi) PreviewSQL(c *gin.Context) {
 
 	if sqlPreview, err := sysExportTemplateService.PreviewSQL(templateID, queryParams); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		failExportTemplateWithErr(c, err, "getFail")
 	} else {
 		response.OkWithData(gin.H{"sql": sqlPreview}, c)
 	}
@@ -132,24 +171,29 @@ func (sysExportTemplateApi *SysExportTemplateApi) PreviewSQL(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"创建成功"}"
 // @Router /sysExportTemplate/createSysExportTemplate [post]
 func (sysExportTemplateApi *SysExportTemplateApi) CreateSysExportTemplate(c *gin.Context) {
+	if !isExportTemplateManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return
+	}
+
 	var sysExportTemplate system.SysExportTemplate
 	err := c.ShouldBindJSON(&sysExportTemplate)
 	if err != nil {
-		response.FailWithMessage("参数错误", c)
+		failExportTemplateWithKey(c, "invalidParams", "invalidParams")
 		return
 	}
 	verify := utils.Rules{
 		"Name": {utils.NotEmpty()},
 	}
 	if err := utils.Verify(sysExportTemplate, verify); err != nil {
-		response.FailWithMessage("参数错误", c)
+		failExportTemplateWithKey(c, "invalidParams", "invalidParams")
 		return
 	}
 	if err := sysExportTemplateService.CreateSysExportTemplate(&sysExportTemplate); err != nil {
 		global.GVA_LOG.Error("创建失败!", zap.Error(err))
-		response.FailWithMessage("创建失败", c)
+		failExportTemplateWithErr(c, err, "createFail")
 	} else {
-		response.OkWithMessage("创建成功", c)
+		response.OkWithMessage(i18n.T(c, "createSuccess"), c)
 	}
 }
 
@@ -163,17 +207,22 @@ func (sysExportTemplateApi *SysExportTemplateApi) CreateSysExportTemplate(c *gin
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"删除成功"}"
 // @Router /sysExportTemplate/deleteSysExportTemplate [delete]
 func (sysExportTemplateApi *SysExportTemplateApi) DeleteSysExportTemplate(c *gin.Context) {
+	if !isExportTemplateManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return
+	}
+
 	var sysExportTemplate system.SysExportTemplate
 	err := c.ShouldBindJSON(&sysExportTemplate)
 	if err != nil {
-		response.FailWithMessage("参数错误", c)
+		failExportTemplateWithKey(c, "invalidParams", "invalidParams")
 		return
 	}
 	if err := sysExportTemplateService.DeleteSysExportTemplate(sysExportTemplate); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
-		response.FailWithMessage("删除失败", c)
+		failExportTemplateWithErr(c, err, "deleteFail")
 	} else {
-		response.OkWithMessage("删除成功", c)
+		response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
 	}
 }
 
@@ -187,17 +236,22 @@ func (sysExportTemplateApi *SysExportTemplateApi) DeleteSysExportTemplate(c *gin
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"批量删除成功"}"
 // @Router /sysExportTemplate/deleteSysExportTemplateByIds [delete]
 func (sysExportTemplateApi *SysExportTemplateApi) DeleteSysExportTemplateByIds(c *gin.Context) {
+	if !isExportTemplateManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return
+	}
+
 	var IDS request.IdsReq
 	err := c.ShouldBindJSON(&IDS)
 	if err != nil {
-		response.FailWithMessage("参数错误", c)
+		failExportTemplateWithKey(c, "invalidParams", "invalidParams")
 		return
 	}
 	if err := sysExportTemplateService.DeleteSysExportTemplateByIds(IDS); err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
-		response.FailWithMessage("批量删除失败", c)
+		failExportTemplateWithErr(c, err, "batchDeleteFail")
 	} else {
-		response.OkWithMessage("批量删除成功", c)
+		response.OkWithMessage(i18n.T(c, "batchDeleteSuccess"), c)
 	}
 }
 
@@ -211,24 +265,29 @@ func (sysExportTemplateApi *SysExportTemplateApi) DeleteSysExportTemplateByIds(c
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"更新成功"}"
 // @Router /sysExportTemplate/updateSysExportTemplate [put]
 func (sysExportTemplateApi *SysExportTemplateApi) UpdateSysExportTemplate(c *gin.Context) {
+	if !isExportTemplateManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return
+	}
+
 	var sysExportTemplate system.SysExportTemplate
 	err := c.ShouldBindJSON(&sysExportTemplate)
 	if err != nil {
-		response.FailWithMessage("参数错误", c)
+		failExportTemplateWithKey(c, "invalidParams", "invalidParams")
 		return
 	}
 	verify := utils.Rules{
 		"Name": {utils.NotEmpty()},
 	}
 	if err := utils.Verify(sysExportTemplate, verify); err != nil {
-		response.FailWithMessage("参数错误", c)
+		failExportTemplateWithKey(c, "invalidParams", "invalidParams")
 		return
 	}
 	if err := sysExportTemplateService.UpdateSysExportTemplate(sysExportTemplate); err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
-		response.FailWithMessage("更新失败", c)
+		failExportTemplateWithErr(c, err, "updateFail")
 	} else {
-		response.OkWithMessage("更新成功", c)
+		response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
 	}
 }
 
@@ -242,15 +301,19 @@ func (sysExportTemplateApi *SysExportTemplateApi) UpdateSysExportTemplate(c *gin
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"查询成功"}"
 // @Router /sysExportTemplate/findSysExportTemplate [get]
 func (sysExportTemplateApi *SysExportTemplateApi) FindSysExportTemplate(c *gin.Context) {
+	if !isExportTemplateManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return
+	}
 	var sysExportTemplate system.SysExportTemplate
 	err := c.ShouldBindQuery(&sysExportTemplate)
 	if err != nil {
-		response.FailWithMessage("参数错误", c)
+		failExportTemplateWithKey(c, "invalidParams", "invalidParams")
 		return
 	}
 	if resysExportTemplate, err := sysExportTemplateService.GetSysExportTemplate(sysExportTemplate.ID); err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
-		response.FailWithMessage("查询失败", c)
+		failExportTemplateWithErr(c, err, "queryFail")
 	} else {
 		response.OkWithData(gin.H{"resysExportTemplate": resysExportTemplate}, c)
 	}
@@ -266,22 +329,26 @@ func (sysExportTemplateApi *SysExportTemplateApi) FindSysExportTemplate(c *gin.C
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"获取成功"}"
 // @Router /sysExportTemplate/getSysExportTemplateList [get]
 func (sysExportTemplateApi *SysExportTemplateApi) GetSysExportTemplateList(c *gin.Context) {
+	if !isExportTemplateManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return
+	}
 	var pageInfo systemReq.SysExportTemplateSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
-		response.FailWithMessage("参数错误", c)
+		failExportTemplateWithKey(c, "invalidParams", "invalidParams")
 		return
 	}
 	if list, total, err := sysExportTemplateService.GetSysExportTemplateInfoList(pageInfo); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		failExportTemplateWithErr(c, err, "getFail")
 	} else {
 		response.OkWithDetailed(response.PageResult{
 			List:     list,
 			Total:    total,
 			Page:     pageInfo.Page,
 			PageSize: pageInfo.PageSize,
-		}, "获取成功", c)
+		}, i18n.T(c, "getSuccess"), c)
 	}
 }
 
@@ -293,9 +360,13 @@ func (sysExportTemplateApi *SysExportTemplateApi) GetSysExportTemplateList(c *gi
 // @Produce application/json
 // @Router /sysExportTemplate/exportExcel [get]
 func (sysExportTemplateApi *SysExportTemplateApi) ExportExcel(c *gin.Context) {
+	if !isExportTemplateManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return
+	}
 	templateID := c.Query("templateID")
 	if templateID == "" {
-		response.FailWithMessage("模板ID不能为空", c)
+		failExportTemplateWithKey(c, "exportTemplateIDRequired", "invalidParams")
 		return
 	}
 
@@ -329,11 +400,11 @@ func (sysExportTemplateApi *SysExportTemplateApi) ExportExcel(c *gin.Context) {
 func (sysExportTemplateApi *SysExportTemplateApi) ExportExcelByToken(c *gin.Context) {
 	token, source := extractExportToken(c)
 	if token == "" {
-		response.FailWithMessage("导出token不能为空", c)
+		failExportTemplateWithKey(c, "exportTokenRequired", "invalidParams")
 		return
 	}
 	if source == "query" && !isExportQueryTokenAllowed() {
-		response.FailWithMessage("当前环境禁止通过URL传递导出token，请使用请求头", c)
+		failExportTemplateWithKey(c, "exportTokenQueryNotAllowed", "invalidParams")
 		return
 	}
 	if source == "query" {
@@ -351,7 +422,7 @@ func (sysExportTemplateApi *SysExportTemplateApi) ExportExcelByToken(c *gin.Cont
 
 	if !exists || time.Now().After(expiry) {
 		global.GVA_LOG.Error("导出token无效或已过期!")
-		response.FailWithMessage("导出token无效或已过期", c)
+		failExportTemplateWithKey(c, "exportTokenInvalidOrExpired", "invalidParams")
 		return
 	}
 
@@ -359,7 +430,7 @@ func (sysExportTemplateApi *SysExportTemplateApi) ExportExcelByToken(c *gin.Cont
 	exportParams, ok := exportParamsRaw.(map[string]interface{})
 	if !ok {
 		global.GVA_LOG.Error("解析导出参数失败!")
-		response.FailWithMessage("解析导出参数失败", c)
+		failExportTemplateWithKey(c, "exportParamsInvalid", "fail")
 		return
 	}
 
@@ -376,7 +447,7 @@ func (sysExportTemplateApi *SysExportTemplateApi) ExportExcelByToken(c *gin.Cont
 	// 导出
 	if file, name, err := sysExportTemplateService.ExportExcel(templateID, queryParams); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		failExportTemplateWithErr(c, err, "getFail")
 	} else {
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", name+utils.RandomString(6)+".xlsx"))
 		c.Header("success", "true")
@@ -392,9 +463,13 @@ func (sysExportTemplateApi *SysExportTemplateApi) ExportExcelByToken(c *gin.Cont
 // @Produce application/json
 // @Router /sysExportTemplate/exportTemplate [get]
 func (sysExportTemplateApi *SysExportTemplateApi) ExportTemplate(c *gin.Context) {
+	if !isExportTemplateManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return
+	}
 	templateID := c.Query("templateID")
 	if templateID == "" {
-		response.FailWithMessage("模板ID不能为空", c)
+		failExportTemplateWithKey(c, "exportTemplateIDRequired", "invalidParams")
 		return
 	}
 
@@ -426,11 +501,11 @@ func (sysExportTemplateApi *SysExportTemplateApi) ExportTemplate(c *gin.Context)
 func (sysExportTemplateApi *SysExportTemplateApi) ExportTemplateByToken(c *gin.Context) {
 	token, source := extractExportToken(c)
 	if token == "" {
-		response.FailWithMessage("导出token不能为空", c)
+		failExportTemplateWithKey(c, "exportTokenRequired", "invalidParams")
 		return
 	}
 	if source == "query" && !isExportQueryTokenAllowed() {
-		response.FailWithMessage("当前环境禁止通过URL传递导出token，请使用请求头", c)
+		failExportTemplateWithKey(c, "exportTokenQueryNotAllowed", "invalidParams")
 		return
 	}
 	if source == "query" {
@@ -448,7 +523,7 @@ func (sysExportTemplateApi *SysExportTemplateApi) ExportTemplateByToken(c *gin.C
 
 	if !exists || time.Now().After(expiry) {
 		global.GVA_LOG.Error("导出token无效或已过期!")
-		response.FailWithMessage("导出token无效或已过期", c)
+		failExportTemplateWithKey(c, "exportTokenInvalidOrExpired", "invalidParams")
 		return
 	}
 
@@ -456,7 +531,7 @@ func (sysExportTemplateApi *SysExportTemplateApi) ExportTemplateByToken(c *gin.C
 	exportParams, ok := exportParamsRaw.(map[string]interface{})
 	if !ok {
 		global.GVA_LOG.Error("解析导出参数失败!")
-		response.FailWithMessage("解析导出参数失败", c)
+		failExportTemplateWithKey(c, "exportParamsInvalid", "fail")
 		return
 	}
 
@@ -464,7 +539,7 @@ func (sysExportTemplateApi *SysExportTemplateApi) ExportTemplateByToken(c *gin.C
 	isTemplate, _ := exportParams["isTemplate"].(bool)
 	if !isTemplate {
 		global.GVA_LOG.Error("token类型错误!")
-		response.FailWithMessage("token类型错误", c)
+		failExportTemplateWithKey(c, "exportTokenTypeInvalid", "invalidParams")
 		return
 	}
 
@@ -480,7 +555,7 @@ func (sysExportTemplateApi *SysExportTemplateApi) ExportTemplateByToken(c *gin.C
 	// 导出模板
 	if file, name, err := sysExportTemplateService.ExportTemplate(templateID); err != nil {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
-		response.FailWithMessage("获取失败", c)
+		failExportTemplateWithErr(c, err, "getFail")
 	} else {
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", name+"模板.xlsx"))
 		c.Header("success", "true")
@@ -496,21 +571,25 @@ func (sysExportTemplateApi *SysExportTemplateApi) ExportTemplateByToken(c *gin.C
 // @Produce application/json
 // @Router /sysExportTemplate/importExcel [post]
 func (sysExportTemplateApi *SysExportTemplateApi) ImportExcel(c *gin.Context) {
+	if !isExportTemplateManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage(i18n.T(c, "noPermission"), c)
+		return
+	}
 	templateID := c.Query("templateID")
 	if templateID == "" {
-		response.FailWithMessage("模板ID不能为空", c)
+		failExportTemplateWithKey(c, "exportTemplateIDRequired", "invalidParams")
 		return
 	}
 	file, err := c.FormFile("file")
 	if err != nil {
 		global.GVA_LOG.Error("文件获取失败!", zap.Error(err))
-		response.FailWithMessage("文件获取失败", c)
+		failExportTemplateWithKey(c, "fileGetFail", "getFail")
 		return
 	}
 	if err := sysExportTemplateService.ImportExcel(templateID, file); err != nil {
 		global.GVA_LOG.Error(err.Error(), zap.Error(err))
-		response.FailWithMessage("导入失败", c)
+		failExportTemplateWithErr(c, err, "importFail")
 	} else {
-		response.OkWithMessage("导入成功", c)
+		response.OkWithMessage(i18n.T(c, "importSuccess"), c)
 	}
 }

@@ -17,6 +17,34 @@ type CartApi struct {
 
 var cartService = service.ServiceGroupApp.ShopServiceGroup.CartService
 
+type publicCartResponse struct {
+	ID       uint               `json:"ID"`
+	GoodID   uint               `json:"goodID"`
+	Good     publicGoodResponse `json:"good"`
+	SKUID    uint               `json:"skuID"`
+	SKU      publicSkuResponse  `json:"sku"`
+	Quantity uint               `json:"quantity"`
+}
+
+func toPublicCartResponse(item shop.Cart) publicCartResponse {
+	return publicCartResponse{
+		ID:       item.ID,
+		GoodID:   item.GoodID,
+		Good:     toPublicGoodResponse(item.Good),
+		SKUID:    item.SKUID,
+		SKU:      toPublicSkuResponse(item.SKU),
+		Quantity: item.Quantity,
+	}
+}
+
+func toPublicCartResponses(list []shop.Cart) []publicCartResponse {
+	result := make([]publicCartResponse, 0, len(list))
+	for _, item := range list {
+		result = append(result, toPublicCartResponse(item))
+	}
+	return result
+}
+
 // CreateCart 创建购物车
 // @Tags Cart
 // @Summary 创建购物车
@@ -27,6 +55,10 @@ var cartService = service.ServiceGroupApp.ShopServiceGroup.CartService
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"创建成功"}"
 // @Router /cart/createCart [post]
 func (cartApi *CartApi) CreateCart(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	var cart shop.Cart
 	err := c.ShouldBindJSON(&cart)
 	if err != nil {
@@ -51,6 +83,10 @@ func (cartApi *CartApi) CreateCart(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"删除成功"}"
 // @Router /cart/deleteCart [delete]
 func (cartApi *CartApi) DeleteCart(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	ID := c.Query("ID")
 	if err := cartService.DeleteCart(ID); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
@@ -69,6 +105,10 @@ func (cartApi *CartApi) DeleteCart(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"批量删除成功"}"
 // @Router /cart/deleteCartByIds [delete]
 func (cartApi *CartApi) DeleteCartByIds(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	IDs := c.QueryArray("IDs[]")
 	if err := cartService.DeleteCartByIds(IDs); err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
@@ -88,6 +128,10 @@ func (cartApi *CartApi) DeleteCartByIds(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"更新成功"}"
 // @Router /cart/updateCart [put]
 func (cartApi *CartApi) UpdateCart(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	var cart shop.Cart
 	err := c.ShouldBindJSON(&cart)
 	if err != nil {
@@ -112,6 +156,10 @@ func (cartApi *CartApi) UpdateCart(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"查询成功"}"
 // @Router /cart/findCart [get]
 func (cartApi *CartApi) FindCart(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	ID := c.Query("ID")
 	if recart, err := cartService.GetCart(ID); err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
@@ -131,6 +179,10 @@ func (cartApi *CartApi) FindCart(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"获取成功"}"
 // @Router /cart/getCartList [get]
 func (cartApi *CartApi) GetCartList(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	var pageInfo shopReq.CartSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
@@ -176,7 +228,7 @@ func (cartApi *CartApi) GetSelfCart(c *gin.Context) {
 		global.GVA_LOG.Error("获取失败!", zap.Error(err))
 		response.FailWithMessage("获取失败", c)
 	} else {
-		response.OkWithDetailed(i18n.LocalizeResponseData(c, list), "获取成功", c)
+		response.OkWithDetailed(i18n.LocalizeResponseData(c, toPublicCartResponses(list)), "获取成功", c)
 	}
 }
 
@@ -197,6 +249,10 @@ func (cartApi *CartApi) AddCart(c *gin.Context) {
 		return
 	}
 	userID := utils.GetUserID(c)
+	if userID == 0 {
+		failWithKey(c, "notLogin")
+		return
+	}
 	cart.UserID = userID
 	if err := cartService.AddCart(&cart); err != nil {
 		global.GVA_LOG.Error("购物车操作失败!", zap.Error(err))
@@ -223,6 +279,10 @@ func (cartApi *CartApi) CutCart(c *gin.Context) {
 		return
 	}
 	userID := utils.GetUserID(c)
+	if userID == 0 {
+		failWithKey(c, "notLogin")
+		return
+	}
 	cart.UserID = userID
 	if err := cartService.CutCart(&cart); err != nil {
 		global.GVA_LOG.Error("购物车操作失败!", zap.Error(err))
@@ -242,6 +302,10 @@ func (cartApi *CartApi) CutCart(c *gin.Context) {
 // @Router /cart/clearCart [get]
 func (cartApi *CartApi) ClearCart(c *gin.Context) {
 	userID := utils.GetUserID(c)
+	if userID == 0 {
+		failWithKey(c, "notLogin")
+		return
+	}
 	if err := cartService.ClearCart(userID); err != nil {
 		global.GVA_LOG.Error("购物车操作失败!", zap.Error(err))
 		response.FailWithMessage("购物车操作失败", c)

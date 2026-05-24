@@ -111,6 +111,7 @@ const historyHasMore = computed(() => messages.value.length < historyTotal.value
 
 let ws = null
 let clientMsgCounter = 0
+const wsAllowQueryTokenFallback = String(import.meta.env.VITE_WS_ALLOW_QUERY_TOKEN || '').toLowerCase() === 'true'
 
 async function handleOpen() {
   open.value = true
@@ -181,7 +182,12 @@ function connectWs() {
   const wsURL = `${wsBase}${apiBase}/cs/ws`
   try {
     ws = token ? new WebSocket(wsURL, ['bearer', token]) : new WebSocket(wsURL)
-  } catch {
+  } catch (err) {
+    if (!wsAllowQueryTokenFallback) {
+      ws = null
+      console.error('[CS WS] protocol handshake failed and query-token fallback is disabled', err)
+      return
+    }
     ws = new WebSocket(`${wsBase}${apiBase}/cs/ws?token=${encodeURIComponent(token || '')}`)
   }
 

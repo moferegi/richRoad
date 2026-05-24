@@ -56,6 +56,23 @@ export const importURL = (data) => {
   })
 }
 
+/**
+ * 生成扫码上传一次性票据
+ * @param {Object} data
+ * @param {number} data.classId 分类ID
+ * @param {string} data.folder 上传目录
+ * @param {string} data.uploadType 上传类型
+ * @param {string} data.uploadPosition 上传位置
+ * @returns {Promise} {ticket: string, expiresAt: number}
+ */
+export const createScanUploadTicket = (data) => {
+  return service({
+    url: '/fileUploadAndDownload/createScanUploadTicket',
+    method: 'post',
+    data
+  })
+}
+
 
 // 上传文件 暂时用于头像上传
 export const uploadFile = (data) => {

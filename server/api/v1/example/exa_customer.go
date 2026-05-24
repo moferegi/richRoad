@@ -13,6 +13,10 @@ import (
 
 type CustomerApi struct{}
 
+func isCustomerManageRole(authorityID uint) bool {
+	return authorityID == 888 || authorityID == 8881
+}
+
 // CreateExaCustomer
 // @Tags      ExaCustomer
 // @Summary   创建客户
@@ -23,6 +27,10 @@ type CustomerApi struct{}
 // @Success   200   {object}  response.Response{msg=string}  "创建客户"
 // @Router    /customer/customer [post]
 func (e *CustomerApi) CreateExaCustomer(c *gin.Context) {
+	if !isCustomerManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var customer example.ExaCustomer
 	err := c.ShouldBindJSON(&customer)
 	if err != nil {
@@ -55,6 +63,10 @@ func (e *CustomerApi) CreateExaCustomer(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "删除客户"
 // @Router    /customer/customer [delete]
 func (e *CustomerApi) DeleteExaCustomer(c *gin.Context) {
+	if !isCustomerManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var customer example.ExaCustomer
 	err := c.ShouldBindJSON(&customer)
 	if err != nil {
@@ -85,6 +97,10 @@ func (e *CustomerApi) DeleteExaCustomer(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "更新客户信息"
 // @Router    /customer/customer [put]
 func (e *CustomerApi) UpdateExaCustomer(c *gin.Context) {
+	if !isCustomerManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var customer example.ExaCustomer
 	err := c.ShouldBindJSON(&customer)
 	if err != nil {
@@ -120,6 +136,10 @@ func (e *CustomerApi) UpdateExaCustomer(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=exampleRes.ExaCustomerResponse,msg=string}  "获取单一客户信息,返回包括客户详情"
 // @Router    /customer/customer [get]
 func (e *CustomerApi) GetExaCustomer(c *gin.Context) {
+	if !isCustomerManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var customer example.ExaCustomer
 	err := c.ShouldBindQuery(&customer)
 	if err != nil {
@@ -150,6 +170,10 @@ func (e *CustomerApi) GetExaCustomer(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=response.PageResult,msg=string}  "分页获取权限客户列表,返回包括列表,总数,页码,每页数量"
 // @Router    /customer/customerList [get]
 func (e *CustomerApi) GetExaCustomerList(c *gin.Context) {
+	if !isCustomerManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var pageInfo request.PageInfo
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {

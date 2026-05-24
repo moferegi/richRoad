@@ -140,6 +140,7 @@ func Routers() *gin.Engine {
 		} else {
 			global.GVA_LOG.Info("skip init routers by security_init_api_enabled")
 		}
+		exampleRouter.InitFileUploadAndDownloadPublicRouter(PublicGroup) // 扫码上传短期票据路由
 	}
 
 	{

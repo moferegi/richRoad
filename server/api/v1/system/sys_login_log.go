@@ -6,13 +6,22 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/system"
 	systemReq "github.com/flipped-aurora/gin-vue-admin/server/model/system/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
 type LoginLogApi struct{}
 
+func isLoginLogManageRole(authorityID uint) bool {
+	return authorityID == 888 || authorityID == 8881
+}
+
 func (s *LoginLogApi) DeleteLoginLog(c *gin.Context) {
+	if !isLoginLogManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var loginLog system.SysLoginLog
 	err := c.ShouldBindJSON(&loginLog)
 	if err != nil {
@@ -29,6 +38,10 @@ func (s *LoginLogApi) DeleteLoginLog(c *gin.Context) {
 }
 
 func (s *LoginLogApi) DeleteLoginLogByIds(c *gin.Context) {
+	if !isLoginLogManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var SDS request.IdsReq
 	err := c.ShouldBindJSON(&SDS)
 	if err != nil {
@@ -45,6 +58,10 @@ func (s *LoginLogApi) DeleteLoginLogByIds(c *gin.Context) {
 }
 
 func (s *LoginLogApi) FindLoginLog(c *gin.Context) {
+	if !isLoginLogManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var loginLog system.SysLoginLog
 	err := c.ShouldBindQuery(&loginLog)
 	if err != nil {
@@ -61,6 +78,10 @@ func (s *LoginLogApi) FindLoginLog(c *gin.Context) {
 }
 
 func (s *LoginLogApi) GetLoginLogList(c *gin.Context) {
+	if !isLoginLogManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var pageInfo systemReq.SysLoginLogSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {

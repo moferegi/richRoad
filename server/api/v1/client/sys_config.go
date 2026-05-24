@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
+	clientModel "github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
@@ -31,8 +32,6 @@ var publicConfigKeyAllowlist = map[string]struct{}{
 	"payment_auto_enabled":                {},
 	"payment_manual_qrcode_enabled":       {},
 	"payment_manual_contact_enabled":      {},
-	"payment_manual_methods":              {},
-	"payment_uni_preferred_methods":       {},
 	"payment_wechat_enabled":              {},
 	"payment_alipay_enabled":              {},
 	"payment_bank_cn_enabled":             {},
@@ -72,6 +71,109 @@ func isSysConfigAdmin(authorityId uint) bool {
 	return authorityId == 888 || authorityId == 8881
 }
 
+func isSysConfigSuperAdmin(authorityId uint) bool {
+	return authorityId == 888
+}
+
+const sysConfigSecretPlaceholder = "******"
+
+var nonSensitiveSysConfigKeys = map[string]struct{}{
+	"security_export_allow_query_token": {},
+	"security_ws_allow_query_token":     {},
+}
+
+var sensitiveSysConfigKeys = map[string]struct{}{
+	"tryon_models":         {},
+	"tryon_provider_token": {},
+	"wxpay_mch_api_v3_key": {},
+}
+
+var sensitiveSysConfigKeySuffixes = []string{
+	"access_key",
+	"access_key_id",
+	"access_key_secret",
+	"api_key",
+	"authorization",
+	"mch_api_v3_key",
+	"secret",
+	"secret_access_key",
+	"secret_key",
+	"security_token",
+	"token",
+}
+
+func normalizeSysConfigKey(key string) string {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return ""
+	}
+	var builder strings.Builder
+	builder.Grow(len(key) + 4)
+	var previous rune
+	for _, current := range key {
+		if current >= 'A' && current <= 'Z' {
+			if builder.Len() > 0 && ((previous >= 'a' && previous <= 'z') || (previous >= '0' && previous <= '9')) {
+				builder.WriteByte('_')
+			}
+			current += 'a' - 'A'
+		}
+		if (current >= 'a' && current <= 'z') || (current >= '0' && current <= '9') {
+			builder.WriteRune(current)
+			previous = current
+			continue
+		}
+		if builder.Len() > 0 && previous != '_' {
+			builder.WriteByte('_')
+			previous = '_'
+		}
+	}
+	return strings.Trim(builder.String(), "_")
+}
+
+func isSensitiveSysConfigKey(key string) bool {
+	normalizedKey := normalizeSysConfigKey(key)
+	if normalizedKey == "" {
+		return false
+	}
+	if _, ok := nonSensitiveSysConfigKeys[normalizedKey]; ok {
+		return false
+	}
+	if _, ok := sensitiveSysConfigKeys[normalizedKey]; ok {
+		return true
+	}
+	for _, suffix := range sensitiveSysConfigKeySuffixes {
+		if normalizedKey == suffix || strings.HasSuffix(normalizedKey, "_"+suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+func redactSysConfigValue(cfg clientModel.SysConfig) clientModel.SysConfig {
+	if !isSensitiveSysConfigKey(cfg.ConfigKey) {
+		return cfg
+	}
+	if normalizeSysConfigKey(cfg.ConfigKey) == "tryon_models" {
+		cfg.ConfigValue = sanitizeTryonModelsConfig(cfg.ConfigValue)
+		return cfg
+	}
+	if strings.TrimSpace(cfg.ConfigValue) != "" {
+		cfg.ConfigValue = sysConfigSecretPlaceholder
+	}
+	return cfg
+}
+
+func redactSysConfigListForAuthority(list []clientModel.SysConfig, authorityId uint) []clientModel.SysConfig {
+	if isSysConfigSuperAdmin(authorityId) {
+		return list
+	}
+	redacted := make([]clientModel.SysConfig, 0, len(list))
+	for _, cfg := range list {
+		redacted = append(redacted, redactSysConfigValue(cfg))
+	}
+	return redacted
+}
+
 // GetSysConfigList 分页获取系统参数列表
 // @Tags SysConfig
 // @Summary 分页获取系统参数列表
@@ -82,7 +184,8 @@ func isSysConfigAdmin(authorityId uint) bool {
 // @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
 // @Router /sysConfig/getSysConfigList [get]
 func (s *SysConfigApi) GetSysConfigList(c *gin.Context) {
-	if !isSysConfigAdmin(utils.GetUserAuthorityId(c)) {
+	authorityId := utils.GetUserAuthorityId(c)
+	if !isSysConfigAdmin(authorityId) {
 		failClientWithKey(c, "noPermission")
 		return
 	}
@@ -99,6 +202,7 @@ func (s *SysConfigApi) GetSysConfigList(c *gin.Context) {
 		failClientWithKey(c, "getFail")
 		return
 	}
+	list = redactSysConfigListForAuthority(list, authorityId)
 	response.OkWithDetailed(response.PageResult{
 		List:     list,
 		Total:    total,
@@ -169,6 +273,16 @@ func (s *SysConfigApi) UpdateSysConfig(c *gin.Context) {
 		failClientWithKey(c, "invalidParams")
 		return
 	}
+	existing, err := sysConfigService.GetSysConfigByID(req.ID)
+	if err != nil {
+		global.GVA_LOG.Error("查询系统参数失败!", zap.Error(err))
+		failClientWithKey(c, "updateFail")
+		return
+	}
+	if !isSysConfigSuperAdmin(authorityId) && isSensitiveSysConfigKey(existing.ConfigKey) {
+		failClientWithKey(c, "noPermission")
+		return
+	}
 	if err := sysConfigService.UpdateSysConfig(req.ID, req.ConfigValue, req.Remark); err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
 		failClientWithKey(c, "updateFail")
@@ -187,7 +301,8 @@ func (s *SysConfigApi) UpdateSysConfig(c *gin.Context) {
 // @Success 200 {object} response.Response{data=[]client.SysConfig,msg=string} "获取成功"
 // @Router /sysConfig/getSysConfigByGroup [get]
 func (s *SysConfigApi) GetSysConfigByGroup(c *gin.Context) {
-	if !isSysConfigAdmin(utils.GetUserAuthorityId(c)) {
+	authorityId := utils.GetUserAuthorityId(c)
+	if !isSysConfigAdmin(authorityId) {
 		failClientWithKey(c, "noPermission")
 		return
 	}
@@ -203,6 +318,7 @@ func (s *SysConfigApi) GetSysConfigByGroup(c *gin.Context) {
 		failClientWithKey(c, "getFail")
 		return
 	}
+	list = redactSysConfigListForAuthority(list, authorityId)
 	response.OkWithDetailed(i18n.LocalizeResponseData(c, list), i18n.T(c, "getSuccess"), c)
 }
 
@@ -892,8 +1008,12 @@ func normalizeTryonModelsConfigLocales(raw string) string {
 
 var tryonSensitiveConfigFields = map[string]struct{}{
 	"token":                   {},
+	"providertoken":           {},
 	"refinertoken":            {},
 	"parsingtoken":            {},
+	"beautifytoken":           {},
+	"accesskeyid":             {},
+	"beautifyaccesskeyid":     {},
 	"accesstokensecret":       {},
 	"accesskeysecret":         {},
 	"secretaccesskey":         {},

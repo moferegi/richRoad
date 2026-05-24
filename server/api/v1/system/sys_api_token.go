@@ -5,14 +5,36 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/system"
 	sysReq "github.com/flipped-aurora/gin-vue-admin/server/model/system/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
 type ApiTokenApi struct{}
 
+func isApiTokenManageRole(authorityID uint) bool {
+	return authorityID == 888
+}
+
+const apiTokenListPlaceholder = "******"
+
+func redactApiTokenList(list []system.SysApiToken) []system.SysApiToken {
+	redacted := make([]system.SysApiToken, 0, len(list))
+	for _, item := range list {
+		if item.Token != "" {
+			item.Token = apiTokenListPlaceholder
+		}
+		redacted = append(redacted, item)
+	}
+	return redacted
+}
+
 // CreateApiToken 签发Token
 func (s *ApiTokenApi) CreateApiToken(c *gin.Context) {
+	if !isApiTokenManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var req struct {
 		UserID      uint   `json:"userId"`
 		AuthorityID uint   `json:"authorityId"`
@@ -43,6 +65,10 @@ func (s *ApiTokenApi) CreateApiToken(c *gin.Context) {
 
 // GetApiTokenList 获取列表
 func (s *ApiTokenApi) GetApiTokenList(c *gin.Context) {
+	if !isApiTokenManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var pageInfo sysReq.SysApiTokenSearch
 	err := c.ShouldBindJSON(&pageInfo)
 	if err != nil {
@@ -55,6 +81,7 @@ func (s *ApiTokenApi) GetApiTokenList(c *gin.Context) {
 		response.FailWithMessage("获取失败", c)
 		return
 	}
+	list = redactApiTokenList(list)
 	response.OkWithDetailed(response.PageResult{
 		List:     list,
 		Total:    total,
@@ -65,6 +92,10 @@ func (s *ApiTokenApi) GetApiTokenList(c *gin.Context) {
 
 // DeleteApiToken 作废Token
 func (s *ApiTokenApi) DeleteApiToken(c *gin.Context) {
+	if !isApiTokenManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var req system.SysApiToken
 	err := c.ShouldBindJSON(&req)
 	if err != nil {

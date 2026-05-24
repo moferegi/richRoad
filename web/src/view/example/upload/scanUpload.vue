@@ -3,12 +3,11 @@
     <el-upload
         ref="uploadRef"
         class="h5-uploader"
-        :action="`${getBaseUrl()}/fileUploadAndDownload/upload`"
+        :action="`${getBaseUrl()}/fileUploadAndDownload/uploadByTicket`"
         accept="image/*"
         :show-file-list="false"
         :auto-upload="false"
-        :headers="{ 'x-token': token }"
-        :data="{ classId: classId, folder: uploadFolder }"
+        :data="{ ticket: uploadTicket }"
         :on-success="handleImageSuccess"
         :on-change="handleFileChange"
     >
@@ -89,9 +88,7 @@ defineOptions({
   name: 'scanUpload'
 })
 
-const classId = ref(0)
-const token = ref('')
-const uploadFolder = ref('')
+const uploadTicket = ref('')
 const isCrop = ref(false)
 
 const windowWidth = ref(300)
@@ -109,11 +106,11 @@ onMounted(() => {
 
 const router = useRouter()
 router.isReady().then(() => {
-  let query = router.currentRoute.value.query
-  //console.log(query)
-  classId.value = query.id
-  token.value = query.token
-  uploadFolder.value = typeof query.folder === 'string' ? decodeURIComponent(query.folder) : ''
+  const query = router.currentRoute.value.query
+  uploadTicket.value = typeof query.ticket === 'string' ? decodeURIComponent(query.ticket) : ''
+  if (!uploadTicket.value) {
+    ElMessage.error('上传凭证无效或已过期，请重新扫码')
+  }
 }).catch((err) => {
   console.log(err)
 })
@@ -175,6 +172,10 @@ const rotate = (degree) => {
 
 // 上传处理
 const handleUpload = () => {
+  if (!uploadTicket.value) {
+    ElMessage.error('上传凭证无效或已过期，请重新扫码')
+    return false
+  }
   uploading.value = true
   if(isCrop.value === false){
     uploadRef.value.submit()

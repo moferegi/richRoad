@@ -20,6 +20,9 @@ type AutoCodeApi struct{}
 // @Success   200  {object}  response.Response{data=map[string]interface{},msg=string}  "获取当前所有数据库"
 // @Router    /autoCode/getDB [get]
 func (autoApi *AutoCodeApi) GetDB(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	businessDB := c.Query("businessDB")
 	dbs, err := autoCodeService.Database(businessDB).GetDB(businessDB)
 	var dbList []map[string]interface{}
@@ -48,6 +51,9 @@ func (autoApi *AutoCodeApi) GetDB(c *gin.Context) {
 // @Success   200  {object}  response.Response{data=map[string]interface{},msg=string}  "获取当前数据库所有表"
 // @Router    /autoCode/getTables [get]
 func (autoApi *AutoCodeApi) GetTables(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	dbName := c.Query("dbName")
 	businessDB := c.Query("businessDB")
 	if dbName == "" {
@@ -79,6 +85,9 @@ func (autoApi *AutoCodeApi) GetTables(c *gin.Context) {
 // @Success   200  {object}  response.Response{data=map[string]interface{},msg=string}  "获取当前表所有字段"
 // @Router    /autoCode/getColumn [get]
 func (autoApi *AutoCodeApi) GetColumn(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	businessDB := c.Query("businessDB")
 	dbName := c.Query("dbName")
 	if dbName == "" {
@@ -102,6 +111,9 @@ func (autoApi *AutoCodeApi) GetColumn(c *gin.Context) {
 }
 
 func (autoApi *AutoCodeApi) LLMAuto(c *gin.Context) {
+	if !ensureApiManageRole(c) {
+		return
+	}
 	var llm common.JSONMap
 	if err := c.ShouldBindJSON(&llm); err != nil {
 		response.FailWithMessage("参数错误", c)

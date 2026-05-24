@@ -17,6 +17,8 @@ func (s *PresaleService) GetPresaleGoodList(info shopReq.PresaleListRequest) (li
 	db := global.GVA_DB.Model(&shop.Good{})
 	// 始终仅查询预售商品(is_presale=true)
 	db = db.Where("is_presale = ?", true)
+	db = db.Where("status = ?", true)
+	db = db.Where("category_id IS NULL OR category_id NOT IN (SELECT id FROM shop_category WHERE show_in_uni = ?)", false)
 
 	if info.PresaleEnabled != nil {
 		db = db.Where("presale_enabled = ?", *info.PresaleEnabled)
@@ -57,7 +59,10 @@ func (s *PresaleService) GetPresaleGoodList(info shopReq.PresaleListRequest) (li
 // CheckPresaleAvailable 检查预售商品是否可购买
 func (s *PresaleService) CheckPresaleAvailable(goodID uint) (available bool, message string, err error) {
 	var good shop.Good
-	err = global.GVA_DB.Where("id = ?", goodID).First(&good).Error
+	err = global.GVA_DB.
+		Where("id = ? AND status = ?", goodID, true).
+		Where("category_id IS NULL OR category_id NOT IN (SELECT id FROM shop_category WHERE show_in_uni = ?)", false).
+		First(&good).Error
 	if err != nil {
 		return false, "商品不存在", err
 	}

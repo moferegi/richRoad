@@ -350,6 +350,7 @@ let ws = null
 let pingTimer = null
 let pollTimer = null
 const imageInput = ref(null)
+const wsAllowQueryTokenFallback = String(import.meta.env.VITE_WS_ALLOW_QUERY_TOKEN || '').toLowerCase() === 'true'
 
 const tabs = [
   { label: '全部', value: 'all' },
@@ -412,7 +413,12 @@ function connectWs() {
   const wsURL = buildWsUrl('/cs/wsAgent')
   try {
     ws = token ? new WebSocket(wsURL, ['bearer', token]) : new WebSocket(wsURL)
-  } catch {
+  } catch (err) {
+    if (!wsAllowQueryTokenFallback) {
+      wsStatus.value = 'disconnected'
+      console.error('[CS WS] protocol handshake failed and query-token fallback is disabled', err)
+      return
+    }
     ws = new WebSocket(buildWsUrl(`/cs/wsAgent?token=${encodeURIComponent(token || '')}`))
   }
 

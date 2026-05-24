@@ -13,6 +13,10 @@ import (
 
 type OperationRecordApi struct{}
 
+func isOperationRecordManageRole(authorityID uint) bool {
+	return authorityID == 888 || authorityID == 8881
+}
+
 // DeleteSysOperationRecord
 // @Tags      SysOperationRecord
 // @Summary   删除SysOperationRecord
@@ -23,6 +27,10 @@ type OperationRecordApi struct{}
 // @Success   200   {object}  response.Response{msg=string}  "删除SysOperationRecord"
 // @Router    /sysOperationRecord/deleteSysOperationRecord [delete]
 func (s *OperationRecordApi) DeleteSysOperationRecord(c *gin.Context) {
+	if !isOperationRecordManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var sysOperationRecord system.SysOperationRecord
 	err := c.ShouldBindJSON(&sysOperationRecord)
 	if err != nil {
@@ -48,6 +56,10 @@ func (s *OperationRecordApi) DeleteSysOperationRecord(c *gin.Context) {
 // @Success   200   {object}  response.Response{msg=string}  "批量删除SysOperationRecord"
 // @Router    /sysOperationRecord/deleteSysOperationRecordByIds [delete]
 func (s *OperationRecordApi) DeleteSysOperationRecordByIds(c *gin.Context) {
+	if !isOperationRecordManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var IDS request.IdsReq
 	err := c.ShouldBindJSON(&IDS)
 	if err != nil {
@@ -73,6 +85,10 @@ func (s *OperationRecordApi) DeleteSysOperationRecordByIds(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=map[string]interface{},msg=string}  "用id查询SysOperationRecord"
 // @Router    /sysOperationRecord/findSysOperationRecord [get]
 func (s *OperationRecordApi) FindSysOperationRecord(c *gin.Context) {
+	if !isOperationRecordManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var sysOperationRecord system.SysOperationRecord
 	err := c.ShouldBindQuery(&sysOperationRecord)
 	if err != nil {
@@ -103,6 +119,10 @@ func (s *OperationRecordApi) FindSysOperationRecord(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=response.PageResult,msg=string}  "分页获取SysOperationRecord列表,返回包括列表,总数,页码,每页数量"
 // @Router    /sysOperationRecord/getSysOperationRecordList [get]
 func (s *OperationRecordApi) GetSysOperationRecordList(c *gin.Context) {
+	if !isOperationRecordManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("无权限操作", c)
+		return
+	}
 	var pageInfo systemReq.SysOperationRecordSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {

@@ -114,6 +114,18 @@
               <span v-else class="text-gray-300">—</span>
             </template>
           </el-table-column>
+          <el-table-column prop="scanTicketRate" label="扫码上传限流" width="115" align="center">
+            <template #default="{ row }">
+              <span v-if="row.scanTicketRate" class="text-blue-500 font-semibold">{{ row.scanTicketRate }}</span>
+              <span v-else class="text-gray-300">—</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="scanTicketInvalid" label="票据无效" width="95" align="center">
+            <template #default="{ row }">
+              <span v-if="row.scanTicketInvalid" class="text-rose-500 font-semibold">{{ row.scanTicketInvalid }}</span>
+              <span v-else class="text-gray-300">—</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="adminFail" label="后台登录失败" width="120" align="center">
             <template #default="{ row }">
               <span v-if="row.adminFail" class="text-red-500 font-semibold">{{ row.adminFail }}</span>

@@ -18,6 +18,17 @@ type Kefu struct {
 	Link           *string `json:"link" form:"link" gorm:"column:link;"`                                                                 //链接
 }
 
+type KefuPublic struct {
+	Name           *string `json:"name"`
+	NameI18n       string  `json:"nameI18n"`
+	Avatar         string  `json:"avatar"`
+	ExternalAvatar string  `json:"externalAvatar"`
+	QrCode         string  `json:"qrCode"`
+	ContactID      *string `json:"contactId"`
+	Status         string  `json:"status"`
+	Link           *string `json:"link"`
+}
+
 // TableName 客服 Kefu自定义表名 kefu
 func (Kefu) TableName() string {
 	return "kefu"

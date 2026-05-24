@@ -17,6 +17,33 @@ import (
 	"go.uber.org/zap"
 )
 
+func isUserManageRole(authorityID uint) bool {
+	return authorityID == 888 || authorityID == 8881
+}
+
+func canManageUserAuthority(adminAuthorityID uint, targetAuthorityID uint) bool {
+	return adminAuthorityID == 888 || targetAuthorityID != 888
+}
+
+func canManageTargetUser(adminAuthorityID uint, targetUserID uint) bool {
+	if !isUserManageRole(adminAuthorityID) {
+		return false
+	}
+	if adminAuthorityID == 888 {
+		return true
+	}
+	user, err := userService.FindUserById(int(targetUserID))
+	if err != nil || user.AuthorityId == 888 {
+		return false
+	}
+	for _, authority := range user.Authorities {
+		if authority.AuthorityId == 888 {
+			return false
+		}
+	}
+	return true
+}
+
 // Login
 // @Tags     Base
 // @Summary  用户登录
@@ -108,11 +135,11 @@ func (b *BaseApi) TokenNext(c *gin.Context, user system.SysUser) {
 	}
 	// 记录登录成功日志
 	loginLogService.CreateLoginLog(system.SysLoginLog{
-		Username: user.Username,
-		Ip:       c.ClientIP(),
-		Agent:    c.Request.UserAgent(),
-		Status:   true,
-		UserID:   user.ID,
+		Username:     user.Username,
+		Ip:           c.ClientIP(),
+		Agent:        c.Request.UserAgent(),
+		Status:       true,
+		UserID:       user.ID,
 		ErrorMessage: "登录成功",
 	})
 	if !global.GVA_CONFIG.System.UseMultipoint {
@@ -179,11 +206,32 @@ func (b *BaseApi) Register(c *gin.Context) {
 		response.FailWithMessage("参数错误", c)
 		return
 	}
+	adminAuthorityID := utils.GetUserAuthorityId(c)
+	if !isUserManageRole(adminAuthorityID) {
+		response.FailWithMessage("权限不足", c)
+		return
+	}
+	if !canManageUserAuthority(adminAuthorityID, r.AuthorityId) {
+		response.FailWithMessage("权限不足", c)
+		return
+	}
 	var authorities []system.SysAuthority
 	for _, v := range r.AuthorityIds {
+		if !canManageUserAuthority(adminAuthorityID, v) {
+			response.FailWithMessage("权限不足", c)
+			return
+		}
+		if err := authorityService.CheckAuthorityIDAuth(adminAuthorityID, v); err != nil {
+			response.FailWithMessage("权限不足", c)
+			return
+		}
 		authorities = append(authorities, system.SysAuthority{
 			AuthorityId: v,
 		})
+	}
+	if err := authorityService.CheckAuthorityIDAuth(adminAuthorityID, r.AuthorityId); err != nil {
+		response.FailWithMessage("权限不足", c)
+		return
 	}
 	user := &system.SysUser{Username: r.Username, NickName: r.NickName, Password: r.Password, HeaderImg: r.HeaderImg, AuthorityId: r.AuthorityId, Authorities: authorities, Enable: r.Enable, Phone: r.Phone, Email: r.Email}
 	userReturn, err := userService.Register(*user)
@@ -236,6 +284,10 @@ func (b *BaseApi) ChangePassword(c *gin.Context) {
 // @Success   200   {object}  response.Response{data=response.PageResult,msg=string}  "分页获取用户列表,返回包括列表,总数,页码,每页数量"
 // @Router    /user/getUserList [post]
 func (b *BaseApi) GetUserList(c *gin.Context) {
+	if !isUserManageRole(utils.GetUserAuthorityId(c)) {
+		response.FailWithMessage("权限不足", c)
+		return
+	}
 	var pageInfo systemReq.GetUserList
 	err := c.ShouldBindJSON(&pageInfo)
 	if err != nil {
@@ -281,6 +333,15 @@ func (b *BaseApi) SetUserAuthority(c *gin.Context) {
 		response.FailWithMessage("参数错误", c)
 		return
 	}
+	adminAuthorityID := utils.GetUserAuthorityId(c)
+	if !isUserManageRole(adminAuthorityID) || !canManageUserAuthority(adminAuthorityID, sua.AuthorityId) {
+		response.FailWithMessage("权限不足", c)
+		return
+	}
+	if err := authorityService.CheckAuthorityIDAuth(adminAuthorityID, sua.AuthorityId); err != nil {
+		response.FailWithMessage("权限不足", c)
+		return
+	}
 	userID := utils.GetUserID(c)
 	err = userService.SetUserAuthority(userID, sua.AuthorityId)
 	if err != nil {
@@ -319,6 +380,10 @@ func (b *BaseApi) SetUserAuthorities(c *gin.Context) {
 		return
 	}
 	authorityID := utils.GetUserAuthorityId(c)
+	if !canManageTargetUser(authorityID, sua.ID) {
+		response.FailWithMessage("权限不足", c)
+		return
+	}
 	err = userService.SetUserAuthorities(authorityID, sua.ID, sua.AuthorityIds)
 	if err != nil {
 		global.GVA_LOG.Error("修改失败!", zap.Error(err))
@@ -347,6 +412,11 @@ func (b *BaseApi) DeleteUser(c *gin.Context) {
 	err = utils.Verify(reqId, utils.IdVerify)
 	if err != nil {
 		response.FailWithMessage("参数错误", c)
+		return
+	}
+	adminAuthorityID := utils.GetUserAuthorityId(c)
+	if !canManageTargetUser(adminAuthorityID, uint(reqId.ID)) {
+		response.FailWithMessage("权限不足", c)
 		return
 	}
 	jwtId := utils.GetUserID(c)
@@ -379,14 +449,18 @@ func (b *BaseApi) SetUserInfo(c *gin.Context) {
 		response.FailWithMessage("参数错误", c)
 		return
 	}
+	adminAuthorityID := utils.GetUserAuthorityId(c)
+	if !canManageTargetUser(adminAuthorityID, user.ID) {
+		response.FailWithMessage("权限不足", c)
+		return
+	}
 	err = utils.Verify(user, utils.IdVerify)
 	if err != nil {
 		response.FailWithMessage("参数错误", c)
 		return
 	}
 	if len(user.AuthorityIds) != 0 {
-		authorityID := utils.GetUserAuthorityId(c)
-		err = userService.SetUserAuthorities(authorityID, user.ID, user.AuthorityIds)
+		err = userService.SetUserAuthorities(adminAuthorityID, user.ID, user.AuthorityIds)
 		if err != nil {
 			global.GVA_LOG.Error("设置失败!", zap.Error(err))
 			response.FailWithMessage("设置失败", c)
@@ -504,6 +578,11 @@ func (b *BaseApi) ResetPassword(c *gin.Context) {
 	err := c.ShouldBindJSON(&rps)
 	if err != nil {
 		response.FailWithMessage("参数错误", c)
+		return
+	}
+	adminAuthorityID := utils.GetUserAuthorityId(c)
+	if !canManageTargetUser(adminAuthorityID, rps.ID) {
+		response.FailWithMessage("权限不足", c)
 		return
 	}
 	err = userService.ResetPassword(rps.ID, rps.Password)

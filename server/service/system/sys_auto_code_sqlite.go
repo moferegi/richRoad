@@ -1,6 +1,7 @@
 package system
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,17 @@ import (
 var AutoCodeSqlite = new(autoCodeSqlite)
 
 type autoCodeSqlite struct{}
+
+func quoteSQLiteIdentifier(name string) (string, error) {
+	value := strings.TrimSpace(name)
+	if value == "" {
+		return "", errors.New("表名不能为空")
+	}
+	if strings.ContainsAny(value, "\x00\r\n\t;") {
+		return "", errors.New("表名不合法")
+	}
+	return `"` + strings.ReplaceAll(value, `"`, `""`) + `"`, nil
+}
 
 // GetDB 获取数据库的所有数据库名
 // Author [piexlmax](https://github.com/piexlmax)
@@ -63,7 +75,11 @@ func (a *autoCodeSqlite) GetTables(businessDB string, dbName string) (data []res
 // Author [SliverHorn](https://github.com/SliverHorn)
 func (a *autoCodeSqlite) GetColumn(businessDB string, tableName string, dbName string) (data []response.Column, err error) {
 	var entities []response.Column
-	sql := fmt.Sprintf("PRAGMA table_info(%s);", tableName)
+	quotedTableName, qErr := quoteSQLiteIdentifier(tableName)
+	if qErr != nil {
+		return entities, qErr
+	}
+	sql := fmt.Sprintf("PRAGMA table_info(%s);", quotedTableName)
 	var columnInfos []struct {
 		Name string `gorm:"column:name"`
 		Type string `gorm:"column:type"`

@@ -16,8 +16,9 @@ func (r *CustomerServiceRouter) InitCustomerServiceRouter(public, private *gin.R
 	public.GET("/cs/config/get", a.GetCsConfig)
 
 	// ---- WebSocket（无 Casbin，仅 JWT 验证）----
-	public.GET("/cs/ws", a.UserWS)
-	public.GET("/cs/wsAgent", a.AgentWS)
+	wsGroup := public.Group("/cs").Use(middleware.JWTAuth())
+	wsGroup.GET("/ws", a.UserWS)
+	wsGroup.GET("/wsAgent", a.AgentWS)
 
 	// ---- 客户端用户接口（需登录） ----
 	csGroup := private.Group("/cs")

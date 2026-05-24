@@ -6,6 +6,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	shopReq "github.com/flipped-aurora/gin-vue-admin/server/model/shop/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -15,6 +16,42 @@ type BannerApi struct {
 }
 
 var bannerService = service.ServiceGroupApp.ShopServiceGroup.BannerService
+
+type publicBannerResponse struct {
+	Title         string `json:"title"`
+	Src           string `json:"src"`
+	Href          string `json:"href"`
+	ExternalPath  string `json:"externalPath"`
+	MaskEnabled   *bool  `json:"maskEnabled"`
+	MaskHeight    *int   `json:"maskHeight"`
+	MaskBgColor   string `json:"maskBgColor"`
+	MaskText      string `json:"maskText"`
+	MaskTextColor string `json:"maskTextColor"`
+	MaskTextSize  *int   `json:"maskTextSize"`
+	MaskTextAlign string `json:"maskTextAlign"`
+	GoodID        *uint  `json:"goodID"`
+}
+
+func toPublicBannerResponses(list []shop.Banner) []publicBannerResponse {
+	result := make([]publicBannerResponse, 0, len(list))
+	for _, item := range list {
+		result = append(result, publicBannerResponse{
+			Title:         item.Title,
+			Src:           item.Src,
+			Href:          item.Href,
+			ExternalPath:  item.ExternalPath,
+			MaskEnabled:   item.MaskEnabled,
+			MaskHeight:    item.MaskHeight,
+			MaskBgColor:   item.MaskBgColor,
+			MaskText:      item.MaskText,
+			MaskTextColor: item.MaskTextColor,
+			MaskTextSize:  item.MaskTextSize,
+			MaskTextAlign: item.MaskTextAlign,
+			GoodID:        item.GoodID,
+		})
+	}
+	return result
+}
 
 // CreateBanner 创建轮播图
 // @Tags Banner
@@ -26,6 +63,10 @@ var bannerService = service.ServiceGroupApp.ShopServiceGroup.BannerService
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"创建成功"}"
 // @Router /banner/createBanner [post]
 func (bannerApi *BannerApi) CreateBanner(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	var banner shop.Banner
 	err := c.ShouldBindJSON(&banner)
 	if err != nil {
@@ -51,6 +92,10 @@ func (bannerApi *BannerApi) CreateBanner(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"删除成功"}"
 // @Router /banner/deleteBanner [delete]
 func (bannerApi *BannerApi) DeleteBanner(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	ID := c.Query("ID")
 	if err := bannerService.DeleteBanner(ID); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
@@ -69,6 +114,10 @@ func (bannerApi *BannerApi) DeleteBanner(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"批量删除成功"}"
 // @Router /banner/deleteBannerByIds [delete]
 func (bannerApi *BannerApi) DeleteBannerByIds(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	IDs := c.QueryArray("IDs[]")
 	if err := bannerService.DeleteBannerByIds(IDs); err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
@@ -88,6 +137,10 @@ func (bannerApi *BannerApi) DeleteBannerByIds(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"更新成功"}"
 // @Router /banner/updateBanner [put]
 func (bannerApi *BannerApi) UpdateBanner(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	var banner shop.Banner
 	err := c.ShouldBindJSON(&banner)
 	if err != nil {
@@ -113,6 +166,10 @@ func (bannerApi *BannerApi) UpdateBanner(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"查询成功"}"
 // @Router /banner/findBanner [get]
 func (bannerApi *BannerApi) FindBanner(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	ID := c.Query("ID")
 	if rebanner, err := bannerService.GetBanner(ID); err != nil {
 		global.GVA_LOG.Error("查询失败!", zap.Error(err))
@@ -132,6 +189,10 @@ func (bannerApi *BannerApi) FindBanner(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"获取成功"}"
 // @Router /banner/getBannerList [get]
 func (bannerApi *BannerApi) GetBannerList(c *gin.Context) {
+	if !isOrderAdmin(utils.GetUserAuthorityId(c)) {
+		failWithKey(c, "noPermission")
+		return
+	}
 	var pageInfo shopReq.BannerSearch
 	err := c.ShouldBindQuery(&pageInfo)
 	if err != nil {
@@ -143,7 +204,7 @@ func (bannerApi *BannerApi) GetBannerList(c *gin.Context) {
 		response.FailWithMessage("获取失败", c)
 	} else {
 		pageResult := response.PageResult{
-			List:     list,
+			List:     toPublicBannerResponses(list),
 			Total:    total,
 			Page:     pageInfo.Page,
 			PageSize: pageInfo.PageSize,
@@ -161,9 +222,24 @@ func (bannerApi *BannerApi) GetBannerList(c *gin.Context) {
 // @Success 200 {string} string "{"success":true,"data":{},"msg":"获取成功"}"
 // @Router /banner/getBannerList [get]
 func (bannerApi *BannerApi) GetBannerPublic(c *gin.Context) {
-	// 此接口不需要鉴权
-	// 示例为返回了一个固定的消息接口，一般本接口用于C端服务，需要自己实现业务逻辑
-	response.OkWithDetailed(i18n.LocalizeResponseData(c, gin.H{
-		"info": "不需要鉴权的轮播图接口信息",
-	}), "获取成功", c)
+	var pageInfo shopReq.BannerSearch
+	if err := c.ShouldBindQuery(&pageInfo); err != nil {
+		response.FailWithMessage("参数错误", c)
+		return
+	}
+	enabled := true
+	pageInfo.IsEnabled = &enabled
+
+	if list, total, err := bannerService.GetBannerInfoList(pageInfo); err != nil {
+		global.GVA_LOG.Error("获取失败!", zap.Error(err))
+		response.FailWithMessage("获取失败", c)
+	} else {
+		pageResult := response.PageResult{
+			List:     list,
+			Total:    total,
+			Page:     pageInfo.Page,
+			PageSize: pageInfo.PageSize,
+		}
+		response.OkWithDetailed(i18n.LocalizeResponseData(c, pageResult), "获取成功", c)
+	}
 }

@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -24,10 +25,10 @@ const (
 //@return: error, string
 
 func BreakPointContinue(content []byte, fileName string, contentNumber int, contentTotal int, fileMd5 string) (string, error) {
-	if strings.Contains(fileName, "..") || strings.Contains(fileMd5, "..") {
+	if !isSafePathSegment(fileName) || !isSafePathSegment(fileMd5) {
 		return "", errors.New("文件名或路径不合法")
 	}
-	path := breakpointDir + fileMd5 + "/"
+	path := filepath.Join(breakpointDir, fileMd5)
 	err := os.MkdirAll(path, os.ModePerm)
 	if err != nil {
 		return path, err
@@ -58,10 +59,10 @@ func CheckMd5(content []byte, chunkMd5 string) (CanUpload bool) {
 //@return: string, error
 
 func makeFileContent(content []byte, fileName string, FileDir string, contentNumber int) (string, error) {
-	if strings.Contains(fileName, "..") || strings.Contains(FileDir, "..") {
+	if !isSafePathSegment(fileName) {
 		return "", errors.New("文件名或路径不合法")
 	}
-	path := FileDir + fileName + "_" + strconv.Itoa(contentNumber)
+	path := filepath.Join(FileDir, fileName+"_"+strconv.Itoa(contentNumber))
 	f, err := os.Create(path)
 	if err != nil {
 		return path, err
@@ -82,28 +83,30 @@ func makeFileContent(content []byte, fileName string, FileDir string, contentNum
 //@return: error, string
 
 func MakeFile(fileName string, FileMd5 string) (string, error) {
-	if strings.Contains(fileName, "..") || strings.Contains(FileMd5, "..") {
+	if !isSafePathSegment(fileName) || !isSafePathSegment(FileMd5) {
 		return "", errors.New("文件名或路径不合法")
 	}
-	rd, err := os.ReadDir(breakpointDir + FileMd5)
+	chunkDir := filepath.Join(breakpointDir, FileMd5)
+	rd, err := os.ReadDir(chunkDir)
 	if err != nil {
-		return finishDir + fileName, err
+		return filepath.Join(finishDir, fileName), err
 	}
 	_ = os.MkdirAll(finishDir, os.ModePerm)
-	fd, err := os.OpenFile(finishDir+fileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o644)
+	finishPath := filepath.Join(finishDir, fileName)
+	fd, err := os.OpenFile(finishPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o644)
 	if err != nil {
-		return finishDir + fileName, err
+		return finishPath, err
 	}
 	defer fd.Close()
 	for k := range rd {
-		content, _ := os.ReadFile(breakpointDir + FileMd5 + "/" + fileName + "_" + strconv.Itoa(k))
+		content, _ := os.ReadFile(filepath.Join(chunkDir, fileName+"_"+strconv.Itoa(k)))
 		_, err = fd.Write(content)
 		if err != nil {
-			_ = os.Remove(finishDir + fileName)
-			return finishDir + fileName, err
+			_ = os.Remove(finishPath)
+			return finishPath, err
 		}
 	}
-	return finishDir + fileName, nil
+	return finishPath, nil
 }
 
 //@author: [piexlmax](https://github.com/piexlmax)
@@ -113,9 +116,23 @@ func MakeFile(fileName string, FileMd5 string) (string, error) {
 //@return: error
 
 func RemoveChunk(FileMd5 string) error {
-	if strings.Contains(FileMd5, "..") {
+	if !isSafePathSegment(FileMd5) {
 		return errors.New("路径不合法")
 	}
-	err := os.RemoveAll(breakpointDir + FileMd5)
+	err := os.RemoveAll(filepath.Join(breakpointDir, FileMd5))
 	return err
+}
+
+func isSafePathSegment(name string) bool {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return false
+	}
+	if strings.Contains(trimmed, "..") {
+		return false
+	}
+	if strings.ContainsAny(trimmed, `/\`) {
+		return false
+	}
+	return trimmed == filepath.Base(trimmed)
 }

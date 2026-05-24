@@ -5,6 +5,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	clientReq "github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
+	shopModel "github.com/flipped-aurora/gin-vue-admin/server/model/shop"
 	"github.com/flipped-aurora/gin-vue-admin/server/service"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils/i18n"
@@ -16,6 +17,42 @@ type CollectApi struct {
 }
 
 var collectService = service.ServiceGroupApp.ClientServiceGroup.CollectService
+
+type publicCollectGoodResponse struct {
+	ID                uint     `json:"ID"`
+	ImageUrl          string   `json:"imageUrl"`
+	ExternalImagePath string   `json:"externalImagePath"`
+	Title             string   `json:"title"`
+	Price             *float64 `json:"price"`
+	PriceI18n         string   `json:"priceI18n"`
+	Discount          *int     `json:"discount"`
+	SaleNum           uint     `json:"saleNum"`
+}
+
+func toPublicCollectGoodResponse(item shopModel.Good) publicCollectGoodResponse {
+	return publicCollectGoodResponse{
+		ID:                item.ID,
+		ImageUrl:          item.ImageUrl,
+		ExternalImagePath: item.ExternalImagePath,
+		Title:             item.Title,
+		Price:             item.Price,
+		PriceI18n:         item.PriceI18n,
+		Discount:          item.Discount,
+		SaleNum:           item.SaleNum,
+	}
+}
+
+func toPublicCollectGoodResponses(list []shopModel.Good) []publicCollectGoodResponse {
+	result := make([]publicCollectGoodResponse, 0, len(list))
+	for _, item := range list {
+		result = append(result, toPublicCollectGoodResponse(item))
+	}
+	return result
+}
+
+func isCollectAdmin(authorityID uint) bool {
+	return authorityID == 888 || authorityID == 8881
+}
 
 // CreateCollect 创建收藏
 // @Tags Collect
@@ -53,7 +90,9 @@ func (collectApi *CollectApi) CreateCollect(c *gin.Context) {
 // @Router /collect/deleteCollect [delete]
 func (collectApi *CollectApi) DeleteCollect(c *gin.Context) {
 	ID := c.Query("ID")
-	if err := collectService.DeleteCollect(ID); err != nil {
+	userID := utils.GetUserID(c)
+	allowAll := isCollectAdmin(utils.GetUserAuthorityId(c))
+	if err := collectService.DeleteCollect(ID, userID, allowAll); err != nil {
 		global.GVA_LOG.Error("删除失败!", zap.Error(err))
 		failClientWithKey(c, "deleteFail")
 	} else {
@@ -71,7 +110,9 @@ func (collectApi *CollectApi) DeleteCollect(c *gin.Context) {
 // @Router /collect/deleteCollectByIds [delete]
 func (collectApi *CollectApi) DeleteCollectByIds(c *gin.Context) {
 	IDs := c.QueryArray("IDs[]")
-	if err := collectService.DeleteCollectByIds(IDs); err != nil {
+	userID := utils.GetUserID(c)
+	allowAll := isCollectAdmin(utils.GetUserAuthorityId(c))
+	if err := collectService.DeleteCollectByIds(IDs, userID, allowAll); err != nil {
 		global.GVA_LOG.Error("批量删除失败!", zap.Error(err))
 		failClientWithKey(c, "batchDeleteFail")
 	} else {
@@ -96,7 +137,9 @@ func (collectApi *CollectApi) UpdateCollect(c *gin.Context) {
 		return
 	}
 
-	if err := collectService.UpdateCollect(collect); err != nil {
+	userID := utils.GetUserID(c)
+	allowAll := isCollectAdmin(utils.GetUserAuthorityId(c))
+	if err := collectService.UpdateCollect(collect, userID, allowAll); err != nil {
 		global.GVA_LOG.Error("更新失败!", zap.Error(err))
 		failClientWithKey(c, "updateFail")
 	} else {
@@ -146,7 +189,7 @@ func (collectApi *CollectApi) GetCollectList(c *gin.Context) {
 		failClientWithKey(c, "getFail")
 	} else {
 		pageResult := response.PageResult{
-			List:     list,
+			List:     toPublicCollectGoodResponses(list),
 			Total:    total,
 			Page:     pageInfo.Page,
 			PageSize: pageInfo.PageSize,

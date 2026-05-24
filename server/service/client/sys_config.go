@@ -95,6 +95,11 @@ func (s *SysConfigService) UpdateSysConfig(id uint, configValue string, remark s
 	return nil
 }
 
+func (s *SysConfigService) GetSysConfigByID(id uint) (config client.SysConfig, err error) {
+	err = global.GVA_DB.Where("id = ?", id).First(&config).Error
+	return
+}
+
 // GetConfigByKey 根据key获取配置值
 func (s *SysConfigService) GetConfigByKey(key string) (string, error) {
 	var config client.SysConfig

@@ -288,7 +288,7 @@ func (userService *UserService) GetUserInfo(uuid uuid.UUID) (user system.SysUser
 
 func (userService *UserService) FindUserById(id int) (user *system.SysUser, err error) {
 	var u system.SysUser
-	err = global.GVA_DB.Where("id = ?", id).First(&u).Error
+	err = global.GVA_DB.Preload("Authorities").Where("id = ?", id).First(&u).Error
 	return &u, err
 }
 
