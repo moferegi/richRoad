@@ -56,12 +56,12 @@
         <!-- 多码切换 -->
         <view class="nf-pay-qr-tabs" v-if="qrList.length > 1">
           <view
-            v-for="(qr, i) in qrList"
-            :key="i"
+            v-for="qr in qrList"
+            :key="qr._qrKey"
             class="nf-pay-qr-tab"
-            :class="{ active: currentQrIndex === i }"
-            @tap="currentQrIndex = i"
-          >{{ resolveDisplayText(qr.nameI18n, qr.name) }}</view>
+            :class="{ active: currentQrIndex === qr._rawIndex }"
+            @tap="currentQrIndex = qr._rawIndex"
+          >{{ qr._label }}</view>
         </view>
         <view class="nf-pay-qr-wrap">
           <LazyImage
@@ -93,9 +93,9 @@
               @tap="selectPreferredPayMethod(item.key)"
             >
               <LazyImage
-                v-if="getPreferredPayMethodImage(item)"
+                v-if="item._imageUrl"
                 class="nf-pay-preferred-item-img"
-                :src="getPreferredPayMethodImage(item)"
+                :src="item._imageUrl"
                 mode="aspectFit"
               />
               <view v-else class="nf-pay-preferred-item-fallback">
@@ -122,18 +122,18 @@
       </view>
 
       <!-- 付款提示文本 -->
-      <view class="nf-pay-tip-card" v-if="paymentTipText">
-        <text class="nf-pay-tip-text" :style="{ fontSize: paymentTipSize + 'px', color: paymentTipColor }">{{ paymentTipText }}</text>
+      <view class="nf-pay-tip-card" v-if="paymentTipDisplay.text">
+        <text class="nf-pay-tip-text" :style="paymentTipDisplay.style">{{ paymentTipDisplay.text }}</text>
       </view>
 
       <!-- 支付步骤 -->
       <view class="nf-pay-steps">
         <text class="nf-pay-steps-title">{{ $t('payStepsTitle') }}</text>
-        <view class="nf-pay-step" v-for="(step, i) in steps" :key="i">
+        <view class="nf-pay-step" v-for="step in stepViews" :key="step._stepKey">
           <view class="nf-pay-step-num">
-            <text>{{ i + 1 }}</text>
+            <text>{{ step._stepNo }}</text>
           </view>
-          <text class="nf-pay-step-text">{{ step }}</text>
+          <text class="nf-pay-step-text">{{ step.text }}</text>
         </view>
       </view>
 
@@ -344,13 +344,19 @@ const normalizePreferredPayMethods = (methods) => {
   }
   return methods
     .filter(item => item && typeof item.key === 'string')
-    .map(item => ({
-      key: String(item.key || '').trim().toLowerCase(),
-      label: getPaymentMethodLabel(String(item.key || '').trim().toLowerCase(), item.name, item.label),
-      name: item.name || {},
-      image: String(item.image || item.externalPath || '').trim(),
-      copyText: item.copyText || {}
-    }))
+    .map(item => {
+      const key = String(item.key || '').trim().toLowerCase()
+      const image = String(item.image || item.externalPath || '').trim()
+      return {
+        key,
+        label: getPaymentMethodLabel(key, item.name, item.label),
+        name: item.name || {},
+        image,
+        copyText: item.copyText || {},
+        // 支付方式图片只用于展示；支付选择和订单同步仍使用 key。
+        _imageUrl: image ? getUrl(image) : ''
+      }
+    })
     .filter(item => item.key && item.key !== 'qrcode' && item.key !== 'contact')
 }
 
@@ -396,13 +402,6 @@ const rebuildOrderSummaryName = () => {
     const quantityText = quantity > 1 ? ` x${quantity}` : ''
     return `${name}${quantityText}${specs ? ` (${specs})` : ''}`
   }).filter(Boolean).join(' ; ')
-}
-
-const getPreferredPayMethodImage = (method) => {
-  if (!method) return ''
-  const imagePath = String(method.image || method.externalPath || '').trim()
-  if (!imagePath) return ''
-  return getUrl(imagePath)
 }
 
 const selectPreferredPayMethod = (payMethod) => {
@@ -455,13 +454,27 @@ const currentQrIndex = ref(0)
 const currentQrLabel = computed(() => {
   const qr = qrList.value[currentQrIndex.value]
   if (!qr) return ''
-  return resolveDisplayText(qr.nameI18n, qr.name) || getPaymentMethodLabel('qrcode')
+  return qr._label || getPaymentMethodLabel('qrcode')
 })
 const currentQrUrl = computed(() => {
   const qr = qrList.value[currentQrIndex.value]
   if (!qr) return ''
-  return qr.externalPath ? getExternalUrl(qr.externalPath) : getUrl(qr.image)
+  return qr._qrUrl || ''
 })
+
+const normalizeQrPaymentItem = (item, index) => {
+  const rawUrl = item?.externalPath ? getExternalUrl(item.externalPath) : getUrl(item?.image || '')
+  return {
+    ...item,
+    // 多码展示字段在加载入口归一化，预览/保存继续复用 currentQrUrl。
+    _rawIndex: index,
+    _qrKey: `${item?.ID || item?.id || item?.name || item?.image || 'qr'}-${index}`,
+    _label: resolveDisplayText(item?.nameI18n, item?.name) || getPaymentMethodLabel('qrcode'),
+    _qrUrl: rawUrl,
+  }
+}
+
+const normalizeQrPaymentList = (list) => (Array.isArray(list) ? list : []).map(normalizeQrPaymentItem)
 
 // 付款提示文本
 const paymentTipTextRaw = ref('')
@@ -471,6 +484,14 @@ const paymentTipText = computed(() => {
 })
 const paymentTipSize = ref(14)
 const paymentTipColor = ref('#334155')
+const paymentTipDisplay = computed(() => ({
+  // 付款提示只读展示对象；后台配置拉取和多语言解析仍保留在原始 ref/computed。
+  text: paymentTipText.value,
+  style: {
+    fontSize: `${paymentTipSize.value}px`,
+    color: paymentTipColor.value,
+  },
+}))
 
 const getManualFallbackTip = (payMethod, payMethodLabel) => {
   const tipKeyMap = {
@@ -501,6 +522,13 @@ const steps = computed(() => {
   }
   return [manualFallbackTip.value, $t.value('paymentManualProofHint'), $t.value('contactCustomerService')]
 })
+
+const stepViews = computed(() => steps.value.map((text, index) => ({
+  // 支付步骤只读展示字段；支付方式选择、二维码保存和联系客服动作仍读取原始状态。
+  text,
+  _stepNo: index + 1,
+  _stepKey: `${selectedPayMethod.value || 'pay'}-${selectedPreferredPayMethod.value || 'default'}-${text || 'step'}-${index}`,
+})))
 
 const syncOrderPayMethod = async (payMethod) => {
   if (!orderId.value || !payMethod) return
@@ -763,14 +791,14 @@ const loadQrCodes = async () => {
     if (res.code === 0 && res.data) {
       // API返回的data可能是数组（直接是列表）或对象（含list字段）
       const list = Array.isArray(res.data) ? res.data : (res.data.list || [])
-      qrList.value = list
+      qrList.value = normalizeQrPaymentList(list)
       currentQrIndex.value = 0
     }
     // 如果多码列表为空，尝试旧的单码配置作为兜底
     if (qrList.value.length === 0) {
       const res2 = await getSysConfigByKey('payment_qr_code')
       if (res2.code === 0 && res2.data) {
-        qrList.value = [{ name: $t.value('payByQrcode'), image: res2.data, externalPath: '' }]
+        qrList.value = normalizeQrPaymentList([{ name: $t.value('payByQrcode'), image: res2.data, externalPath: '' }])
         currentQrIndex.value = 0
       }
     }

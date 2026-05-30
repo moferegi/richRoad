@@ -18,7 +18,7 @@
           <!-- 自定义视频播放器 -->
           <div v-if="videoUrl && showTheater" ref="playerRef" class="nf-vp">
             <video ref="videoRef" class="nf-vp-video"
-              :src="videoUrl" :poster="getUrl(data.imageUrl)"
+              :src="videoUrl" :poster="coverImageUrl"
               playsinline webkit-playsinline x5-video-player-type="h5" preload="auto"
               :style="brtStyle"
               @timeupdate="vpTimeUpdate" @play="isPlaying = true" @pause="isPlaying = false"
@@ -48,7 +48,7 @@
           </div>
           <!-- 无视频时占位 -->
           <view v-else-if="showTheater" class="nf-theater-poster-wrap">
-            <image class="nf-theater-poster" :src="getUrl(data.imageUrl)" mode="aspectFill" />
+            <image class="nf-theater-poster" :src="coverImageUrl" mode="aspectFill" />
             <view class="nf-theater-no-video">
               <text class="nf-theater-no-video-text">{{ $t('playerNoVideo') }}</text>
             </view>
@@ -56,21 +56,21 @@
         </view>
         <!-- 当前集信息 -->
         <view class="nf-theater-info">
-          <text class="nf-theater-title">{{ $lt(currentEpisode.name) || $lt(data.title) }}</text>
-          <text class="nf-theater-sub" v-if="$lt(currentEpisode.description)">{{ $lt(currentEpisode.description) }}</text>
+          <text class="nf-theater-title">{{ playerTextDisplay.theaterTitle }}</text>
+          <text class="nf-theater-sub" v-if="playerTextDisplay.theaterDesc">{{ playerTextDisplay.theaterDesc }}</text>
         </view>
         <!-- 集数快选 -->
         <view class="nf-theater-eps" v-if="episodes.length > 1">
           <scroll-view scroll-x :show-scrollbar="false" class="nf-theater-eps-scroll">
             <view class="nf-theater-eps-list">
               <view
-                v-for="(ep, idx) in episodes"
-                :key="ep.ID"
+                v-for="ep in episodeViews"
+                :key="ep._episodeKey"
                 class="nf-theater-ep-btn"
-                :class="{ 'nf-theater-ep-active': currentIndex === idx }"
-                @tap="switchEpisode(idx)"
+                :class="{ 'nf-theater-ep-active': currentIndex === ep._index }"
+                @tap="switchEpisode(ep._index)"
               >
-                <text class="nf-theater-ep-text">{{ idx + 1 }}</text>
+                <text class="nf-theater-ep-text">{{ ep._numberText }}</text>
               </view>
             </view>
           </scroll-view>
@@ -82,7 +82,7 @@
     <!-- 封面 Hero -->
     <view class="nf-hero">
       <view class="nf-hero-status"></view>
-      <image class="nf-hero-img" :src="getUrl(data.imageUrl)" mode="aspectFill" @tap="playFirst" />
+      <image class="nf-hero-img" :src="coverImageUrl" mode="aspectFill" @tap="playFirst" />
       <view class="nf-hero-gradient"></view>
       <!-- 返回按钮 -->
       <view class="nf-hero-back" @tap="goBack">
@@ -94,7 +94,7 @@
     <scroll-view scroll-y :show-scrollbar="false" class="nf-content-scroll">
       <!-- 标题信息 -->
       <view class="nf-info-section">
-        <text class="nf-title">{{ $lt(data.title) }}</text>
+        <text class="nf-title">{{ playerTextDisplay.title }}</text>
         <view class="nf-meta-row">
           <view class="nf-meta-item" v-if="data.rating">
             <text class="nf-meta-star">★</text>
@@ -131,9 +131,9 @@
       </view>
 
       <!-- 简介 -->
-      <view class="nf-desc-section" v-if="$lt(data.description)">
+      <view class="nf-desc-section" v-if="playerTextDisplay.description">
         <text class="nf-section-title">{{ $t('playerDesc') }}</text>
-        <text class="nf-desc-text" :class="{ 'nf-desc-expand': descExpand }">{{ $lt(data.description) }}</text>
+        <text class="nf-desc-text" :class="{ 'nf-desc-expand': descExpand }">{{ playerTextDisplay.description }}</text>
         <text class="nf-desc-toggle" @tap="descExpand = !descExpand">
           {{ descExpand ? $t('playerCollapse') : $t('playerExpand') }}
         </text>
@@ -172,14 +172,14 @@
         <scroll-view scroll-x :show-scrollbar="false" class="nf-episodes-scroll">
           <view class="nf-episodes-list">
             <view
-              v-for="(ep, idx) in episodes"
-              :key="ep.ID"
+              v-for="ep in episodeViews"
+              :key="ep._episodeKey"
               class="nf-episode-card nf-episode-card-nf"
-              :class="{ 'nf-episode-active': currentIndex === idx }"
-              @tap="playEpisode(idx)"
+              :class="{ 'nf-episode-active': currentIndex === ep._index }"
+              @tap="playEpisode(ep._index)"
             >
               <view class="nf-ep-info nf-ep-info-nf">
-                <text class="nf-ep-name nf-ep-name-nf">{{ epLabel(idx + 1) }}</text>
+                <text class="nf-ep-name nf-ep-name-nf">{{ ep._label }}</text>
               </view>
             </view>
           </view>
@@ -213,6 +213,7 @@ import { localText } from '@/utils/i18n'
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 const $lt = computed(() => langStore.$lt)
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const userStore = useUserStore()
 const token = userStore.token || ''
@@ -242,6 +243,33 @@ const epLabel = (n) => {
 
 const epCountLabel = computed(() => {
   return $t.value('playerEpCount').replace('{n}', episodes.value.length)
+})
+
+const episodeViews = computed(() => episodes.value.map((episode, index) => ({
+  ...episode,
+  // 选集展示只缓存 key 和文案；播放、切集和进度恢复仍使用 _index 指向原 episodes 顺序。
+  _index: index,
+  _episodeKey: episode?.ID || episode?.id || episode?.skuID || `episode-${index}`,
+  _numberText: String(index + 1),
+  _label: epLabel(index + 1),
+})))
+
+// 播放页封面会同时用于 hero、video poster 和无视频占位；缓存 URL，避免多个节点重复 getUrl。
+const coverImageUrl = computed(() => getUrl(data.value?.imageUrl || ''))
+
+const playerTextDisplay = computed(() => {
+  void locale.value
+  const title = $lt.value(data.value?.title)
+  const description = $lt.value(data.value?.description)
+  const episodeTitle = $lt.value(currentEpisode.value?.name)
+  const episodeDesc = $lt.value(currentEpisode.value?.description)
+  return {
+    // 播放页标题/简介只用于渲染；播放地址、选集和进度仍读取原始 data/currentEpisode。
+    title,
+    description,
+    theaterTitle: episodeTitle || title,
+    theaterDesc: episodeDesc,
+  }
 })
 
 const formatNum = (num) => {

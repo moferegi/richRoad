@@ -30,13 +30,13 @@
         <text class="nf-empty-text">{{ $t('noReviewYet') }}</text>
       </view>
 
-      <view class="nf-comment-card" v-for="(item, key) in commentInfo" :key="key">
+      <view class="nf-comment-card" v-for="item in commentInfo" :key="item._commentKey">
         <!-- user info -->
         <view class="nf-comment-header">
-          <image class="nf-avatar" :src="getUrl(item.user.avatar)" mode="aspectFill" />
+          <image class="nf-avatar" :src="item._avatarUrl" mode="aspectFill" />
           <view class="nf-comment-meta">
             <text class="nf-nickname">{{ item.user.nickname }}</text>
-            <text class="nf-time">{{ formatTimeToStr(item.CreatedAt, 'yyyy-MM-dd') }}</text>
+            <text class="nf-time">{{ item._createdDate }}</text>
           </view>
         </view>
 
@@ -49,14 +49,14 @@
         <text class="nf-comment-text" v-if="item.content">{{ item.content }}</text>
 
         <!-- pics -->
-        <view class="nf-comment-pics" v-if="item.pics && item.pics.length > 0">
+        <view class="nf-comment-pics" v-if="item._picUrls.length > 0">
           <view
-            v-for="(pic, index) in item.pics"
-            :key="index"
+            v-for="pic in item._picUrls"
+            :key="pic._picKey"
             class="nf-comment-pic"
-            @tap="previewImage(pic, index, item.pics)"
+            @tap="previewImage(pic.url, pic._rawIndex, item._previewUrls)"
           >
-            <image :src="getUrl(pic)" class="nf-comment-pic-img" mode="aspectFill" />
+            <image :src="pic.url" class="nf-comment-pic-img" mode="aspectFill" />
           </view>
         </view>
 
@@ -94,13 +94,36 @@ const goBack = () => {
   uni.navigateBack({ delta: 1 })
 }
 
+// 评论卡片的头像、日期和图片 URL 只用于展示，提前生成可减少列表渲染时重复 getUrl/日期格式化。
+const normalizeCommentItem = (item, index) => {
+  const picUrls = (Array.isArray(item?.pics) ? item.pics : [])
+    .map((pic, picIndex) => {
+      const url = getUrl(pic)
+      return url ? { url, _rawIndex: picIndex, _picKey: `${url}-${picIndex}` } : null
+    })
+    .filter(Boolean)
+
+  return {
+    ...item,
+    _commentKey: item?.ID || item?.id || `${item?.CreatedAt || 'comment'}-${index}`,
+    _avatarUrl: getUrl(item?.user?.avatar || ''),
+    _createdDate: formatTimeToStr(item?.CreatedAt, 'yyyy-MM-dd'),
+    _picUrls: picUrls,
+    _previewUrls: picUrls.map(pic => pic.url),
+  }
+}
+
+const normalizeCommentList = (list) => {
+  return (Array.isArray(list) ? list : []).map((item, index) => normalizeCommentItem(item, index))
+}
+
 const findFunc = async (params) => {
   const res = await findComment({ ID: params })
   if (res.code === 0) {
-    allComments.value = res.data || []
+    allComments.value = normalizeCommentList(res.data || [])
     commentInfo.value = allComments.value
     totalCount.value = allComments.value.length
-    picCount.value = allComments.value.filter(i => i.pics && i.pics.length > 0).length
+    picCount.value = allComments.value.filter(i => i._picUrls.length > 0).length
   }
 }
 
@@ -123,14 +146,14 @@ const choose = (type) => {
   if (type === 'all') {
     commentInfo.value = allComments.value
   } else {
-    commentInfo.value = allComments.value.filter(item => item.pics && item.pics.length > 0)
+    commentInfo.value = allComments.value.filter(item => item._picUrls.length > 0)
   }
 }
 
 const previewImage = (currentPic, index, allPics) => {
   uni.previewImage({
-    current: getUrl(currentPic),
-    urls: allPics.map(pic => getUrl(pic))
+    current: currentPic,
+    urls: allPics
   })
 }
 </script>

@@ -31,8 +31,8 @@
           <text v-else>{{ $t('presaleBadge') }}</text>
         </view>
       </view>
-      <text class="nf-product-title">{{ $lt(data.title) }}</text>
-      <text class="nf-product-desc">{{ $lt(data.description) }}</text>
+      <text class="nf-product-title">{{ goodsHeaderDisplay.title }}</text>
+      <text class="nf-product-desc">{{ goodsHeaderDisplay.description }}</text>
       <view class="nf-meta-row">
         <text>{{ $t('stock') }}: {{ getTotalInventory(data.skus) }}</text>
         <text v-if="data.view_num" class="nf-meta-sep">{{ $t('viewCount') }}: {{ data.view_num }}</text>
@@ -40,7 +40,7 @@
       <!-- 预售时间 -->
       <view class="nf-presale-time" v-if="data.isPresale && (data.presaleStart || data.presaleEnd)">
         <text class="nf-label-dot" style="background: #f59e0b;"></text>
-        <text>{{ $t('presaleTime') }}：{{ formatDate(data.presaleStart) }} ~ {{ formatDate(data.presaleEnd) }}</text>
+        <text>{{ goodsHeaderDisplay.presaleTimeText }}</text>
       </view>
       <!-- 预售倒计时 + 进度条 -->
       <view class="nf-presale-countdown-section" v-if="data.isPresale">
@@ -66,9 +66,9 @@
         <text>{{ $t('goodAttrs') }}</text>
       </view>
       <view class="nf-attrs-grid">
-        <view class="nf-attr-item" v-for="(attr, idx) in parsedAttrs" :key="idx">
-          <text class="nf-attr-label">{{ resolveAttrText(attr.labelI18n, attr.label) }}</text>
-          <text class="nf-attr-value">{{ resolveAttrText(attr.valueI18n, attr.value) }}</text>
+        <view class="nf-attr-item" v-for="attr in parsedAttrs" :key="attr._attrKey">
+          <text class="nf-attr-label">{{ attr._labelText }}</text>
+          <text class="nf-attr-value">{{ attr._valueText }}</text>
         </view>
       </view>
     </view>
@@ -149,25 +149,25 @@
         </view>
       </view>
       <scroll-view class="nf-coupon-scroll" scroll-y>
-        <view v-if="couponList.length === 0" class="nf-coupon-empty">
+        <view v-if="couponViews.length === 0" class="nf-coupon-empty">
           <text>{{ $t('noCoupons') }}</text>
         </view>
-        <view v-for="(item, index) in couponList" :key="index"
+        <view v-for="item in couponViews" :key="item._couponKey"
           class="nf-coupon-card" :class="{ 'nf-coupon-disabled': item.canUse === 0 }">
           <view class="nf-coupon-left">
             <text class="nf-coupon-amount">{{ cs }}{{ item.discount / 100 }}</text>
-            <text class="nf-coupon-condition">{{ item.minSpend > 0 ? $t('couponFull').replace('{min}', item.minSpend/100).replace('{off}', item.discount/100) : $t('couponNoLimit') }}</text>
+            <text class="nf-coupon-condition">{{ item._conditionText }}</text>
           </view>
           <view class="nf-coupon-right">
-            <text class="nf-coupon-name">{{ $lt(item.name) }}</text>
-            <text class="nf-coupon-date">{{ $t('couponExpiry') }}: {{ item.startTime }} ~ {{ item.endTime }}</text>
+            <text class="nf-coupon-name">{{ item._nameText }}</text>
+            <text class="nf-coupon-date">{{ item._dateText }}</text>
             <text class="nf-coupon-unavail" v-if="item.canUse === 0">{{ $t('couponUnavailable') }}</text>
           </view>
           <view class="nf-coupon-action">
             <view v-if="item.status === 1" class="nf-coupon-btn nf-coupon-btn-used">{{ $t('couponInUse') }}</view>
             <view v-else-if="item.canUse === 0" class="nf-coupon-btn nf-coupon-btn-disabled"></view>
             <view v-else class="nf-coupon-btn" :class="item.couponNum ? 'nf-coupon-btn-use' : 'nf-coupon-btn-claim'"
-              @tap="onReceive(item, index)">
+              @tap="onReceive(item._raw)">
               {{ item.couponNum ? $t('couponUse') : $t('couponClaim') }}
             </view>
           </view>
@@ -212,6 +212,12 @@ const data = ref({})
 const goodsDisplayPrice = computed(() => {
   return formatLocalizedPrice(data.value?.price, data.value?.priceI18n, locale.value)
 })
+const goodsHeaderDisplay = computed(() => ({
+  // 商品头部仅用于展示；购买、SKU、收藏和浏览记录仍读取原始 data 字段。
+  title: $lt.value(data.value?.title),
+  description: $lt.value(data.value?.description),
+  presaleTimeText: `${$t.value('presaleTime')}：${formatDate(data.value?.presaleStart)} ~ ${formatDate(data.value?.presaleEnd)}`,
+}))
 const lastLoadedLocale = ref('')
 const collectionFlag = ref('')
 const goodID = ref(0)
@@ -267,7 +273,7 @@ const parsedAttrs = computed(() => {
       if (!s || typeof s !== 'string' || s.charAt(0) !== '{') return null
       try { return JSON.parse(s) } catch { return null }
     }
-    return arr.map(item => {
+    return arr.map((item, index) => {
       // name 可能是序列化的i18n JSON字符串，nameI18n 可能被删除
       let labelI18n = item.nameI18n || item.labelI18n
       let label = item.name || item.label || ''
@@ -281,7 +287,18 @@ const parsedAttrs = computed(() => {
         const parsed = tryParseJson(value)
         if (parsed) { valueI18n = parsed; value = parsed['zh'] || Object.values(parsed)[0] || value }
       }
-      return { label, value, labelI18n, valueI18n }
+      const labelText = resolveAttrText(labelI18n, label)
+      const valueText = resolveAttrText(valueI18n, value)
+      return {
+        label,
+        value,
+        labelI18n,
+        valueI18n,
+        // 属性列表只服务详情展示；派生文案和 key 集中在这里，避免模板每次渲染重复解析多语言字段。
+        _attrKey: `${labelText || label || 'attr'}-${valueText || value || 'value'}-${index}`,
+        _labelText: labelText,
+        _valueText: valueText,
+      }
     })
   } catch { return [] }
 })
@@ -427,6 +444,17 @@ const addCollect = async () => {
 const selectedCoupon = ref({})
 const couponshow = ref(false)
 const couponList = ref([])
+const couponViews = computed(() => couponList.value.map((item, index) => ({
+  ...item,
+  // 弹层展示用派生字段集中在这里；领取/选用仍回传 _raw，避免改动原优惠券对象的业务流。
+  _raw: item,
+  _couponKey: item?.couponID || item?.ID || item?.id || item?.couponNum || `coupon-${index}`,
+  _nameText: $lt.value(item?.name),
+  _conditionText: item?.minSpend > 0
+    ? $t.value('couponFull').replace('{min}', item.minSpend / 100).replace('{off}', item.discount / 100)
+    : $t.value('couponNoLimit'),
+  _dateText: `${$t.value('couponExpiry')}: ${item?.startTime || ''} ~ ${item?.endTime || ''}`,
+})))
 const isPageLocked = computed(() => skuVisible.value || couponshow.value)
 
 const getTotalInventory = (skus) => {

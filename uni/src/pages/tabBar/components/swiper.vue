@@ -1,23 +1,13 @@
 <template>
   <view class="swiper-section">
     <swiper class="swiper" circular autoplay :indicator-dots="true" indicator-color="rgba(255,255,255,0.6)" indicator-active-color="#fff">
-      <swiper-item v-for="(item, index) in props.lists" :key="index" @click="handleSwiperClick(item)">
+      <swiper-item v-for="item in normalizedSwiperList" :key="item._swiperKey" @click="handleSwiperClick(item)">
         <view class="swiper-item">
-          <image class="swiper-image" :src="item.externalPath ? getExternalUrl(item.externalPath) : getUrl(item.src)" mode="aspectFill"></image>
+          <image class="swiper-image" :src="item._imageUrl" mode="aspectFill"></image>
           <!-- 遮罩文字层 -->
-          <view v-if="item.maskEnabled && $lt(item.maskText)" class="swiper-mask"
-            :style="{
-              height: (item.maskHeight || 40) + 'px',
-              background: item.maskBgColor || 'rgba(0,0,0,0.5)',
-              justifyContent: item.maskTextAlign === 'left' ? 'flex-start' : item.maskTextAlign === 'right' ? 'flex-end' : 'center',
-              paddingLeft: item.maskTextAlign === 'left' ? '24rpx' : '0',
-              paddingRight: item.maskTextAlign === 'right' ? '24rpx' : '0'
-            }">
+          <view v-if="item._maskText" class="swiper-mask" :style="item._maskStyle">
             <text class="swiper-mask-text"
-              :style="{
-                color: item.maskTextColor || '#FFFFFF',
-                fontSize: (item.maskTextSize || 14) + 'px'
-              }">{{ $lt(item.maskText) }}</text>
+              :style="item._maskTextStyle">{{ item._maskText }}</text>
           </view>
         </view>
       </swiper-item>
@@ -39,6 +29,29 @@ const props = defineProps({
     default: () => []
   }
 })
+
+// 首页轮播只读展示字段；集中归一化可避免模板每次渲染重复解析图片、多语言遮罩和样式对象。
+const normalizedSwiperList = computed(() => (props.lists || []).map((item, index) => {
+  const maskText = item?.maskEnabled ? ($lt.value(item?.maskText) || '') : ''
+  const maskTextAlign = item?.maskTextAlign || 'center'
+  return {
+    ...item,
+    _swiperKey: `${item?.ID || item?.id || item?.src || item?.externalPath || 'swiper'}-${index}`,
+    _imageUrl: item?.externalPath ? getExternalUrl(item.externalPath) : getUrl(item?.src || ''),
+    _maskText: maskText,
+    _maskStyle: {
+      height: `${item?.maskHeight || 40}px`,
+      background: item?.maskBgColor || 'rgba(0,0,0,0.5)',
+      justifyContent: maskTextAlign === 'left' ? 'flex-start' : maskTextAlign === 'right' ? 'flex-end' : 'center',
+      paddingLeft: maskTextAlign === 'left' ? '24rpx' : '0',
+      paddingRight: maskTextAlign === 'right' ? '24rpx' : '0'
+    },
+    _maskTextStyle: {
+      color: item?.maskTextColor || '#FFFFFF',
+      fontSize: `${item?.maskTextSize || 14}px`
+    }
+  }
+}))
 
 // 处理轮播图点击事件
 const handleSwiperClick = (item) => {

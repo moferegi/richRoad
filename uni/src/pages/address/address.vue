@@ -16,18 +16,18 @@
 
     <scroll-view scroll-y class="nf-address-scroll" @scrolltolower="debouncedLower">
       <view class="nf-address-list" v-if="addressList.length > 0">
-        <view class="nf-addr-card" v-for="(item, index) in addressList" :key="index" @tap="selectAddr(item)">
+        <view class="nf-addr-card" v-for="item in addressList" :key="item._addressKey" @tap="selectAddr(item)">
           <view class="nf-addr-info">
             <view class="nf-addr-header">
               <view class="nf-addr-name-phone">
                 <text class="nf-addr-name">{{ item.name }}</text>
-                <text class="nf-addr-phone">{{ item.areaCode && item.areaCode !== '+86' ? item.areaCode + ' ' : '' }}{{ item.phone }}</text>
+                <text class="nf-addr-phone">{{ item._phoneDisplay }}</text>
               </view>
               <view class="nf-addr-default-tag" v-if="item.active">
                 <text>{{ $t('defaultAddr') }}</text>
               </view>
             </view>
-            <text class="nf-addr-detail">{{ item.provinceTrans }}{{ item.cityTrans }}{{ item.areaTrans }}{{ item.street }}</text>
+            <text class="nf-addr-detail">{{ item._addressDetail }}</text>
           </view>
           <view class="nf-addr-actions">
             <view class="nf-addr-action" @tap.stop="editAddress(item)">
@@ -130,8 +130,16 @@ const getGeoLabel = (item) => {
   return resolveDisplayText(item.labelI18n || item.label, item.label || '')
 }
 
+// 地址列表展示字段统一在地区翻译重建时生成；选择地址和提交订单仍读取原始字段。
+const rebuildAddressDisplayFields = (item, index) => {
+  const areaCode = item.areaCode && item.areaCode !== '+86' ? `${item.areaCode} ` : ''
+  item._addressKey = item.ID || item.id || `${item.phone || 'address'}-${index}`
+  item._phoneDisplay = `${areaCode}${item.phone || ''}`
+  item._addressDetail = `${item.provinceTrans || ''}${item.cityTrans || ''}${item.areaTrans || ''}${item.street || ''}`
+}
+
 const rebuildAddressTrans = () => {
-  for (const item of addressList.value) {
+  addressList.value.forEach((item, index) => {
     const province = formatt(item.province, 'province')
     item.provinceTrans = getGeoLabel(province)
 
@@ -140,7 +148,8 @@ const rebuildAddressTrans = () => {
 
     const area = formatt(item.area, 'area')
     item.areaTrans = getGeoLabel(area)
-  }
+    rebuildAddressDisplayFields(item, index)
+  })
 }
 
 const getAddress = async (params) => {

@@ -81,14 +81,8 @@
           <text class="nf-polling-text">{{ $t('tryonPolling') }}</text>
         </view>
         <view class="nf-result-images">
-          <view class="nf-mini-image" v-if="currentTask.sourceImage" @tap="previewImage(currentTask.sourceImage)">
-            <LazyImage class="nf-mini-image-img" :src="getUrl(currentTask.sourceImage)" mode="aspectFill"></LazyImage>
-          </view>
-          <view class="nf-mini-image" v-if="currentTask.templateImage" @tap="previewImage(currentTask.templateImage)">
-            <LazyImage class="nf-mini-image-img" :src="getUrl(currentTask.templateImage)" mode="aspectFill"></LazyImage>
-          </view>
-          <view class="nf-mini-image" v-if="currentTask.resultImage" @tap="previewImage(currentTask.resultImage)">
-            <LazyImage class="nf-mini-image-img" :src="getUrl(currentTask.resultImage)" mode="aspectFill"></LazyImage>
+          <view class="nf-mini-image" v-for="image in currentTaskImageViews" :key="image._imageKey" @tap="previewImage(image._rawUrl)">
+            <LazyImage class="nf-mini-image-img" :src="image._imageUrl" mode="aspectFill"></LazyImage>
           </view>
         </view>
         <view class="nf-fail" v-if="currentTask.status === 'failed' && currentTask.errorMessage">
@@ -112,13 +106,13 @@
         <view v-else>
           <view
             class="nf-task-item"
-            v-for="item in myTaskList"
-            :key="item.ID"
+            v-for="item in taskListViews"
+            :key="item._taskKey"
             @tap="pickTask(item)"
           >
             <view class="nf-task-left">
               <text class="nf-task-no">{{ item.taskNo || '-' }}</text>
-              <text class="nf-task-time">{{ formatTime(item.CreatedAt) }}</text>
+              <text class="nf-task-time">{{ item._displayTime }}</text>
             </view>
             <view class="nf-status" :class="statusClass(item.status)">
               <text class="nf-status-text">{{ statusLabel(item.status) }}</text>
@@ -186,6 +180,27 @@ const templatePreview = computed(() => {
   if (templateRemoteUrl.value) return getUrl(templateRemoteUrl.value)
   return templateLocalPath.value
 })
+
+const currentTaskImageViews = computed(() => {
+  const task = currentTask.value || {}
+  return [
+    { key: 'source', rawUrl: task.sourceImage },
+    { key: 'template', rawUrl: task.templateImage },
+    { key: 'result', rawUrl: task.resultImage }
+  ].filter(item => item.rawUrl).map(item => ({
+    // 当前任务图片只读展示缓存；预览和重试仍使用原始任务图片字段。
+    _imageKey: `${item.key}-${item.rawUrl}`,
+    _rawUrl: item.rawUrl,
+    _imageUrl: getUrl(item.rawUrl)
+  }))
+})
+
+const taskListViews = computed(() => myTaskList.value.map((item, index) => ({
+  ...item,
+  // 任务列表只读展示字段；轮询、刷新和选中任务仍使用原始任务对象字段。
+  _taskKey: item.ID || item.taskNo || `tryon-task-${index}`,
+  _displayTime: formatTime(item.CreatedAt)
+})))
 
 onShow(async () => {
   if (!ensureLogin()) return

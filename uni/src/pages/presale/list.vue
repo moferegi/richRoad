@@ -24,12 +24,12 @@
       <view v-if="list.length" class="nf-goods-list">
         <view
           class="nf-goods-card"
-          v-for="(item, index) in list"
-          :key="index"
+          v-for="item in list"
+          :key="item._presaleKey"
           @tap="goDetail(item)"
         >
           <view class="nf-goods-img-wrap">
-            <image class="nf-goods-img" :src="item.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(item.imageUrl)" mode="aspectFill" />
+            <image class="nf-goods-img" :src="item._imageUrl" mode="aspectFill" />
             <view class="nf-goods-img-overlay"></view>
             <!-- 预售标签 -->
             <view class="nf-presale-badge">
@@ -37,7 +37,7 @@
             </view>
           </view>
           <view class="nf-goods-info">
-            <text class="nf-goods-title">{{ $lt(item.title) }}</text>
+            <text class="nf-goods-title">{{ item._titleText }}</text>
 
             <!-- 倒计时 -->
             <view class="nf-presale-countdown">
@@ -58,11 +58,11 @@
             <view class="nf-goods-bottom">
               <view class="nf-price-row">
                 <text class="nf-price-label">{{ $t('presalePrice') }}</text>
-                <text class="nf-price">{{ cs }}{{ formatPrice(item) }}</text>
+                <text class="nf-price">{{ cs }}{{ item._priceText }}</text>
               </view>
               <view class="nf-presale-progress">
                 <view class="nf-progress-bar">
-                  <view class="nf-progress-fill" :style="{ width: getProgress(item) + '%' }"></view>
+                  <view class="nf-progress-fill" :style="item._progressStyle"></view>
                 </view>
                 <text class="nf-progress-text">{{ $t('sold') }} {{ item.presaleSold || 0 }}/{{ item.presaleQty || 0 }}</text>
               </view>
@@ -109,6 +109,24 @@ const isBottom = ref(false)
 let params = { page: 1, pageSize: 10 }
 
 const formatPrice = (item) => formatLocalizedPrice(item?.price, item?.priceI18n, locale.value)
+
+// 预售商品的图片、价格和进度是静态展示字段；倒计时仍由实时函数按秒刷新。
+const normalizePresaleItem = (item, index) => {
+  const progress = getProgress(item)
+  return {
+    ...item,
+    _presaleKey: item?.ID || item?.id || `${item?.imageUrl || 'presale'}-${index}`,
+    _imageUrl: item?.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(item?.imageUrl || ''),
+    _titleText: $lt.value(item?.title),
+    _priceText: formatPrice(item),
+    _progressStyle: { width: `${progress}%` },
+  }
+}
+
+// 首屏和加载更多共用同一入口，避免分页追加时缺少展示派生字段。
+const normalizePresaleList = (items, offset = 0) => {
+  return (Array.isArray(items) ? items : []).map((item, index) => normalizePresaleItem(item, offset + index))
+}
 
 const getCountdownType = (item) => {
   const now = Date.now()
@@ -164,7 +182,7 @@ const init = async () => {
   try {
     const res = await getPresaleGoodList(params)
     if (res.code === 0) {
-      list.value = res.data.list || []
+      list.value = normalizePresaleList(res.data.list || [])
       isBottom.value = list.value.length < params.pageSize
       if (list.value.length) startCountdownTimer()
     }
@@ -190,7 +208,7 @@ const lower = async () => {
   params.page += 1
   const res = await getPresaleGoodList(params)
   if (res.code === 0 && res.data.list && res.data.list.length) {
-    list.value.push(...res.data.list)
+    list.value.push(...normalizePresaleList(res.data.list, list.value.length))
   } else {
     isBottom.value = true
   }

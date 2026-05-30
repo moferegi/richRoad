@@ -10,13 +10,13 @@
       <!-- 左侧分类导航 -->
       <scroll-view class="left-sidebar" scroll-y="true">
         <view
-          v-for="(item, index) in catelist"
-          :key="index"
-          :class="['category-item', { 'active': activeindex === index }]"
-          @tap="checkitem(index, item)"
+          v-for="item in catelist"
+          :key="item._categoryKey"
+          :class="['category-item', { 'active': activeindex === item._rawIndex }]"
+          @tap="checkitem(item._rawIndex, item)"
         >
-          <view class="category-text">{{ resolveDisplayText(item.title, item.title) }}</view>
-          <view v-if="activeindex === index" class="active-indicator"></view>
+          <view class="category-text">{{ item._titleText }}</view>
+          <view v-if="activeindex === item._rawIndex" class="active-indicator"></view>
         </view>
       </scroll-view>
 
@@ -30,56 +30,54 @@
         <!-- 分类标题 -->
         <view v-if="currentCategory" class="content-header">
           <view class="category-banner">
-            <view class="banner-title">{{ resolveDisplayText(currentCategory.title, currentCategory.title) }}</view>
+            <view class="banner-title">{{ currentCategory._titleText }}</view>
             <view class="banner-subtitle">{{ $t('categorySubtitle') }}</view>
           </view>
         </view>
 
         <!-- 商品网格 -->
-        <template v-for="category in categoriesWithGoods" :key="category.ID">
+        <template v-for="category in categoriesWithGoods" :key="category._sectionKey">
           <view v-if="category.goods && category.goods.length > 0" class="category-section">
             <view class="section-title">
               <view class="title-line"></view>
-              <text class="title-text">{{ resolveDisplayText(category.title, category.title) }}</text>
+              <text class="title-text">{{ category._titleText }}</text>
               <view class="title-line"></view>
             </view>
 
             <view class="goods-grid">
               <view
                 v-for="item in category.goods"
-                :key="item.ID"
+                :key="item._goodsKey"
                 class="goods-card"
                 @tap="goto(item)"
               >
                 <view class="card-image-container">
                   <image
-                    :src="getUrl(item.imageUrl)"
+                    :src="item._imageUrl"
                     class="goods-image"
                     mode="aspectFill"
                     :lazy-load="true"
                   ></image>
-                  <view v-if="item.tags && item.tags.length > 0" class="image-tags">
+                  <view v-if="item._tagViews.length > 0" class="image-tags">
                     <text
-                      v-for="tag in item.tags.slice(0, 1)"
-                      :key="tag.ID"
-                      :style="{
-                        background: tag.color || '#ff6b6b'
-                      }"
+                      v-for="tag in item._tagViews"
+                      :key="tag._tagKey"
+                      :style="tag._style"
                       class="tag-badge"
                     >
-                      {{ resolveDisplayText(tag.nameI18n || tag.name, tag.name) }}
+                      {{ tag._nameText }}
                     </text>
                   </view>
                 </view>
 
                 <view class="card-content">
-                  <view class="goods-title">{{ resolveDisplayText(item.title, item.title) }}</view>
-                  <view class="goods-desc">{{ resolveDisplayText(item.description, item.description) }}</view>
+                  <view class="goods-title">{{ item._titleText }}</view>
+                  <view class="goods-desc">{{ item._descText }}</view>
 
                   <view class="price-section">
                     <view class="current-price">
                       <text class="price-symbol">{{ cs }}</text>
-                      <text class="price-value">{{ formatGoodsPrice(item) }}</text>
+                      <text class="price-value">{{ item._priceText }}</text>
                     </view>
                     <view class="add-cart-btn">
                       <uni-icons type="plus" size="16" color="#fff"></uni-icons>
@@ -131,6 +129,36 @@ const { resolveDisplayText } = useI18nDisplay(locale)
 
 const formatGoodsPrice = (item) => formatLocalizedPrice(item?.price, item?.priceI18n, locale.value)
 
+// 分类页切语言会重新加载数据；展示字段在入口归一化，避免模板滚动时重复解析多语言和图片 URL。
+const normalizeCategoryItem = (item, index) => ({
+  ...item,
+  _rawIndex: index,
+  _categoryKey: `${item?.ID || item?.id || item?.title || 'category'}-${index}`,
+  _titleText: resolveDisplayText(item?.title, item?.title),
+})
+
+const normalizeGoodsItem = (item, index) => ({
+  ...item,
+  _goodsKey: `${item?.ID || item?.id || item?.imageUrl || 'goods'}-${index}`,
+  _imageUrl: getUrl(item?.imageUrl || ''),
+  _titleText: resolveDisplayText(item?.title, item?.title),
+  _descText: resolveDisplayText(item?.description, item?.description),
+  _priceText: formatGoodsPrice(item),
+  _tagViews: (Array.isArray(item?.tags) ? item.tags.slice(0, 1) : []).map((tag, tagIndex) => ({
+    ...tag,
+    _tagKey: `${tag?.ID || tag?.id || tag?.name || 'tag'}-${tagIndex}`,
+    _nameText: resolveDisplayText(tag?.nameI18n || tag?.name, tag?.name),
+    _style: { background: tag?.color || '#ff6b6b' },
+  })),
+})
+
+const normalizeCategorySection = (item, index) => ({
+  ...item,
+  _sectionKey: `${item?.ID || item?.id || item?.title || 'section'}-${index}`,
+  _titleText: resolveDisplayText(item?.title, item?.title),
+  goods: (Array.isArray(item?.goods) ? item.goods : []).map(normalizeGoodsItem),
+})
+
 // 分类数据
 const catelist = ref([])
 const activeindex = ref(0)
@@ -151,7 +179,7 @@ const getCategoryData = async (preserveActive = false) => {
   try {
     const res = await getCategoryMobile()
     if (res && res.data) {
-      catelist.value = res.data
+      catelist.value = res.data.map(normalizeCategoryItem)
       if (catelist.value.length > 0) {
         let nextIndex = 0
         if (preserveActive && currentCategory.value) {
@@ -197,7 +225,7 @@ const loadCategoryData = async (parentID) => {
     }
     const res = await getChildrenCategoryAndProduct(params)
     if (res && res.code === 0 && res.data) {
-      categoriesWithGoods.value = res.data || []
+      categoriesWithGoods.value = (res.data || []).map(normalizeCategorySection)
     } else {
       categoriesWithGoods.value = []
       console.error('获取分类商品数据API响应异常:', res)

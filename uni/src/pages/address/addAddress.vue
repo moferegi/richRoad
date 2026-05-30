@@ -77,8 +77,8 @@
       <view class="nf-popup-content" @tap.stop>
         <view class="nf-popup-title">{{ $t('selectAreaCode') }}</view>
         <scroll-view scroll-y class="nf-popup-scroll">
-          <view class="nf-area-item" v-for="item in areaCodes" :key="item.ID" @tap="selectArea(item)">
-            <text class="nf-area-name">{{ $lt(item.countryName) }}</text>
+          <view class="nf-area-item" v-for="item in areaCodeViews" :key="item._areaKey" @tap="selectArea(item._raw)">
+            <text class="nf-area-name">{{ item._countryNameText }}</text>
             <text class="nf-area-code-val">{{ item.areaCode }}</text>
           </view>
         </scroll-view>
@@ -126,6 +126,14 @@ const showAreaCodePicker = ref(false)
 const areaCodes = ref([])
 const selectedAreaCode = ref('+86')
 const lastLoadedLocale = ref('')
+
+const areaCodeViews = computed(() => areaCodes.value.map((item, index) => ({
+  ...item,
+  // 区号弹窗只读展示字段；保存地址时仍使用 selectArea 回传的原始区号对象。
+  _raw: item,
+  _areaKey: item.ID || item.id || `${item.areaCode || 'area'}-${index}`,
+  _countryNameText: $lt.value(item.countryName) || item.countryName,
+})))
 
 const changeKey = (data) => {
   return data.map(item => ({

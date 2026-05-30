@@ -2,15 +2,15 @@
 	<view class="order-evaluate-container">
 
 		<view class="items-container">
-			<view class="item-card" v-for="(item, index) in orderItems" :key="index">
+			<view class="item-card" v-for="item in orderItemViews" :key="item._itemKey">
 				<view class="item-header">
           <image
-              :src="item.good.externalImagePath ? getExternalUrl(item.good.externalImagePath) : getUrl(item.good.imageUrl)"
+              :src="item._imageUrl"
               class="evaluate_pic_img"
               mode="aspectFill"
           />
 					<view class="item-info">
-						<text class="item-name">{{ $lt(item.name) || item.name }}</text>
+						<text class="item-name">{{ item._nameText }}</text>
 						<text class="item-spec" v-if="item.spec">{{ item.spec }}</text>
 						<text class="item-price">{{ cs }}{{ item.price }}</text>
 					</view>
@@ -23,23 +23,23 @@
 							v-for="star in 5"
 							:key="star"
 							:class="['star', { active: star <= item.rating }]"
-							@click="!viewMode && setRating(index, star)"
+							@click="!viewMode && setRating(item._rawIndex, star)"
 						>★</text>
 					</view>
-					<text class="rating-text">{{ getRatingText(item.rating) }}</text>
+					<text class="rating-text">{{ item._ratingText }}</text>
 				</view>
 
 				<view class="comment-section">
 					<text class="section-title">{{ $t('reviewContent') }}</text>
 					<textarea
-						v-model="item.comment"
+						v-model="orderItems[item._rawIndex].comment"
 						class="comment-input"
 						:placeholder="viewMode ? '' : $t('reviewPlaceholder')"
 						maxlength="200"
 						show-confirm-bar="false"
 						:disabled="viewMode"
 					></textarea>
-					<text class="char-count" v-if="!viewMode">{{ item.comment.length }}/200</text>
+					<text class="char-count" v-if="!viewMode">{{ orderItems[item._rawIndex].comment.length }}/200</text>
 				</view>
 
 				<view class="image-section">
@@ -47,18 +47,18 @@
 					<view class="image-upload">
 						<view class="uploaded-images">
 							<view
-								v-for="(img, imgIndex) in item.images"
-								:key="imgIndex"
+								v-for="img in item._imageViews"
+								:key="img._imageKey"
 								class="image-item"
-                @tap="previewImage(index, imgIndex)"
+                @tap="previewImage(item._rawIndex, img._rawIndex)"
 							>
-								<image :src="getUrl(img)" mode="aspectFill" class="uploaded-image"></image>
-								<text v-if="!viewMode" class="delete-btn" @click="deleteImage(index, imgIndex)">×</text>
+								<image :src="img._imageUrl" mode="aspectFill" class="uploaded-image"></image>
+								<text v-if="!viewMode" class="delete-btn" @click="deleteImage(item._rawIndex, img._rawIndex)">×</text>
 							</view>
 							<view
 								v-if="!viewMode && item.images.length < 9"
 								class="add-image-btn"
-								@click="chooseImage(index)"
+								@click="chooseImage(item._rawIndex)"
 							>
 								<text class="add-icon">+</text>
 								<text class="add-text">{{ $t('addImage') }}</text>
@@ -291,6 +291,34 @@ const getRatingText = (rating) => {
 	const texts = ['', $t.value('ratingVeryBad'), $t.value('ratingBad'), $t.value('ratingOk'), $t.value('ratingGood'), $t.value('ratingExcellent')]
 	return texts[rating] || ''
 }
+
+const normalizePreviewUrl = (img) => {
+	if (typeof img !== 'string') return ''
+	if (img.startsWith('blob:') || img.startsWith('file://') || img.startsWith('/')) return img
+	return getUrl(img)
+}
+
+const orderItemViews = computed(() => orderItems.value.map((item, index) => {
+	const good = item.good || {}
+	const rawImage = good.externalImagePath ? getExternalUrl(good.externalImagePath) : getUrl(good.imageUrl || item.image || '')
+	return {
+		...item,
+		// 订单评价项只读展示缓存；评分、评论、图片增删和提交仍按 _rawIndex 写回 orderItems。
+		_rawIndex: index,
+		_itemKey: item.ID || item.id || item.detailID || item.skuID || `${item.goodID || 'good'}-${item.skuID || 'sku'}-${index}`,
+		_imageUrl: rawImage,
+		_nameText: $lt.value(item.name) || item.name,
+		_ratingText: getRatingText(item.rating),
+		_imageViews: (Array.isArray(item.images) ? item.images : []).map((img, imgIndex) => {
+			const imageUrl = normalizePreviewUrl(img)
+			return {
+				_rawIndex: imgIndex,
+				_imageKey: `${imageUrl || img || 'image'}-${imgIndex}`,
+				_imageUrl: imageUrl,
+			}
+		})
+	}
+}))
 
 // 选择图片
 const chooseImage = (itemIndex) => {

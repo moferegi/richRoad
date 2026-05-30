@@ -49,29 +49,29 @@
       <view v-if="showExternalList && kefuList.length" class="nf-kefu-list">
         <view
           class="nf-kefu-card"
-          v-for="(item, index) in kefuList"
-          :key="index"
+          v-for="item in kefuList"
+          :key="item._kefuKey"
           @tap="contactKefu(item)"
         >
           <!-- 头像区 -->
           <view class="nf-kefu-avatar-wrap">
-            <image v-if="resolveAvatar(item)" class="nf-kefu-avatar" :src="resolveAvatar(item)" mode="aspectFill" />
-            <view v-else class="nf-kefu-avatar nf-kefu-avatar-fallback" :style="{ background: avatarColor(displayKefuName(item, index)) }">
-              <text class="nf-kefu-avatar-fallback-text">{{ avatarInitial(displayKefuName(item, index)) }}</text>
+            <image v-if="item._avatarUrl" class="nf-kefu-avatar" :src="item._avatarUrl" mode="aspectFill" />
+            <view v-else class="nf-kefu-avatar nf-kefu-avatar-fallback" :style="item._avatarFallbackStyle">
+              <text class="nf-kefu-avatar-fallback-text">{{ item._avatarInitial }}</text>
             </view>
-            <view class="nf-kefu-status-dot" :class="'nf-dot-' + normalizeStatus(item.status)"></view>
+            <view class="nf-kefu-status-dot" :class="'nf-dot-' + item._normalizedStatus"></view>
           </view>
           <!-- 信息区 -->
           <view class="nf-kefu-info">
-            <text class="nf-kefu-name">{{ displayKefuName(item, index) }}</text>
+            <text class="nf-kefu-name">{{ item._displayName }}</text>
             <view class="nf-kefu-status-row">
-              <text class="nf-kefu-status-text" :class="'nf-status-' + normalizeStatus(item.status)">
-                {{ getStatusText(item.status) }}
+              <text class="nf-kefu-status-text" :class="'nf-status-' + item._normalizedStatus">
+                {{ item._statusText }}
               </text>
             </view>
           </view>
           <!-- 联系按钮 -->
-          <view class="nf-kefu-action" :class="{ 'nf-action-disabled': normalizeStatus(item.status) === 'offline' }">
+          <view class="nf-kefu-action" :class="{ 'nf-action-disabled': item._normalizedStatus === 'offline' }">
             <text class="nf-kefu-action-text">{{ $t('kefuContact') }}</text>
           </view>
         </view>
@@ -316,6 +316,7 @@ const avatarInitial = (name) => {
 }
 
 const displayKefuName = (item, index = 0) => {
+  if (item?._displayName) return item._displayName
   const localized = String(resolveDisplayText(item?.nameI18n || item?.name, item?.name || '') || '').trim()
   if (localized) return localized
 
@@ -392,6 +393,27 @@ const getStatusText = (status) => {
   return map[key] || status
 }
 
+// 客服列表卡片会多处使用名称、头像、状态和头像底色；加载后统一生成，减少模板重复计算。
+const normalizeKefuItem = (item, index) => {
+  const displayName = displayKefuName(item, index)
+  const normalizedStatus = normalizeStatus(item?.status)
+  return {
+    ...item,
+    _kefuKey: item?.ID || item?.id || item?.contactId || `${displayName}-${index}`,
+    _displayName: displayName,
+    _avatarUrl: resolveAvatar(item),
+    _avatarFallbackStyle: { background: avatarColor(displayName) },
+    _avatarInitial: avatarInitial(displayName),
+    _normalizedStatus: normalizedStatus,
+    _statusText: getStatusText(normalizedStatus),
+  }
+}
+
+// 默认头像配置与列表接口并发返回，归一化必须在配置落值之后执行。
+const normalizeKefuList = (list) => {
+  return (Array.isArray(list) ? list : []).map((item, index) => normalizeKefuItem(item, index))
+}
+
 const init = async () => {
   isLoading.value = true
   try {
@@ -400,8 +422,9 @@ const init = async () => {
       getCsConfig(),
       getSysConfigByKey('shop_kefu_enabled')
     ])
+    let rawKefuList = []
     if (listRes.status === 'fulfilled' && listRes.value.code === 0) {
-      kefuList.value = Array.isArray(listRes.value.data) ? listRes.value.data : (listRes.value.data?.list || [])
+      rawKefuList = Array.isArray(listRes.value.data) ? listRes.value.data : (listRes.value.data?.list || [])
     }
     if (cfgRes.status === 'fulfilled' && cfgRes.value.code === 0) {
       platEnabled.value = !!cfgRes.value.data?.platEnabled
@@ -410,6 +433,7 @@ const init = async () => {
     if (switchRes.status === 'fulfilled' && switchRes.value.code === 0) {
       externalEnabled.value = String(switchRes.value.data).toLowerCase() === 'true'
     }
+    kefuList.value = normalizeKefuList(rawKefuList)
   } catch (e) {
     console.error('初始化客服页失败', e)
   } finally {

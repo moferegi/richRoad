@@ -26,15 +26,15 @@
 
     <scroll-view class="list-wrap" scroll-y>
       <view class="grid">
-        <view class="card" v-for="item in filteredClothList" :key="item.id">
+        <view class="card" v-for="item in filteredClothList" :key="item._clothKey">
           <view class="card-image-wrap">
-            <image class="card-image" :src="getUrl(item.url)" mode="aspectFit" @tap="preview(item)" />
+            <image class="card-image" :src="item._imageUrl" mode="aspectFit" @tap="preview(item)" />
             <view v-if="item.sizeText" class="card-size-badge">{{ item.sizeText }}</view>
           </view>
           <view class="card-foot">
             <view class="name-row">
-              <text class="card-name">{{ item.name || categoryLabel(item.category) }}</text>
-              <text class="category-badge">{{ categoryLabel(item.category) }}</text>
+              <text class="card-name">{{ item._displayName }}</text>
+              <text class="category-badge">{{ item._categoryLabel }}</text>
             </view>
             <view class="card-actions card-actions-secondary">
               <view class="mini-btn" @tap.stop="renameCloth(item)">{{ $t('rename') }}</view>
@@ -68,15 +68,15 @@
           </view>
         </view>
         <view class="crop-editor-stage-wrap">
-          <view class="crop-editor-stage" :style="{ width: `${cropStageSize.width}px`, height: `${cropStageSize.height}px` }">
+          <view class="crop-editor-stage" :style="cropStageStyle">
             <image class="crop-editor-image" :src="cropSourcePath" mode="scaleToFill" />
-            <movable-area class="crop-editor-area" :style="{ width: `${cropStageSize.width}px`, height: `${cropStageSize.height}px` }">
+            <movable-area class="crop-editor-area" :style="cropStageStyle">
               <movable-view
                 class="crop-editor-box"
                 direction="all"
                 :x="cropBoxPosition.x"
                 :y="cropBoxPosition.y"
-                :style="{ width: `${cropBoxSize.width}px`, height: `${cropBoxSize.height}px` }"
+                :style="cropBoxStyle"
                 @change="onCropBoxChange"
               >
                 <view class="crop-editor-box-inner"></view>
@@ -124,7 +124,7 @@
       canvas-id="myClothCropCanvas"
       id="myClothCropCanvas"
       class="crop-canvas-hidden"
-      :style="{ width: `${cropCanvasSize.width}px`, height: `${cropCanvasSize.height}px` }"
+      :style="cropCanvasStyle"
     ></canvas>
   </view>
 </template>
@@ -168,6 +168,19 @@ let cropResolve = null
 const CROP_CANVAS_ID = 'myClothCropCanvas'
 const CROP_MIN_EDGE_SIZE = 48
 const cropRatioLabel = computed(() => `${cropRatio.value.width}:${cropRatio.value.height}`)
+const cropStageStyle = computed(() => ({
+  // 裁剪舞台样式只读缓存；裁剪坐标和导出尺寸仍直接读取 cropStageSize。
+  width: `${cropStageSize.value.width}px`,
+  height: `${cropStageSize.value.height}px`,
+}))
+const cropBoxStyle = computed(() => ({
+  width: `${cropBoxSize.value.width}px`,
+  height: `${cropBoxSize.value.height}px`,
+}))
+const cropCanvasStyle = computed(() => ({
+  width: `${cropCanvasSize.value.width}px`,
+  height: `${cropCanvasSize.value.height}px`,
+}))
 const cropRatioOptions = [
   { key: '1:1', label: '1:1', width: 1, height: 1 },
   { key: '3:4', label: '3:4', width: 3, height: 4 },
@@ -737,12 +750,19 @@ const buildDefaultClothName = (category) => {
 const normalizeClothItem = (item) => {
   const id = item?.ID || item?.id || ''
   const category = normalizeCategory(item?.category || item?.Category)
+  const url = item?.image || item?.url || ''
+  const categoryText = categoryLabel(category)
   return {
     id: String(id),
     name: item?.name || '',
     category,
-    url: item?.image || item?.url || '',
+    url,
     sizeText: '',
+    // 衣橱列表展示字段集中生成；上传、裁剪、删除仍使用原始 id/category/url。
+    _clothKey: `${id || category || url || 'cloth'}`,
+    _imageUrl: getUrl(url),
+    _categoryLabel: categoryText,
+    _displayName: item?.name || categoryText,
   }
 }
 
@@ -840,6 +860,7 @@ const renameCloth = (item) => {
       }
 
       item.name = value
+      item._displayName = value || item._categoryLabel
       uni.showToast({ title: $t.value('updateSuccess'), icon: 'none' })
     },
   })
@@ -867,7 +888,7 @@ const removeCloth = (item) => {
 
 const preview = (item) => {
   if (!item?.url) return
-  uni.previewImage({ urls: [getUrl(item.url)] })
+  uni.previewImage({ urls: [item._imageUrl || getUrl(item.url)] })
 }
 
 const goBack = () => {

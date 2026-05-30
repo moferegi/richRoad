@@ -20,13 +20,13 @@
         <view class="nf-cate-tabs">
           <view
             class="nf-cate-tab"
-            :class="{ 'nf-cate-tab-active': selectedIndex === index }"
-            v-for="(item, index) in gridList"
-            :key="index"
-            @tap="goto(item, index)"
+            :class="{ 'nf-cate-tab-active': selectedIndex === item._rawIndex }"
+            v-for="item in gridList"
+            :key="item._categoryKey"
+            @tap="goto(item, item._rawIndex)"
           >
-            <image class="nf-cate-tab-icon" :src="item.externalIconPath ? getExternalUrl(item.externalIconPath) : getUrl(item.icons)" mode="aspectFill"></image>
-            <text class="nf-cate-tab-text">{{ resolveDisplayText(item.title, item.title) }}</text>
+            <image class="nf-cate-tab-icon" :src="item._iconUrl" mode="aspectFill"></image>
+            <text class="nf-cate-tab-text">{{ item._titleText }}</text>
           </view>
         </view>
       </scroll-view>
@@ -38,12 +38,12 @@
       <view class="nf-grid" v-if="flowData.length">
         <view
           class="nf-grid-item"
-          v-for="(item, index) in flowData"
-          :key="index"
+          v-for="item in flowData"
+          :key="item._goodsKey"
           @tap="handleGoodsClick(item)"
         >
           <view class="nf-grid-img-wrap">
-            <image class="nf-grid-img" :src="item.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(item.imageUrl)" mode="aspectFill"></image>
+            <image class="nf-grid-img" :src="item._imageUrl" mode="aspectFill"></image>
             <view class="nf-grid-img-overlay"></view>
             <!-- 折扣标签 -->
             <view class="nf-grid-badge" v-if="item.discount && item.discount < 10">
@@ -51,18 +51,18 @@
             </view>
           </view>
           <view class="nf-grid-info">
-            <text class="nf-grid-title">{{ resolveDisplayText(item.title, item.title) }}</text>
+            <text class="nf-grid-title">{{ item._titleText }}</text>
             <view class="nf-grid-price-row">
-              <text class="nf-grid-price">{{ cs }}{{ formatPrice(item) }}</text>
+              <text class="nf-grid-price">{{ cs }}{{ item._priceText }}</text>
               <text class="nf-grid-sales">{{ $t('sold') }} {{ item.saleNum || 0 }}</text>
             </view>
-            <view v-if="item.tags && item.tags.length > 0" class="nf-grid-tags">
+            <view v-if="item._tagViews.length > 0" class="nf-grid-tags">
               <text
-                v-for="tag in item.tags"
-                :key="tag.ID"
+                v-for="tag in item._tagViews"
+                :key="tag._tagKey"
                 class="nf-grid-tag"
-                :style="{ color: tag.color, borderColor: tag.color + '55', background: tag.color + '15' }"
-              >{{ resolveDisplayText(tag.nameI18n || tag.name, tag.name) }}</text>
+                :style="tag._style"
+              >{{ tag._nameText }}</text>
             </view>
           </view>
         </view>
@@ -124,6 +124,34 @@ const goBack = () => {
 
 const formatPrice = (item) => formatLocalizedPrice(item?.price, item?.priceI18n, locale.value)
 
+// 分类横栏只读展示字段；切语言会重新拉取并重建，避免模板重复解析图标和多语言标题。
+const normalizeCategoryItem = (item, index) => ({
+  ...item,
+  _rawIndex: index,
+  _categoryKey: `${item?.ID || item?.id || item?.title || 'category'}-${index}`,
+  _iconUrl: item?.externalIconPath ? getExternalUrl(item.externalIconPath) : getUrl(item?.icons || ''),
+  _titleText: resolveDisplayText(item?.title, item?.title),
+})
+
+const normalizeGoodsItem = (item, index) => ({
+  ...item,
+  _goodsKey: `${item?.ID || item?.id || item?.imageUrl || 'goods'}-${index}`,
+  _imageUrl: item?.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(item?.imageUrl || ''),
+  _titleText: resolveDisplayText(item?.title, item?.title),
+  _priceText: formatPrice(item),
+  _tagViews: (Array.isArray(item?.tags) ? item.tags : []).map((tag, tagIndex) => {
+    const color = tag?.color || '#e50914'
+    return {
+      ...tag,
+      _tagKey: `${tag?.ID || tag?.id || tag?.name || 'tag'}-${tagIndex}`,
+      _nameText: resolveDisplayText(tag?.nameI18n || tag?.name, tag?.name),
+      _style: { color, borderColor: `${color}55`, background: `${color}15` },
+    }
+  }),
+})
+
+const normalizeGoodsList = (list) => (Array.isArray(list) ? list : []).map(normalizeGoodsItem)
+
 onLoad((options) => {
   if (options.id) {
     parentCategoryID.value = options.id
@@ -144,10 +172,10 @@ const initCategory = async (parentID, preserveCurrent = false) => {
   const previousCategoryID = currentCategoryID.value
   const res = await getCategoryMobile({ parentID })
   if (res.code === 0 && res.data.length) {
-    gridList.value = res.data
-    let nextCategoryID = res.data[0].ID
+    gridList.value = res.data.map(normalizeCategoryItem)
+    let nextCategoryID = gridList.value[0].ID
     if (preserveCurrent && previousCategoryID) {
-      const matched = res.data.find(item => String(item.ID) === String(previousCategoryID))
+      const matched = gridList.value.find(item => String(item.ID) === String(previousCategoryID))
       if (matched) {
         nextCategoryID = matched.ID
       }
@@ -185,9 +213,9 @@ const loadGoodsList = async (categoryID, isReset = false) => {
     if (res.code === 0) {
       const newList = res.data?.list || []
       if (isReset || currentPage.value === 1) {
-        flowData.value = newList
+        flowData.value = normalizeGoodsList(newList)
       } else {
-        flowData.value = [...flowData.value, ...newList]
+        flowData.value = [...flowData.value, ...normalizeGoodsList(newList)]
       }
       if (newList.length < pageSize.value) {
         noMore.value = true

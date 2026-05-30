@@ -27,12 +27,12 @@
       <view class="collect-grid" v-if="collectList.length">
         <view
           class="collect-card"
-          v-for="(item, index) in collectList"
-          :key="index"
+          v-for="item in collectList"
+          :key="item._collectKey"
           @tap="goTo(item)"
         >
           <view class="card-image-wrap">
-            <LazyImage class="card-image" :src="getUrl(item.imageUrl)" mode="aspectFill" />
+            <LazyImage class="card-image" :src="item._collectImageUrl" mode="aspectFill" />
             <view class="card-discount" v-if="item.discount && item.discount < 10">
               <text>{{ getDiscountText(item.discount) }}</text>
             </view>
@@ -41,7 +41,7 @@
             </view>
           </view>
           <view class="card-info">
-            <text class="card-title">{{ $lt(item.title) }}</text>
+            <text class="card-title">{{ item._titleText }}</text>
             <text class="card-price">{{ cs }}{{ formatItemPrice(item) }}</text>
             <view class="card-meta">
               <text class="card-sold">{{ $t('sold') }} {{ item.saleNum || 0 }}</text>
@@ -110,13 +110,26 @@ const formatItemPrice = (item) => {
   return formatLocalizedPrice(item?.price, item?.priceI18n, locale.value)
 }
 
+// 只补充列表渲染需要的派生字段；取消收藏、跳转详情仍读取原始 ID 和价格字段。
+const normalizeCollectItem = (item, index) => ({
+  ...item,
+  _collectKey: item?.ID || item?.id || `${item?.imageUrl || 'collect'}-${index}`,
+  _collectImageUrl: getUrl(item?.imageUrl || ''),
+  _titleText: $lt.value(item?.title),
+})
+
+// 接口分页与追加都走同一归一化入口，避免首屏和下一页字段形态不一致。
+const normalizeCollectList = (list, offset = 0) => {
+  return (Array.isArray(list) ? list : []).map((item, index) => normalizeCollectItem(item, offset + index))
+}
+
 const init = async () => {
   params = { page: 1, pageSize: 10 }
   isBottom.value = false
   const res = await getCollectList(params)
   if (res.code === 0) {
     const list = Array.isArray(res?.data?.list) ? res.data.list : []
-    collectList.value = list
+    collectList.value = normalizeCollectList(list)
     isBottom.value = list.length < params.pageSize
   }
 }
@@ -176,7 +189,7 @@ const lower = async () => {
     return
   }
 
-  collectList.value.push(...list)
+  collectList.value.push(...normalizeCollectList(list, collectList.value.length))
   if (list.length < params.pageSize) {
     isBottom.value = true
   }
@@ -392,6 +405,8 @@ page {
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-box-orient: vertical;
+  /* 标准属性配合 -webkit 前缀，影响收藏商品标题两行截断的跨端兼容性。 */
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   min-height: 72rpx;
 }

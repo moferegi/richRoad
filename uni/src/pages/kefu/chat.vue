@@ -56,7 +56,7 @@
         >
           <!-- 客服头像 -->
           <view v-if="msg.senderType !== 'user'" class="nf-avatar-wrap">
-            <image v-if="resolveAgentAvatarUrl()" class="nf-avatar" :src="resolveAgentAvatarUrl()" mode="aspectFill" />
+            <image v-if="agentAvatarDisplay.url" class="nf-avatar" :src="agentAvatarDisplay.url" mode="aspectFill" />
             <view v-else class="nf-avatar nf-avatar-fallback" :style="{ background: avatarColor(msg.senderNickname || $t('kefuTitle')) }">
               <text class="nf-avatar-fallback-text">{{ avatarInitial(msg.senderNickname || $t('kefuTitle')) }}</text>
             </view>
@@ -252,6 +252,11 @@ function resolveAgentAvatarUrl() {
   if (/^(https?:)?\/\//i.test(raw) || /^data:/i.test(raw)) return raw
   return getUrl(raw)
 }
+
+const agentAvatarDisplay = computed(() => ({
+  // 客服头像只读展示 URL；消息列表、发送状态和兜底昵称仍使用原始消息字段。
+  url: resolveAgentAvatarUrl(),
+}))
 
 function parseUploadAllowExt(raw) {
   const list = String(raw || '')

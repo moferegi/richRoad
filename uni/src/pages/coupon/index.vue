@@ -33,23 +33,23 @@
     <!-- 优惠券列表 -->
     <view class="nf-coupon-list" v-else>
       <view
-        v-for="(item, index) in filteredList"
-        :key="index"
+        v-for="item in filteredList"
+        :key="item._couponKey"
         class="nf-coupon-card"
-        :style="couponBgStyle(item)"
+        :style="item._couponBgStyle"
       >
         <!-- 优惠券内容 -->
         <view class="nf-coupon-body">
           <view class="nf-coupon-left">
             <view class="nf-coupon-tag">{{ t('couponTag') }}</view>
-            <text class="nf-coupon-name">{{ couponName(item) }}</text>
-            <text class="nf-coupon-desc" v-if="couponDesc(item)">{{ couponDesc(item) }}</text>
+            <text class="nf-coupon-name">{{ item._couponName }}</text>
+            <text class="nf-coupon-desc" v-if="item._couponDesc">{{ item._couponDesc }}</text>
             <text class="nf-coupon-date">{{ t('couponValidity') }}{{ item.startTime }} - {{ item.endTime }}</text>
           </view>
           <view class="nf-coupon-right" :class="{ disabled: item.status === 1 }">
             <text class="nf-coupon-symbol">{{ cs }}</text>
-            <text class="nf-coupon-discount">{{ (item.discount / 100).toFixed(0) }}</text>
-            <text class="nf-coupon-condition">{{ minSpendText(item) }}</text>
+            <text class="nf-coupon-discount">{{ item._discountText }}</text>
+            <text class="nf-coupon-condition">{{ item._minSpendText }}</text>
           </view>
         </view>
 
@@ -116,10 +116,26 @@ const couponBgStyle = (item) => {
   }
 }
 
+// 优惠券列表展示依赖当前语言和背景图 URL；加载后预计算可减少模板重复解析。
+const normalizeCouponItem = (item, index) => ({
+  ...item,
+  _couponKey: item?.couponID || item?.ID || item?.id || `${item?.name || 'coupon'}-${index}`,
+  _couponName: couponName(item),
+  _couponDesc: couponDesc(item),
+  _couponBgStyle: couponBgStyle(item),
+  _discountText: (Number(item?.discount || 0) / 100).toFixed(0),
+  _minSpendText: minSpendText(item),
+})
+
+// 语言切换会重新拉取优惠券，所有语言相关展示字段都从这里统一刷新。
+const normalizeCouponList = (list) => {
+  return (Array.isArray(list) ? list : []).map((item, index) => normalizeCouponItem(item, index))
+}
+
 const loadCoupons = async () => {
   try {
     const res = await getAllClaimCoupon({ goodIds: [] })
-    if (res.code === 0) couponList.value = res.data || []
+    if (res.code === 0) couponList.value = normalizeCouponList(res.data || [])
   } catch (e) { console.error('加载优惠券失败', e) }
 }
 

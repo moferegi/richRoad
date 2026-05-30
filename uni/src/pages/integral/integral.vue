@@ -36,13 +36,13 @@
       </view>
 
       <view class="nf-record-list" v-else>
-        <view class="nf-record-card" v-for="(item, index) in recordList" :key="index">
+        <view class="nf-record-card" v-for="item in recordList" :key="item._recordKey">
           <view class="nf-record-icon" :class="item.changeType === 'increase' ? 'increase' : 'decrease'">
             {{ item.changeType === 'increase' ? '+' : '-' }}
           </view>
           <view class="nf-record-info">
-            <text class="nf-record-reason">{{ translateReason(item) }}</text>
-            <text class="nf-record-time">{{ formatTime(item.CreatedAt) }}</text>
+            <text class="nf-record-reason">{{ item._displayReason }}</text>
+            <text class="nf-record-time">{{ item._displayTime }}</text>
           </view>
           <text class="nf-record-amount" :class="item.changeType === 'increase' ? 'nf-add' : 'nf-sub'">
             {{ item.pointChange > 0 ? '+' : '' }}{{ item.pointChange }}
@@ -171,6 +171,19 @@ const emptyText = computed(() => isTryonMode.value ? $t.value('noTryonPointRecor
 
 const goBack = () => { uni.navigateBack() }
 
+// 列表渲染只需要展示原因、展示时间和稳定 key；提前生成可减少模板重复调用翻译/日期格式化。
+const normalizePointRecord = (item, index) => ({
+  ...item,
+  _recordKey: item?.ID || item?.id || `${item?.CreatedAt || 'point'}-${index}`,
+  _displayReason: translateReason(item),
+  _displayTime: formatTime(item.CreatedAt),
+})
+
+// 首屏加载和分页追加共用同一入口，避免两条路径生成的记录结构不一致。
+const normalizePointRecordList = (list, offset = 0) => {
+  return (Array.isArray(list) ? list : []).map((item, index) => normalizePointRecord(item, offset + index))
+}
+
 const loadUserPoints = async () => {
   try {
     const res = await getUserInfo()
@@ -198,10 +211,11 @@ const loadRecords = async (isLoadMore = false) => {
       }
     })
     if (res.code === 0 && res.data && res.data.list) {
+      const normalizedList = normalizePointRecordList(res.data.list, isLoadMore ? recordList.value.length : 0)
       if (isLoadMore) {
-        recordList.value = [...recordList.value, ...res.data.list]
+        recordList.value = [...recordList.value, ...normalizedList]
       } else {
-        recordList.value = res.data.list
+        recordList.value = normalizedList
       }
       if (res.data.list.length < pageSize || recordList.value.length >= (res.data.total || Infinity)) {
         noMore.value = true

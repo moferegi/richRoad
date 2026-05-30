@@ -15,19 +15,19 @@
     </view>
 
     <scroll-view scroll-y :show-scrollbar="false" class="history-scroll" @scrolltolower="onScrollToLower">
-      <view class="group" v-for="(group, gIdx) in groupedList" :key="gIdx">
+      <view class="group" v-for="group in groupedList" :key="group.date">
         <view class="group-date">{{ group.date }}</view>
-        <view class="card" v-for="(item, index) in group.items" :key="index" @tap="goDetail(item)">
+        <view class="card" v-for="item in group.items" :key="item._historyKey" @tap="goDetail(item)">
           <LazyImage
             class="card-image"
-            :src="item.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(item.imageUrl || item.picture || item.image || '')"
+            :src="item._historyImageSrc"
             mode="aspectFill"
           />
           <view class="card-main">
-            <text class="card-title">{{ $lt(item.title || item.name || item.label || '') }}</text>
+            <text class="card-title">{{ item._historyTitleText }}</text>
             <view class="card-bottom">
               <text class="card-price">{{ cs }}{{ formatItemPrice(item) }}</text>
-              <text class="card-time">{{ formatDateTime(item.CreatedAt || item.createdAt || item.viewTime) }}</text>
+              <text class="card-time">{{ item._historyDateTime }}</text>
             </view>
           </view>
         </view>
@@ -86,8 +86,13 @@ const page = ref(1)
 const hasMore = ref(false)
 const reachedBottom = ref(false)
 
-const sortTimestamp = (item) => {
-  const raw = item?.CreatedAt || item?.createdAt || item?.viewTime || item?.updatedAt || 0
+// 统一取历史时间字段；新增时间来源时只改这里，排序、分组、展示会一起生效。
+const getHistoryTimeRaw = (item) => {
+  return item?.CreatedAt || item?.createdAt || item?.viewTime || item?.updatedAt || 0
+}
+
+// 把时间转成可比较的毫秒值；非法时间归零，保持原来“排到最后”的行为。
+const toTimestamp = (raw) => {
   const time = new Date(raw).getTime()
   return Number.isNaN(time) ? 0 : time
 }
@@ -102,8 +107,8 @@ const toDate = (raw) => {
   return date
 }
 
-const formatDate = (raw) => {
-  const date = toDate(raw)
+// 日期格式化只接收 Date 对象，避免同一条记录在分组和时间展示中重复 new Date。
+const formatDate = (date) => {
   if (!date) return '0000-00-00'
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
@@ -111,18 +116,34 @@ const formatDate = (raw) => {
   return `${y}-${m}-${d}`
 }
 
-const formatDateTime = (raw) => {
-  const date = toDate(raw)
+const formatDateTime = (date) => {
   if (!date) return '--:--'
   const hh = String(date.getHours()).padStart(2, '0')
   const mm = String(date.getMinutes()).padStart(2, '0')
-  return `${formatDate(raw)} ${hh}:${mm}`
+  return `${formatDate(date)} ${hh}:${mm}`
+}
+
+// 构造仅供本页面渲染使用的派生字段；不写回 store/API 数据，降低业务联动风险。
+const normalizeHistoryItem = (item, index) => {
+  const rawTime = getHistoryTimeRaw(item)
+  const date = toDate(rawTime)
+  const goodID = item?.ID || item?.id || item?.goodID || item?.good_id || ''
+  const imageRaw = item?.externalImagePath || item?.imageUrl || item?.picture || item?.image || ''
+  return {
+    ...item,
+    _historyKey: `${goodID || 'local'}-${rawTime || index}-${index}`,
+    _historyImageSrc: item?.externalImagePath ? getExternalUrl(item.externalImagePath) : getUrl(imageRaw),
+    _historyTitleText: $lt.value(item?.title || item?.name || item?.label || ''),
+    _historyDate: formatDate(date),
+    _historyDateTime: formatDateTime(date),
+    _historySortTs: toTimestamp(rawTime),
+  }
 }
 
 const groupedList = computed(() => {
   const groups = {}
   visibleList.value.forEach((item) => {
-    const key = formatDate(item.CreatedAt || item.createdAt || item.viewTime)
+    const key = item._historyDate
     if (!groups[key]) groups[key] = []
     groups[key].push(item)
   })
@@ -158,7 +179,9 @@ const loadHistory = async () => {
       list = playHistoryStore.getRecentBrowseList(100) || []
     }
 
-    sourceList.value = [...list].sort((a, b) => sortTimestamp(b) - sortTimestamp(a))
+    sourceList.value = list
+      .map((item, index) => normalizeHistoryItem(item, index))
+      .sort((a, b) => b._historySortTs - a._historySortTs)
     page.value = 1
     reachedBottom.value = false
     applyVisible()
@@ -336,6 +359,8 @@ onShow(() => {
   font-weight: 600;
   color: #0f172a;
   display: -webkit-box;
+  /* 标准属性配合 -webkit 前缀，影响商品标题两行截断的跨端兼容性。 */
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;

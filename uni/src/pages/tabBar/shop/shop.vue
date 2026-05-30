@@ -7,7 +7,7 @@
     <view class="shoe-body">
       <view class="shoe-left" @tap="openUploadDrawer('person')">
         <LazyImage v-if="personPreview" class="shoe-preview" :src="personPreview" mode="aspectFit" />
-        <view v-if="personPreview && personSizeBytes > 0" class="preview-size-mask">{{ formatPreviewSize(personSizeBytes) }}</view>
+        <view v-if="personPreview && personSizeText" class="preview-size-mask">{{ personSizeText }}</view>
         <view v-else class="upload-empty">
           <uni-icons type="camera" size="26" color="rgba(15,23,42,0.45)" />
           <text class="upload-text">{{ $t('uploadPersonImage') }}</text>
@@ -16,13 +16,13 @@
       <view class="shoe-right">
         <view class="slot" @tap="openUploadDrawer('shoe')">
           <LazyImage v-if="shoePreview" class="slot-preview" :src="shoePreview" mode="aspectFit" />
-          <view v-if="shoePreview && shoeSizeBytes > 0" class="preview-size-mask">{{ formatPreviewSize(shoeSizeBytes) }}</view>
+          <view v-if="shoePreview && shoeSizeText" class="preview-size-mask">{{ shoeSizeText }}</view>
           <text v-else class="slot-text">{{ $t('uploadShoeImage') }}</text>
           <text class="slot-index">1</text>
         </view>
         <view class="slot" @tap="openUploadDrawer('shoeSecondary')">
           <LazyImage v-if="shoeSecondaryPreview" class="slot-preview" :src="shoeSecondaryPreview" mode="aspectFit" />
-          <view v-if="shoeSecondaryPreview && shoeSecondarySizeBytes > 0" class="preview-size-mask">{{ formatPreviewSize(shoeSecondarySizeBytes) }}</view>
+          <view v-if="shoeSecondaryPreview && shoeSecondarySizeText" class="preview-size-mask">{{ shoeSecondarySizeText }}</view>
           <text v-else class="slot-text">{{ $t('uploadShoeImage') }}</text>
           <text class="slot-index">2</text>
         </view>
@@ -106,11 +106,11 @@
             <view class="example-grid two">
               <view
                 v-for="item in personGoodExamples"
-                :key="item.url"
+                :key="item._exampleKey"
                 class="example-card"
                 @tap="applyRemoteExample(item)"
               >
-                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="item._previewUrl" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.label }}</text>
               </view>
             </view>
@@ -124,11 +124,11 @@
             <view class="example-grid two">
               <view
                 v-for="item in personBadExamples"
-                :key="item.url"
+                :key="item._exampleKey"
                 class="example-card"
                 @tap="applyRemoteExample(item)"
               >
-                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="item._previewUrl" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.label }}</text>
               </view>
             </view>
@@ -141,11 +141,11 @@
             <view v-else class="example-grid two">
               <view
                 v-for="item in myModelList"
-                :key="item.id"
+                :key="item._itemKey"
                 class="example-card"
                 @tap="applyMyModel(item)"
               >
-                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="item._previewUrl" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.name || $t('unnamedModel') }}</text>
               </view>
             </view>
@@ -155,11 +155,11 @@
             <view class="example-grid two">
               <view
                 v-for="item in personOfficialExamples"
-                :key="item.url"
+                :key="item._exampleKey"
                 class="example-card"
                 @tap="applyRemoteExample(item)"
               >
-                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="item._previewUrl" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.label }}</text>
               </view>
             </view>
@@ -177,11 +177,11 @@
             <view class="example-grid two">
               <view
                 v-for="item in shoeGoodExamples"
-                :key="item.url"
+                :key="item._exampleKey"
                 class="example-card"
                 @tap="applyRemoteExample(item)"
               >
-                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="item._previewUrl" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.label }}</text>
               </view>
             </view>
@@ -194,11 +194,11 @@
             <view v-else class="example-grid two">
               <view
                 v-for="item in myShoeList"
-                :key="item.id"
+                :key="item._itemKey"
                 class="example-card"
                 @tap="applyMyShoe(item)"
               >
-                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="item._previewUrl" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.name || $t('clothCategoryShoes') }}</text>
               </view>
             </view>
@@ -208,11 +208,11 @@
             <view class="example-grid two">
               <view
                 v-for="item in shoeRecommendedExamples"
-                :key="item.url"
+                :key="item._exampleKey"
                 class="example-card"
                 @tap="applyRemoteExample(item)"
               >
-                <LazyImage class="example-image" :src="getExamplePreview(item.url)" mode="aspectFit" @error="handleExampleImageError(item.url)" />
+                <LazyImage class="example-image" :src="item._previewUrl" mode="aspectFit" @error="handleExampleImageError(item.url)" />
                 <text class="example-label">{{ item.label }}</text>
               </view>
             </view>
@@ -400,6 +400,11 @@ const formatPreviewSize = (bytes) => {
   const value = mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)
   return `${$t.value('uploadImageSizePrefix')}${value}mb`
 }
+
+// 图片大小遮罩只服务预览展示；上传、清空和任务提交仍读取原始 size bytes。
+const personSizeText = computed(() => formatPreviewSize(personSizeBytes.value))
+const shoeSizeText = computed(() => formatPreviewSize(shoeSizeBytes.value))
+const shoeSecondarySizeText = computed(() => formatPreviewSize(shoeSecondarySizeBytes.value))
 
 const waitFrame = (delay = 30) => new Promise((resolve) => setTimeout(resolve, delay))
 
@@ -931,10 +936,16 @@ const EXAMPLE_FALLBACK_DOMAIN = 'https://f005.backblazeb2.com'
 const b2Image = (name) => `${EXAMPLE_PRIMARY_PATH}/${name}`
 
 const buildIndexedExampleItems = (names, prefixKey) => {
-  return names.map((name, index) => ({
-    label: `${$t.value(prefixKey)}${index + 1}`,
-    url: b2Image(name),
-  }))
+  return names.map((name, index) => {
+    const url = b2Image(name)
+    return {
+      label: `${$t.value(prefixKey)}${index + 1}`,
+      url,
+      // 示例卡片仍用原始 url 应用/失败重试；预览地址在 computed 入口缓存，避免模板重复组装候选域名。
+      _exampleKey: `${prefixKey}-${name}-${index}`,
+      _previewUrl: getExamplePreview(url),
+    }
+  })
 }
 
 const normalizeDomain = (rawDomain) => {
@@ -1136,23 +1147,29 @@ const assignImageToTarget = (target, value, isRemote = false, sizeBytes = 0) => 
 
 const normalizeMyModelItem = (item) => {
   const id = item?.ID || item?.id || ''
-  const rawUrl = item?.image || item?.url || ''
+  const url = getUrl(item?.image || item?.url || '')
   return {
     id: String(id),
     name: item?.name || '',
-    url: getUrl(rawUrl),
+    url,
+    // 我的模特选择仍传原条目 url；预览地址提前缓存，避免抽屉渲染时重复组装候选域名。
+    _itemKey: `model-${id || url}`,
+    _previewUrl: getExamplePreview(url),
   }
 }
 
 const normalizeMyShoeItem = (item) => {
   const id = item?.ID || item?.id || ''
-  const rawUrl = item?.image || item?.url || ''
+  const url = getUrl(item?.image || item?.url || '')
   const category = String(item?.category || item?.Category || '').trim().toLowerCase()
   return {
     id: String(id),
     name: item?.name || '',
     category,
-    url: getUrl(rawUrl),
+    url,
+    // 我的鞋靴选择仍传原条目 url；预览地址提前缓存，避免抽屉渲染时重复组装候选域名。
+    _itemKey: `shoe-${id || url}`,
+    _previewUrl: getExamplePreview(url),
   }
 }
 

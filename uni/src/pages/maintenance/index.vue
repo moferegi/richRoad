@@ -20,8 +20,8 @@
 
       <!-- 弹窗信息 -->
       <view v-if="popupEnabled" class="nf-maintenance-popup">
-        <text class="nf-maintenance-popup-title">{{ $lt(popupTitle) }}</text>
-        <text class="nf-maintenance-popup-content">{{ $lt(popupContent) }}</text>
+        <text class="nf-maintenance-popup-title">{{ popupDisplay.title }}</text>
+        <text class="nf-maintenance-popup-content">{{ popupDisplay.content }}</text>
       </view>
 
       <!-- 按钮区域 -->
@@ -58,6 +58,12 @@ const popupTitle = ref('')
 const popupContent = ref('')
 const homeBtnEnabled = ref(false)
 const lastLoadedLocale = ref('')
+
+const popupDisplay = computed(() => ({
+  // 维护页弹窗只读展示缓存配置文案；维护模式判断和按钮跳转仍读取原始开关字段。
+  title: $lt.value(popupTitle.value),
+  content: $lt.value(popupContent.value),
+}))
 
 const resolveImageUrl = (url) => {
   const raw = String(url || '').trim()

@@ -114,10 +114,10 @@
           <view class="popup-title">{{ $t('rechargeTryonCoins') }}</view>
         </view>
         <scroll-view class="popup-list" scroll-y @touchmove.stop>
-          <view class="popup-item" v-for="(item, index) in rechargePlans" :key="item.key || index" @tap="selectRecharge(item)">
+          <view class="popup-item" v-for="item in rechargePlanViews" :key="item._planKey" @tap="selectRecharge(item._raw)">
             <view>
-              <text class="item-title">{{ formatRechargePoints(item) }}{{ formatRechargeCoinLabel(item) }}</text>
-              <text class="item-sub">{{ formatRechargePrice(item) }}</text>
+              <text class="item-title">{{ item._titleText }}</text>
+              <text class="item-sub">{{ item._priceText }}</text>
             </view>
             <uni-icons type="right" size="16" color="rgba(15,23,42,0.35)" />
           </view>
@@ -357,6 +357,15 @@ const formatRechargePrice = (item) => {
   const safeFen = Number.isFinite(Number(localizedFen)) ? Math.max(0, Math.round(Number(localizedFen))) : 0
   return `${cs.value}${(safeFen / 100).toFixed(2)}`
 }
+
+const rechargePlanViews = computed(() => rechargePlans.value.map((item, index) => ({
+  ...item,
+  // 充值套餐弹窗只读展示字段；创建订单和支付方式选择仍使用 _raw 原始套餐对象。
+  _raw: item,
+  _planKey: item.key || `${item.numericPoints || 'points'}-${item.price || 'price'}-${index}`,
+  _titleText: `${formatRechargePoints(item)}${formatRechargeCoinLabel(item)}`,
+  _priceText: formatRechargePrice(item),
+})))
 
 const parseRechargePointsValue = (item) => {
   const text = String(formatRechargePoints(item) || '').trim()

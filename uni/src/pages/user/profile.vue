@@ -63,7 +63,7 @@
         <view class="profile-item no-border">
           <text class="profile-item-label">{{ $t('registerTime') }}</text>
           <view class="profile-item-right">
-            <text class="profile-item-value">{{ formatTime(userInfo.createdAt || userInfo.CreatedAt) }}</text>
+            <text class="profile-item-value">{{ registerTimeText }}</text>
           </view>
         </view>
       </view>
@@ -180,6 +180,11 @@ const formatTime = (dateStr) => {
   const d = new Date(dateStr)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
+
+const registerTimeText = computed(() => {
+  // 资料页仅展示注册日期；原始 createdAt 字段仍保留给后续资料同步或接口扩展使用。
+  return formatTime(userInfo.value.createdAt || userInfo.value.CreatedAt)
+})
 
 const loadUserInfo = async () => {
   try {

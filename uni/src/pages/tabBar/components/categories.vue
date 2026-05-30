@@ -2,14 +2,14 @@
   <scroll-view scroll-x class="nf-cate-bar" :scroll-left="scrollLeft" scroll-with-animation>
     <view class="nf-cate-tabs" id="nf-cate-tabs">
       <view
-        v-for="(item, index) in tabList"
-        :key="index"
+        v-for="item in tabList"
+        :key="item._tabKey"
         class="nf-cate-tab nf-cate-tab-nf"
-        :class="{ 'nf-cate-tab-active': activeIndex === index }"
-        @tap="selectCategory(item, index)"
+        :class="{ 'nf-cate-tab-active': activeIndex === item._rawIndex }"
+        @tap="selectCategory(item, item._rawIndex)"
       >
         <text class="nf-cate-label-nf">{{ item._label || item.title }}</text>
-        <view v-if="activeIndex === index" class="nf-cate-indicator"></view>
+        <view v-if="activeIndex === item._rawIndex" class="nf-cate-indicator"></view>
       </view>
     </view>
   </scroll-view>
@@ -41,8 +41,14 @@ const scrollLeft = ref(0)
 const instance = getCurrentInstance()
 
 const tabList = computed(() => {
-  const allItem = { ID: 0, title: '', icons: '', _label: $t.value('all') }
-  return [allItem, ...props.categoriesData.map(item => ({ ...item, _label: $lt.value(item.title) }))]
+  const allItem = { ID: 0, title: '', icons: '', _rawIndex: 0, _label: $t.value('all'), _tabKey: 'all' }
+  // 分类 tab 只用于展示和选择；稳定 key 避免分类顺序变化时继续用索引复用节点。
+  return [allItem, ...props.categoriesData.map((item, index) => ({
+    ...item,
+    _rawIndex: index + 1,
+    _label: $lt.value(item.title),
+    _tabKey: `${item?.ID || item?.id || item?.title || 'category'}-${index}`
+  }))]
 })
 
 const selectCategory = (item, index) => {

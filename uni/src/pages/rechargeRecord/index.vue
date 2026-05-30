@@ -26,10 +26,10 @@
       </view>
 
       <view class="nf-list" v-else>
-        <view class="nf-card" v-for="item in recordList" :key="item.ID">
+        <view class="nf-card" v-for="item in recordList" :key="item._recordKey">
           <view class="nf-card-head">
-            <text class="nf-card-status" :class="`nf-st-${String(item.status || '')}`">{{ statusLabel(item.status) }}</text>
-            <text class="nf-card-time">{{ formatTime(item.CreatedAt || item.createdAt) }}</text>
+            <text class="nf-card-status" :class="`nf-st-${String(item.status || '')}`">{{ item._statusLabel }}</text>
+            <text class="nf-card-time">{{ item._displayTime }}</text>
           </view>
 
           <view class="nf-row">
@@ -42,11 +42,11 @@
           </view>
           <view class="nf-row">
             <text class="nf-row-label">{{ $t('payAmount') }}</text>
-            <text class="nf-row-value">{{ formatOrderAmount(item) }}</text>
+            <text class="nf-row-value">{{ item._amountText }}</text>
           </view>
           <view class="nf-row">
             <text class="nf-row-label">{{ $t('paymentMethod') }}</text>
-            <text class="nf-row-value">{{ payMethodLabel(item.payMethod || item.PayMethod) }}</text>
+            <text class="nf-row-value">{{ item._payMethodLabel }}</text>
           </view>
 
           <view class="nf-actions">
@@ -215,6 +215,21 @@ const formatTime = (t) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+// 列表展示字段在加载时统一生成；支付、取消、客服跳转仍读取原始订单字段。
+const normalizeRechargeRecord = (item, index) => ({
+  ...item,
+  _recordKey: item?.ID || item?.id || item?.outTradeNo || item?.OutTradeNo || `recharge-${index}`,
+  _statusLabel: statusLabel(item?.status),
+  _displayTime: formatTime(item?.CreatedAt || item?.createdAt),
+  _amountText: formatOrderAmount(item),
+  _payMethodLabel: payMethodLabel(item?.payMethod || item?.PayMethod),
+})
+
+// 首屏和分页追加共用同一入口，避免两条数据路径展示字段不一致。
+const normalizeRechargeRecordList = (list, offset = 0) => {
+  return (Array.isArray(list) ? list : []).map((item, index) => normalizeRechargeRecord(item, offset + index))
+}
+
 const fetchList = async (isLoadMore = false) => {
   if (loading.value) return
   loading.value = true
@@ -222,11 +237,12 @@ const fetchList = async (isLoadMore = false) => {
     const res = await getMyTryonRechargeOrderList({ page: page.value, pageSize })
     if (res.code === 0 && res.data) {
       const list = res.data.list || []
+      const normalizedList = normalizeRechargeRecordList(list, isLoadMore ? recordList.value.length : 0)
       total.value = Number(res.data.total || 0)
       if (isLoadMore) {
-        recordList.value = [...recordList.value, ...list]
+        recordList.value = [...recordList.value, ...normalizedList]
       } else {
-        recordList.value = list
+        recordList.value = normalizedList
       }
       noMore.value = recordList.value.length >= total.value || list.length < pageSize
     }

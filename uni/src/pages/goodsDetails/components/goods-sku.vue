@@ -18,17 +18,17 @@
 
     <!-- 规格选择区 -->
     <scroll-view class="nf-sku-body" scroll-y @touchmove.stop>
-      <view v-for="(group, gIdx) in specGroups" :key="gIdx" class="nf-spec-group">
-        <text class="nf-spec-title">{{ resolveSpecText(group.label, group.rawLabel) }}</text>
+      <view v-for="group in specGroupViews" :key="group._groupKey" class="nf-spec-group">
+        <text class="nf-spec-title">{{ group._labelText }}</text>
         <view class="nf-spec-options">
-          <view v-for="(opt, oIdx) in group.values" :key="oIdx"
+          <view v-for="opt in group._valueViews" :key="opt._optionKey"
             class="nf-spec-tag"
             :class="{
               'nf-spec-active': group.selected === opt.value,
               'nf-spec-disabled': opt.disabled
             }"
-            @tap="selectSpec(gIdx, opt)">
-            <text>{{ resolveSpecText(opt.value, opt.rawValue) }}</text>
+            @tap="selectSpec(group._rawIndex, opt._raw)">
+            <text>{{ opt._valueText }}</text>
           </view>
         </view>
       </view>
@@ -133,6 +133,20 @@ const getSpecVal = (spec) => {
   const localizedValue = normalizeI18nCandidate(spec.valueI18n)
   return localizedValue !== null ? localizedValue : spec.value
 }
+
+const specGroupViews = computed(() => specGroups.value.map((group, groupIndex) => ({
+  ...group,
+  // SKU 弹层只读展示字段；选择、禁用状态和下单仍使用 specGroups 原始对象。
+  _rawIndex: groupIndex,
+  _groupKey: group.labelKey || `${stableStringify(group.label)}-${groupIndex}`,
+  _labelText: resolveSpecText(group.label, group.rawLabel),
+  _valueViews: group.values.map((option, optionIndex) => ({
+    ...option,
+    _raw: option,
+    _optionKey: `${group.labelKey || groupIndex}-${stableStringify(option.value)}-${optionIndex}`,
+    _valueText: resolveSpecText(option.value, option.rawValue),
+  })),
+})))
 
 // 构建规格分组（使用 specs 即规格配置）
 const buildSpecGroups = () => {

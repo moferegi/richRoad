@@ -37,14 +37,14 @@
 
       <!-- 商品列表 -->
       <view class="nf-card nf-goods-card">
-        <view class="nf-goods-item" v-for="(d, i) in goodsList" :key="i">
-          <LazyImage class="nf-goods-img" :src="d.sku?.externalPicturePath ? getExternalUrl(d.sku.externalPicturePath) : getUrl(d.sku?.picture)" mode="aspectFill"></LazyImage>
+        <view class="nf-goods-item" v-for="d in goodsDisplayList" :key="d._goodsKey">
+          <LazyImage class="nf-goods-img" :src="d._imageUrl" mode="aspectFill"></LazyImage>
           <view class="nf-goods-info">
-            <text class="nf-goods-name">{{ resolveDisplayText(d?.sku?.nameI18n || d?.sku?.name, d?.sku?.name) }}</text>
-            <text class="nf-goods-desc">{{ resolveDisplayText(d?.good?.descriptionI18n || d?.good?.description || d?.sku?.descriptionI18n || d?.sku?.description, d?.good?.description || d?.sku?.description) }}</text>
-            <text class="nf-goods-specs">{{ formatSpecs(d?.sku?.specs, d?.sku?.attrs) }}</text>
+            <text class="nf-goods-name">{{ d._nameText }}</text>
+            <text class="nf-goods-desc">{{ d._descText }}</text>
+            <text class="nf-goods-specs">{{ d._specText }}</text>
             <view class="nf-goods-bottom">
-              <text class="nf-goods-price">{{ cs }}{{ formatLinePrice(d) }}</text>
+              <text class="nf-goods-price">{{ cs }}{{ d._priceText }}</text>
               <text class="nf-goods-qty">×{{ d.quantity }}</text>
             </view>
           </view>
@@ -113,20 +113,19 @@
         <view class="nf-coupon-close" @tap="closeCouponPopup">✕</view>
       </view>
       <scroll-view class="nf-coupon-scroll" scroll-y>
-        <view v-if="couponList.length === 0" class="nf-coupon-empty">
+        <view v-if="couponViews.length === 0" class="nf-coupon-empty">
           <text>{{ $t('noCoupons') }}</text>
         </view>
-        <view v-for="(c, idx) in couponList" :key="idx"
+        <view v-for="c in couponViews" :key="c._couponKey"
               class="nf-coupon-item" :class="{ 'nf-coupon-selected': selectedCouponNum === c.couponNum }"
-              @tap="onCouponTap(c)">
+              @tap="onCouponTap(c._raw)">
           <view class="nf-coupon-left">
-            <text class="nf-coupon-amount">{{ cs }}{{ (c.discount || 0) / 100 }}</text>
-            <text class="nf-coupon-cond" v-if="c.minSpend > 0">{{ $t('couponFull').replace('{min}', c.minSpend / 100).replace('{off}', (c.discount || 0) / 100) }}</text>
-            <text class="nf-coupon-cond" v-else>{{ $t('couponNoLimit') }}</text>
+            <text class="nf-coupon-amount">{{ c._amountText }}</text>
+            <text class="nf-coupon-cond">{{ c._conditionText }}</text>
           </view>
           <view class="nf-coupon-right">
-            <text class="nf-coupon-name">{{ $lt(c.name) || c.name }}</text>
-            <text class="nf-coupon-exp">{{ $t('couponExpiry') }} {{ formatCouponDate(c.endTime) }}</text>
+            <text class="nf-coupon-name">{{ c._nameText }}</text>
+            <text class="nf-coupon-exp">{{ c._expiryText }}</text>
             <view v-if="!c.couponNum" class="nf-coupon-claim">
               <text>{{ $t('claimCoupon') }}</text>
             </view>
@@ -187,6 +186,18 @@ const couponShow = ref(false)
 const couponList = ref([])
 const selectedCouponNum = ref('')
 const selectedCouponDiscount = ref(0)
+const couponViews = computed(() => couponList.value.map((coupon, index) => ({
+  ...coupon,
+  // 弹层只读展示字段集中在这里；领取、取消和下单仍使用 _raw 指向的原优惠券对象。
+  _raw: coupon,
+  _couponKey: coupon?.couponNum || coupon?.couponID || coupon?.ID || coupon?.id || `coupon-${index}`,
+  _amountText: `${cs.value}${(coupon?.discount || 0) / 100}`,
+  _conditionText: coupon?.minSpend > 0
+    ? $t.value('couponFull').replace('{min}', coupon.minSpend / 100).replace('{off}', (coupon.discount || 0) / 100)
+    : $t.value('couponNoLimit'),
+  _nameText: $lt.value(coupon?.name) || coupon?.name,
+  _expiryText: `${$t.value('couponExpiry')} ${formatCouponDate(coupon?.endTime)}`,
+})))
 
 // 地址
 const address = ref({})
@@ -362,6 +373,17 @@ const formatLinePrice = (detail) => {
   const priceI18nSnapshot = detail?.priceI18n || detail?.sku?.priceI18n
   return formatLocalizedPrice(basePriceFen, priceI18nSnapshot, locale.value)
 }
+
+// 商品明细原始数据用于下单和价格计算；展示字段用 computed 缓存，切语言时自动重算但不改业务数据。
+const goodsDisplayList = computed(() => goodsList.value.map((detail, index) => ({
+  ...detail,
+  _goodsKey: `${detail?.good?.ID || detail?.good?.id || 'good'}-${detail?.sku?.ID || detail?.sku?.id || 'sku'}-${index}`,
+  _imageUrl: detail?.sku?.externalPicturePath ? getExternalUrl(detail.sku.externalPicturePath) : getUrl(detail?.sku?.picture || ''),
+  _nameText: resolveDisplayText(detail?.sku?.nameI18n || detail?.sku?.name, detail?.sku?.name),
+  _descText: resolveDisplayText(detail?.good?.descriptionI18n || detail?.good?.description || detail?.sku?.descriptionI18n || detail?.sku?.description, detail?.good?.description || detail?.sku?.description),
+  _specText: formatSpecs(detail?.sku?.specs, detail?.sku?.attrs),
+  _priceText: formatLinePrice(detail),
+})))
 
 /* =================== 地址 =================== */
 const loadAddress = async () => {

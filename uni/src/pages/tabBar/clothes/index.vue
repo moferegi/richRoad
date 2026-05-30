@@ -17,13 +17,13 @@
         <view class="category-track">
           <view
             class="category-tab"
-            v-for="item in categoryList"
-            :key="item.ID || item.id"
-            :id="categoryTabDomId(item)"
-            :class="{ active: Number(item.ID || item.id) === Number(activeCategoryID) }"
-            @tap="switchCategory(item)"
+            v-for="item in categoryTabViews"
+            :key="item._categoryKey"
+            :id="item._tabDomId"
+            :class="{ active: item._categoryID === Number(activeCategoryID) }"
+            @tap="switchCategory(item._raw)"
           >
-            {{ categoryName(item) || $t('categoryDetail') }}
+            {{ item._nameText }}
           </view>
         </view>
       </scroll-view>
@@ -32,16 +32,16 @@
     <scroll-view class="list-wrap" scroll-y @scrolltolower="onScrollToLower">
       <view class="mobile-scroller-wrapper">
         <view class="waterfall-column">
-          <view class="card" :class="cardClass(colIndex, 'left')" v-for="(item, colIndex) in leftColumnCards" :key="`${item.ID || item.id || item.name || colIndex}-left`">
-            <view class="card-media" :class="cardMediaClass(colIndex, 'left')" @tap="previewImage(item)">
-              <LazyImage class="card-image" :src="mainImage(item)" mode="scaleToFill" />
+          <view class="card" :class="item._cardClass" v-for="item in leftColumnCards" :key="item._cardKey">
+            <view class="card-media" :class="item._mediaClass" @tap="previewImage(item._raw)">
+              <LazyImage class="card-image" :src="item._imageUrl" mode="scaleToFill" />
               <view class="card-cinema-shadow"></view>
               <view class="card-cinema-glow"></view>
               <view class="card-body">
-                <text class="card-name">{{ goodName(item) || $t('unnamedGoods') }}</text>
+                <text class="card-name">{{ item._nameText }}</text>
                 <view class="btn-row">
-                  <view class="btn tryon" @tap.stop="chooseTryon(item)">{{ $t('tryOnAction') }}</view>
-                  <view class="btn buy" @tap.stop="goDetail(item)">{{ $t('buyAction') }}</view>
+                  <view class="btn tryon" @tap.stop="chooseTryon(item._raw)">{{ $t('tryOnAction') }}</view>
+                  <view class="btn buy" @tap.stop="goDetail(item._raw)">{{ $t('buyAction') }}</view>
                 </view>
               </view>
             </view>
@@ -49,16 +49,16 @@
         </view>
 
         <view class="waterfall-column">
-          <view class="card" :class="cardClass(colIndex, 'right')" v-for="(item, colIndex) in rightColumnCards" :key="`${item.ID || item.id || item.name || colIndex}-right`">
-            <view class="card-media" :class="cardMediaClass(colIndex, 'right')" @tap="previewImage(item)">
-              <LazyImage class="card-image" :src="mainImage(item)" mode="scaleToFill" />
+          <view class="card" :class="item._cardClass" v-for="item in rightColumnCards" :key="item._cardKey">
+            <view class="card-media" :class="item._mediaClass" @tap="previewImage(item._raw)">
+              <LazyImage class="card-image" :src="item._imageUrl" mode="scaleToFill" />
               <view class="card-cinema-shadow"></view>
               <view class="card-cinema-glow"></view>
               <view class="card-body">
-                <text class="card-name">{{ goodName(item) || $t('unnamedGoods') }}</text>
+                <text class="card-name">{{ item._nameText }}</text>
                 <view class="btn-row">
-                  <view class="btn tryon" @tap.stop="chooseTryon(item)">{{ $t('tryOnAction') }}</view>
-                  <view class="btn buy" @tap.stop="goDetail(item)">{{ $t('buyAction') }}</view>
+                  <view class="btn tryon" @tap.stop="chooseTryon(item._raw)">{{ $t('tryOnAction') }}</view>
+                  <view class="btn buy" @tap.stop="goDetail(item._raw)">{{ $t('buyAction') }}</view>
                 </view>
               </view>
             </view>
@@ -193,6 +193,16 @@ const categoryTabDomId = (item) => {
   return `category-tab-${categoryIdentity(item).replace(/[^a-zA-Z0-9_-]/g, '_')}`
 }
 
+const categoryTabViews = computed(() => categoryList.value.map((item, index) => ({
+  ...item,
+  // 分类 tab 只读展示字段；切换分类和滚动居中仍使用 _raw 原始分类对象。
+  _raw: item,
+  _categoryID: Number(item?.ID || item?.id || 0),
+  _categoryKey: `${categoryIdentity(item)}-${index}`,
+  _tabDomId: categoryTabDomId(item),
+  _nameText: categoryName(item) || $t('categoryDetail'),
+})))
+
 const centerCategoryTab = (item) => {
   if (!item) return
 
@@ -241,13 +251,9 @@ const refreshDisplay = () => {
   displayList.value = [...goodsList.value]
 }
 
-const leftColumnCards = computed(() => {
-  return displayList.value.filter((_, index) => index % 2 === 0)
-})
+const leftColumnCards = computed(() => buildColumnCards('left'))
 
-const rightColumnCards = computed(() => {
-  return displayList.value.filter((_, index) => index % 2 === 1)
-})
+const rightColumnCards = computed(() => buildColumnCards('right'))
 
 const cardMediaClass = (columnIndex, side) => {
   if (columnIndex === 0) return side === 'left' ? 'media-tall' : 'media-short'
@@ -267,6 +273,21 @@ const mainImage = (item) => {
   if (item.externalImagePath) return getExternalUrl(item.externalImagePath)
   return getUrl(item.imageUrl || item.picture || item.image || '')
 }
+
+const normalizeColumnCard = (item, columnIndex, side) => ({
+  ...item,
+  // 衣橱商城卡片只读展示字段；试穿、购买和预览仍使用 _raw 原始商品对象。
+  _raw: item,
+  _cardKey: `${item.ID || item.id || item.name || item.imageUrl || columnIndex}-${side}`,
+  _cardClass: cardClass(columnIndex, side),
+  _mediaClass: cardMediaClass(columnIndex, side),
+  _imageUrl: mainImage(item),
+  _nameText: goodName(item) || $t('unnamedGoods'),
+})
+
+const buildColumnCards = (side) => displayList.value
+  .filter((_, index) => side === 'left' ? index % 2 === 0 : index % 2 === 1)
+  .map((item, columnIndex) => normalizeColumnCard(item, columnIndex, side))
 
 const getFileSizeAsync = (filePath) => {
   return new Promise((resolve) => {

@@ -6,11 +6,11 @@
     </view>
 
     <view class="product-list">
-      <view class="product-item" v-for="(item, index) in productData" :key="index" @click="goto(item)">
-          <image class="product-image" :src="getUrl(item.imageUrl)" mode="aspectFill"></image>
+      <view class="product-item" v-for="item in productViews" :key="item._productKey" @click="goto(item)">
+          <image class="product-image" :src="item._imageUrl" mode="aspectFill"></image>
         <view class="desc">
-          <text class="product-title">{{ $lt(item.title) }}</text>
-          <text class="product-price">{{ cs }} {{ formatPrice(item) }}</text>
+          <text class="product-title">{{ item._titleText }}</text>
+          <text class="product-price">{{ cs }} {{ item._priceText }}</text>
         </view>
       </view>
     </view>
@@ -39,6 +39,15 @@ const props = defineProps({
 })
 
 const formatPrice = (item) => formatLocalizedPrice(item?.price, item?.priceI18n, locale.value)
+
+// 热卖横滑列表只读展示字段；提前生成图片、标题、价格和稳定 key，降低横向滚动时的重复计算。
+const productViews = computed(() => (props.productData || []).map((item, index) => ({
+  ...item,
+  _productKey: `${item?.ID || item?.id || item?.imageUrl || 'product'}-${index}`,
+  _imageUrl: getUrl(item?.imageUrl || ''),
+  _titleText: $lt.value(item?.title) || '',
+  _priceText: formatPrice(item),
+})))
 
 const goto = (item) => {
   uni.navigateTo({

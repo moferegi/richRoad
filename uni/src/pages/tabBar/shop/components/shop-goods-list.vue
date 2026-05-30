@@ -22,26 +22,23 @@
 
     <!-- 购物车列表 -->
     <view class="nf-cart-list" v-if="isLoggedIn && cartList.length > 0">
-      <view class="nf-cart-item" v-for="(item, index) in cartList" :key="item.ID">
+      <view class="nf-cart-item" v-for="item in cartList" :key="item._cartKey">
         <!-- 选择 -->
-        <view class="nf-cart-check" @tap="toggleSelect(index)" v-if="!isDeleteAll">
+        <view class="nf-cart-check" @tap="toggleSelect(item)" v-if="!isDeleteAll">
           <view :class="['nf-checkbox', { checked: item._selected }]">
             <text v-if="item._selected" class="nf-check-icon">✓</text>
           </view>
         </view>
         <!-- 商品图片 -->
-        <image class="nf-cart-img" :src="item.sku.externalPicturePath ? getExternalUrl(item.sku.externalPicturePath) : getUrl(item.sku.picture)" mode="aspectFill"></image>
+        <image class="nf-cart-img" :src="item._imageUrl" mode="aspectFill"></image>
         <!-- 商品信息 -->
         <view class="nf-cart-info">
-          <text class="nf-cart-name">{{ resolveDisplayText(item?.sku?.nameI18n || item?.sku?.name, item?.sku?.name) }}</text>
-          <view class="nf-cart-specs" v-if="getItemSpecsText(item)">
-            <text class="nf-cart-spec-tag">{{ getItemSpecsText(item) }}</text>
-          </view>
-          <view class="nf-cart-specs" v-else-if="item?.sku?.description || item?.sku?.descriptionI18n">
-            <text class="nf-cart-spec-tag">{{ resolveDisplayText(item?.sku?.descriptionI18n || item?.sku?.description, item?.sku?.description) }}</text>
+          <text class="nf-cart-name">{{ item._nameText }}</text>
+          <view class="nf-cart-specs" v-if="item._specText">
+            <text class="nf-cart-spec-tag">{{ item._specText }}</text>
           </view>
           <view class="nf-cart-bottom">
-            <text class="nf-cart-price">{{ cs }}{{ formatCartItemPrice(item) }}</text>
+            <text class="nf-cart-price">{{ cs }}{{ item._priceText }}</text>
             <view v-if="!isDeleteAll" class="nf-cart-qty">
               <wu-number-box :asyncChange="true" :min="0" @change="(e)=>onChange(item,e)" integer v-model="item.quantity"></wu-number-box>
             </view>
@@ -125,6 +122,8 @@
       .filter(Boolean)
       .join(' / ')
   }
+
+  const getItemFallbackDescText = (item) => resolveDisplayText(item?.sku?.descriptionI18n || item?.sku?.description, item?.sku?.description)
 	const appConfigStore = useAppConfigStore()
 	const cs = computed(() => appConfigStore.currencySymbol)
 	const cartList = ref([])
@@ -137,13 +136,13 @@
 		if (token) {
 			const res = await getSelfCart()
 			if (res.code === 0) {
-				cartList.value = (res.data || []).map(item => ({ ...item, _selected: true }))
+        cartList.value = (res.data || []).map(normalizeCartItem)
 			}
 		}
 	}
 	onShow(() => { initPage() })
 
-	const toggleSelect = (index) => { cartList.value[index]._selected = !cartList.value[index]._selected }
+  const toggleSelect = (item) => { item._selected = !item._selected }
 	const isAllSelected = computed(() => cartList.value.length > 0 && cartList.value.every(item => item._selected))
 	const toggleSelectAll = () => { const v = !isAllSelected.value; cartList.value.forEach(item => { item._selected = v }) }
 	const selectedItems = computed(() => cartList.value.filter(item => item._selected))
@@ -154,6 +153,20 @@
   }, 0))
   const selectedTotal = computed(() => (selectedTotalFen.value / 100).toFixed(2))
   const formatCartItemPrice = (item) => formatLocalizedPrice(item?.sku?.price, item?.sku?.priceI18n, locale.value)
+  const normalizeCartItem = (item) => {
+    const specText = getItemSpecsText(item) || getItemFallbackDescText(item)
+    const imageUrl = item?.sku?.externalPicturePath ? getExternalUrl(item.sku.externalPicturePath) : getUrl(item?.sku?.picture || '')
+    return {
+      ...item,
+      _selected: true,
+      // 购物车数量和结算仍读原字段；这些派生字段只服务当前列表渲染。
+      _cartKey: `${item?.ID || item?.id || item?.goodID || 'cart'}-${item?.skuID || item?.sku?.ID || 'sku'}`,
+      _imageUrl: imageUrl,
+      _nameText: resolveDisplayText(item?.sku?.nameI18n || item?.sku?.name, item?.sku?.name),
+      _specText: specText,
+      _priceText: formatCartItemPrice(item),
+    }
+  }
   const isBarStacked = computed(() => {
     const digits = String(selectedTotal.value || '').replace(/[^0-9]/g, '').length
     return digits >= 6

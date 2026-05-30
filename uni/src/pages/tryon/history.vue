@@ -19,7 +19,7 @@
     <scroll-view class="list-wrap" scroll-y @scrolltolower="onReachBottom">
       <view class="card" v-for="item in filteredList" :key="item._key" @tap="handleCardTap(item)">
         <view class="thumb-wrap">
-          <LazyImage class="thumb" :src="thumbnailImage(item)" mode="aspectFit" />
+          <LazyImage class="thumb" :src="item._thumbnailImage" mode="aspectFit" />
         </view>
         <view class="card-main">
           <view class="line">
@@ -27,7 +27,7 @@
             <text class="status" :class="statusClass(item.status)">{{ statusLabel(item.status) }}</text>
           </view>
           <text class="no">{{ $t('tryonTaskNo') }}：{{ item.taskNo || '-' }}</text>
-          <text class="time">{{ formatTime(item.CreatedAt || item.savedAt) }}</text>
+          <text class="time">{{ item._displayTime }}</text>
           <text class="error" v-if="item.status === 'failed' && item.errorMessage">{{ item.errorMessage }}</text>
           <view class="card-actions">
             <view class="mini-btn danger" @tap.stop="removeHistory(item)">{{ $t('delete') }}</view>
@@ -76,9 +76,9 @@
 
         <view class="preview-body" v-if="currentPreviewImages.length">
           <swiper class="preview-swiper" :current="previewCurrentIndex" @change="onPreviewSwiperChange">
-            <swiper-item v-for="(img, idx) in currentPreviewImages" :key="`${img}_${idx}`">
-              <view class="preview-image-wrap" @tap="previewCurrentImageByIndex(idx)">
-                <LazyImage class="preview-image" :src="getUrl(img)" mode="aspectFit" />
+            <swiper-item v-for="img in currentPreviewImageViews" :key="img._imageKey">
+              <view class="preview-image-wrap" @tap="previewCurrentImageByIndex(img._rawIndex)">
+                <LazyImage class="preview-image" :src="img._imageUrl" mode="aspectFit" />
               </view>
             </swiper-item>
           </swiper>
@@ -101,7 +101,7 @@
 
     <view class="h5-image-preview-mask" v-if="h5ImagePreviewVisible" @tap="closeH5ImagePreview">
       <view class="h5-image-preview-head" @tap.stop>
-        <text class="h5-image-preview-index">{{ h5ImagePreviewCurrent + 1 }}/{{ h5ImagePreviewList.length }}</text>
+        <text class="h5-image-preview-index">{{ h5ImagePreviewIndexText }}</text>
         <view class="h5-image-preview-actions">
           <view class="h5-image-preview-save" @tap="downloadH5PreviewCurrentImage">{{ $t('downloadAction') }}</view>
           <view class="h5-image-preview-close" @tap="closeH5ImagePreview">
@@ -110,9 +110,9 @@
         </view>
       </view>
       <swiper class="h5-image-preview-swiper" :current="h5ImagePreviewCurrent" @change="onH5ImagePreviewChange">
-        <swiper-item v-for="(img, idx) in h5ImagePreviewList" :key="`h5_preview_${idx}`">
-          <view class="h5-image-preview-wrap" @tap.stop @longpress.stop.prevent="downloadH5PreviewImage(img)">
-            <LazyImage class="h5-image-preview-img" :src="img" mode="aspectFit" />
+        <swiper-item v-for="img in h5ImagePreviewViews" :key="img._imageKey">
+          <view class="h5-image-preview-wrap" @tap.stop @longpress.stop.prevent="downloadH5PreviewImage(img._rawUrl)">
+            <LazyImage class="h5-image-preview-img" :src="img._imageUrl" mode="aspectFit" />
           </view>
         </swiper-item>
       </swiper>
@@ -134,11 +134,11 @@
           @touchend.stop="onCompareStageTouchEnd"
           @touchcancel.stop="onCompareStageTouchEnd"
         >
-          <LazyImage class="compare-image" :src="getUrl(compareOriginPreview)" mode="aspectFit" :style="compareImageStyle" />
-          <view class="compare-result-layer" :style="{ width: `${comparePercent}%` }">
-            <LazyImage class="compare-image compare-result-image" :src="getUrl(compareResultPreview)" mode="aspectFit" :style="compareResultInnerStyle" />
+          <LazyImage class="compare-image" :src="comparePreviewDisplay.originUrl" mode="aspectFit" :style="compareImageStyle" />
+          <view class="compare-result-layer" :style="compareResultLayerStyle">
+            <LazyImage class="compare-image compare-result-image" :src="comparePreviewDisplay.resultUrl" mode="aspectFit" :style="compareResultInnerStyle" />
           </view>
-          <view class="compare-divider" :style="{ left: `${comparePercent}%` }"></view>
+          <view class="compare-divider" :style="compareDividerStyle"></view>
 
           <view v-if="compareGuideVisible" class="compare-guide-stage-overlay">
             <view class="compare-guide-bubble compare-guide-bubble--stage">
@@ -146,7 +146,7 @@
               <text>{{ $t('compareGuideStageTip') }}</text>
             </view>
             <view class="compare-guide-pointer compare-guide-pointer--stage"></view>
-            <view class="compare-guide-divider-hint" :style="{ left: `${comparePercent}%` }">
+            <view class="compare-guide-divider-hint" :style="compareDividerStyle">
               <view class="compare-guide-hand">
                 <view class="compare-guide-hand-dot"></view>
               </view>
@@ -276,6 +276,7 @@ const normalizeServerType = (item) => {
 }
 
 const recordType = (item) => {
+  if (item?._recordType) return item._recordType
   if (item.roomType === 'shoe' || item.sceneType === 'shoes') return 'shoe'
   return normalizeServerType(item)
 }
@@ -292,12 +293,34 @@ const currentPreviewImages = computed(() => {
   return previewResultImages.value
 })
 
+const currentPreviewImageViews = computed(() => currentPreviewImages.value.map((img, index) => ({
+  // 预览弹窗只读展示 URL；下载、索引切换和 H5 预览仍读取 currentPreviewImages 原始数组。
+  _rawIndex: index,
+  _rawUrl: img,
+  _imageKey: `${img || 'preview'}-${index}`,
+  _imageUrl: getUrl(img),
+})))
+
+const h5ImagePreviewViews = computed(() => h5ImagePreviewList.value.map((img, index) => ({
+  // H5 自定义预览只读展示字段；当前索引和下载仍使用 h5ImagePreviewList 原始数组。
+  _rawIndex: index,
+  _rawUrl: img,
+  _imageKey: `${img || 'h5-preview'}-${index}`,
+  _imageUrl: img,
+})))
+const h5ImagePreviewIndexText = computed(() => `${h5ImagePreviewCurrent.value + 1}/${h5ImagePreviewList.value.length}`)
+
 const canCompareTryonPreview = computed(() => previewOriginImages.value.length > 0 && previewResultImages.value.length > 0)
 const canComparePreview = computed(() => canCompareTryonPreview.value)
 const canDownloadPreview = computed(() => currentPreviewImages.value.length > 0)
 const compareButtonText = computed(() => $t.value('compareImageButton'))
 const compareOriginPreview = computed(() => previewOriginImages.value[0] || '')
 const compareResultPreview = computed(() => previewResultImages.value[0] || '')
+const comparePreviewDisplay = computed(() => ({
+  // 对比层只缓存展示 URL；拖拽缩放、关闭和下载仍使用原 compare*Preview 字段。
+  originUrl: getUrl(compareOriginPreview.value),
+  resultUrl: getUrl(compareResultPreview.value),
+}))
 const compareLeftLabel = computed(() => $t.value('previewOriginTab'))
 const compareRightLabel = computed(() => $t.value('previewResultTab'))
 const compareZoomScale = computed(() => Math.max(1, Number(compareZoomPercent.value || 100) / 100))
@@ -314,6 +337,14 @@ const comparePanRangeY = computed(() => {
 const compareImageStyle = computed(() => ({
   transform: `translate3d(${compareOffsetX.value}px, ${compareOffsetY.value}px, 0) scale(${compareZoomScale.value})`,
   transformOrigin: 'center center',
+}))
+const comparePercentText = computed(() => `${comparePercent.value}%`)
+const compareResultLayerStyle = computed(() => ({
+  // 对比遮罩宽度只跟滑块百分比联动；下载、拖拽、缩放和预览图仍使用原始状态。
+  width: comparePercentText.value,
+}))
+const compareDividerStyle = computed(() => ({
+  left: comparePercentText.value,
 }))
 const compareResultInnerStyle = computed(() => {
   const width = compareStageWidthPx.value > 0 ? `${compareStageWidthPx.value}px` : '100%'
@@ -345,6 +376,16 @@ const statusClass = (status) => {
   return 'processing'
 }
 
+// 统一取列表排序和展示时间；新增后端/本地时间字段时只改这里。
+const getHistoryTimeRaw = (item) => item?.CreatedAt || item?.savedAt || 0
+
+// 非法时间按 0 处理，维持“没有有效时间的记录排在最后”的列表语义。
+const toHistoryTimestamp = (time) => {
+  const date = new Date(time)
+  const timestamp = date.getTime()
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
 const formatTime = (time) => {
   if (!time) return '-'
   const date = new Date(time)
@@ -355,6 +396,18 @@ const formatTime = (time) => {
   const h = String(date.getHours()).padStart(2, '0')
   const m = String(date.getMinutes()).padStart(2, '0')
   return `${Y}-${M}-${D} ${h}:${m}`
+}
+
+// 仅生成列表渲染用的派生字段；预览和删除仍读取原字段，避免改变业务链路。
+const normalizeHistoryItem = (item) => {
+  const rawTime = getHistoryTimeRaw(item)
+  return {
+    ...item,
+    _recordType: recordType(item),
+    _displayTime: formatTime(rawTime),
+    _thumbnailImage: thumbnailImage(item),
+    _sortTs: toHistoryTimestamp(rawTime),
+  }
 }
 
 const mergeHistory = (serverList, localList) => {
@@ -378,11 +431,9 @@ const mergeHistory = (serverList, localList) => {
     })
   })
 
-  return Array.from(map.values()).sort((a, b) => {
-    const ta = new Date(a.CreatedAt || a.savedAt || 0).getTime()
-    const tb = new Date(b.CreatedAt || b.savedAt || 0).getTime()
-    return tb - ta
-  })
+  return Array.from(map.values())
+    .map(normalizeHistoryItem)
+    .sort((a, b) => b._sortTs - a._sortTs)
 }
 
 const extractImageValues = (value) => {

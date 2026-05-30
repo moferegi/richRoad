@@ -103,10 +103,10 @@
           @touchcancel.stop="onCompareStageTouchEnd"
         >
           <LazyImage class="compare-image" :src="compareOriginPreview" mode="aspectFit" :style="compareImageStyle" />
-          <view class="compare-result-layer" :style="{ width: `${comparePercent}%` }">
+          <view class="compare-result-layer" :style="compareResultLayerStyle">
             <LazyImage class="compare-image compare-result-image" :src="compareResultPreview" mode="aspectFit" :style="compareResultInnerStyle" />
           </view>
-          <view class="compare-divider" :style="{ left: `${comparePercent}%` }"></view>
+          <view class="compare-divider" :style="compareDividerStyle"></view>
 
           <view v-if="compareGuideVisible" class="compare-guide-stage-overlay">
             <view class="compare-guide-bubble compare-guide-bubble--stage">
@@ -114,7 +114,7 @@
               <text>{{ $t('compareGuideStageTip') }}</text>
             </view>
             <view class="compare-guide-pointer compare-guide-pointer--stage"></view>
-            <view class="compare-guide-divider-hint" :style="{ left: `${comparePercent}%` }">
+            <view class="compare-guide-divider-hint" :style="compareDividerStyle">
               <view class="compare-guide-hand">
                 <view class="compare-guide-hand-dot"></view>
               </view>
@@ -322,6 +322,14 @@ const comparePanRangeY = computed(() => {
 const compareImageStyle = computed(() => ({
   transform: `translate3d(${compareOffsetX.value}px, ${compareOffsetY.value}px, 0) scale(${compareZoomScale.value})`,
   transformOrigin: 'center center',
+}))
+const comparePercentText = computed(() => `${comparePercent.value}%`)
+const compareResultLayerStyle = computed(() => ({
+  // 对比遮罩宽度只跟滑块百分比联动；拖拽、缩放和预览图仍由原状态控制。
+  width: comparePercentText.value,
+}))
+const compareDividerStyle = computed(() => ({
+  left: comparePercentText.value,
 }))
 const compareResultInnerStyle = computed(() => {
   const width = compareStageWidthPx.value > 0 ? `${compareStageWidthPx.value}px` : '100%'

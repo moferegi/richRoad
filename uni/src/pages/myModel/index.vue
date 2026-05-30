@@ -14,13 +14,13 @@
 
     <scroll-view class="list-wrap" scroll-y>
       <view class="grid">
-        <view class="card" v-for="item in modelList" :key="item.id">
+        <view class="card" v-for="item in modelList" :key="item._modelKey">
           <view class="card-image-wrap">
-            <image class="card-image" :src="getUrl(item.url)" mode="aspectFit" @tap="preview(item)" />
+            <image class="card-image" :src="item._imageUrl" mode="aspectFit" @tap="preview(item)" />
             <view v-if="item.sizeText" class="card-size-badge">{{ item.sizeText }}</view>
           </view>
           <view class="card-foot">
-            <text class="card-name">{{ item.name || $t('unnamedModel') }}</text>
+            <text class="card-name">{{ item._displayName }}</text>
             <view class="card-actions">
               <view class="mini-btn use" @tap.stop="useForRoom(item, 'tryon')">{{ $t('tryonRoom') }}</view>
             </view>
@@ -56,15 +56,15 @@
           </view>
         </view>
         <view class="crop-editor-stage-wrap">
-          <view class="crop-editor-stage" :style="{ width: `${cropStageSize.width}px`, height: `${cropStageSize.height}px` }">
+          <view class="crop-editor-stage" :style="cropStageStyle">
             <image class="crop-editor-image" :src="cropSourcePath" mode="scaleToFill" />
-            <movable-area class="crop-editor-area" :style="{ width: `${cropStageSize.width}px`, height: `${cropStageSize.height}px` }">
+            <movable-area class="crop-editor-area" :style="cropStageStyle">
               <movable-view
                 class="crop-editor-box"
                 direction="all"
                 :x="cropBoxPosition.x"
                 :y="cropBoxPosition.y"
-                :style="{ width: `${cropBoxSize.width}px`, height: `${cropBoxSize.height}px` }"
+                :style="cropBoxStyle"
                 @change="onCropBoxChange"
               >
                 <view class="crop-editor-box-inner"></view>
@@ -112,7 +112,7 @@
       canvas-id="myModelCropCanvas"
       id="myModelCropCanvas"
       class="crop-canvas-hidden"
-      :style="{ width: `${cropCanvasSize.width}px`, height: `${cropCanvasSize.height}px` }"
+      :style="cropCanvasStyle"
     ></canvas>
   </view>
 </template>
@@ -153,6 +153,19 @@ let cropResolve = null
 const CROP_CANVAS_ID = 'myModelCropCanvas'
 const CROP_MIN_EDGE_SIZE = 48
 const cropRatioLabel = computed(() => `${cropRatio.value.width}:${cropRatio.value.height}`)
+const cropStageStyle = computed(() => ({
+  // 裁剪舞台样式只读缓存；裁剪坐标和导出尺寸仍直接读取 cropStageSize。
+  width: `${cropStageSize.value.width}px`,
+  height: `${cropStageSize.value.height}px`,
+}))
+const cropBoxStyle = computed(() => ({
+  width: `${cropBoxSize.value.width}px`,
+  height: `${cropBoxSize.value.height}px`,
+}))
+const cropCanvasStyle = computed(() => ({
+  width: `${cropCanvasSize.value.width}px`,
+  height: `${cropCanvasSize.value.height}px`,
+}))
 const cropRatioOptions = [
   { key: '1:1', label: '1:1', width: 1, height: 1 },
   { key: '3:4', label: '3:4', width: 3, height: 4 },
@@ -678,12 +691,17 @@ const chooseUploadMode = () => {
 
 const normalizeModelItem = (item) => {
   const id = item?.ID || item?.id || ''
+  const url = item?.image || item?.url || ''
   return {
     id: String(id),
     name: item?.name || '',
-    url: item?.image || item?.url || '',
+    url,
     createdAt: item?.CreatedAt || item?.createdAt || '',
     sizeText: '',
+    // 列表展示字段在加载入口生成，上传/裁剪/选择房间仍使用原始 url 和 id。
+    _modelKey: `${id || url || 'model'}`,
+    _imageUrl: getUrl(url),
+    _displayName: item?.name || $t.value('unnamedModel'),
   }
 }
 
@@ -756,6 +774,7 @@ const renameModel = (item) => {
       }
 
       item.name = value
+      item._displayName = value || $t.value('unnamedModel')
       uni.showToast({ title: $t.value('updateSuccess'), icon: 'none' })
     },
   })
@@ -783,7 +802,7 @@ const removeModel = (item) => {
 
 const preview = (item) => {
   if (!item?.url) return
-  uni.previewImage({ urls: [getUrl(item.url)] })
+  uni.previewImage({ urls: [item._imageUrl || getUrl(item.url)] })
 }
 
 const useForRoom = (item, roomType) => {

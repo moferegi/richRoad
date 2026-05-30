@@ -17,7 +17,7 @@
     <view class="nf-body" v-if="data.ID">
       <!-- 订单状态 -->
       <view class="nf-card nf-status-card">
-        <text class="nf-status-text" :class="'nf-st-' + data.status">{{ getStatusLabel(data.status) }}</text>
+        <text class="nf-status-text" :class="orderStatusDisplay.className">{{ orderStatusDisplay.label }}</text>
         <text class="nf-status-countdown" v-if="data.status === '0' && payCountdown">{{ $t('remainPayTime') }}: {{ payCountdown }}</text>
       </view>
 
@@ -37,14 +37,14 @@
 
       <!-- 商品列表 -->
       <view class="nf-card nf-goods-card">
-        <view class="nf-goods-item" v-for="(d, i) in data.detail" :key="i" @tap="goGoodsDetail(d)">
-          <LazyImage class="nf-goods-img" :src="d.sku?.externalPicturePath ? getExternalUrl(d.sku.externalPicturePath) : getUrl(d.sku?.picture)" mode="aspectFill"></LazyImage>
+        <view class="nf-goods-item" v-for="d in data._detailViews" :key="d._detailKey" @tap="goGoodsDetail(d)">
+          <LazyImage class="nf-goods-img" :src="d._thumbUrl" mode="aspectFill"></LazyImage>
           <view class="nf-goods-info">
-            <text class="nf-goods-name">{{ resolveDisplayText(d?.sku?.nameI18n || d?.sku?.name, d?.sku?.name) }}</text>
-            <text class="nf-goods-desc">{{ resolveDisplayText(d?.good?.descriptionI18n || d?.good?.description || d?.sku?.descriptionI18n || d?.sku?.description, d?.good?.description || d?.sku?.description) }}</text>
-            <text class="nf-goods-specs">{{ formatSpecs(d?.sku?.specs, d?.sku?.attrs) }}</text>
+            <text class="nf-goods-name">{{ d._nameText }}</text>
+            <text class="nf-goods-desc">{{ d._descText }}</text>
+            <text class="nf-goods-specs">{{ d._specText }}</text>
             <view class="nf-goods-bottom">
-              <text class="nf-goods-price">{{ orderCs }}{{ getLocalizedLinePrice(d) }}</text>
+              <text class="nf-goods-price">{{ orderCs }}{{ d._linePriceText }}</text>
               <text class="nf-goods-qty">×{{ d.quantity }}</text>
             </view>
           </view>
@@ -82,15 +82,15 @@
         </view>
         <view class="nf-info-row">
           <text class="nf-info-label">{{ $t('orderTime') }}</text>
-          <text class="nf-info-value">{{ formatTime(data.CreatedAt) }}</text>
+          <text class="nf-info-value">{{ orderTimeDisplay.createdAtText }}</text>
         </view>
         <view class="nf-info-row" v-if="data.payMethod">
           <text class="nf-info-label">{{ $t('paymentMethod') }}</text>
-          <text class="nf-info-value">{{ getPayMethodLabel(data.payMethod) }}</text>
+          <text class="nf-info-value">{{ orderPayMethodDisplay.label }}</text>
         </view>
         <view class="nf-info-row" v-if="data.paidAt">
           <text class="nf-info-label">{{ $t('paymentTime') }}</text>
-          <text class="nf-info-value">{{ formatTime(data.paidAt) }}</text>
+          <text class="nf-info-value">{{ orderTimeDisplay.paidAtText }}</text>
         </view>
         <view class="nf-info-row" v-if="data.express">
           <text class="nf-info-label">{{ $t('trackingNo') }}</text>
@@ -98,7 +98,7 @@
         </view>
         <view class="nf-info-row" v-if="data.receivedAt">
           <text class="nf-info-label">{{ $t('deliveryTime') }}</text>
-          <text class="nf-info-value">{{ formatTime(data.receivedAt) }}</text>
+          <text class="nf-info-value">{{ orderTimeDisplay.receivedAtText }}</text>
         </view>
       </view>
 
@@ -239,8 +239,8 @@ const getOrderPriceLocale = () => {
   return snapshot.replace(/_/g, '-')
 }
 
-const getLocalizedLinePrice = (detail) => {
-  const priceFen = resolveLocalizedPriceFen(getDetailBasePriceFen(detail), getDetailPriceI18nSnapshot(detail), getOrderPriceLocale())
+const formatLocalizedLinePrice = (detail, priceLocale) => {
+  const priceFen = resolveLocalizedPriceFen(getDetailBasePriceFen(detail), getDetailPriceI18nSnapshot(detail), priceLocale)
   return (Math.max(0, priceFen) / 100).toFixed(2)
 }
 
@@ -304,6 +304,20 @@ const getPayMethodLabel = (method, label, name) => {
   }
   return localizedName || map[method] || localizedLabel || method || '-'
 }
+
+const orderStatusDisplay = computed(() => {
+  const status = String(data.value?.status || '')
+  return {
+    // 订单状态展示独立缓存；支付、退款和倒计时判断仍直接读取原始 status。
+    className: `nf-st-${status}`,
+    label: getStatusLabel(status),
+  }
+})
+
+const orderPayMethodDisplay = computed(() => ({
+  // 信息卡支付方式只读展示；支付跳转和客服跳转仍按原 payMethod 生成参数。
+  label: getPayMethodLabel(data.value?.payMethod),
+}))
 
 const buildDefaultPaymentMethods = () => ([
   { key: 'qrcode', label: $t.value('payByQrcode') },
@@ -389,12 +403,36 @@ const formatSpecs = (specs, attrs) => {
   }).join('  ')
 }
 
+// 订单详情商品行保留原 detail 字段，只追加展示字段，避免影响再次购买、评价和跳转逻辑。
+const normalizeOrderDetailItem = (detail, index, priceLocale) => ({
+  ...detail,
+  _detailKey: detail?.ID || detail?.id || detail?.skuID || detail?.goodID || `detail-${index}`,
+  _thumbUrl: detail?.sku?.externalPicturePath ? getExternalUrl(detail.sku.externalPicturePath) : getUrl(detail?.sku?.picture || ''),
+  _nameText: resolveDisplayText(detail?.sku?.nameI18n || detail?.sku?.name, detail?.sku?.name),
+  _descText: resolveDisplayText(detail?.good?.descriptionI18n || detail?.good?.description || detail?.sku?.descriptionI18n || detail?.sku?.description, detail?.good?.description || detail?.sku?.description),
+  _specText: formatSpecs(detail?.sku?.specs, detail?.sku?.attrs),
+  _linePriceText: formatLocalizedLinePrice(detail, priceLocale),
+})
+
+const normalizeOrderDetails = (details, order = data.value) => {
+  const snapshot = String(order?.settlementCurrency || '').trim()
+  const priceLocale = snapshot ? snapshot.replace(/_/g, '-') : locale.value
+  return (Array.isArray(details) ? details : []).map((detail, index) => normalizeOrderDetailItem(detail, index, priceLocale))
+}
+
 const formatTime = (t) => {
   if (!t) return ''
   const d = new Date(t)
   const pad = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
+
+const orderTimeDisplay = computed(() => ({
+  // 订单信息卡只读取展示文本；原始时间仍留在 data 内供支付、退款和状态判断使用。
+  createdAtText: formatTime(data.value?.CreatedAt),
+  paidAtText: formatTime(data.value?.paidAt),
+  receivedAtText: formatTime(data.value?.receivedAt),
+}))
 
 const copyOrderNo = () => {
   const orderNo = String(data.value.outTradeNo || data.value.OutTradeNo || data.value.ID)
@@ -467,7 +505,10 @@ const loadConfig = async () => {
 const loadOrder = async () => {
   const res = await selfOrder(orderID.value)
   if (res.code === 0) {
-    data.value = res.data
+    data.value = {
+      ...res.data,
+      _detailViews: normalizeOrderDetails(res.data?.detail, res.data),
+    }
     hasAddress.value = !!(res.data.city || res.data.name)
     startPayCountdown()
   }

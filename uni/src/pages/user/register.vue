@@ -105,8 +105,8 @@
       <view class="nf-popup-content" @tap.stop>
         <view class="nf-popup-title">{{ $t('selectAreaCode') }}</view>
         <scroll-view scroll-y class="nf-popup-scroll">
-          <view class="nf-area-item" v-for="item in areaCodes" :key="item.ID" @tap="selectArea(item)">
-            <text class="nf-area-name">{{ $lt(item.countryName) }}</text>
+          <view class="nf-area-item" v-for="item in areaCodeViews" :key="item._areaKey" @tap="selectArea(item._raw)">
+            <text class="nf-area-name">{{ item._countryNameText }}</text>
             <text class="nf-area-code-val">{{ item.areaCode }}</text>
           </view>
         </scroll-view>
@@ -172,6 +172,13 @@
 	const showAreaCodePicker = ref(false)
 	const areaCodes = ref([])
 	const selectedAreaCode = ref('+86')
+	const areaCodeViews = computed(() => areaCodes.value.map((item, index) => ({
+    ...item,
+    // 注册区号弹窗只读展示字段；注册提交仍使用 form.areaCode 和 selectArea 原对象。
+    _raw: item,
+    _areaKey: item.ID || item.id || `${item.areaCode || 'area'}-${index}`,
+    _countryNameText: $lt.value(item.countryName) || item.countryName,
+  })))
 
 	// 正则和提示配置
 	const usernameRegex = ref('')

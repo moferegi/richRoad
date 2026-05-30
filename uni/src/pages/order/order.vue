@@ -19,8 +19,8 @@
       <scroll-view scroll-x class="nf-tabs-scroll" :show-scrollbar="false">
         <view class="nf-tabs-inner">
           <view
-            v-for="(item, index) in tabColumns"
-            :key="index"
+            v-for="item in tabColumns"
+            :key="item._tabKey"
             class="nf-tab"
             :class="{ active: item.id === activeSataus }"
             @tap="tapBtn(item)"
@@ -39,26 +39,26 @@
 
     <!-- 订单列表 -->
     <view class="nf-order-list" v-else>
-      <view class="nf-order-card" v-for="(item, index) in orderList" :key="index" @tap="goOrderDetail(item)">
+      <view class="nf-order-card" v-for="item in orderList" :key="item._orderKey" @tap="goOrderDetail(item)">
         <!-- 订单头部 -->
         <view class="nf-order-header">
           <view class="nf-order-date">
-            {{ formatOrderDate(item.CreatedAt) }}
+            {{ item._createdAtText }}
             <text v-if="item.isPresale" class="nf-presale-tag">{{ $t('presale') }}</text>
           </view>
           <view class="nf-order-status" :class="'nf-st-' + item.status">
-            {{ getStatusLabel(item.status) }}
+            {{ item._statusLabel }}
             <text v-if="item.status === '0' && countdownMap[item.ID]" class="nf-countdown"> {{ countdownMap[item.ID] }}</text>
           </view>
         </view>
 
         <!-- 商品列表（多件横滑） -->
         <scroll-view scroll-x class="nf-goods-scroll" :show-scrollbar="false"
-          v-if="item.detail && item.detail.length > 1">
+          v-if="item._detailViews.length > 1">
           <view class="nf-goods-row">
             <LazyImage
-              v-for="(d, di) in item.detail" :key="di"
-              :src="d.sku.externalPicturePath ? getExternalUrl(d.sku.externalPicturePath) : getUrl(d.sku.picture)"
+              v-for="d in item._detailViews" :key="d._detailKey"
+              :src="d._thumbUrl"
               class="nf-goods-thumb"
               mode="aspectFill"
             />
@@ -66,18 +66,18 @@
         </scroll-view>
 
         <!-- 单件商品 -->
-        <view class="nf-goods-single" v-if="item.detail && item.detail.length === 1">
-          <LazyImage :src="item.detail[0].sku.externalPicturePath ? getExternalUrl(item.detail[0].sku.externalPicturePath) : getUrl(item.detail[0].sku.picture)" class="nf-goods-thumb-lg" mode="aspectFill" />
+        <view class="nf-goods-single" v-if="item._detailViews.length === 1">
+          <LazyImage :src="item._detailViews[0]._thumbUrl" class="nf-goods-thumb-lg" mode="aspectFill" />
           <view class="nf-goods-single-info">
-            <text class="nf-goods-single-name">{{ $lt(item.detail[0].sku.name) || item.detail[0].sku.name }}</text>
-            <text class="nf-goods-single-desc">{{ $lt(item.detail[0].good?.description) || $lt(item.detail[0].sku?.description) || item.detail[0].good?.description || item.detail[0].sku?.description }}</text>
+            <text class="nf-goods-single-name">{{ item._detailViews[0]._nameText }}</text>
+            <text class="nf-goods-single-desc">{{ item._detailViews[0]._descText }}</text>
           </view>
         </view>
 
         <!-- 金额统计 -->
         <view class="nf-order-summary">
-          <text class="nf-order-count">{{ $t('totalItems').replace('{n}', item.detail ? item.detail.length : 0) }} · {{ $t('paidAmount') }}</text>
-          <text class="nf-order-price">{{ getOrderCurrencySymbol(item) }}{{ getLocalizedPaidAmount(item) }}</text>
+          <text class="nf-order-count">{{ item._summaryText }}</text>
+          <text class="nf-order-price">{{ item._currencySymbol }}{{ item._paidAmountText }}</text>
         </view>
 
         <!-- 操作按钮 -->
@@ -212,16 +212,17 @@ const showLogisticsBtn = ref(true)
 
 // Tab定义，使用i18n
 const tabColumns = computed(() => [
-  { title: $t.value('viewAll'), id: '' },
-  { title: $t.value('ordersPending'), id: '0' },
-  { title: $t.value('ordersPendingConfirm'), id: '8' },
-  { title: $t.value('ordersShipping'), id: '1' },
-  { title: $t.value('ordersReceiving'), id: '2' },
-  { title: $t.value('ordersToReview'), id: '3' },
-  { title: $t.value('ordersRefunding'), id: '6' },
-  { title: $t.value('ordersRefunded'), id: '5' },
-  { title: $t.value('ordersCancelled'), id: '4' },
-  { title: $t.value('ordersReviewed'), id: '7' },
+  // _tabKey 仅用于渲染复用；id 仍是订单状态筛选和接口查询的唯一业务字段。
+  { title: $t.value('viewAll'), id: '', _tabKey: 'all' },
+  { title: $t.value('ordersPending'), id: '0', _tabKey: 'status-0' },
+  { title: $t.value('ordersPendingConfirm'), id: '8', _tabKey: 'status-8' },
+  { title: $t.value('ordersShipping'), id: '1', _tabKey: 'status-1' },
+  { title: $t.value('ordersReceiving'), id: '2', _tabKey: 'status-2' },
+  { title: $t.value('ordersToReview'), id: '3', _tabKey: 'status-3' },
+  { title: $t.value('ordersRefunding'), id: '6', _tabKey: 'status-6' },
+  { title: $t.value('ordersRefunded'), id: '5', _tabKey: 'status-5' },
+  { title: $t.value('ordersCancelled'), id: '4', _tabKey: 'status-4' },
+  { title: $t.value('ordersReviewed'), id: '7', _tabKey: 'status-7' },
 ])
 
 const getStatusLabel = (status) => {
@@ -270,6 +271,57 @@ const loadConfig = async () => {
   } catch (e) { /* 配置获取失败时默认显示 */ }
 }
 
+const formatOrderDate = (t) => {
+  if (!t) return ''
+  const d = new Date(t)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+const getDetailThumbUrl = (detail) => {
+  const sku = detail?.sku || {}
+  return sku.externalPicturePath ? getExternalUrl(sku.externalPicturePath) : getUrl(sku.picture || '')
+}
+
+const getSingleDetailName = (detail) => {
+  const name = detail?.sku?.name || ''
+  return $lt.value(name) || name
+}
+
+const getSingleDetailDesc = (detail) => {
+  const goodDesc = detail?.good?.description || ''
+  const skuDesc = detail?.sku?.description || ''
+  return $lt.value(goodDesc) || $lt.value(skuDesc) || goodDesc || skuDesc
+}
+
+// 订单商品行只生成列表展示字段；评价、再次购买等操作仍使用原始 detail。
+const normalizeOrderDetailView = (detail, index) => ({
+  _detailKey: detail?.ID || detail?.id || detail?.skuID || detail?.goodID || `detail-${index}`,
+  _thumbUrl: getDetailThumbUrl(detail),
+  _nameText: getSingleDetailName(detail),
+  _descText: getSingleDetailDesc(detail),
+})
+
+// 订单卡片展示字段在接口返回后生成，避免模板滚动渲染时重复解析图片、价格和状态文案。
+const normalizeOrderItem = (item, index) => {
+  const detailViews = (Array.isArray(item?.detail) ? item.detail : []).map(normalizeOrderDetailView)
+  return {
+    ...item,
+    _orderKey: item?.ID || item?.id || item?.outTradeNo || item?.OutTradeNo || `order-${index}`,
+    _detailViews: detailViews,
+    _createdAtText: formatOrderDate(item?.CreatedAt),
+    _statusLabel: getStatusLabel(item?.status),
+    _summaryText: `${$t.value('totalItems').replace('{n}', detailViews.length)} · ${$t.value('paidAmount')}`,
+    _currencySymbol: getOrderCurrencySymbol(item),
+    _paidAmountText: getLocalizedPaidAmount(item),
+  }
+}
+
+// 首屏和加载更多共用归一化入口，避免分页追加订单缺少展示派生字段。
+const normalizeOrderList = (items, offset = 0) => {
+  return (Array.isArray(items) ? items : []).map((item, index) => normalizeOrderItem(item, offset + index))
+}
+
 const init = async (params) => {
   activeSataus.value = params || ''
   page.value = 1
@@ -278,7 +330,7 @@ const init = async (params) => {
   try {
     const res = await SelfOrderList({ status: activeSataus.value, page: page.value, pageSize: pageSize.value })
     if (res.code === 0) {
-      orderList.value = res.data.list || []
+      orderList.value = normalizeOrderList(res.data.list || [])
       total.value = res.data.total || 0
       if (orderList.value.length >= total.value) isBottom.value = true
     }
@@ -295,7 +347,7 @@ const loadMore = async () => {
   try {
     const res = await SelfOrderList({ status: activeSataus.value, page: page.value, pageSize: pageSize.value })
     if (res.code === 0 && res.data.list && res.data.list.length > 0) {
-      orderList.value = [...orderList.value, ...res.data.list]
+      orderList.value = [...orderList.value, ...normalizeOrderList(res.data.list, orderList.value.length)]
       if (orderList.value.length >= (res.data.total || 0)) isBottom.value = true
     } else {
       isBottom.value = true
@@ -368,13 +420,6 @@ onShow(() => {
 onReachBottom(() => {
   loadMore()
 })
-
-const formatOrderDate = (t) => {
-  if (!t) return ''
-  const d = new Date(t)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-}
 
 const cancelOrder = (item) => {
   uni.showModal({

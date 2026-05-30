@@ -9,10 +9,10 @@
       indicator-active-color="#e50914"
       indicator-color="rgba(255,255,255,0.4)">
     <swiper-item
-      v-for="(item, index) in normalizedList"
-      :key="index"
+      v-for="item in normalizedList"
+      :key="item.key"
       class="swiper-item"
-      @tap="handleSwiperItemTap(index, item)">
+      @tap="handleSwiperItemTap(item._rawIndex, item)">
       <!-- 视频类型 -->
       <video
           v-if="item.type === 'video'"
@@ -29,9 +29,8 @@
           :src="item.src">
         </LazyImage>
       <!-- 文字叠加层 -->
-      <view v-if="item.text" class="swiper-text-overlay"
-        :style="{ justifyContent: item.textPosition === 'top' ? 'flex-start' : item.textPosition === 'center' ? 'center' : 'flex-end' }">
-        <text class="swiper-text" :style="{ color: item.textColor || '#fff', fontSize: (item.textSize || 14) + 'px' }">{{ item.text }}</text>
+      <view v-if="item.text" class="swiper-text-overlay" :style="item._overlayStyle">
+          <text class="swiper-text" :style="item._textStyle">{{ item.text }}</text>
       </view>
     </swiper-item>
   </swiper>
@@ -52,37 +51,53 @@ const props = defineProps({
 })
 
 const normalizedList = ref([])
+const previewImageUrls = ref([])
 
 // 判断是否是视频 URL
 const isVideoUrl = (url) => /\.(mp4|mov|webm|m3u8|ts)(\?|$)/i.test(url || '')
 
-const buildItem = (item) => {
+const buildItem = (item, index = 0) => {
   if (typeof item === 'string') {
-    return { src: getUrl(item), type: isVideoUrl(item) ? 'video' : 'image', text: '', textColor: '#fff', textSize: 14, textPosition: 'bottom' }
+    const src = getUrl(item)
+        return { _rawIndex: index, key: `${src || item || 'string'}-${index}`, src, type: isVideoUrl(item) ? 'video' : 'image', text: '', textColor: '#fff', textSize: 14, textPosition: 'bottom', _overlayStyle: {}, _textStyle: {} }
   }
   if (typeof item === 'object' && item !== null) {
     const rawSrc = item.externalUrl ? getExternalUrl(item.externalUrl) : getUrl(item.url || '')
     const rawText = item.text || ''
     const displayText = localText(rawText) || rawText
+        const textPosition = item.textPosition || 'bottom'
+        const justifyContent = textPosition === 'top' ? 'flex-start' : textPosition === 'center' ? 'center' : 'flex-end'
+        const textColor = item.textColor || '#fff'
+        const textSize = item.textSize || 14
     return {
+      _rawIndex: index,
+      key: `${item.id || item.ID || rawSrc || displayText || 'object'}-${index}`,
       src: rawSrc,
       type: item.type || 'image',
       text: displayText,
-      textColor: item.textColor || '#fff',
-      textSize: item.textSize || 14,
-      textPosition: item.textPosition || 'bottom'
+          textColor,
+          textSize,
+          textPosition,
+          // 轮播文字层样式只服务当前展示；视频签名、图片预览和原始轮播数据不受影响。
+          _overlayStyle: { justifyContent },
+          _textStyle: { color: textColor, fontSize: `${textSize}px` },
     }
   }
-  return { src: '', type: 'image', text: '' }
+    return { _rawIndex: index, key: `empty-${index}`, src: '', type: 'image', text: '', _overlayStyle: {}, _textStyle: {} }
+}
+
+// 预览只需要非视频图片 URL；在归一化列表更新后缓存，避免每次点击重新 filter/map。
+const refreshPreviewImageUrls = (items) => {
+  previewImageUrls.value = (Array.isArray(items) ? items : [])
+    .filter((entry) => entry && entry.type !== 'video' && entry.src)
+    .map((entry) => entry.src)
 }
 
 const handleSwiperItemTap = (index, item) => {
   if (!item || item.type === 'video') {
     return
   }
-  const imageUrls = normalizedList.value
-    .filter((entry) => entry && entry.type !== 'video' && entry.src)
-    .map((entry) => entry.src)
+  const imageUrls = previewImageUrls.value
   if (!imageUrls.length) {
     return
   }
@@ -99,6 +114,7 @@ const handleSwiperItemTap = (index, item) => {
 watch(() => props.list, async (list) => {
   if (!list || list.length === 0) {
     normalizedList.value = []
+    previewImageUrls.value = []
     return
   }
   const items = list.map(buildItem)
@@ -107,6 +123,7 @@ watch(() => props.list, async (list) => {
   normalizedList.value = items.map(item =>
     item.type === 'video' ? { ...item, src: '' } : item
   )
+  refreshPreviewImageUrls(normalizedList.value)
 
   // 异步对视频类型签名，完成后整体替换
   const signed = await Promise.all(items.map(async (item) => {
@@ -122,6 +139,7 @@ watch(() => props.list, async (list) => {
     return item
   }))
   normalizedList.value = signed
+  refreshPreviewImageUrls(signed)
 }, { immediate: true })
 </script>
 

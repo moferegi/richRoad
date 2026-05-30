@@ -52,7 +52,7 @@
             <text class="nf-weekday" v-for="d in weekDays" :key="d">{{ d }}</text>
           </view>
           <view class="nf-calendar-grid">
-            <view class="nf-calendar-cell" v-for="(cell, i) in calendarCells" :key="i">
+            <view class="nf-calendar-cell" v-for="cell in calendarCells" :key="cell._cellKey">
               <template v-if="cell.day">
                 <view class="nf-day" :class="{
                   'nf-day-signed': cell.signed,
@@ -79,10 +79,10 @@
       </view>
 
       <view class="nf-record-list" v-else>
-        <view class="nf-record-card" v-for="(item, index) in records" :key="index">
+        <view class="nf-record-card" v-for="item in records" :key="item._recordKey">
           <view class="nf-record-icon">✅</view>
           <view class="nf-record-info">
-            <text class="nf-record-date">{{ formatDate(item.signDate) }}</text>
+            <text class="nf-record-date">{{ item._displayDate }}</text>
           </view>
           <text class="nf-record-tag">{{ $t('signedDay') }}</text>
         </view>
@@ -203,10 +203,11 @@ const calendarCells = computed(() => {
   const daysInMonth = new Date(y, m, 0).getDate()
   const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
   const cells = []
-  for (let i = 0; i < firstDay; i++) cells.push({ day: 0 })
+  for (let i = 0; i < firstDay; i++) cells.push({ day: 0, _cellKey: `empty-${y}-${m}-${i}` })
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`
     cells.push({
+      _cellKey: dateStr,
       day: d,
       signed: signedDatesSet.value.has(dateStr),
       isToday: dateStr === todayStr,
@@ -225,13 +226,32 @@ const loadStatus = async () => {
   }
 }
 
+const formatDate = (t) => {
+  if (!t) return ''
+  const d = new Date(t)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+}
+
+// 签到记录列表只展示日期；接口返回时预格式化，避免列表渲染时反复 new Date。
+const normalizeSignInRecord = (item, index) => {
+  const displayDate = formatDate(item?.signDate)
+  return {
+    ...item,
+    _recordKey: `${displayDate || item?.ID || item?.id || 'sign'}-${index}`,
+    _displayDate: displayDate,
+  }
+}
+
+const normalizeSignInRecords = (list) => (Array.isArray(list) ? list : []).map(normalizeSignInRecord)
+
 const loadRecords = async (isLoadMore = false) => {
   if (loading.value) return
   loading.value = true
   try {
     const res = await getSignInRecords({ page: page.value, pageSize })
     if (res.code === 0 && res.data && res.data.list) {
-      const list = res.data.list
+      const list = normalizeSignInRecords(res.data.list)
       if (isLoadMore) {
         records.value = [...records.value, ...list]
       } else {
@@ -239,10 +259,8 @@ const loadRecords = async (isLoadMore = false) => {
       }
       // Build signed dates set for calendar
       list.forEach(item => {
-        if (item.signDate) {
-          const d = new Date(item.signDate)
-          const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-          signedDatesSet.value.add(ds)
+        if (item._displayDate) {
+          signedDatesSet.value.add(item._displayDate)
         }
       })
       if (list.length < pageSize || records.value.length >= (res.data.total || Infinity)) {
@@ -273,13 +291,6 @@ const onSignIn = async () => {
     noMore.value = false
     loadRecords()
   }
-}
-
-const formatDate = (t) => {
-  if (!t) return ''
-  const d = new Date(t)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
 }
 
 onShow(() => {

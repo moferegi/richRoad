@@ -60,12 +60,12 @@
           </view>
 
           <view v-else>
-            <view v-for="(item, index) in subordinateList" :key="item.ID || item.id || index" class="friend-item">
-              <image class="friend-avatar" :src="item.avatar || defaultAvatar" mode="aspectFill" />
+            <view v-for="item in subordinateList" :key="item._friendKey" class="friend-item">
+              <image class="friend-avatar" :src="item._avatarUrl" mode="aspectFill" />
               <view class="friend-main">
-                <text class="friend-name">{{ item.nickname || item.username }}</text>
+                <text class="friend-name">{{ item._displayName }}</text>
               </view>
-              <text class="friend-time">{{ formatTime(item.CreatedAt || item.createdAt) }}</text>
+              <text class="friend-time">{{ item._displayTime }}</text>
             </view>
 
             <view v-if="hasMore" class="load-more-btn" @tap="loadMore">{{ $t('loadMore') }}</view>
@@ -127,14 +127,31 @@ const loadInviteInfo = async () => {
   }
 }
 
+// 只生成好友列表展示字段；邀请统计、分享链接和后端原始字段都不受影响。
+const normalizeSubordinateItem = (item, index) => ({
+  ...item,
+  _friendKey: item?.ID || item?.id || `${item?.username || item?.nickname || 'friend'}-${index}`,
+  _avatarUrl: item?.avatar || defaultAvatar,
+  _displayName: item?.nickname || item?.username || '--',
+  _displayTime: formatTime(item?.CreatedAt || item?.createdAt),
+})
+
+// 首屏和加载更多共用归一化入口，后续新增好友展示字段时只需要改这里。
+const normalizeSubordinateList = (list, offset = 0) => {
+  return (Array.isArray(list) ? list : []).map((item, index) => normalizeSubordinateItem(item, offset + index))
+}
+
 const loadSubordinates = async () => {
   const res = await getMySubordinates({ page: page.value, pageSize: pageSize.value })
   if (res.code !== 0 || !res.data) return
 
+  const list = Array.isArray(res.data.list) ? res.data.list : []
+  const normalizedList = normalizeSubordinateList(list, page.value === 1 ? 0 : subordinateList.value.length)
+
   if (page.value === 1) {
-    subordinateList.value = res.data.list || []
+    subordinateList.value = normalizedList
   } else {
-    subordinateList.value.push(...(res.data.list || []))
+    subordinateList.value.push(...normalizedList)
   }
   total.value = Number(res.data.total || 0)
 }

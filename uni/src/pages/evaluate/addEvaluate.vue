@@ -9,7 +9,7 @@
         <view class="nf-navbar-back" @tap="goBack">
           <uni-icons type="left" size="20" color="#fff"></uni-icons>
         </view>
-        <text class="nf-navbar-title">{{ isCheck ? $t('viewReviewTitle') : $t('productReview') }}</text>
+        <text class="nf-navbar-title">{{ reviewTextDisplay.navbarTitle }}</text>
         <view style="width: 64rpx;"></view>
       </view>
     </view>
@@ -17,11 +17,11 @@
     <view class="nf-body">
       <!-- product info card -->
       <view class="nf-item-card">
-        <image :src="SKU.externalPicturePath ? getExternalUrl(SKU.externalPicturePath) : getUrl(SKU.picture)" class="nf-item-img" mode="aspectFill" />
+        <image :src="skuDisplay.imageUrl" class="nf-item-img" mode="aspectFill" />
         <view class="nf-item-info">
-          <text class="nf-item-name">{{ resolveDisplayText(SKU?.nameI18n || SKU?.name, SKU?.name) }}</text>
-          <view v-for="(sku, index) in SKU.attrs" :key="index" class="nf-item-spec">
-            <text>{{ resolveDisplayText(sku?.labelI18n || sku?.nameI18n || sku?.label || sku?.name, sku?.label || sku?.name) }}：{{ resolveDisplayText(sku?.valueI18n || sku?.value, sku?.value) }}</text>
+          <text class="nf-item-name">{{ skuDisplay.nameText }}</text>
+          <view v-for="spec in skuDisplay.specItems" :key="spec.key" class="nf-item-spec">
+            <text>{{ spec.text }}</text>
           </view>
         </view>
       </view>
@@ -37,7 +37,7 @@
             @click="!isCheck && setRating(star)"
           ></text>
         </view>
-        <text class="nf-rating-text">{{ getRatingText(rating) }}</text>
+        <text class="nf-rating-text">{{ reviewTextDisplay.ratingText }}</text>
       </view>
 
       <!-- review content -->
@@ -46,7 +46,7 @@
         <textarea
           v-model="content"
           class="nf-textarea"
-          :placeholder="isCheck ? '' : $t('reviewPlaceholder')"
+          :placeholder="reviewTextDisplay.placeholder"
           maxlength="200"
           :disabled="isCheck"
         ></textarea>
@@ -55,20 +55,20 @@
 
       <!-- image upload -->
       <view class="nf-card" v-if="picEnabled || (isCheck && pics.length > 0)">
-        <text class="nf-card-title">{{ isCheck ? $t('reviewImages') : `${$t('uploadImages')}（${$t('uploadImagesMax').replace('{n}', '9')}）` }}</text>
+        <text class="nf-card-title">{{ reviewTextDisplay.imageTitle }}</text>
         <view class="nf-pics-grid">
           <view
-            v-for="(pic, index) in pics"
-            :key="index"
+            v-for="pic in picViews"
+            :key="pic._picKey"
             class="nf-pic-item"
-            @tap="previewImage(index)"
+            @tap="previewImage(pic._rawIndex)"
           >
             <image
-              :src="getUrl(pic.url || pic.tempFilePath)"
+              :src="pic._imageUrl"
               mode="aspectFill"
               class="nf-pic-img"
             />
-            <text v-if="!isCheck" class="nf-pic-del" @click.stop="deletePic(index)"></text>
+            <text v-if="!isCheck" class="nf-pic-del" @click.stop="deletePic(pic._rawIndex)"></text>
           </view>
           <view
             v-if="!isCheck && pics.length < 9"
@@ -86,7 +86,7 @@
         <text class="nf-card-title nf-reply-title">{{ $t('shopReplyLabel') }}</text>
         <view class="nf-reply-box">
           <text class="nf-reply-text">{{ shopReply }}</text>
-          <text class="nf-reply-time" v-if="shopReplyAt">{{ formatTime(shopReplyAt) }}</text>
+          <text class="nf-reply-time" v-if="shopReplyAt">{{ shopReplyTimeText }}</text>
         </view>
       </view>
     </view>
@@ -94,7 +94,7 @@
     <!-- submit button -->
     <view class="nf-bottom-bar" v-if="!isCheck">
       <view class="nf-submit-btn" :class="{ disabled: isSubmitting }" @click="submit">
-        <text>{{ isSubmitting ? $t('submitting') : $t('submitReview') }}</text>
+        <text>{{ reviewTextDisplay.submitText }}</text>
       </view>
     </view>
   </view>
@@ -146,11 +146,56 @@ const getRatingText = (r) => {
   return $t.value(keys[r] || '')
 }
 
+const reviewTextDisplay = computed(() => ({
+  // 表单固定文案只服务当前页面展示；提交、上传和查看模式判断仍使用原始响应式状态。
+  navbarTitle: isCheck.value ? $t.value('viewReviewTitle') : $t.value('productReview'),
+  ratingText: getRatingText(rating.value),
+  placeholder: isCheck.value ? '' : $t.value('reviewPlaceholder'),
+  imageTitle: isCheck.value ? $t.value('reviewImages') : `${$t.value('uploadImages')}（${$t.value('uploadImagesMax').replace('{n}', '9')}）`,
+  submitText: isSubmitting.value ? $t.value('submitting') : $t.value('submitReview'),
+}))
+
+// 商品头部只依赖 SKU 和当前语言；用 computed 缓存，避免模板每次渲染重复解析图片和规格多语言。
+const skuDisplay = computed(() => {
+  const sku = SKU.value || {}
+  const specItems = (Array.isArray(sku.attrs) ? sku.attrs : []).map((item, index) => {
+    const label = resolveDisplayText(item?.labelI18n || item?.nameI18n || item?.label || item?.name, item?.label || item?.name)
+    const value = resolveDisplayText(item?.valueI18n || item?.value, item?.value)
+    return {
+      key: item?.ID || item?.id || `${label || 'spec'}-${index}`,
+      text: label ? `${label}：${value}` : value,
+    }
+  })
+
+  return {
+    imageUrl: sku.externalPicturePath ? getExternalUrl(sku.externalPicturePath) : getUrl(sku.picture || ''),
+    nameText: resolveDisplayText(sku?.nameI18n || sku?.name, sku?.name),
+    specItems,
+  }
+})
+
+// 图片草稿数组仍由上传/删除流程维护；展示层用 computed 缓存 URL，避免模板和预览重复 getUrl。
+const picViews = computed(() => pics.value.map((pic, index) => {
+  const rawPath = pic?.url || pic?.tempFilePath || ''
+  const imageUrl = getUrl(rawPath)
+  return {
+    ...pic,
+    _rawIndex: index,
+    _picKey: `${imageUrl || rawPath || 'pic'}-${index}`,
+    _imageUrl: imageUrl,
+  }
+}))
+
 const formatTime = (t) => {
   if (!t) return ''
   const d = new Date(t)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
+
+const shopReplyTimeText = computed(() => {
+  // 商家回复时间只服务查看模式展示；原始 shopReplyAt 仍保留给详情重拉和后续接口字段扩展。
+  return formatTime(shopReplyAt.value)
+})
 
 const loadPicConfig = async () => {
   try {
@@ -226,7 +271,7 @@ const deletePic = (index) => { pics.value.splice(index, 1) }
 const previewImage = (index) => {
   uni.previewImage({
     current: index,
-    urls: pics.value.map(pic => getUrl(pic.url || pic.tempFilePath))
+    urls: picViews.value.map(pic => pic._imageUrl)
   })
 }
 

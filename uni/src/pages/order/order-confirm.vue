@@ -28,7 +28,7 @@
       </view>
 
       <view class="goods-list">
-        <view class="goods-item" v-for="(item, index) in store.goods" :key="index">
+        <view class="goods-item" v-for="item in store.goods" :key="item._goodsKey">
           <view class="goods-image" :style="{ backgroundColor: '#f5f5f5' }"></view>
           <view class="goods-info">
             <text class="goods-title">{{ item.title }}</text>
@@ -109,7 +109,8 @@ const address = computed(() => ({
   detail: $t.value('orderConfirmMockAddress')
 }));
 
-const buildMockGood = (titleKey) => ({
+const buildMockGood = (titleKey, index) => ({
+  _goodsKey: `${titleKey}-${index}`,
   title: $t.value(titleKey),
   spec: $t.value('orderConfirmMockGoodsSpec'),
   price: '17.8',
@@ -117,10 +118,10 @@ const buildMockGood = (titleKey) => ({
 });
 
 const mockGoods = computed(() => ([
-  buildMockGood('orderConfirmMockGoodsTitleA'),
-  buildMockGood('orderConfirmMockGoodsTitleB'),
-  buildMockGood('orderConfirmMockGoodsTitleA'),
-  buildMockGood('orderConfirmMockGoodsTitleB')
+  buildMockGood('orderConfirmMockGoodsTitleA', 0),
+  buildMockGood('orderConfirmMockGoodsTitleB', 1),
+  buildMockGood('orderConfirmMockGoodsTitleA', 2),
+  buildMockGood('orderConfirmMockGoodsTitleB', 3)
 ]));
 
 const store = computed(() => ({
