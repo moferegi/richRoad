@@ -1,12 +1,509 @@
 # 工作区非安全改动完整记录（补充）
 
-更新时间：2026-05-20
+更新时间：2026-06-17
 
 适用范围：本工作区当前变更中，已确认不属于安全主线的内容。
 
 说明：
 - 本文是对 `WORKSPACE_SECURITY_IMPROVEMENTS_RECORD.md` 的补充。
 - 当前已确认的非安全主线改动，集中在 geo 数据生成链路与 CI 工程化流程。
+
+## 0. 2026-06-17 英语学习 D9 签到记录页闭环（非安全）
+
+改了什么：
+- 后端新增签到记录分页查询 DTO、Service、API、Router，接口：`/englishLearning/checkin/getCheckinRecordList`。
+  - `server/plugin/english_learning/model/request/checkin.go`
+  - `server/plugin/english_learning/service/checkin.go`
+  - `server/plugin/english_learning/api/checkin.go`
+  - `server/plugin/english_learning/router/checkin.go`
+- 后端补齐测试：签到记录列表的 Service 与 API 回归测试（成功、参数错误、鉴权失败、分页规范化）。
+  - `server/plugin/english_learning/service/checkin_service_test.go`
+  - `server/plugin/english_learning/api/checkin_api_test.go`
+- Uni 侧新增学习签到记录页面，接入签到统计、立即签到、历史列表分页；个人页“签到记录”入口改为真实跳转。
+  - `uni/src/pages/learning/checkin-record.vue`
+  - `uni/src/pages/learning/profile.vue`
+  - `uni/src/pages.json`
+  - `uni/src/api/learning.js`
+- 补齐三语词条（zh/en/mn）用于签到记录页文案。
+  - `uni/src/utils/i18n-locales/zh.js`
+  - `uni/src/utils/i18n-locales/en.js`
+  - `uni/src/utils/i18n-locales/mn.js`
+
+有什么用：
+- 打通学习中心签到闭环：统计 -> 签到动作 -> 历史流水可视化。
+- 消除 profile 页“签到记录”占位入口，改为可直接访问的真实页面。
+
+验证结果：
+- `cd server && gofmt -w plugin/english_learning/model/request/checkin.go plugin/english_learning/service/checkin.go plugin/english_learning/api/checkin.go plugin/english_learning/router/checkin.go plugin/english_learning/service/checkin_service_test.go plugin/english_learning/api/checkin_api_test.go`
+- `cd server && go test ./plugin/english_learning/...` 通过。
+- `cd uni && npm run lint -- src/pages/learning/checkin-record.vue src/pages/learning/profile.vue src/api/learning.js src/utils/i18n-locales/zh.js src/utils/i18n-locales/en.js src/utils/i18n-locales/mn.js` 通过。
+- VS Code 诊断：本轮后端与 Uni 变更文件无错误。
+
+说明：
+- 本次属于英语学习业务功能完善，不涉及鉴权策略、权限边界、上传策略、安全开关变更。
+
+## 0.1 2026-06-17 英语学习 D10 客服入口闭环（非安全）
+
+改了什么：
+- 学习个人页 `contactService` 由“功能开发中”占位提示改为真实跳转到现有客服中心页面。
+  - `uni/src/pages/learning/profile.vue`
+  - 跳转地址：`/pages/kefu/index?from=learning_profile`
+
+有什么用：
+- 打通学习主路径最后一个占位菜单项，用户可从学习中心直接进入客服体系。
+- 复用既有 `kefu` 页面能力，避免在学习模块重复建设客服页面。
+
+验证结果：
+- `cd uni && npm run lint -- src/pages/learning/profile.vue` 通过。
+- VS Code 诊断：`uni/src/pages/learning/profile.vue` 无错误。
+
+说明：
+- 本次仅为前端导航闭环改造，不涉及客服后端协议、会话模型、权限策略变更。
+
+## 0.2 2026-06-17 英语学习 D11 首页打卡展示真实化（非安全）
+
+改了什么：
+- 学习首页 `week-calendar` 的本周打卡状态由“按当前日期估算”改为“按真实签到记录渲染”。
+  - `uni/src/pages/learning/home.vue`
+  - 新增接口使用：`getLearningCheckinRecordList({ page: 1, pageSize: 50 })`
+- 学习首页“打卡日历”入口从旧页面统一改到学习模块签到页。
+  - 跳转地址：`/pages/learning/checkin-record`
+
+有什么用：
+- 避免“过去日期全部默认已打卡”的误导展示，周视图与后端真实签到数据一致。
+- 首页与个人页都统一进入学习签到记录页，减少跨模块路径跳转差异。
+
+验证结果：
+- `cd uni && npm run lint -- src/pages/learning/home.vue src/pages/learning/profile.vue` 通过。
+- VS Code 诊断：`uni/src/pages/learning/home.vue`、`uni/src/pages/learning/profile.vue` 无错误。
+
+说明：
+- 本次属于前端展示逻辑与导航一致性优化，不涉及后端鉴权、积分、时长扣减规则变更。
+
+## 0.3 2026-06-17 英语学习 D12 首页打卡日历弹窗落地（非安全）
+
+改了什么：
+- 学习首页新增“打卡日历”弹窗（月视图），支持：
+  - 月份切换（限制不可超过当前月）
+  - 真实签到日期高亮
+  - 当日点击快捷签到
+  - 连续/累计签到统计展示
+  - `uni/src/pages/learning/home.vue`
+- 周视图与月视图统一使用签到记录接口数据源：`/englishLearning/checkin/getCheckinRecordList`。
+- 签到成功后新增缓存失效处理，避免分页缓存导致“刚签到但日历未更新”。
+- 补齐三语词条（zh/en/mn）：`learningHomeCalendar*`。
+  - `uni/src/utils/i18n-locales/zh.js`
+  - `uni/src/utils/i18n-locales/en.js`
+  - `uni/src/utils/i18n-locales/mn.js`
+
+有什么用：
+- 将首页“本周打卡 + 打卡日历”升级为完整可交互签到日历，不再依赖外部页面或估算状态。
+- 用户可在首页直接查看历史签到与当日完成签到，减少跳转层级。
+
+验证结果：
+- `cd uni && npm run lint -- src/pages/learning/home.vue src/utils/i18n-locales/zh.js src/utils/i18n-locales/en.js src/utils/i18n-locales/mn.js` 通过。
+- VS Code 诊断：上述 4 个文件无错误。
+
+说明：
+- 本次属于前端交互能力增强与展示一致性改造，不涉及后端权限、计费、风控规则变更。
+
+## 0.4 2026-06-17 英语学习 D13 首页系统配置接入（非安全）
+
+改了什么：
+- 后端 `GetStats` 接口补充 `dailyTarget` 字段，读取 sysConfig 键 `learning_daily_target`（缺省 10）。
+  - `server/plugin/english_learning/api/checkin.go`
+- 前端首页从后端 API 动态读取 app 名称（`getAppName`）、logo（`getAppLogo`）及每日目标（来自 `getCheckinStats`）。
+  - `uni/src/pages/learning/home.vue`：新增 `loadSysConfig` 函数，`onMounted` 并行加载；`loadCheckin` 从 stats 响应写入 `dailyTarget`。
+
+有什么用：
+- 首页 app 名称与 logo 可通过后台系统参数配置，无需改代码发布。
+- 每日目标从静态硬编码改为可后台配置，运营可自主调整。
+
+验证结果：
+- `cd server && gofmt -w plugin/english_learning/api/checkin.go && go build ./plugin/english_learning/...` 通过（无输出）。
+- `cd server && go test ./plugin/english_learning/...` 通过。
+- `cd uni && npm run lint -- src/pages/learning/home.vue` 通过。
+- VS Code 诊断：上述两个文件无错误。
+
+说明：
+- 不涉及鉴权改动；sysConfig 读写路径复用既有 `SysConfigService.GetConfigIntByKey`，无新 DB 表或权限变更。
+
+---
+
+## 0.5 2026-07-01 PT完善 Step1 基线冻结（非安全）
+
+改了什么：
+- 新增基线冻结文档：`docs/english_learning_pt_step1_baseline.md`。
+- 对用户 18 项需求做了逐项映射，形成 `已完成/部分完成/未完成` 验收矩阵。
+- 固化了当前冻结范围（后端插件、初始化菜单、Web 插件页、Uni 学习页）与基线提交号，作为后续 PT-2+ 每步验收对照。
+
+有什么用：
+- 避免后续“边改边变目标”，让每一步都能对照同一份基线逐项闭环。
+- 快速识别本阶段关键缺口：统一授权引擎、用户粒度授权、Web 运营端完整 CRUD、TTS 生产链路。
+
+当前冻结结论：
+- C 端学习体验约 86%。
+- 后端接口闭环约 89%。
+- Web 运营工具完备度约 62%。
+- 上线前综合完成度约 80%。
+
+说明：
+- 本次为文档化与验收基线建设，不涉及新的安全策略、鉴权开关或权限边界改动。
+
+---
+
+## 0.6 2026-07-01 PT完善 Step2 统一授权引擎与用户粒度授权（非安全）
+
+改了什么：
+- 新增用户资源授权模型 `UserLearningEntitlement`，支持 `english_category/video_series/video_episode` 三类资源按用户授权。
+- 新增统一授权服务 `LearningAuthzService`：
+  - 统一计算全局权限（免费期/免费分钟/VIP）。
+  - 支持资源粒度授权命中（单集可继承剧集授权）。
+  - 统一创建学习资产并自动发放新用户免费期。
+- 中间件 `LearningAuth` 改为调用统一授权服务，注入 `english_user_id` 与全局权限上下文。
+- `findVideoEpisode` 改为资源粒度返回 `hasFullAuth`，支持“用户单独授权单集/剧集后直接全量播放”。
+- 新增授权管理 API：
+  - `POST /englishLearning/asset/grantEntitlement`
+  - `DELETE /englishLearning/asset/revokeEntitlement`
+  - `GET /englishLearning/asset/getEntitlementList`
+- 新增系统配置 `learning_new_user_free_hours`（默认 24），用于首次创建学习资产时自动发放免费期。
+
+有什么用：
+- 解决了“全局资产态”和“资源收费/用户专属授权”之间的冲突口径问题。
+- 支持运营按用户开通指定分类/剧集/单集，不再只能依赖全局 VIP/免费分钟。
+- 新用户开通学习模块时自动拥有可配置免费期，体验和策略都可控。
+
+验证结果：
+- `cd server && go test ./plugin/english_learning/...` 通过。
+- 新增测试：
+  - `server/plugin/english_learning/service/learning_authz_service_test.go`
+  - `server/plugin/english_learning/api/user_learning_asset_entitlement_api_test.go`
+
+说明：
+- 本次属于英语学习业务授权口径与可运营能力增强，不涉及工作区安全基线策略开关变更。
+
+---
+
+## 0.7 2026-07-01 PT完善 Step3 Web运营端补齐与CRUD闭环（非安全）
+
+改了什么：
+- Web 英语学习运营端完成从原型到可运营后台的重构：
+  - `web/src/plugin/english_learning/view/word.vue`：分类/章节/单词三段式管理，支持完整 CRUD、分页、筛选、JSON 校验。
+  - `web/src/plugin/english_learning/view/video.vue`：视频分类/剧集/单集 CRUD、字幕解析、用户资源授权（grant/revoke/list）一体化运营台。
+- 补齐并统一 Web API 封装：
+  - `web/src/plugin/english_learning/api/english.js`
+- 修复 PT-3 回归验证中暴露的问题：
+  - `server/plugin/english_learning/api/english_word_api_test.go`：补齐 `EnglishWordSentence`、`UserCollection` 测试建表，解决删除单词路径单测误失败。
+  - `web/src/plugin/english_learning/index.js`：移除未使用导入并修正占位参数，消除 lint 报错。
+
+有什么用：
+- 解决“后台有英语学习菜单，但无法完成实际运营”的核心缺口。
+- 运营可在 Web 后台直接完成单词与视频内容维护、字幕入库和用户粒度授权。
+- PT-3 达到“实现 + 校验 + 记录”一步闭环标准。
+
+验证结果：
+- `cd server && go test ./plugin/english_learning/...` 通过。
+- `cd web && npm run lint -- src/plugin/english_learning/api/english.js src/plugin/english_learning/view/word.vue src/plugin/english_learning/view/video.vue` 通过。
+- VS Code 诊断：本步涉及文件无错误。
+
+说明：
+- 本次属于英语学习业务运营能力完善，不涉及工作区安全策略、鉴权开关或权限边界收紧策略变更。
+
+---
+
+## 0.8 2026-07-01 PT完善 Step4 TTS生产链路定稿与运营闭环（非安全）
+
+改了什么：
+- 后端英语单词发音链路从占位URL升级为可配置TTS调用：
+  - `server/plugin/english_learning/service/english_word.go`
+  - 创建单词时可自动调用外部TTS服务生成 `audioUs/audioUk`，不再写入 `oss.example.com` 假链接。
+  - 新增可识别的响应结构：`url/audioUrl/data.url/data.audioUrl`。
+- 新增单词发音重生成能力：
+  - 请求模型：`server/plugin/english_learning/model/request/english.go`
+  - API：`POST /englishLearning/word/regenerateAudio`（`server/plugin/english_learning/api/english_word.go`）
+  - 路由：`server/plugin/english_learning/router/english_word.go`
+- 新增TTS默认配置项（english_learning 分组）：
+  - `server/initialize/other.go`
+  - `learning_tts_enabled`
+  - `learning_tts_provider_url`
+  - `learning_tts_api_key`
+  - `learning_tts_timeout_ms`
+  - `learning_tts_voice_us`
+  - `learning_tts_voice_uk`
+- Web 运营端补齐“重生发音”入口：
+  - `web/src/plugin/english_learning/api/english.js`
+  - `web/src/plugin/english_learning/view/word.vue`
+
+有什么用：
+- 解决英语学习发音链路“可看不可用”的问题，形成可上线的外部TTS接入能力。
+- 运营可对历史词条执行发音重生成，快速补齐音频资产。
+- 将 R18 从“占位实现”推进到“可配置真实调用 + 可运营补偿”的落地状态。
+
+验证结果：
+- `cd server && go test ./plugin/english_learning/...` 通过。
+- `cd web && npm run lint -- src/plugin/english_learning/api/english.js src/plugin/english_learning/view/word.vue src/plugin/english_learning/view/video.vue` 通过。
+- 新增测试：
+  - `server/plugin/english_learning/service/english_word_tts_test.go`
+  - `server/plugin/english_learning/api/english_word_api_test.go`（新增 regenerateAudio 用例）
+
+说明：
+- 本次属于英语学习业务功能完善，不涉及工作区安全策略、鉴权开关或权限边界收紧策略变更。
+
+---
+
+## 0.9 2026-07-01 PT完善 Step5 测试矩阵扩展与端到端验收脚本（非安全）
+
+改了什么：
+- 扩展英语学习 TTS 测试矩阵：
+  - `server/plugin/english_learning/service/english_word_tts_test.go`
+  - 新增失败路径用例：
+    - 开关关闭
+    - 服务非2xx响应
+    - 响应缺失音频URL
+- 扩展 API 回归测试：
+  - `server/plugin/english_learning/api/english_word_api_test.go`
+  - 新增 `TestEnglishWordAPI_RegenerateWordAudio_BothDisabled`，校验无效重生成请求不被误判成功。
+- 新增一键验收脚本：
+  - `scripts/english_learning_pt5_acceptance.ps1`
+  - 覆盖后端测试、前端 lint，支持可选 Token 的 API smoke 验收。
+- 新增 PT-5 文档：
+  - `docs/english_learning_pt_step5_test_matrix.md`
+
+有什么用：
+- 把英语学习模块从“功能实现可跑”提升为“成功/失败路径都可回归”。
+- 将发布前验收动作标准化为脚本，减少人工漏检。
+- 为后续生产联调（真实TTS服务接入）提供稳定基线。
+
+验证结果：
+- `cd server && go test ./plugin/english_learning/...` 通过。
+- `cd server && go test ./plugin/english_learning/api -run TestEnglishWordAPI_RegenerateWordAudio -count=1` 通过。
+- `cd web && npm run lint -- src/plugin/english_learning/api/english.js src/plugin/english_learning/view/word.vue src/plugin/english_learning/view/video.vue` 通过。
+
+说明：
+- 本次属于英语学习质量保障与验收流程完善，不涉及工作区安全策略、鉴权开关或权限边界收紧策略变更。
+
+---
+
+## 1.0 2026-07-01 PT完善 Step6 生产联调演练与配置回滚闭环（非安全）
+
+改了什么：
+- 新增 TTS 预检能力：
+  - `server/plugin/english_learning/model/request/english.go`
+  - `server/plugin/english_learning/service/english_word.go`
+  - `server/plugin/english_learning/api/english_word.go`
+  - `server/plugin/english_learning/router/english_word.go`
+  - 提供 `POST /englishLearning/word/preflightTTS`，用于真实 TTS 供应商联调前置验证。
+- 新增 PT-6 测试：
+  - `server/plugin/english_learning/service/english_word_tts_test.go`
+  - `server/plugin/english_learning/api/english_word_api_test.go`
+  - 覆盖预检成功与双开关关闭失败场景。
+- 新增生产联调脚本：
+  - `scripts/english_learning_pt6_tts_rollout.ps1`
+  - 支持配置快照、按参数更新 `learning_tts_*`、预检、失败自动回滚、演练模式成功后回滚。
+- Web 端补充预检 API 封装：
+  - `web/src/plugin/english_learning/api/english.js`
+- 新增 PT-6 文档：
+  - `docs/english_learning_pt_step6_rollout_rehearsal.md`
+
+有什么用：
+- 把 TTS 从“可配置可调用”升级到“可上线演练可回退”。
+- 将高风险配置发布动作脚本化，降低人工误操作风险。
+- 为真实供应商联调提供标准化的预检入口和失败处置路径。
+
+验证结果：
+- `cd server && go test ./plugin/english_learning/...` 通过。
+- `cd server && go test ./plugin/english_learning/api -run "TestEnglishWordAPI_PreflightTTS_(Success|BothDisabled)$" -count=1` 通过。
+- `cd server && go test ./plugin/english_learning/service -run "TestPreflightTTS_(Success|BothDisabled)$" -count=1` 通过。
+- `cd web && npm run lint -- src/plugin/english_learning/api/english.js src/plugin/english_learning/view/word.vue src/plugin/english_learning/view/video.vue` 通过。
+- `powershell -ExecutionPolicy Bypass -File scripts/english_learning_pt6_tts_rollout.ps1` 在无 Token 下按预期快速失败（入口校验生效）。
+
+说明：
+- 本次属于英语学习生产演练能力增强，不涉及工作区安全策略、鉴权开关或权限边界收紧策略变更。
+
+---
+
+## 1.1 2026-07-01 PT完善 Step7 联调就绪检查与回归收口（非安全）
+
+改了什么：
+- 补充 `getWordList` API 回归测试：
+  - `server/plugin/english_learning/api/english_word_api_test.go`
+  - 新增 `TestEnglishWordAPI_GetWordList_ChapterFilterAndDistinct`，覆盖章节过滤、distinct 总数与分页口径。
+- 新增 PT-7 联调就绪检查脚本：
+  - `scripts/english_learning_pt7_readiness_check.ps1`
+  - 检查 `english_learning` 分组下 `learning_tts_*` 必要配置，并调用 `/englishLearning/word/preflightTTS` 输出 PASS/FAIL。
+- 清理联调临时文件：
+  - `tmp/web_captcha.png`
+  - `tmp/pt7_gen_admin_token.go`
+- 新增 PT-7 文档：
+  - `docs/english_learning_pt_step7_readiness_and_regression.md`
+
+有什么用：
+- 在真实运行环境下快速判断英语学习 TTS 是否具备联调条件。
+- 防止 `getWordList` 因章节关联重复导致 total 口径回归。
+- 保持仓库整洁，减少临时调试文件污染。
+
+验证结果：
+- `cd server && go test ./plugin/english_learning/api -run "TestEnglishWordAPI_GetWordList_(NormalizedPage|ChapterFilterAndDistinct)$" -count=1` 通过。
+- `cd server && go test ./plugin/english_learning/...` 通过。
+- `powershell -ExecutionPolicy Bypass -File scripts/english_learning_pt7_readiness_check.ps1 -ApiBaseUrl "http://127.0.0.1:8888" -Token "<x-token>"` 已执行，结果为 FAIL（环境缺少 `learning_tts_*` 配置且 `/englishLearning/word/preflightTTS` 返回 404，说明运行服务未加载 PT-6 新路由）。
+
+说明：
+- 本次属于英语学习联调验收与回归补强，不涉及工作区安全策略、鉴权开关或权限边界收紧策略变更。
+
+---
+
+## 1.2 2026-07-01 PT完善 Step8 服务切换与实网联调演练（非安全）
+
+改了什么：
+- 服务切换：
+  - 停止旧的 8888 端口 `go run` 进程（PID `35616`）。
+  - 启动最新代码服务（PID `2616`），使 PT-6 新路由生效。
+- 运行态确认：
+  - `POST /englishLearning/word/preflightTTS` 路由可访问（不再 404）。
+  - `english_learning` 分组已包含 `learning_tts_*` 所需配置键。
+- DrillMode 联调演练：
+  - 启动本地 mock TTS 服务（`http://127.0.0.1:19090/tts`）。
+  - 执行 `scripts/english_learning_pt6_tts_rollout.ps1`（`-DrillMode`）。
+  - 结果 `PREFLIGHT_OK_ROLLED_BACK`，并确认配置自动回滚。
+- 新增 PT-8 文档：
+  - `docs/english_learning_pt_step8_live_drill.md`
+
+有什么用：
+- 解决了“代码已改但运行实例未更新”导致的新路由 404 问题。
+- 在真实运行服务中验证了 TTS 联调链路和自动回滚机制。
+- 为下一步接入真实供应商提供了稳定且可复现的演练基线。
+
+验证结果：
+- 端口监听确认：`Get-NetTCPConnection -LocalPort 8888` 显示新进程 PID `2616`。
+- 路由可用确认：调用 `/englishLearning/word/preflightTTS` 返回业务错误 `TTS自动生成未开启`（表明路由已生效）。
+- 配置确认：`/sysConfig/getSysConfigByGroup?configGroup=english_learning` 返回包含 `learning_tts_*` 键。
+- DrillMode 结果：`Status: PREFLIGHT_OK_ROLLED_BACK`，US/UK 音频 URL 均成功返回，配置回滚成功。
+
+说明：
+- 本次属于英语学习联调演练与运维切换，不涉及工作区安全策略、鉴权开关或权限边界收紧策略变更。
+
+---
+
+## 1.3 2026-07-01 PT完善 Step9 非Drill正式联调与就绪PASS（非安全）
+
+改了什么：
+- 在 PT-8 基础上执行一次非 DrillMode 的正式联调：
+  - `scripts/english_learning_pt6_tts_rollout.ps1`
+  - 参数启用 `learning_tts_enabled=true`，并将 `learning_tts_provider_url` 指向本地 mock TTS：`http://127.0.0.1:19090/tts`。
+- 新增 PT-9 文档：
+  - `docs/english_learning_pt_step9_formal_rollout.md`
+
+有什么用：
+- 验证“配置保留模式”下（非 Drill）预检链路可稳定成功。
+- 使 PT-7 就绪检查在当前环境达成 PASS，作为后续切真实供应商前的可用基线。
+
+验证结果：
+- `powershell -ExecutionPolicy Bypass -File scripts/english_learning_pt6_tts_rollout.ps1 ...` 结果为 `Status: PREFLIGHT_OK`。
+- `powershell -ExecutionPolicy Bypass -File scripts/english_learning_pt7_readiness_check.ps1 ...` 结果为 `Readiness: PASS`。
+- 关键配置确认：
+  - `learning_tts_enabled = true`
+  - `learning_tts_provider_url = http://127.0.0.1:19090/tts`
+  - `learning_tts_timeout_ms = 8000`
+  - `learning_tts_voice_us = en-US-JennyNeural`
+  - `learning_tts_voice_uk = en-GB-SoniaNeural`
+
+说明：
+- 本次属于英语学习正式联调验证，不涉及工作区安全策略、鉴权开关或权限边界收紧策略变更。
+
+---
+
+## 1.4 2026-07-01 PT完善 Step10 生产验收脚本与切换说明（非安全）
+
+改了什么：
+- 新增生产验收脚本：
+  - `scripts/english_learning_pt10_production_acceptance.ps1`
+  - 覆盖配置组可读、`preflightTTS`（US+UK/US-only/UK-only）以及可选 `regenerateAudio` 验收。
+- 新增 PT-10 文档：
+  - `docs/english_learning_pt_step10_production_acceptance.md`
+  - 给出验收命令与真实供应商切换顺序。
+
+有什么用：
+- 把“可联调”提升为“可标准化验收”，上线前动作可复用、可追溯。
+- 降低人工点接口漏测风险，统一 PASS/FAIL 口径。
+
+验证结果：
+- `powershell -ExecutionPolicy Bypass -File scripts/english_learning_pt10_production_acceptance.ps1 -ApiBaseUrl "http://127.0.0.1:8888" -Token "<admin-token>" -ProbeWord "destiny"` 执行通过，结果 `Acceptance: PASS`。
+
+说明：
+- 本次属于英语学习验收流程标准化，不涉及工作区安全策略、鉴权开关或权限边界收紧策略变更。
+
+---
+
+## 1.5 2026-07-01 PT完善 Step11 真实供应商切换门禁（非安全）
+
+改了什么：
+- 新增门禁脚本：
+  - `scripts/english_learning_pt11_provider_cutover_gate.ps1`
+  - 默认按“真实供应商”口径执行：
+    - 禁止 provider 为 `127.0.0.1/localhost`
+    - 要求 `learning_tts_api_key` 非空且非占位
+    - 同时要求 `preflightTTS` 成功
+  - 支持 `-AllowMockProvider` 作为演练口径放开。
+- 新增 PT-11 文档：
+  - `docs/english_learning_pt_step11_provider_cutover_gate.md`
+
+有什么用：
+- 避免将“本地 mock 可用”误判为“生产可切换”。
+- 将真实供应商切换条件脚本化，降低上线误配风险。
+
+验证结果：
+- 默认口径执行结果：`Gate: FAIL`（符合预期，当前仍是 mock provider 且 api_key 为空）。
+- `-AllowMockProvider` 口径执行结果：`Gate: PASS`。
+
+说明：
+- 本次属于英语学习切换门禁增强，不涉及工作区安全策略、鉴权开关或权限边界收紧策略变更。
+
+---
+
+## 1.6 2026-07-01 PT完善 Step12 最终切换与结项验收（非安全）
+
+改了什么：
+- 新增 PT-12 总控脚本：
+  - `scripts/english_learning_pt12_final_cutover.ps1`
+  - 串联执行：`PT-6 rollout -> PT-11 provider gate -> PT-7 readiness -> PT-10 acceptance`
+  - 默认失败即中断后续步骤并给出 `SKIPPED` 汇总；支持 `-ContinueOnFailure` 做全量诊断。
+  - 支持一次性传入 `-ProviderUrl/-ApiKey/-TimeoutMs/-VoiceUS/-VoiceUK` 完成切换。
+  - 支持 `-AllowMockProvider` 演练口径。
+- 新增 Step12 文档：
+  - `docs/english_learning_pt_step12_final_cutover_and_signoff.md`
+
+有什么用：
+- 将分散在 PT-6/7/10/11 的脚本整合成最终结项入口，降低人工串行操作错误率。
+- 明确“生产放行”与“演练通过”的边界，避免 mock 配置误判上线。
+
+验证结果：
+- 默认生产口径（不加 `-AllowMockProvider`）：`PT-12: FAIL`（符合预期，当前 provider 仍为 mock 且 api_key 非真实值）。
+- 演练口径（加 `-AllowMockProvider`）：`PT-12: PASS`（四步全 PASS）。
+
+说明：
+- 本次属于英语学习上线流程自动化完善，不涉及工作区安全策略、鉴权开关或权限边界收紧策略变更。
+
+---
+
+## 1.7 2026-07-01 PT完善 Step12 密钥注入方式增强（非安全）
+
+改了什么：
+- 增强 `scripts/english_learning_pt12_final_cutover.ps1`：
+  - 新增 `-UseEnvSecrets`（从环境变量读取 provider/key）
+  - 新增 `-ProviderUrlEnvVar/-ApiKeyEnvVar`（可自定义环境变量名）
+  - 新增 `-PromptApiKey`（终端保密输入 key，不回显）
+- 更新文档：
+  - `docs/english_learning_pt_step12_final_cutover_and_signoff.md` 增加“安全密钥注入模式”说明。
+
+有什么用：
+- 避免把真实 API key 明文写入命令行历史，降低误泄漏风险。
+- 在不改变 PT-11 门禁逻辑的前提下，提升最终切换执行安全性与可操作性。
+
+验证结果：
+- 执行 `powershell -ExecutionPolicy Bypass -File scripts/english_learning_pt12_final_cutover.ps1 -ApiBaseUrl "http://127.0.0.1:8888" -Token "<admin-token>" -ProbeWord "destiny" -AllowMockProvider`，结果 `PT-12: PASS`（四步全 PASS）。
+
+说明：
+- 本次属于脚本执行方式优化，不涉及工作区安全策略、鉴权开关或权限边界收紧策略变更。
 
 ---
 
@@ -820,3 +1317,592 @@ Geo 数据链路改动共 3 个文件：
 说明：
 - 本次不改接口调用、分页数量、清空/删除历史、浏览历史加载/分页显示/跳转详情、取消收藏、跳转详情、邀请分享、积分统计、签到提交/分页/日历月份切换、优惠券领取/使用、客服联系方式选择、客服聊天连接/收发消息/图片上传预览/评价、地址选择/编辑/删除/新增保存、地址编辑回显与保存、登录/注册配置、验证码、账号/手机号登录注册提交、试衣上传/提交/轮询/重试/预览、衣橱商城搜索/分类筛选/分页/试穿/购买/预览、试衣间教程弹窗开关、试衣历史下载/H5 预览/对比拖拽缩放、充值支付/取消/退款/物流/评价、我的页充值下单/支付方式选择、订单状态筛选/支付/取消/退款/物流/评价、订单详情支付/退款/状态判断、订单确认信息页下单参数/提交跳转/优惠券领取与选择、订单评价提交/图片上传删除预览、支付方式选择/订单支付方式同步/确认已付款、支付页二维码保存/复制草稿/联系客服、维护模式开关/背景图/客服与回首页跳转、评价图片上传/删除/预览入口、评价提交/查看详情重拉、播放器选集/收藏/播放控制/进度记录、我的模特/衣橱上传裁剪/删除/选择流程、商品轮播视频签名、首页轮播/热卖/分类跳转、预售列表分页/倒计时/跳转详情、商品详情 SKU 选择/购买/加购/试穿入口、商品详情收藏/浏览记录/优惠券领取选用、个人资料昵称/邮箱/手机号修改与登出流程、多语言展示和价格格式化逻辑。
 - 派生字段仅用于当前页面渲染，不写回 Pinia store 或后端返回数据。
+
+---
+
+## 10. 2026-06-17 英语学习 D4 验收续推进（非安全）
+
+### 10.1 临时验收数据清理
+
+改了什么：
+- 清理了 D4 验收阶段插入的临时测试词条及关联错题记录（`word` 前缀 `d4_probe_`）。
+
+有什么用：
+- 避免测试数据污染真实演示或后续人工验收口径。
+
+能防止什么问题：
+- 将临时词条误当作正式词库数据，导致列表/错题统计口径混淆。
+
+### 10.2 英语词表查询兼容性修复（MySQL only_full_group_by）
+
+改了什么：
+- 文件：[server/plugin/english_learning/service/english_word.go](server/plugin/english_learning/service/english_word.go)
+- 将 `GetWordListByChapter` 拆分为 `buildWordListBaseQuery / buildWordListCountQuery / buildWordListPageQuery`。
+- 列表分页查询由 `DISTINCT + ORDER BY cw.sort` 改为 `GROUP BY w.id + ORDER BY MIN(cw.sort), MAX(cw.id)`。
+
+有什么用：
+- 保持章节内排序语义，同时兼容 MySQL 严格分组模式。
+
+能防止什么问题：
+- 防止历史报错 `Error 3065 (HY000): ORDER BY ... not in SELECT list` 再次出现。
+
+### 10.3 回归测试补齐
+
+改了什么：
+- 新增 SQL 形态回归测试：[server/plugin/english_learning/service/english_word_query_test.go](server/plugin/english_learning/service/english_word_query_test.go)
+  - `TestBuildWordListPageQuery_UsesGroupAndAggregateOrder`
+  - `TestBuildWordListCountQuery_UsesDistinctID`
+- 新增错题累计行为测试：[server/plugin/english_learning/service/english_word_report_error_test.go](server/plugin/english_learning/service/english_word_report_error_test.go)
+  - `TestReportWordError_AccumulatesWrongCount`
+  - `TestReportWordError_ReturnsErrorWhenWordMissing`
+- 新增 API 集成测试：[server/plugin/english_learning/api/english_word_api_test.go](server/plugin/english_learning/api/english_word_api_test.go)
+  - `TestEnglishWordAPI_ReportThenGetErrorLogList`
+  - `TestEnglishWordAPI_ReportWordError_AuthFailure`
+  - `TestEnglishWordAPI_GetWordErrorLogList_AuthFailure`
+  - `TestEnglishWordAPI_ReportWordError_ParamError`
+  - `TestEnglishWordAPI_ReportWordError_WordNotFound`
+  - `TestEnglishWordAPI_GetWordErrorLogList_ParamError`
+  - `TestEnglishWordAPI_FindEnglishWord_SupportsLowercaseID`
+  - `TestEnglishWordAPI_FindEnglishWord_SupportsUppercaseID`
+  - `TestEnglishWordAPI_FindEnglishWord_ParamError`
+  - `TestEnglishWordAPI_FindEnglishWord_NotFound`
+  - `TestEnglishWordAPI_GetWordList_NormalizedPage`
+  - `TestEnglishWordAPI_GetWordErrorLogList_NormalizedPage`
+
+### 10.4 API 兼容性与返回口径修正
+
+改了什么：
+- 文件：[server/plugin/english_learning/api/english_word.go](server/plugin/english_learning/api/english_word.go)
+- `findWord` 支持同时读取 `ID` 与 `id` 查询参数，兼容不同端/网关的参数大小写风格。
+- `getWordList` 与 `getErrorLogList` 响应中的 `page/pageSize` 统一返回规范化值（默认 `1/10`），与服务层分页行为一致。
+
+有什么用：
+- 降低客户端因参数大小写不一致导致的接口调用失败。
+- 避免请求未传分页时响应里出现 `page=0/pageSize=0` 的语义歧义。
+
+能防止什么问题：
+- 防止前端或脚本使用 `id` 时被误判为 `ID参数错误`。
+- 防止前端按响应分页字段渲染时出现“第0页”这类异常展示。
+
+验证结果：
+- `cd server && go test ./plugin/english_learning/service -run TestBuildWordList -count=1` 通过。
+- `cd server && go test ./plugin/english_learning/service -run TestReportWordError -count=1` 通过。
+- `cd server && go test ./plugin/english_learning/api -run TestEnglishWordAPI_ReportThenGetErrorLogList -count=1` 通过。
+- `cd server && go test ./plugin/english_learning/api -run TestEnglishWordAPI_.*AuthFailure -count=1` 通过。
+- `cd server && go test ./plugin/english_learning/api -run TestEnglishWordAPI_ -count=1` 通过。
+- `cd server && go test ./plugin/english_learning/api -run TestEnglishWordAPI_FindEnglishWord -count=1` 通过。
+- `cd server && go test ./plugin/english_learning/...` 通过。
+
+说明：
+- 本次属于英语学习模块稳定性和可维护性增强，不涉及权限策略、鉴权口径、安全配置开关变更。
+
+---
+
+## 11. 2026-06-17 英语学习 D5 错词本前端落地（非安全）
+
+### 11.1 新增 Uni 错词本页面
+
+改了什么：
+- 新增页面：[uni/src/pages/learning/error-log.vue](uni/src/pages/learning/error-log.vue)
+- 页面接入真实接口 `/englishLearning/word/getErrorLogList`，支持分页加载、空状态、加载状态。
+- 展示字段包含：单词、释义、累计错误次数、最近错误位置、最近期望字符、最近输入字符、最近更新时间。
+- 提供“去练习”动作，直接切回 `typing` tab 继续训练。
+
+有什么用：
+- 将 D4 已完成的“错词上报 + 错词列表接口”在 Uni 端形成可用闭环，用户可查看自己的高频错误词。
+
+能防止什么问题：
+- 防止错词数据仅停留在后端不可见，导致学习纠错链路断裂。
+
+### 11.2 学习个人中心增加错词本入口
+
+改了什么：
+- 文件：[uni/src/pages/learning/profile.vue](uni/src/pages/learning/profile.vue)
+- 在菜单中新增“错词本”入口，并完成 `goTo('error_words') -> /pages/learning/error-log` 跳转。
+
+有什么用：
+- 用户可以从学习“我的”页直接进入错词本，不再依赖隐藏路径或调试入口。
+
+### 11.3 注册页面路由
+
+改了什么：
+- 文件：[uni/src/pages.json](uni/src/pages.json)
+- 新增 `pages/learning/error-log` 页面注册，保持 `custom` 导航风格。
+
+有什么用：
+- 保障 `navigateTo` 能正常访问错词本页面。
+
+### 11.4 三语词条补齐
+
+改了什么：
+- 文件：
+  - [uni/src/utils/i18n-locales/zh.js](uni/src/utils/i18n-locales/zh.js)
+  - [uni/src/utils/i18n-locales/en.js](uni/src/utils/i18n-locales/en.js)
+  - [uni/src/utils/i18n-locales/mn.js](uni/src/utils/i18n-locales/mn.js)
+- 新增词条：`profileErrorBook`、`learningErrorLog*` 系列（标题、空态、字段名、分页文案等）。
+
+有什么用：
+- 保证错词本入口与页面核心文案在 zh/en/mn 可直接切语显示。
+
+验证结果：
+- VS Code 目标文件诊断：`uni/src/pages/learning/error-log.vue` 无错误。
+
+---
+
+## 12. 2026-06-17 英语学习 D13 系统配置集成（非安全）
+
+### 12.1 后端补充 GetStats 返回 dailyTarget
+
+改了什么：
+- 文件：[server/plugin/english_learning/api/checkin.go](server/plugin/english_learning/api/checkin.go)
+- 在 `GetStats` 接口响应中新增 `dailyTarget` 字段，从系统配置 `learning_daily_target` 读取（默认值 10）。
+- 调用 `SysConfigService.GetConfigIntByKey("learning_daily_target", 10)` 获取当日目标。
+
+有什么用：
+- 学习首页可动态获取当日签到目标，支持后台统一配置而不必硬编码。
+
+### 12.2 前端动态加载系统配置
+
+改了什么：
+- 文件：[uni/src/pages/learning/home.vue](uni/src/pages/learning/home.vue)
+- 新增 `loadSysConfig()` 函数，在页面 `onMount` 调用，从接口读取 `app_name` 和`app_logo` 配置。
+- 将 `sysConfig` ref 补齐 `appTitle` 和 `logo` 两个动态配置字段。
+- 首页顶部应用名称和 logo 从硬编码改为从 `sysConfig` 读取。
+
+有什么用：
+- 应用名称和 logo 可在后台通过系统配置修改，无需重新编译发版。
+- 支持多租户或快速品牌切换的场景。
+
+能防止什么问题：
+- 防止 logo 和应用名称硬编码导致的难以快速变更。
+
+### 12.3 Uni 三语补齐
+
+改了什么：
+- 文件：[uni/src/utils/i18n-locales/zh.js](uni/src/utils/i18n-locales/zh.js)、`en.js`、`mn.js`
+- 新增词条用于日历弹窗（`learningHomeCalendarTitle`、`learningHomeCalendarClose` 等）。
+
+有什么用：
+- 保证日历相关 UI 文案在三语切换时正确显示。
+
+验证结果：
+- `cd server && go build ./plugin/english_learning/...` 通过。
+- `cd server && go test ./plugin/english_learning/...` 通过。
+- `cd uni && npm run lint -- src/pages/learning/home.vue` 通过。
+- VS Code 诊断：后端、前端修改文件均无错误。
+
+说明：
+- 本次属于英语学习模块配置管理和 UI 动态化增强，不涉及权限或安全策略变更。
+
+---
+
+## 13. 2026-06-17 英语学习 D14 视频卡片统计真实数据（非安全）
+
+### 13.1 后端补充视频统计查询
+
+改了什么：
+- 文件：[server/plugin/english_learning/service/content.go](server/plugin/english_learning/service/content.go)
+- `GetVideoSeries()` 和 `GetVideoSeriesList()` 两个函数改为通过 `LEFT JOIN video_episode` 和 `LEFT JOIN user_watch_history` 聚合真实的观看统计。
+- `view_count` = 对应 Series 所有 Episode 的观看记录总数（`COUNT(DISTINCT user_watch_history.id)`）。
+- `user_count` = 对应 Series 所有 Episode 的唯一观看用户数（`COUNT(DISTINCT user_watch_history.user_id)`）。
+- 使用 `SELECT ... COALESCE(..., 0) ... GROUP BY video_series.id` 确保分页查询结果准确。
+
+有什么用：
+- 学习首页的视频卡片不再显示硬编码 0，而是展示真实的浏览量和观看人数。
+- 用户可以看到哪些视频更受欢迎，提升学习内容的选择参考度。
+
+能防止什么问题：
+- 防止 `viewCount/userCount` 长期显示 0 导致的用户困惑和视频热度信号缺失。
+
+### 13.2 前端无需改动
+
+说明：
+- Uni 首页已正确渲染 `video.viewCount` 和 `video.userCount` 字段，后端统计查询补齐后自动获得真实数据。
+- 无需修改 API 调用或前端逻辑。
+
+验证结果：
+- `cd server && go build -v ./plugin/english_learning/...` 成功编译。
+- `cd server && go test -v ./plugin/english_learning/service` 通过。
+- `cd uni && npm run lint -- src/pages/learning/home.vue` 通过。
+- VS Code 诊断：后端修改文件无错误。
+
+说明：
+- 本次属于英语学习模块数据统计完善，不涉及权限、鉴权或安全策略变更。
+- VS Code 目标文件诊断：`uni/src/pages/learning/profile.vue` 无错误。
+- VS Code 目标文件诊断：`uni/src/pages.json` 无错误。
+- VS Code 目标文件诊断：`uni/src/utils/i18n-locales/zh.js` 无错误。
+- VS Code 目标文件诊断：`uni/src/utils/i18n-locales/en.js` 无错误。
+- VS Code 目标文件诊断：`uni/src/utils/i18n-locales/mn.js` 无错误。
+
+说明：
+- 本次属于英语学习模块功能完善，不涉及鉴权链路、权限策略、安全配置开关变更。
+
+---
+
+## 14. 2026-06-27 英语学习 D15 完成度体检与体验完善（非安全）
+
+### 14.1 完成度评估
+
+当前状态：
+- Uni 学习端主链路已形成闭环：首页、跟打、播放器、视频详情、我的、收藏、错词本、观看记录、签到记录、积分流水、免费时长流水均已有真实页面与接口接入。
+- 后端英语学习插件已覆盖内容管理、签到、积分兑换、资产、观看进度、收藏、错词本、字幕句子等核心接口。
+- 已有关键回归测试覆盖 service/API 层，三语词条已覆盖主要学习页面。
+
+估算完成度：
+- C 端学习体验：约 85%。
+- 后端接口闭环：约 88%。
+- 运营后台与内容生产工具：约 60%（仍依赖后台录入/字幕清洗/内容维护流程继续完善）。
+- 上线前整体完成度：约 78%。
+
+主要剩余短板：
+- 内容生产链路还需要继续加强：字幕清洗、重点词标注、音频生成/上传等工具化程度不足。
+- 学习配置项还需要进一步独立化：如签到基础积分、递增加成、周期天数可从 sysConfig 管理。
+- 首页和个人页的空态/首用体验还可以继续打磨。
+
+### 14.2 后端首次使用日志降噪
+
+改了什么：
+- 文件：
+  - [server/plugin/english_learning/service/checkin.go](server/plugin/english_learning/service/checkin.go)
+  - [server/plugin/english_learning/service/user_data.go](server/plugin/english_learning/service/user_data.go)
+  - [server/plugin/english_learning/service/user_learning_asset.go](server/plugin/english_learning/service/user_learning_asset.go)
+- 将“首次使用没有统计、资产、观看历史、单词进度、收藏记录”等预期空记录查询从 `First` 改为 `Find + RowsAffected` 判空。
+- 保持原业务语义不变：没有记录时仍返回空对象、创建默认资产或创建新收藏。
+
+有什么用：
+- 避免学习首页、跟打页、播放器首用时控制台反复刷 `record not found`，降低联调噪音。
+- 让真正异常更容易从日志中被发现。
+
+### 14.3 积分兑换倍率配置化
+
+改了什么：
+- 文件：
+  - [server/plugin/english_learning/api/checkin.go](server/plugin/english_learning/api/checkin.go)
+  - [uni/src/pages/learning/profile.vue](uni/src/pages/learning/profile.vue)
+- 后端 `ExchangeTime` 从 sysConfig `points_exchange_rate` 读取兑换倍率，默认值 100，并对非法值回退 100。
+- Uni 个人页兑换弹窗通过 `getPointsExchangeRate()` 加载同一配置，展示预计可兑换分钟数。
+- 弹窗默认兑换积分数从硬编码 100 改为当前配置倍率。
+
+有什么用：
+- 后端实际扣积分和前端展示提示保持一致。
+- 后台调整积分兑换倍率后，学习 App 无需重新发版即可生效。
+
+验证结果：
+- `cd server && gofmt -w plugin/english_learning/api/checkin.go plugin/english_learning/service/checkin.go plugin/english_learning/service/user_data.go plugin/english_learning/service/user_learning_asset.go` 完成。
+- `cd server && go test ./plugin/english_learning/...` 通过。
+- `cd uni && npm run lint -- src/pages/learning/profile.vue` 通过。
+- VS Code 诊断：本轮后端与 Uni 修改文件无错误。
+
+说明：
+- 本次属于英语学习模块体验完善与配置一致性修复，不涉及鉴权链路、权限策略、安全配置开关变更。
+
+---
+
+## 15. 2026-06-27 英语学习 D16 签到奖励配置化（非安全）
+
+### 15.1 后端签到奖励参数改为系统配置读取
+
+改了什么：
+- 文件：[server/plugin/english_learning/api/checkin.go](server/plugin/english_learning/api/checkin.go)
+- `DoCheckin` 不再硬编码签到奖励参数，改为从 sysConfig 读取：
+  - `learning_checkin_base_point`（默认 100）
+  - `learning_checkin_increment`（默认 5）
+  - `learning_checkin_cycle_days`（默认 10）
+- `GetStats` 在原有 `dailyTarget` 基础上，额外返回当前签到规则：`basePoint`、`increment`、`cycleDays`。
+
+有什么用：
+- 运营可直接在后台调节英语签到奖励曲线（基础分、递增值、轮回周期），无需改代码发版。
+- 首页拿到统计时可同步拿到当期规则，便于后续前端展示“签到规则说明”。
+
+### 15.2 初始化默认配置补齐
+
+改了什么：
+- 文件：[server/initialize/other.go](server/initialize/other.go)
+- 新增 `english_learning` 分组默认配置：
+  - `learning_daily_target = 10`
+  - `learning_checkin_base_point = 100`
+  - `learning_checkin_increment = 5`
+  - `learning_checkin_cycle_days = 10`
+
+有什么用：
+- 新环境初始化后即有完整英语学习签到配置，不依赖手工补数据。
+- 避免因缺少配置导致规则回退到硬编码或行为不一致。
+
+验证结果：
+- `cd server && gofmt -w plugin/english_learning/api/checkin.go initialize/other.go` 完成。
+- `cd server && go test ./plugin/english_learning/...` 通过。
+- `cd server && go test ./initialize -run TestDoesNotExist -count=1` 通过（编译校验）。
+- VS Code 诊断：本轮修改文件无错误。
+
+说明：
+- 本次属于英语学习模块可配置化增强，不涉及鉴权链路、权限策略、安全配置开关变更。
+
+---
+
+## 16. 2026-07-01 英语学习 D17 Web 管理端菜单补齐（非安全）
+
+### 16.1 根因定位
+
+现象：
+- Web 后台看不到英语学习“单词/视频”菜单。
+
+定位结论：
+- 英语学习插件页面文件已存在：
+  - `web/src/plugin/english_learning/view/word.vue`
+  - `web/src/plugin/english_learning/view/video.vue`
+- Web 异步路由也支持 `plugin/*` 组件路径加载。
+- 但初始化菜单逻辑未写入这两个菜单到 `sys_base_menus`，因此侧边栏不会出现。
+
+### 16.2 菜单初始化补齐
+
+改了什么：
+- 文件：[server/initialize/new_modules_init.go](server/initialize/new_modules_init.go)
+- 在 `initNewModulesMenus` 的 `client` 分组中新增 2 个动态菜单定义：
+  - `englishLearningWord` -> `plugin/english_learning/view/word.vue`（英语单词管理）
+  - `englishLearningVideo` -> `plugin/english_learning/view/video.vue`（英语视频字幕）
+- 保持原有初始化策略：若菜单名已存在则跳过，避免重复插入；新菜单会自动写入角色菜单关联表。
+
+有什么用：
+- 后台启动后会自动补齐英语学习菜单，无需手工去“菜单管理”逐条新增。
+- 管理员可直接进入英语学习单词与视频字幕管理页面进行运营维护。
+
+验证结果：
+- `cd server && gofmt -w initialize/new_modules_init.go` 完成。
+- `cd server && go test ./initialize -run TestDoesNotExist -count=1` 通过（编译校验）。
+- VS Code 诊断：`server/initialize/new_modules_init.go` 无错误。
+
+说明：
+- 本次属于后台菜单可用性完善，不涉及鉴权链路、权限策略、安全配置开关变更。
+
+---
+
+## 12. 2026-06-17 英语学习 D6 观看记录页落地（非安全）
+
+### 12.1 后端新增观看记录分页接口
+
+改了什么：
+- 新增请求模型：`WatchHistorySearch`。
+  - 文件：[server/plugin/english_learning/model/request/user_data.go](server/plugin/english_learning/model/request/user_data.go)
+- 服务层新增聚合查询：`GetWatchHistoryList(userID, info)`，联表 `user_watch_histories + video_episodes + video_series` 返回剧集名、单集名、封面、进度、最近观看时间。
+  - 文件：[server/plugin/english_learning/service/user_data.go](server/plugin/english_learning/service/user_data.go)
+- API 层新增：`GetWatchHistoryList`（`/englishLearning/userData/getWatchHistoryList`），并返回规范化分页字段（默认 `1/10`）。
+  - 文件：[server/plugin/english_learning/api/user_data.go](server/plugin/english_learning/api/user_data.go)
+- 路由注册新增 `getWatchHistoryList`。
+  - 文件：[server/plugin/english_learning/router/user_data.go](server/plugin/english_learning/router/user_data.go)
+
+有什么用：
+- 将“单集进度恢复能力”扩展为“用户可查看全量观看历史”，支持前端直接构建观看记录页。
+
+能防止什么问题：
+- 防止 profile 中“观看记录”入口长期占位不可用，避免用户无法回溯已看内容。
+
+### 12.2 后端回归测试补齐
+
+改了什么：
+- 新增 API 回归测试文件：[server/plugin/english_learning/api/user_data_api_test.go](server/plugin/english_learning/api/user_data_api_test.go)
+- 覆盖场景：
+  - 成功返回与按最近观看时间排序。
+  - 参数错误分支（非法分页参数）。
+  - 鉴权失败分支（缺失 token）。
+  - 分页字段规范化分支（默认 `page/pageSize`）。
+
+有什么用：
+- 保障新接口后续重构时行为可回归验证，降低“排序/鉴权/参数校验”退化风险。
+
+### 12.3 Uni 新增观看记录页面并接入入口
+
+改了什么：
+- 新增学习 API 封装：`getWatchHistoryList`。
+  - 文件：[uni/src/api/learning.js](uni/src/api/learning.js)
+- 新增页面：[uni/src/pages/learning/watch-history.vue](uni/src/pages/learning/watch-history.vue)
+  - 展示剧集/单集、观看进度、最近观看时间。
+  - 支持分页上拉加载与“继续观看”跳转播放器。
+- profile 的 `watch_history` 从占位改为真实跳转 `pages/learning/watch-history`。
+  - 文件：[uni/src/pages/learning/profile.vue](uni/src/pages/learning/profile.vue)
+- 页面路由注册新增：`pages/learning/watch-history`。
+  - 文件：[uni/src/pages.json](uni/src/pages.json)
+
+有什么用：
+- 用户可从“我的 -> 观看记录”直接进入历史页并恢复播放，形成学习视频闭环。
+
+### 12.4 三语词条补齐
+
+改了什么：
+- 新增 `learningWatchHistory*` 词条（标题、空态、分页、字段标签、继续观看等）。
+- 文件：
+  - [uni/src/utils/i18n-locales/zh.js](uni/src/utils/i18n-locales/zh.js)
+  - [uni/src/utils/i18n-locales/en.js](uni/src/utils/i18n-locales/en.js)
+  - [uni/src/utils/i18n-locales/mn.js](uni/src/utils/i18n-locales/mn.js)
+
+有什么用：
+- 保障观看记录页在 zh/en/mn 下可直接切语展示，符合英语学习模块 i18n 规范。
+
+验证结果：
+- `cd server && go test ./plugin/english_learning/api -run TestUserDataAPI_GetWatchHistoryList -count=1` 通过。
+- `cd server && go test ./plugin/english_learning/...` 通过。
+- VS Code 目标文件诊断：本次后端与 Uni 变更文件无错误。
+- `cd uni && npm run lint -- src/pages/learning/watch-history.vue src/pages/learning/profile.vue src/api/learning.js src/utils/i18n-locales/zh.js src/utils/i18n-locales/en.js src/utils/i18n-locales/mn.js` 通过。
+
+说明：
+- 本次属于英语学习模块功能完善，不涉及权限策略、鉴权口径、安全配置开关变更。
+
+---
+
+## 14. 2026-06-17 英语学习 D8 免费时长明细页落地（非安全）
+
+### 14.1 后端新增免费时长流水与查询接口
+
+改了什么：
+- 新增英语学习免费时长流水模型 `EnglishFreeTimeRecord`。
+  - 文件：[server/plugin/english_learning/model/user_learning_model.go](server/plugin/english_learning/model/user_learning_model.go)
+- 新增请求模型 `FreeTimeRecordSearch`。
+  - 文件：[server/plugin/english_learning/model/request/user_learning.go](server/plugin/english_learning/model/request/user_learning.go)
+- 在插件 Gorm 初始化中纳入 `EnglishFreeTimeRecord` 自动迁移。
+  - 文件：[server/plugin/english_learning/initialize/gorm.go](server/plugin/english_learning/initialize/gorm.go)
+- 新增 API：`GetFreeTimeRecordList`（`/englishLearning/asset/getFreeTimeRecordList`）并注册路由。
+  - 文件：[server/plugin/english_learning/api/user_learning_asset.go](server/plugin/english_learning/api/user_learning_asset.go)
+  - 文件：[server/plugin/english_learning/router/user_learning_asset.go](server/plugin/english_learning/router/user_learning_asset.go)
+
+有什么用：
+- 为学习中心“免费时长明细”提供独立可追溯数据源，支撑用户查看时长来源与扣减轨迹。
+
+### 14.2 兑换加时长与心跳扣时长接入流水
+
+改了什么：
+- `ExchangePoints` 在增加免费分钟后同步写入 `EnglishFreeTimeRecord`（`increase`，`point_exchange`）。
+  - 文件：[server/plugin/english_learning/service/checkin.go](server/plugin/english_learning/service/checkin.go)
+- `HandleHeartbeat` 在分钟扣减生效时同步写入 `EnglishFreeTimeRecord`（`decrease`，`heartbeat_consume`），覆盖 Redis/非 Redis 两条扣减路径。
+  - 文件：[server/plugin/english_learning/service/user_learning_asset.go](server/plugin/english_learning/service/user_learning_asset.go)
+
+有什么用：
+- 打通“时长资产变更 -> 明细可查”的闭环，避免用户仅看到余额而无法追溯扣减原因。
+
+### 14.3 后端测试补齐
+
+改了什么：
+- 新增资产 API 回归测试：覆盖成功返回、参数错误、鉴权失败、分页规范化。
+  - 文件：[server/plugin/english_learning/api/user_learning_asset_api_test.go](server/plugin/english_learning/api/user_learning_asset_api_test.go)
+- 新增资产服务测试：覆盖心跳扣时长写流水与免费时长分页查询。
+  - 文件：[server/plugin/english_learning/service/user_learning_asset_service_test.go](server/plugin/english_learning/service/user_learning_asset_service_test.go)
+- 扩展兑换服务测试：校验兑换后免费时长流水写入。
+  - 文件：[server/plugin/english_learning/service/checkin_service_test.go](server/plugin/english_learning/service/checkin_service_test.go)
+
+有什么用：
+- 降低后续重构对“时长扣减口径与流水一致性”的回归风险。
+
+### 14.4 Uni 新增免费时长明细页面并接入入口
+
+改了什么：
+- 新增学习 API 封装：`getLearningFreeTimeRecordList`。
+  - 文件：[uni/src/api/learning.js](uni/src/api/learning.js)
+- 新增页面：`pages/learning/free-time-history`，展示当前免费时长与流水列表。
+  - 文件：[uni/src/pages/learning/free-time-history.vue](uni/src/pages/learning/free-time-history.vue)
+- `profile` 页面中 `free_time_history` 从占位改为真实跳转。
+  - 文件：[uni/src/pages/learning/profile.vue](uni/src/pages/learning/profile.vue)
+- 新增路由注册：`pages/learning/free-time-history`。
+  - 文件：[uni/src/pages.json](uni/src/pages.json)
+
+有什么用：
+- 学习中心资产卡片可直接进入免费时长流水页，用户可自主核对加时长与扣时长变动。
+
+### 14.5 三语词条补齐
+
+改了什么：
+- 新增 `learningFreeTimeHistory*` 页面词条（标题、空态、分页文案、当前免费分钟）。
+- 新增时长扣减原因词条 `reason_learningWatchConsume`。
+- 文件：
+  - [uni/src/utils/i18n-locales/zh.js](uni/src/utils/i18n-locales/zh.js)
+  - [uni/src/utils/i18n-locales/en.js](uni/src/utils/i18n-locales/en.js)
+  - [uni/src/utils/i18n-locales/mn.js](uni/src/utils/i18n-locales/mn.js)
+
+有什么用：
+- 保证免费时长明细与扣减原因在 zh/en/mn 切语时一致可读。
+
+验证结果：
+- `cd server && go test ./plugin/english_learning/...` 通过。
+- `cd uni && npm run lint -- src/api/learning.js src/pages/learning/profile.vue src/pages/learning/free-time-history.vue src/pages.json src/utils/i18n-locales/zh.js src/utils/i18n-locales/en.js src/utils/i18n-locales/mn.js` 通过（`pages.json` 为 ESLint 忽略文件，仅告警无错误）。
+- VS Code 目标文件诊断：本次后端与 Uni 变更文件无错误。
+
+说明：
+- 本次属于英语学习模块功能完善，不涉及权限策略、鉴权口径、安全配置开关变更。
+
+---
+
+## 13. 2026-06-17 英语学习 D7 积分明细页落地（非安全）
+
+### 13.1 后端新增英语学习积分流水与查询接口
+
+改了什么：
+- 新增英语学习积分流水模型 `EnglishPointRecord`，用于记录学习模块内积分增减事件。
+  - 文件：[server/plugin/english_learning/model/user_learning_model.go](server/plugin/english_learning/model/user_learning_model.go)
+- 新增分页查询请求模型 `PointRecordSearch`。
+  - 文件：[server/plugin/english_learning/model/request/checkin.go](server/plugin/english_learning/model/request/checkin.go)
+- 在插件 Gorm 初始化中纳入 `EnglishPointRecord` 自动迁移。
+  - 文件：[server/plugin/english_learning/initialize/gorm.go](server/plugin/english_learning/initialize/gorm.go)
+- 新增 API：`GetPointRecordList`（`/englishLearning/checkin/getPointRecordList`）并注册路由。
+  - 文件：[server/plugin/english_learning/api/checkin.go](server/plugin/english_learning/api/checkin.go)
+  - 文件：[server/plugin/english_learning/router/checkin.go](server/plugin/english_learning/router/checkin.go)
+
+有什么用：
+- 为学习中心“积分明细”提供独立可追溯数据源，支撑用户查看签到奖励与兑换扣减流水。
+
+能防止什么问题：
+- 防止仅有资产总额、缺乏变更轨迹导致的“积分变动不可解释”问题。
+
+### 13.2 签到与兑换流程接入流水写入
+
+改了什么：
+- `PerformCheckin` 在发放积分后同步写入 `EnglishPointRecord`（`increase`，`checkin_reward`）。
+- `ExchangePoints` 在扣减积分并增加免费时长后同步写入 `EnglishPointRecord`（`decrease`，`point_exchange`）。
+- 新增服务层分页查询方法 `GetPointRecordList`。
+  - 文件：[server/plugin/english_learning/service/checkin.go](server/plugin/english_learning/service/checkin.go)
+
+有什么用：
+- 打通“操作行为 -> 资产变化 -> 明细展示”的闭环，前端无需推断积分来源。
+
+### 13.3 后端测试补齐
+
+改了什么：
+- 新增 API 回归测试：覆盖成功返回、参数错误、鉴权失败、分页规范化。
+  - 文件：[server/plugin/english_learning/api/checkin_api_test.go](server/plugin/english_learning/api/checkin_api_test.go)
+- 新增服务测试：覆盖签到/兑换写流水与资产联动正确性。
+  - 文件：[server/plugin/english_learning/service/checkin_service_test.go](server/plugin/english_learning/service/checkin_service_test.go)
+
+有什么用：
+- 降低后续重构时对“积分入账/扣减与流水一致性”的回归风险。
+
+### 13.4 Uni 新增积分明细页面并接入入口
+
+改了什么：
+- 新增学习 API 封装：`getLearningPointRecordList`。
+  - 文件：[uni/src/api/learning.js](uni/src/api/learning.js)
+- 新增页面：`pages/learning/point-history`，展示当前积分与流水列表。
+  - 文件：[uni/src/pages/learning/point-history.vue](uni/src/pages/learning/point-history.vue)
+- `profile` 页面中 `point_history` 从占位改为真实跳转。
+  - 文件：[uni/src/pages/learning/profile.vue](uni/src/pages/learning/profile.vue)
+- 新增路由注册：`pages/learning/point-history`。
+  - 文件：[uni/src/pages.json](uni/src/pages.json)
+
+有什么用：
+- 学习中心资产卡片可直接进入积分流水页，用户可自主核对积分变化。
+
+### 13.5 三语词条补齐
+
+改了什么：
+- 新增 `learningPointHistory*` 页面词条（标题、空态、分页文案、当前积分）。
+- 新增兑换原因词条 `reason_learningExchange`。
+- 文件：
+  - [uni/src/utils/i18n-locales/zh.js](uni/src/utils/i18n-locales/zh.js)
+  - [uni/src/utils/i18n-locales/en.js](uni/src/utils/i18n-locales/en.js)
+  - [uni/src/utils/i18n-locales/mn.js](uni/src/utils/i18n-locales/mn.js)
+
+有什么用：
+- 保证积分明细与原因文案在 zh/en/mn 切语时一致可读。
+
+验证结果：
+- `cd server && go test ./plugin/english_learning/...` 通过。
+- `cd uni && npm run lint -- src/api/learning.js src/pages/learning/profile.vue src/pages/learning/point-history.vue src/utils/i18n-locales/zh.js src/utils/i18n-locales/en.js src/utils/i18n-locales/mn.js` 通过。
+- VS Code 目标文件诊断：本次后端与 Uni 变更文件无错误。
+
+说明：
+- 本次属于英语学习模块功能完善，不涉及权限策略、鉴权口径、安全配置开关变更。

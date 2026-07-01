@@ -187,6 +187,8 @@ func initNewModulesMenus(db *gorm.DB) {
 			menuDef{"tryonClothManage", "tryonClothManage", "view/client/tryonCloth/tryonCloth.vue", "我的衣橱管理", "goods", clientParent.ID, 19},
 			menuDef{"tryonPointRecord", "tryonPointRecord", "view/client/tryonPointRecord/tryonPointRecord.vue", "试衣币记录", "coin", clientParent.ID, 20},
 			menuDef{"tryonRechargeOrder", "tryonRechargeOrder", "view/client/tryonRechargeOrder/tryonRechargeOrder.vue", "试衣币充值订单", "wallet", clientParent.ID, 21},
+			menuDef{"englishLearningWord", "englishLearningWord", "plugin/english_learning/view/word.vue", "英语单词管理", "reading", clientParent.ID, 22},
+			menuDef{"englishLearningVideo", "englishLearningVideo", "plugin/english_learning/view/video.vue", "英语视频字幕", "video-play", clientParent.ID, 23},
 		)
 	}
 

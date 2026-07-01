@@ -1,7 +1,7 @@
 {
 	"pages": [
 		{
-			"path": "pages/tabBar/index",
+			"path": "pages/learning/home",
 			"style": {
 				"navigationBarTitleText": "",
 				"navigationStyle": "custom",
@@ -379,6 +379,87 @@
 				"navigationBarTitleText": "",
 				"enablePullDownRefresh": false
 			}
+		},
+		{
+			"path": "pages/learning/typing",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"enablePullDownRefresh": false,
+				"disableScroll": true
+			}
+		},
+		{
+			"path": "pages/learning/player",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"pageOrientation": "auto"
+			}
+		},
+		{
+			"path": "pages/learning/video-detail",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/learning/profile",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/learning/checkin-record",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/learning/collections",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/learning/watch-history",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/learning/error-log",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/learning/point-history",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/learning/free-time-history",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"enablePullDownRefresh": false
+			}
 		}
 	],
 	"uniIdRouter": {},
@@ -403,24 +484,23 @@
 		"backgroundColor": "#ffffff",
 		"borderStyle": "black",
 		"list": [{
-				"pagePath": "pages/tabBar/index",
-			"onPageScroll": true,
-
-			"text": "试衣间",
-				"iconPath": "static/images/tabBar/luxe-tryon.svg",
-				"selectedIconPath": "static/images/tabBar/luxe-tryon-active.svg"
+				"pagePath": "pages/learning/home",
+				"onPageScroll": true,
+				"text": "首页",
+				"iconPath": "static/images/tabBar/home.png",
+				"selectedIconPath": "static/images/tabBar/homes.png"
 			},
 			{
-				"pagePath": "pages/tabBar/clothes/index",
-				"text": "衣服商品页",
-				"iconPath": "static/images/tabBar/luxe-clothes.svg",
-				"selectedIconPath": "static/images/tabBar/luxe-clothes-active.svg"
+				"pagePath": "pages/learning/typing",
+				"text": "跟打",
+				"iconPath": "static/images/tabBar/find.png",
+				"selectedIconPath": "static/images/tabBar/finds.png"
 			},
 			{
-				"pagePath": "pages/tabBar/my/index",
+				"pagePath": "pages/learning/profile",
 				"text": "我的",
-				"iconPath": "static/images/tabBar/luxe-my.svg",
-				"selectedIconPath": "static/images/tabBar/luxe-my-active.svg"
+				"iconPath": "static/images/tabBar/my.png",
+				"selectedIconPath": "static/images/tabBar/mys.png"
 			}
 		]
 	}

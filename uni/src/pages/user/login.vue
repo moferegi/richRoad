@@ -180,7 +180,7 @@
   }
 
 	const goBack = () => {
-    uni.switchTab({ url: '/pages/tabBar/index' })
+    uni.switchTab({ url: '/pages/learning/home' })
 	}
 
 	const userStore = useUserStore()
@@ -418,7 +418,7 @@
 		if(flag){
       uni.removeStorageSync('pendingInviteCode')
 			uni.showToast({ title: $t.value('loginSuccess') })
-      uni.switchTab({ url: '/pages/tabBar/index' })
+      uni.switchTab({ url: '/pages/learning/home' })
 			return
 		}
 		getCaptchaFunc()

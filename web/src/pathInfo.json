@@ -136,5 +136,7 @@
   "/src/plugin/customer_service/view/quickReplies.vue": "QuickReplies",
   "/src/plugin/customer_service/view/workbench.vue": "Workbench",
   "/src/plugin/email/view/index.vue": "Email",
+  "/src/plugin/english_learning/view/video.vue": "Video",
+  "/src/plugin/english_learning/view/word.vue": "Word",
   "/src/plugin/geo/view/index.vue": "Index"
 }

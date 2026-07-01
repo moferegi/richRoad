@@ -8,7 +8,7 @@
 	import { generateFingerprint, getSessionId, getPlatform } from '@/utils/fingerprint.js'
 	import { initExternalDomain, initCdnDomain } from '@/utils/url.js'
 
-	const HOME_TAB_URL = '/pages/tabBar/index'
+	const HOME_TAB_URL = '/pages/learning/home'
 	let backGuardInstalled = false
 	let pendingBackRoute = ''
 

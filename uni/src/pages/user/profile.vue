@@ -296,7 +296,7 @@ const logout = () => {
 }
 
 const goBack = () => {
-  uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/tabBar/my/index' }) })
+  uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/learning/profile' }) })
 }
 </script>
 

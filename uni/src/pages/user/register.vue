@@ -162,7 +162,7 @@
   }
 
 	const goBack = () => {
-    uni.switchTab({ url: '/pages/tabBar/index' })
+    uni.switchTab({ url: '/pages/learning/home' })
 	}
 
 	// 注册模式

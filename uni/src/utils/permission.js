@@ -16,7 +16,7 @@ export const myRouter = (url,isRedirectTo)=>{
 
 	if(inLogin && token) {
 		uni.switchTab({
-			url: '/pages/tabBar/index'
+			url: '/pages/learning/home'
 		})
 		return
 	}
