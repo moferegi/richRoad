@@ -15,10 +15,10 @@ export const myRouter = (url,isRedirectTo)=>{
     })
 
 	if(inLogin && token) {
-	    uni.switchTab({
-	        url: '/pages/tabBar/index'
-	    })
-	    return
+		uni.switchTab({
+			url: '/pages/learning/home'
+		})
+		return
 	}
     if(inBlack && !token) {
         uni.switchTab({

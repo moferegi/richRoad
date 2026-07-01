@@ -102,6 +102,18 @@ func initDefaultSysConfigs() {
 		{ConfigKey: "password_regex", ConfigValue: "", ConfigName: "密码格式正则式", ConfigGroup: "auth", Remark: "密码格式正则验证，空则不验证"},
 		{ConfigKey: "username_regex_tip", ConfigValue: "", ConfigName: "用户名提示文本", ConfigGroup: "auth", Remark: "用户名输入框内提示文本(JSON多语言)"},
 		{ConfigKey: "password_regex_tip", ConfigValue: "", ConfigName: "密码提示文本", ConfigGroup: "auth", Remark: "密码输入框内提示文本(JSON多语言)"},
+		// english_learning 分组
+		{ConfigKey: "learning_daily_target", ConfigValue: "10", ConfigName: "英语学习每日目标", ConfigGroup: "english_learning", Remark: "学习首页每日目标展示值"},
+		{ConfigKey: "learning_new_user_free_hours", ConfigValue: "24", ConfigName: "英语学习新用户全站免费时长(小时)", ConfigGroup: "english_learning", Remark: "首次创建学习资产时自动发放的全站免费权益时长，0表示关闭"},
+		{ConfigKey: "learning_checkin_base_point", ConfigValue: "100", ConfigName: "英语签到基础积分", ConfigGroup: "english_learning", Remark: "英语学习签到第1天基础积分"},
+		{ConfigKey: "learning_checkin_increment", ConfigValue: "5", ConfigName: "英语签到每日递增", ConfigGroup: "english_learning", Remark: "英语学习签到每天递增积分"},
+		{ConfigKey: "learning_checkin_cycle_days", ConfigValue: "10", ConfigName: "英语签到轮回天数", ConfigGroup: "english_learning", Remark: "英语学习签到积分轮回周期天数"},
+		{ConfigKey: "learning_tts_enabled", ConfigValue: "false", ConfigName: "英语TTS自动发音开关", ConfigGroup: "english_learning", Remark: "是否启用英语单词自动发音生成(true/false)"},
+		{ConfigKey: "learning_tts_provider_url", ConfigValue: "", ConfigName: "英语TTS服务地址", ConfigGroup: "english_learning", Remark: "外部TTS服务HTTP地址，需返回可访问音频URL"},
+		{ConfigKey: "learning_tts_api_key", ConfigValue: "", ConfigName: "英语TTS服务密钥", ConfigGroup: "english_learning", Remark: "外部TTS服务鉴权密钥（可空）"},
+		{ConfigKey: "learning_tts_timeout_ms", ConfigValue: "8000", ConfigName: "英语TTS请求超时(毫秒)", ConfigGroup: "english_learning", Remark: "调用外部TTS服务的超时时间，范围1000-60000"},
+		{ConfigKey: "learning_tts_voice_us", ConfigValue: "en-US-JennyNeural", ConfigName: "英语TTS美式音色", ConfigGroup: "english_learning", Remark: "自动生成美式发音使用的voice参数"},
+		{ConfigKey: "learning_tts_voice_uk", ConfigValue: "en-GB-SoniaNeural", ConfigName: "英语TTS英式音色", ConfigGroup: "english_learning", Remark: "自动生成英式发音使用的voice参数"},
 		// points 分组
 		{ConfigKey: "points_exchange_rate", ConfigValue: "100", ConfigName: "积分兑换比率", ConfigGroup: "points", Remark: "多少积分兑换1货币单位，如100积分=1元"},
 		// tryon 分组

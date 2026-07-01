@@ -108,10 +108,16 @@ export const useLangStore = defineStore('lang', () => {
 
   const updateTabBar = (lang, retry = 0) => {
     const currentLang = getEffectiveLocale(lang)
+    const tabFallbackTextMap = {
+      zh: ['首页', '跟打', '我的'],
+      en: ['Home', 'Typing', 'Me'],
+      mn: ['Нүүр', 'Бичих', 'Миний'],
+    }
+    const fallbackTexts = tabFallbackTextMap[currentLang] || tabFallbackTextMap.en
     const tabs = [
-      { index: 0, key: 'tryonRoom' },
-      { index: 1, key: 'clothesPage' },
-      { index: 2, key: 'tabMy' },
+      { index: 0, key: 'englishTabHome', fallbackIndex: 0 },
+      { index: 1, key: 'englishTabTyping', fallbackIndex: 1 },
+      { index: 2, key: 'englishTabMy', fallbackIndex: 2 },
     ]
 
     let finished = 0
@@ -126,7 +132,11 @@ export const useLangStore = defineStore('lang', () => {
     tabs.forEach(item => {
       uni.setTabBarItem({
         index: item.index,
-        text: t(item.key, currentLang),
+        text: (() => {
+          const text = t(item.key, currentLang)
+          if (text && text !== item.key) return text
+          return fallbackTexts[item.fallbackIndex]
+        })(),
         success: () => {
           finished += 1
           tryNext()

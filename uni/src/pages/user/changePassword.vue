@@ -54,7 +54,7 @@ const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
 
 const goBack = () => {
-  uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/tabBar/my/index' }) })
+  uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/learning/profile' }) })
 }
 
 const goKefu = () => {

@@ -78,7 +78,7 @@ const maskedCurrentPhone = computed(() => {
 })
 
 const goBack = () => {
-  uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/tabBar/my/index' }) })
+  uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/learning/profile' }) })
 }
 
 const form = reactive({

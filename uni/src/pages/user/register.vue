@@ -105,8 +105,8 @@
       <view class="nf-popup-content" @tap.stop>
         <view class="nf-popup-title">{{ $t('selectAreaCode') }}</view>
         <scroll-view scroll-y class="nf-popup-scroll">
-          <view class="nf-area-item" v-for="item in areaCodes" :key="item.ID" @tap="selectArea(item)">
-            <text class="nf-area-name">{{ $lt(item.countryName) }}</text>
+          <view class="nf-area-item" v-for="item in areaCodeViews" :key="item._areaKey" @tap="selectArea(item._raw)">
+            <text class="nf-area-name">{{ item._countryNameText }}</text>
             <text class="nf-area-code-val">{{ item.areaCode }}</text>
           </view>
         </scroll-view>
@@ -117,13 +117,15 @@
 <script setup>
 	import {
 		onLoad,
+    onShow,
 	} from '@dcloudio/uni-app';
 
 	import {
 		reactive,
 		ref,
 		computed,
-		onMounted
+    onMounted,
+    watch
 	} from 'vue';
 
 	import {
@@ -143,13 +145,15 @@
   const appConfigStore = useAppConfigStore()
 	const $t = computed(() => langStore.$t)
 	const $lt = computed(() => langStore.$lt)
+  const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
   const appName = computed(() => appConfigStore.appName || 'RichRoad')
   const appLogoUrl = computed(() => getExternalUrl(appConfigStore.appLogo || ''))
   const langLabel = computed(() => {
     const map = { zh: 'ZH', en: 'EN', mn: 'MN', 'zh-TW': 'TW', th: 'TH', hi: 'HI', id: 'ID', vi: 'VI', ar: 'AR', ja: 'JA', ko: 'KO', ms: 'MS' }
-	  return map[langStore.locale] || langStore.locale.slice(0, 2).toUpperCase()
+    return map[langStore.locale] || langStore.locale.slice(0, 2).toUpperCase()
 	})
 	const showLangPicker = ref(false)
+  const lastLoadedLocale = ref('')
 
   const tryAutoShowLangPicker = () => {
     if (showLangPicker.value) return
@@ -158,7 +162,7 @@
   }
 
 	const goBack = () => {
-	  uni.switchTab({ url: '/pages/tabBar/index' })
+    uni.switchTab({ url: '/pages/learning/home' })
 	}
 
 	// 注册模式
@@ -168,6 +172,13 @@
 	const showAreaCodePicker = ref(false)
 	const areaCodes = ref([])
 	const selectedAreaCode = ref('+86')
+	const areaCodeViews = computed(() => areaCodes.value.map((item, index) => ({
+    ...item,
+    // 注册区号弹窗只读展示字段；注册提交仍使用 form.areaCode 和 selectArea 原对象。
+    _raw: item,
+    _areaKey: item.ID || item.id || `${item.areaCode || 'area'}-${index}`,
+    _countryNameText: $lt.value(item.countryName) || item.countryName,
+  })))
 
 	// 正则和提示配置
 	const usernameRegex = ref('')
@@ -180,7 +191,7 @@
 		if (!jsonStr) return ''
 		try {
 			const obj = JSON.parse(jsonStr)
-			return obj[langStore.locale] || obj['zh'] || obj['en'] || ''
+      return obj[langStore.locale] || obj['en'] || obj['zh'] || ''
 		} catch(e) {
 			return jsonStr
 		}
@@ -217,6 +228,14 @@
 		}
 	}
 
+  const reloadLocaleSensitiveData = async () => {
+    await Promise.all([
+      loadAreaCodes(),
+      loadConfig(),
+      appConfigStore.loadConfig({ force: true, localeOnly: true })
+    ])
+  }
+
 	// 加载配置
 	const loadConfig = async () => {
 		try {
@@ -238,7 +257,9 @@
 				usernameRegexTip.value = res.data.username_regex_tip || ''
 				passwordRegexTip.value = res.data.password_regex_tip || ''
 			}
-		} catch(e) {}
+    } catch {
+      // ignore config fetch failure
+    }
 	}
 
 	// 加载区号列表
@@ -248,12 +269,16 @@
 			if (res.code === 0 && res.data) {
 				const list = Array.isArray(res.data) ? res.data : (res.data.list || [])
 				areaCodes.value = list
-				if (areaCodes.value.length > 0) {
-					selectedAreaCode.value = areaCodes.value[0].areaCode
-					form.areaCode = areaCodes.value[0].areaCode
-				}
+        if (!areaCodes.value.length) return
+        const currentCode = form.areaCode || selectedAreaCode.value
+        const matched = areaCodes.value.find(item => item.areaCode === currentCode) || areaCodes.value[0]
+        selectedAreaCode.value = matched.areaCode
+        form.areaCode = matched.areaCode
+        selectedAreaItem.value = matched
 			}
-		} catch(e) {}
+    } catch {
+      // ignore area code fetch failure
+    }
 	}
 
 	const selectArea = (item) => {
@@ -304,7 +329,22 @@
 	// 从URL参数获取邀请码
 	onLoad((options) => {
     applyInviteCode(options)
+    lastLoadedLocale.value = locale.value
 	})
+
+  onShow(() => {
+    const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
+    if (localeChanged) {
+      reloadLocaleSensitiveData()
+    }
+    lastLoadedLocale.value = locale.value
+  })
+
+  watch(() => locale.value, (newLocale, oldLocale) => {
+    if (!oldLocale || newLocale === oldLocale) return
+    reloadLocaleSensitiveData()
+    lastLoadedLocale.value = newLocale
+  })
 
 	onMounted(() => {
 		getCaptchaFunc()
@@ -317,7 +357,18 @@
     tryAutoShowLangPicker()
 	})
 
+  const syncTabBarLocale = () => {
+    const lang = langStore.locale || uni.getStorageSync('app-lang') || 'mn'
+    langStore.updateTabBar(lang)
+    ;[120, 300, 620].forEach((delay) => {
+      setTimeout(() => {
+        langStore.updateTabBar(lang)
+      }, delay)
+    })
+  }
+
 	const toLogin = () => {
+    syncTabBarLocale()
 		uni.navigateTo({ url: '/pages/user/login' })
 	}
 
@@ -337,7 +388,9 @@
 						uni.showToast({ title: tip || $t.value('enterUsername'), icon: 'none' })
 						return
 					}
-				} catch(e) {}
+        } catch {
+          // ignore invalid username regex
+        }
 			}
 			if (!form.password) {
 				uni.showToast({ title: $t.value('enterPassword'), icon: 'none' })
@@ -352,7 +405,9 @@
 						uni.showToast({ title: tip || $t.value('enterPassword'), icon: 'none' })
 						return
 					}
-				} catch(e) {}
+        } catch {
+          // ignore invalid password regex
+        }
 			}
 			if (!form.rePassword) {
 				uni.showToast({ title: $t.value('enterRePassword'), icon: 'none' })
@@ -395,7 +450,9 @@
 						uni.showToast({ title: $t.value('phoneFormatInvalid'), icon: 'none' })
 						return
 					}
-				} catch(e) {}
+        } catch {
+          // ignore invalid phone regex
+        }
 			}
 			if (!form.password) {
 				uni.showToast({ title: $t.value('enterPassword'), icon: 'none' })
@@ -410,7 +467,9 @@
 						uni.showToast({ title: tip || $t.value('enterPassword'), icon: 'none' })
 						return
 					}
-				} catch(e) {}
+        } catch {
+          // ignore invalid password regex
+        }
 			}
 			if (!form.rePassword) {
 				uni.showToast({ title: $t.value('enterRePassword'), icon: 'none' })
