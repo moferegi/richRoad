@@ -11,3 +11,14 @@ type ParseSubtitleReq struct {
 	EpisodeID uint           `json:"episodeId" binding:"required"`
 	Subtitles []SubtitleItem `json:"subtitles" binding:"required"`
 }
+
+type SubtitleFileItem struct {
+	Language    string `json:"language" binding:"required"`
+	SubtitleURL string `json:"subtitleUrl" binding:"required"`
+}
+
+type ParseSubtitleFilesReq struct {
+	EpisodeID           uint               `json:"episodeId" binding:"required"`
+	EnglishSubtitleURL  string             `json:"englishSubtitleUrl" binding:"required"`
+	TranslationSubtitle []SubtitleFileItem `json:"translationSubtitle"`
+}

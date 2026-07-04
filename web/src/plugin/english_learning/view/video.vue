@@ -2,7 +2,7 @@
   <div>
     <div class="gva-search-box">
       <el-alert
-        title="英语学习运营台（视频端）：支持视频分类、剧集、单集和用户资源授权管理。"
+        title="英语学习运营台（视频端）：支持视频分类、剧集、单集、字幕文件解析和用户资源授权管理。"
         type="info"
         :closable="false"
         show-icon
@@ -13,7 +13,7 @@
       <el-tabs v-model="activeTab">
         <el-tab-pane label="视频分类" name="videoCategory">
           <div class="toolbar-row">
-            <span class="toolbar-tip">用于维护视频大类（如影视英语、情景口语等）</span>
+            <span class="toolbar-tip">用于维护视频大类（如影视英语、情景口语等）与存储目录键</span>
             <el-button type="primary" icon="plus" @click="openVideoCategoryDialog()">新增视频分类</el-button>
           </div>
 
@@ -22,6 +22,11 @@
             <el-table-column label="分类名称" min-width="240">
               <template #default="scope">
                 {{ formatI18nText(scope.row.name) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="storageKey" label="存储目录键" min-width="180" show-overflow-tooltip>
+              <template #default="scope">
+                {{ scope.row.storageKey || '-' }}
               </template>
             </el-table-column>
             <el-table-column prop="sort" label="排序" width="100" />
@@ -166,10 +171,10 @@
           </div>
 
           <div class="subtitle-box">
-            <el-divider content-position="left">字幕解析入库</el-divider>
-            <el-form label-width="120px">
+            <el-divider content-position="left">字幕文件解析入库</el-divider>
+            <el-form label-width="140px">
               <el-form-item label="目标单集">
-                <el-select v-model="subtitleForm.episodeId" filterable placeholder="请选择单集" style="width: 420px">
+                <el-select v-model="subtitleForm.episodeId" filterable placeholder="请选择单集" style="width: 480px">
                   <el-option
                     v-for="item in episodeOptions"
                     :key="item.ID"
@@ -178,16 +183,40 @@
                   />
                 </el-select>
               </el-form-item>
-              <el-form-item label="字幕 JSON">
-                <el-input
-                  v-model="subtitleForm.rawJsonData"
-                  type="textarea"
-                  :rows="10"
-                  placeholder='[{"startTime":0,"endTime":5.5,"english":"You are my destiny","translate":"{\"zh\":\"你是我的命运\"}"}]'
-                />
+              <el-form-item label="英文字幕文件(必填)">
+                <div class="upload-inline upload-inline-wide">
+                  <el-input v-model="subtitleForm.englishSubtitleUrl" placeholder="SRT/VTT 文件URL" />
+                  <el-upload
+                    :show-file-list="false"
+                    :http-request="(options) => uploadByRequest(options, subtitleUploadFolder, (url) => { subtitleForm.englishSubtitleUrl = url }, '英文字幕')"
+                  >
+                    <el-button type="primary" plain>上传英文字幕</el-button>
+                  </el-upload>
+                </div>
+                <div class="dialog-hint">当前字幕上传目录：{{ subtitleUploadFolder }}</div>
               </el-form-item>
+
+              <el-form-item
+                v-for="lang in subtitleLanguages"
+                :key="lang.code"
+                :label="`${lang.name || lang.code} 字幕文件`"
+              >
+                <div class="upload-inline upload-inline-wide">
+                  <el-input
+                    v-model="subtitleForm.translationSubtitleMap[lang.code]"
+                    :placeholder="`${lang.code} 字幕URL（可选）`"
+                  />
+                  <el-upload
+                    :show-file-list="false"
+                    :http-request="(options) => uploadByRequest(options, subtitleUploadFolder, (url) => { subtitleForm.translationSubtitleMap[lang.code] = url }, `${lang.code}字幕`)"
+                  >
+                    <el-button type="primary" plain>上传{{ lang.code }}</el-button>
+                  </el-upload>
+                </div>
+              </el-form-item>
+
               <el-form-item>
-                <el-button type="primary" @click="handleParseSubtitle">提交字幕解析</el-button>
+                <el-button type="primary" @click="handleParseSubtitleFiles">提交字幕解析</el-button>
               </el-form-item>
             </el-form>
           </div>
@@ -253,10 +282,19 @@
       </el-tabs>
     </div>
 
-    <el-dialog v-model="videoCategoryDialogVisible" :title="videoCategoryDialogMode === 'create' ? '新增视频分类' : '编辑视频分类'" width="640px">
+    <el-dialog v-model="videoCategoryDialogVisible" :title="videoCategoryDialogMode === 'create' ? '新增视频分类' : '编辑视频分类'" width="760px">
       <el-form :model="videoCategoryForm" label-width="120px">
-        <el-form-item label="分类名称(JSON)">
-          <el-input v-model="videoCategoryForm.name" type="textarea" :rows="3" placeholder='例如: {"zh":"影视英语","en":"Movie English"}' />
+        <el-form-item label="分类名称">
+          <MultiLangEditor
+            :model="videoCategoryForm.nameI18n"
+            title="视频分类多语言名称"
+            input-type="input"
+            :rows="2"
+            :use-tabs="true"
+          />
+        </el-form-item>
+        <el-form-item label="存储目录键">
+          <el-input v-model="videoCategoryForm.storageKey" placeholder="例如: liblib（用于视频/字幕目录 english-learn/video/liblib）" />
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="videoCategoryForm.sort" :min="0" />
@@ -268,7 +306,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="seriesDialogVisible" :title="seriesDialogMode === 'create' ? '新增剧集' : '编辑剧集'" width="760px">
+    <el-dialog v-model="seriesDialogVisible" :title="seriesDialogMode === 'create' ? '新增剧集' : '编辑剧集'" width="860px">
       <el-form :model="seriesForm" label-width="120px">
         <el-form-item label="所属分类">
           <el-select v-model="seriesForm.categoryId" placeholder="请选择分类" style="width: 100%">
@@ -280,11 +318,25 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="剧集名称(JSON)">
-          <el-input v-model="seriesForm.name" type="textarea" :rows="3" placeholder='例如: {"zh":"老友记 S1","en":"Friends S1"}' />
+        <el-form-item label="剧集名称">
+          <MultiLangEditor
+            :model="seriesForm.nameI18n"
+            title="剧集名称多语言"
+            input-type="input"
+            :rows="2"
+            :use-tabs="true"
+          />
         </el-form-item>
         <el-form-item label="封面地址">
-          <el-input v-model="seriesForm.coverUrl" placeholder="可填 OSS/CDN 图片地址" />
+          <div class="upload-inline upload-inline-wide">
+            <el-input v-model="seriesForm.coverUrl" placeholder="上传后自动写入 URL" />
+            <el-upload
+              :show-file-list="false"
+              :http-request="(options) => uploadByRequest(options, 'english-learn/pic', (url) => { seriesForm.coverUrl = url }, '封面')"
+            >
+              <el-button type="primary" plain>上传封面</el-button>
+            </el-upload>
+          </div>
         </el-form-item>
         <el-form-item label="价格">
           <el-input-number v-model="seriesForm.price" :min="0" :precision="2" :step="1" />
@@ -299,7 +351,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="episodeDialogVisible" :title="episodeDialogMode === 'create' ? '新增单集' : '编辑单集'" width="760px">
+    <el-dialog v-model="episodeDialogVisible" :title="episodeDialogMode === 'create' ? '新增单集' : '编辑单集'" width="860px">
       <el-form :model="episodeForm" label-width="120px">
         <el-form-item label="所属剧集">
           <el-select v-model="episodeForm.seriesId" filterable placeholder="请选择剧集" style="width: 100%">
@@ -311,11 +363,26 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="单集名称(JSON)">
-          <el-input v-model="episodeForm.name" type="textarea" :rows="3" placeholder='例如: {"zh":"第1集","en":"Episode 1"}' />
+        <el-form-item label="单集名称">
+          <MultiLangEditor
+            :model="episodeForm.nameI18n"
+            title="单集名称多语言"
+            input-type="input"
+            :rows="2"
+            :use-tabs="true"
+          />
         </el-form-item>
         <el-form-item label="视频地址">
-          <el-input v-model="episodeForm.videoUrl" placeholder="m3u8/mp4 地址" />
+          <div class="upload-inline upload-inline-wide">
+            <el-input v-model="episodeForm.videoUrl" placeholder="上传后自动写入 URL" />
+            <el-upload
+              :show-file-list="false"
+              :http-request="(options) => uploadByRequest(options, episodeUploadFolder, (url) => { episodeForm.videoUrl = url }, '视频文件')"
+            >
+              <el-button type="primary" plain>上传视频</el-button>
+            </el-upload>
+          </div>
+          <div class="dialog-hint">当前视频上传目录：{{ episodeUploadFolder }}</div>
         </el-form-item>
         <el-form-item label="试看比例(%)">
           <el-input-number v-model="episodeForm.trialPercent" :min="1" :max="100" />
@@ -384,6 +451,9 @@
 <script setup>
   import { computed, onMounted, ref } from 'vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
+  import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
+  import { uploadFile } from '@/api/fileUploadAndDownload'
+  import { getLanguageList } from '@/api/client/language'
   import {
     createVideoCategory,
     createVideoEpisode,
@@ -396,7 +466,7 @@
     getVideoEpisodeList,
     getVideoSeriesList,
     grantEntitlement,
-    parseSubtitle,
+    parseSubtitleFiles,
     revokeEntitlement,
     updateVideoCategory,
     updateVideoEpisode,
@@ -409,12 +479,42 @@
 
   const activeTab = ref('videoCategory')
 
+  const normalizeI18nObject = (raw) => {
+    if (!raw) return { zh: '' }
+    if (typeof raw === 'object') {
+      return Object.keys(raw).length > 0 ? { ...raw } : { zh: '' }
+    }
+    const text = String(raw).trim()
+    if (!text) return { zh: '' }
+    try {
+      const parsed = JSON.parse(text)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return Object.keys(parsed).length > 0 ? { ...parsed } : { zh: '' }
+      }
+      return { zh: text }
+    } catch (e) {
+      return { zh: text }
+    }
+  }
+
+  const stringifyI18nObject = (i18nObject) => {
+    const source = i18nObject && typeof i18nObject === 'object' ? i18nObject : {}
+    const cleaned = {}
+    for (const [key, value] of Object.entries(source)) {
+      const lang = String(key || '').trim()
+      if (!lang) continue
+      const text = String(value ?? '').trim()
+      if (text) cleaned[lang] = text
+    }
+    return JSON.stringify(Object.keys(cleaned).length > 0 ? cleaned : { zh: '' })
+  }
+
   const formatI18nText = (raw) => {
     if (!raw) return ''
     try {
       const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
       if (typeof parsed === 'object' && parsed !== null) {
-        return parsed.zh || parsed.en || Object.values(parsed)[0] || ''
+        return parsed.zh || parsed.en || parsed.mn || Object.values(parsed)[0] || ''
       }
       return String(raw)
     } catch (e) {
@@ -422,13 +522,12 @@
     }
   }
 
-  const ensureJsonText = (raw) => {
-    const text = String(raw || '').trim()
-    if (!text) {
-      return '{}'
-    }
-    JSON.parse(text)
-    return text
+  const normalizeStorageKey = (raw) => {
+    return String(raw || '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9_-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
   }
 
   const videoCategoryQuery = ref({ page: 1, pageSize: 10 })
@@ -451,6 +550,12 @@
   const seriesOptions = ref([])
   const episodeOptions = ref([])
 
+  const managedLanguages = ref([])
+
+  const subtitleLanguages = computed(() => {
+    return managedLanguages.value.filter((lang) => String(lang.code || '').toLowerCase() !== 'en')
+  })
+
   const videoCategoryNameMap = computed(() => {
     const map = {}
     for (const item of videoCategoryOptions.value) {
@@ -469,14 +574,19 @@
 
   const videoCategoryDialogVisible = ref(false)
   const videoCategoryDialogMode = ref('create')
-  const videoCategoryForm = ref({ ID: 0, name: '{}', sort: 0 })
+  const videoCategoryForm = ref({
+    ID: 0,
+    nameI18n: { zh: '' },
+    storageKey: '',
+    sort: 0
+  })
 
   const seriesDialogVisible = ref(false)
   const seriesDialogMode = ref('create')
   const seriesForm = ref({
     ID: 0,
     categoryId: undefined,
-    name: '{}',
+    nameI18n: { zh: '' },
     coverId: 0,
     coverUrl: '',
     price: 0,
@@ -488,7 +598,7 @@
   const episodeForm = ref({
     ID: 0,
     seriesId: undefined,
-    name: '{}',
+    nameI18n: { zh: '' },
     videoUrl: '',
     trialPercent: 8,
     sort: 0
@@ -496,7 +606,8 @@
 
   const subtitleForm = ref({
     episodeId: undefined,
-    rawJsonData: '[\n  {\n    "startTime": 0,\n    "endTime": 5.5,\n    "english": "You are my destiny",\n    "translate": "{\\"zh\\":\\"你是我的命运\\"}"\n  }\n]'
+    englishSubtitleUrl: '',
+    translationSubtitleMap: {}
   })
 
   const entitlementDialogVisible = ref(false)
@@ -527,11 +638,101 @@
     }))
   })
 
+  const getCategoryByID = (categoryID) => videoCategoryOptions.value.find((item) => Number(item.ID) === Number(categoryID))
+  const getSeriesByID = (seriesID) => seriesOptions.value.find((item) => Number(item.ID) === Number(seriesID))
+  const getEpisodeByID = (episodeID) => episodeOptions.value.find((item) => Number(item.ID) === Number(episodeID))
+
+  const resolveVideoFolderBySeriesID = (seriesID) => {
+    const series = getSeriesByID(seriesID)
+    const category = getCategoryByID(series?.categoryId)
+    const storageKey = normalizeStorageKey(category?.storageKey || '')
+    return storageKey ? `english-learn/video/${storageKey}` : 'english-learn/video/general'
+  }
+
+  const episodeUploadFolder = computed(() => {
+    if (episodeForm.value.seriesId) {
+      return resolveVideoFolderBySeriesID(episodeForm.value.seriesId)
+    }
+    return 'english-learn/video/general'
+  })
+
+  const subtitleUploadFolder = computed(() => {
+    const episode = getEpisodeByID(subtitleForm.value.episodeId)
+    if (!episode) {
+      return 'english-learn/video/general/subtitle'
+    }
+    return `${resolveVideoFolderBySeriesID(episode.seriesId)}/subtitle`
+  })
+
   const resourceTypeLabel = (type) => {
     if (type === 'english_category') return '分类'
     if (type === 'video_series') return '剧集'
     if (type === 'video_episode') return '单集'
     return type || '-'
+  }
+
+  const extractUploadedURL = (res) => {
+    return String(
+      res?.data?.file?.url ||
+      res?.data?.url ||
+      res?.file?.url ||
+      res?.url ||
+      ''
+    ).trim()
+  }
+
+  const uploadSingleFile = async (file, folder) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('folder', folder)
+
+    const res = await uploadFile(formData)
+    if (res.code !== 0) {
+      throw new Error(res.msg || '上传失败')
+    }
+
+    const url = extractUploadedURL(res)
+    if (!url) {
+      throw new Error('上传成功但未返回URL')
+    }
+
+    return url
+  }
+
+  const uploadByRequest = async (options, folder, assignFn, resourceLabel) => {
+    try {
+      const url = await uploadSingleFile(options.file, folder)
+      assignFn(url)
+      ElMessage.success(`${resourceLabel}上传成功`)
+      if (typeof options.onSuccess === 'function') {
+        options.onSuccess({ url })
+      }
+    } catch (error) {
+      ElMessage.error(error?.message || `${resourceLabel}上传失败`)
+      if (typeof options.onError === 'function') {
+        options.onError(error)
+      }
+    }
+  }
+
+  const loadManagedLanguages = async () => {
+    try {
+      const res = await getLanguageList({ page: 1, pageSize: 500 })
+      const list = Array.isArray(res?.data) ? res.data : (res?.data?.list || [])
+      managedLanguages.value = list
+        .map((lang) => ({
+          code: String(lang?.code || '').trim(),
+          name: String(lang?.name || '').trim(),
+          nativeName: String(lang?.nativeName || '').trim()
+        }))
+        .filter((lang) => lang.code)
+    } catch (error) {
+      managedLanguages.value = [
+        { code: 'zh', name: '中文' },
+        { code: 'mn', name: '蒙文' },
+        { code: 'en', name: '英文' }
+      ]
+    }
   }
 
   const loadVideoCategoryList = async () => {
@@ -677,29 +878,26 @@
     videoCategoryDialogMode.value = row?.ID ? 'edit' : 'create'
     videoCategoryForm.value = {
       ID: row?.ID || 0,
-      name: row?.name || '{}',
+      nameI18n: normalizeI18nObject(row?.name || ''),
+      storageKey: row?.storageKey || '',
       sort: Number(row?.sort || 0)
     }
     videoCategoryDialogVisible.value = true
   }
 
   const submitVideoCategory = async () => {
-    if (!videoCategoryForm.value.name) {
+    const payload = {
+      ID: videoCategoryForm.value.ID,
+      name: stringifyI18nObject(videoCategoryForm.value.nameI18n),
+      storageKey: normalizeStorageKey(videoCategoryForm.value.storageKey),
+      sort: Number(videoCategoryForm.value.sort || 0)
+    }
+
+    if (!formatI18nText(payload.name)) {
       ElMessage.warning('分类名称不能为空')
       return
     }
-    try {
-      videoCategoryForm.value.name = ensureJsonText(videoCategoryForm.value.name)
-    } catch (e) {
-      ElMessage.error('分类名称必须是合法 JSON')
-      return
-    }
 
-    const payload = {
-      ID: videoCategoryForm.value.ID,
-      name: videoCategoryForm.value.name,
-      sort: Number(videoCategoryForm.value.sort || 0)
-    }
     const res = videoCategoryDialogMode.value === 'create'
       ? await createVideoCategory(payload)
       : await updateVideoCategory(payload)
@@ -733,7 +931,7 @@
     seriesForm.value = {
       ID: row?.ID || 0,
       categoryId: row?.categoryId || seriesQuery.value.categoryId || undefined,
-      name: row?.name || '{}',
+      nameI18n: normalizeI18nObject(row?.name || ''),
       coverId: Number(row?.coverId || 0),
       coverUrl: row?.coverUrl || '',
       price: Number(row?.price || 0),
@@ -747,25 +945,20 @@
       ElMessage.warning('请选择所属分类')
       return
     }
-    if (!seriesForm.value.name) {
-      ElMessage.warning('剧集名称不能为空')
-      return
-    }
-    try {
-      seriesForm.value.name = ensureJsonText(seriesForm.value.name)
-    } catch (e) {
-      ElMessage.error('剧集名称必须是合法 JSON')
-      return
-    }
 
     const payload = {
       ID: seriesForm.value.ID,
       categoryId: seriesForm.value.categoryId,
-      name: seriesForm.value.name,
+      name: stringifyI18nObject(seriesForm.value.nameI18n),
       coverId: Number(seriesForm.value.coverId || 0),
-      coverUrl: seriesForm.value.coverUrl,
+      coverUrl: String(seriesForm.value.coverUrl || '').trim(),
       price: Number(seriesForm.value.price || 0),
       needVip: !!seriesForm.value.needVip
+    }
+
+    if (!formatI18nText(payload.name)) {
+      ElMessage.warning('剧集名称不能为空')
+      return
     }
 
     const res = seriesDialogMode.value === 'create'
@@ -794,7 +987,7 @@
     episodeForm.value = {
       ID: row?.ID || 0,
       seriesId: row?.seriesId || episodeQuery.value.seriesId || undefined,
-      name: row?.name || '{}',
+      nameI18n: normalizeI18nObject(row?.name || ''),
       videoUrl: row?.videoUrl || '',
       trialPercent: Number(row?.trialPercent || 8),
       sort: Number(row?.sort || 0)
@@ -807,28 +1000,23 @@
       ElMessage.warning('请选择所属剧集')
       return
     }
-    if (!episodeForm.value.name) {
-      ElMessage.warning('单集名称不能为空')
-      return
-    }
-    if (!episodeForm.value.videoUrl) {
+    if (!String(episodeForm.value.videoUrl || '').trim()) {
       ElMessage.warning('视频地址不能为空')
-      return
-    }
-    try {
-      episodeForm.value.name = ensureJsonText(episodeForm.value.name)
-    } catch (e) {
-      ElMessage.error('单集名称必须是合法 JSON')
       return
     }
 
     const payload = {
       ID: episodeForm.value.ID,
       seriesId: episodeForm.value.seriesId,
-      name: episodeForm.value.name,
-      videoUrl: episodeForm.value.videoUrl,
+      name: stringifyI18nObject(episodeForm.value.nameI18n),
+      videoUrl: String(episodeForm.value.videoUrl || '').trim(),
       trialPercent: Number(episodeForm.value.trialPercent || 8),
       sort: Number(episodeForm.value.sort || 0)
+    }
+
+    if (!formatI18nText(payload.name)) {
+      ElMessage.warning('单集名称不能为空')
+      return
     }
 
     const res = episodeDialogMode.value === 'create'
@@ -852,30 +1040,33 @@
     })
   }
 
-  const handleParseSubtitle = async () => {
+  const handleParseSubtitleFiles = async () => {
     if (!subtitleForm.value.episodeId) {
       ElMessage.warning('请选择目标单集')
       return
     }
 
-    let subtitles = []
-    try {
-      subtitles = JSON.parse(subtitleForm.value.rawJsonData)
-      if (!Array.isArray(subtitles)) {
-        ElMessage.error('字幕 JSON 必须是数组结构')
-        return
-      }
-    } catch (e) {
-      ElMessage.error('字幕 JSON 格式有误')
+    const englishSubtitleURL = String(subtitleForm.value.englishSubtitleUrl || '').trim()
+    if (!englishSubtitleURL) {
+      ElMessage.warning('英文字幕文件不能为空')
       return
     }
 
-    const res = await parseSubtitle({
+    const translationSubtitle = Object.entries(subtitleForm.value.translationSubtitleMap || {})
+      .map(([language, subtitleUrl]) => ({
+        language,
+        subtitleUrl: String(subtitleUrl || '').trim()
+      }))
+      .filter((item) => item.language && item.subtitleUrl)
+
+    const res = await parseSubtitleFiles({
       episodeId: subtitleForm.value.episodeId,
-      subtitles
+      englishSubtitleUrl: englishSubtitleURL,
+      translationSubtitle
     })
+
     if (res.code !== 0) return
-    ElMessage.success('字幕解析并入库成功')
+    ElMessage.success('字幕文件解析并入库成功')
   }
 
   const openEntitlementDialog = () => {
@@ -943,7 +1134,8 @@
       loadEntitlementList(),
       loadVideoCategoryOptions(),
       loadSeriesOptions(),
-      loadEpisodeOptions()
+      loadEpisodeOptions(),
+      loadManagedLanguages()
     ])
   })
 </script>
@@ -966,6 +1158,24 @@
   .subtitle-box {
     margin-top: 12px;
     padding: 12px 0;
+  }
+
+  .upload-inline {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .upload-inline-wide {
+    max-width: 680px;
+  }
+
+  .dialog-hint {
+    margin-top: 6px;
+    color: #6b7280;
+    font-size: 12px;
+    line-height: 1.4;
   }
 
   .mt-2 {

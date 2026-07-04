@@ -79,6 +79,9 @@ export const uploadFile = (data) => {
   return service({
     url: "/fileUploadAndDownload/upload",
     method: "post",
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    },
     data,
   });
 };

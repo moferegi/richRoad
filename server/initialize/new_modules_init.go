@@ -433,8 +433,6 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/language/createLanguage", "POST"},
 		{"/language/deleteLanguage", "DELETE"},
 		{"/language/updateLanguage", "PUT"},
-		{"/language/getLanguageList", "GET"},
-		{"/language/translateI18n", "POST"},
 		{"/phoneAreaCode/createPhoneAreaCode", "POST"},
 		{"/phoneAreaCode/deletePhoneAreaCode", "DELETE"},
 		{"/phoneAreaCode/updatePhoneAreaCode", "PUT"},
@@ -470,6 +468,64 @@ func initNewModulesCasbin(db *gorm.DB) {
 			"DELETE FROM casbin_rule WHERE ptype = ? AND v1 = ? AND v2 = ? AND v0 NOT IN (?, ?)",
 			"p", p.Path, p.Method, "888", "8881",
 		)
+	}
+
+	grantEnglishLearningOpsCasbin(db)
+}
+
+func grantEnglishLearningOpsCasbin(db *gorm.DB) {
+	if db == nil {
+		return
+	}
+
+	type authorityMenuRow struct {
+		AuthorityID uint `gorm:"column:authority_id"`
+	}
+
+	var authorityRows []authorityMenuRow
+	if err := db.
+		Table("sys_authority_menus sam").
+		Select("DISTINCT sam.sys_authority_authority_id AS authority_id").
+		Joins("JOIN sys_base_menus sbm ON sbm.id = sam.sys_base_menu_id").
+		Where("sbm.name IN ?", []string{"englishLearningWord", "englishLearningVideo"}).
+		Scan(&authorityRows).Error; err != nil {
+		global.GVA_LOG.Warn("查询英语学习菜单角色失败", zap.Error(err))
+		return
+	}
+
+	if len(authorityRows) == 0 {
+		return
+	}
+
+	dependentPaths := []struct {
+		Path   string
+		Method string
+	}{
+		{Path: "/language/getLanguageList", Method: "GET"},
+		{Path: "/language/translateI18n", Method: "POST"},
+		{Path: "/fileUploadAndDownload/upload", Method: "POST"},
+	}
+
+	for _, row := range authorityRows {
+		if row.AuthorityID == 0 {
+			continue
+		}
+
+		authorityID := fmt.Sprintf("%d", row.AuthorityID)
+		for _, p := range dependentPaths {
+			var count int64
+			if err := db.Table("casbin_rule").Where("ptype = ? AND v0 = ? AND v1 = ? AND v2 = ?", "p", authorityID, p.Path, p.Method).Count(&count).Error; err != nil {
+				global.GVA_LOG.Warn("查询英语学习依赖权限失败", zap.Error(err), zap.String("authorityId", authorityID), zap.String("path", p.Path), zap.String("method", p.Method))
+				continue
+			}
+			if count > 0 {
+				continue
+			}
+
+			if err := db.Exec("INSERT INTO casbin_rule (ptype, v0, v1, v2) VALUES (?, ?, ?, ?)", "p", authorityID, p.Path, p.Method).Error; err != nil {
+				global.GVA_LOG.Warn("补齐英语学习依赖权限失败", zap.Error(err), zap.String("authorityId", authorityID), zap.String("path", p.Path), zap.String("method", p.Method))
+			}
+		}
 	}
 }
 

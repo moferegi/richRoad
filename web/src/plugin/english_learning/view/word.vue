@@ -2,7 +2,7 @@
   <div>
     <div class="gva-search-box">
       <el-alert
-        title="英语学习运营台（单词端）：支持分类、章节、单词的完整增删改查。"
+        title="英语学习运营台（单词端）：支持分类、章节、单词的完整增删改查与资源上传。"
         type="info"
         :closable="false"
         show-icon
@@ -35,7 +35,11 @@
                 {{ formatI18nText(scope.row.name) }}
               </template>
             </el-table-column>
-            <el-table-column prop="logo" label="Logo" min-width="180" show-overflow-tooltip />
+            <el-table-column label="Logo" min-width="220" show-overflow-tooltip>
+              <template #default="scope">
+                {{ scope.row.logo || '-' }}
+              </template>
+            </el-table-column>
             <el-table-column prop="price" label="价格" width="120" />
             <el-table-column label="会员限制" width="120">
               <template #default="scope">
@@ -122,10 +126,20 @@
         <el-tab-pane label="单词管理" name="word">
           <div class="toolbar-row">
             <el-form :inline="true" :model="wordQuery">
-              <el-form-item label="章节过滤">
-                <el-select v-model="wordQuery.chapterId" clearable placeholder="全部" style="width: 240px">
+              <el-form-item label="分类过滤">
+                <el-select v-model="wordQuery.categoryId" clearable placeholder="全部" style="width: 220px">
                   <el-option
-                    v-for="item in chapterOptions"
+                    v-for="item in categoryOptions"
+                    :key="item.ID"
+                    :label="formatI18nText(item.name)"
+                    :value="item.ID"
+                  />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="章节过滤">
+                <el-select v-model="wordQuery.chapterId" clearable placeholder="全部" style="width: 260px">
+                  <el-option
+                    v-for="item in filteredWordChapterOptions"
                     :key="item.ID"
                     :label="`${categoryNameMap[item.categoryId] || '-'} / ${formatI18nText(item.name)}`"
                     :value="item.ID"
@@ -152,8 +166,8 @@
             </el-table-column>
             <el-table-column label="发音" width="180">
               <template #default="scope">
-                <el-tag :type="scope.row.audioUs ? 'success' : 'warning'">美音{{ scope.row.audioUs ? '已生成' : '缺失' }}</el-tag>
-                <el-tag :type="scope.row.audioUk ? 'success' : 'warning'" class="ml-2">英音{{ scope.row.audioUk ? '已生成' : '缺失' }}</el-tag>
+                <el-tag :type="scope.row.audioUs ? 'success' : 'warning'">美音{{ scope.row.audioUs ? '已上传' : '缺失' }}</el-tag>
+                <el-tag :type="scope.row.audioUk ? 'success' : 'warning'" class="ml-2">英音{{ scope.row.audioUk ? '已上传' : '缺失' }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column label="操作" fixed="right" width="260">
@@ -180,18 +194,27 @@
       </el-tabs>
     </div>
 
-    <el-dialog v-model="categoryDialogVisible" :title="categoryDialogMode === 'create' ? '新增分类' : '编辑分类'" width="640px">
+    <el-dialog v-model="categoryDialogVisible" :title="categoryDialogMode === 'create' ? '新增分类' : '编辑分类'" width="760px">
       <el-form :model="categoryForm" label-width="120px">
-        <el-form-item label="分类名称(JSON)">
-          <el-input
-            v-model="categoryForm.name"
-            type="textarea"
-            :rows="3"
-            placeholder='例如: {"zh":"影视英语","en":"Movie English"}'
+        <el-form-item label="分类名称">
+          <MultiLangEditor
+            :model="categoryForm.nameI18n"
+            title="分类名称多语言"
+            input-type="input"
+            :rows="2"
+            :use-tabs="true"
           />
         </el-form-item>
-        <el-form-item label="Logo URL">
-          <el-input v-model="categoryForm.logo" placeholder="可选" />
+        <el-form-item label="Logo地址">
+          <div class="upload-inline">
+            <el-input v-model="categoryForm.logo" placeholder="上传后自动写入 URL" />
+            <el-upload
+              :show-file-list="false"
+              :http-request="(options) => uploadByRequest(options, 'english-learn/pic', (url) => { categoryForm.logo = url }, 'Logo')"
+            >
+              <el-button type="primary" plain>上传Logo</el-button>
+            </el-upload>
+          </div>
         </el-form-item>
         <el-form-item label="价格">
           <el-input-number v-model="categoryForm.price" :min="0" :precision="2" :step="1" />
@@ -209,7 +232,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="chapterDialogVisible" :title="chapterDialogMode === 'create' ? '新增章节' : '编辑章节'" width="640px">
+    <el-dialog v-model="chapterDialogVisible" :title="chapterDialogMode === 'create' ? '新增章节' : '编辑章节'" width="760px">
       <el-form :model="chapterForm" label-width="120px">
         <el-form-item label="所属分类">
           <el-select v-model="chapterForm.categoryId" placeholder="请选择分类" style="width: 100%">
@@ -221,12 +244,13 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="章节名称(JSON)">
-          <el-input
-            v-model="chapterForm.name"
-            type="textarea"
-            :rows="3"
-            placeholder='例如: {"zh":"第一章","en":"Chapter 1"}'
+        <el-form-item label="章节名称">
+          <MultiLangEditor
+            :model="chapterForm.nameI18n"
+            title="章节名称多语言"
+            input-type="input"
+            :rows="2"
+            :use-tabs="true"
           />
         </el-form-item>
         <el-form-item label="排序">
@@ -239,8 +263,8 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="wordDialogVisible" :title="wordDialogMode === 'create' ? '新增单词' : '编辑单词'" width="760px">
-      <el-form :model="wordForm" label-width="120px">
+    <el-dialog v-model="wordDialogVisible" :title="wordDialogMode === 'create' ? '新增单词' : '编辑单词'" width="860px">
+      <el-form :model="wordForm" label-width="130px">
         <el-form-item label="单词本体">
           <el-input v-model="wordForm.word" placeholder="例如: destiny" />
         </el-form-item>
@@ -250,26 +274,49 @@
         <el-form-item label="英式音标">
           <el-input v-model="wordForm.phoneticUk" placeholder="例如: /ˈdestəni/" />
         </el-form-item>
-        <el-form-item label="释义(JSON)">
-          <el-input
-            v-model="wordForm.explanation"
-            type="textarea"
+        <el-form-item label="释义">
+          <MultiLangEditor
+            :model="wordForm.explanationI18n"
+            title="单词释义多语言"
+            input-type="textarea"
             :rows="4"
-            placeholder='例如: {"zh":"命运","en":"fate"}'
+            :use-tabs="true"
           />
         </el-form-item>
-        <el-form-item label="绑定章节" v-if="wordDialogMode === 'create'">
-          <el-select v-model="wordForm.chapterIds" multiple filterable placeholder="创建时建议至少绑定一个章节" style="width: 100%">
+        <el-form-item label="美式发音URL">
+          <div class="upload-inline">
+            <el-input v-model="wordForm.audioUs" placeholder="可上传覆盖，留空则尝试自动生成" />
+            <el-upload
+              :show-file-list="false"
+              :http-request="(options) => uploadByRequest(options, 'english-learn/audio', (url) => { wordForm.audioUs = url }, '美式音频')"
+            >
+              <el-button type="primary" plain>上传美式</el-button>
+            </el-upload>
+          </div>
+        </el-form-item>
+        <el-form-item label="英式发音URL">
+          <div class="upload-inline">
+            <el-input v-model="wordForm.audioUk" placeholder="可上传覆盖，留空则尝试自动生成" />
+            <el-upload
+              :show-file-list="false"
+              :http-request="(options) => uploadByRequest(options, 'english-learn/audio', (url) => { wordForm.audioUk = url }, '英式音频')"
+            >
+              <el-button type="primary" plain>上传英式</el-button>
+            </el-upload>
+          </div>
+        </el-form-item>
+        <el-form-item label="归属分类">
+          <el-select v-model="wordForm.categoryIds" multiple filterable clearable placeholder="可选多个分类" style="width: 100%">
             <el-option
-              v-for="item in chapterOptions"
+              v-for="item in categoryOptions"
               :key="item.ID"
-              :label="`${categoryNameMap[item.categoryId] || '-'} / ${formatI18nText(item.name)}`"
+              :label="formatI18nText(item.name)"
               :value="item.ID"
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="重绑章节" v-else>
-          <el-select v-model="wordForm.chapterIds" multiple filterable clearable placeholder="不选择表示保持原章节绑定不变" style="width: 100%">
+        <el-form-item label="绑定章节">
+          <el-select v-model="wordForm.chapterIds" multiple filterable clearable placeholder="章节可不选" style="width: 100%">
             <el-option
               v-for="item in chapterOptions"
               :key="item.ID"
@@ -277,6 +324,12 @@
               :value="item.ID"
             />
           </el-select>
+          <div class="dialog-hint">单词至少需要绑定一个分类或章节。章节属于可选维度，不强制。</div>
+        </el-form-item>
+        <el-form-item label="更新绑定" v-if="wordDialogMode === 'edit'">
+          <el-checkbox v-model="wordForm.syncBindingsOnUpdate">
+            按上面的分类/章节重建绑定关系（不勾选则保持原关系）
+          </el-checkbox>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -288,8 +341,10 @@
 </template>
 
 <script setup>
-  import { computed, onMounted, ref } from 'vue'
+  import { computed, onMounted, ref, watch } from 'vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
+  import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
+  import { uploadFile } from '@/api/fileUploadAndDownload'
   import {
     createCategory,
     createChapter,
@@ -332,6 +387,7 @@
   const wordQuery = ref({
     page: 1,
     pageSize: 10,
+    categoryId: undefined,
     chapterId: undefined
   })
   const wordTable = ref([])
@@ -339,6 +395,8 @@
 
   const categoryOptions = ref([])
   const chapterOptions = ref([])
+
+  const getEntityID = (item) => Number(item?.ID || item?.id || 0)
 
   const categoryNameMap = computed(() => {
     const map = {}
@@ -348,11 +406,29 @@
     return map
   })
 
+  const filteredWordChapterOptions = computed(() => {
+    const categoryId = Number(wordQuery.value.categoryId || 0)
+    if (!categoryId) {
+      return chapterOptions.value
+    }
+    return chapterOptions.value.filter((item) => Number(item.categoryId || 0) === categoryId)
+  })
+
+  watch(
+    () => wordQuery.value.categoryId,
+    () => {
+      const validChapterIDs = new Set(filteredWordChapterOptions.value.map((item) => getEntityID(item)))
+      if (!validChapterIDs.has(Number(wordQuery.value.chapterId || 0))) {
+        wordQuery.value.chapterId = undefined
+      }
+    }
+  )
+
   const categoryDialogVisible = ref(false)
   const categoryDialogMode = ref('create')
   const categoryForm = ref({
     ID: 0,
-    name: '{}',
+    nameI18n: { zh: '' },
     logo: '',
     price: 0,
     needVip: false,
@@ -364,7 +440,7 @@
   const chapterForm = ref({
     ID: 0,
     categoryId: undefined,
-    name: '{}',
+    nameI18n: { zh: '' },
     sort: 0
   })
 
@@ -376,8 +452,12 @@
     word: '',
     phoneticUs: '',
     phoneticUk: '',
-    explanation: '{}',
-    chapterIds: []
+    audioUs: '',
+    audioUk: '',
+    explanationI18n: { zh: '' },
+    categoryIds: [],
+    chapterIds: [],
+    syncBindingsOnUpdate: false
   })
 
   const formatI18nText = (raw) => {
@@ -385,7 +465,7 @@
     try {
       const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
       if (typeof parsed === 'object' && parsed !== null) {
-        return parsed.zh || parsed.en || Object.values(parsed)[0] || ''
+        return parsed.zh || parsed.en || parsed.mn || Object.values(parsed)[0] || ''
       }
       return String(raw)
     } catch (e) {
@@ -393,13 +473,92 @@
     }
   }
 
-  const ensureJsonText = (raw) => {
-    const text = String(raw || '').trim()
-    if (!text) {
-      return '{}'
+  const normalizeI18nObject = (raw) => {
+    if (!raw) {
+      return { zh: '' }
     }
-    JSON.parse(text)
-    return text
+
+    if (typeof raw === 'object') {
+      return Object.keys(raw).length > 0 ? { ...raw } : { zh: '' }
+    }
+
+    const text = String(raw).trim()
+    if (!text) {
+      return { zh: '' }
+    }
+
+    try {
+      const parsed = JSON.parse(text)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return Object.keys(parsed).length > 0 ? { ...parsed } : { zh: '' }
+      }
+      return { zh: text }
+    } catch (e) {
+      return { zh: text }
+    }
+  }
+
+  const stringifyI18nObject = (i18nObject) => {
+    const source = i18nObject && typeof i18nObject === 'object' ? i18nObject : {}
+    const cleaned = {}
+    for (const [key, value] of Object.entries(source)) {
+      const lang = String(key || '').trim()
+      if (!lang) {
+        continue
+      }
+      const text = String(value ?? '').trim()
+      if (text) {
+        cleaned[lang] = text
+      }
+    }
+    if (Object.keys(cleaned).length === 0) {
+      return JSON.stringify({ zh: '' })
+    }
+    return JSON.stringify(cleaned)
+  }
+
+  const extractUploadedURL = (res) => {
+    return String(
+      res?.data?.file?.url ||
+      res?.data?.url ||
+      res?.file?.url ||
+      res?.url ||
+      ''
+    ).trim()
+  }
+
+  const uploadSingleFile = async (file, folder) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('folder', folder)
+
+    const res = await uploadFile(formData)
+    if (res.code !== 0) {
+      throw new Error(res.msg || '上传失败')
+    }
+
+    const url = extractUploadedURL(res)
+    if (!url) {
+      throw new Error('上传成功但未返回URL')
+    }
+
+    return url
+  }
+
+  const uploadByRequest = async (options, folder, assignFn, resourceLabel) => {
+    try {
+      const url = await uploadSingleFile(options.file, folder)
+      assignFn(url)
+      ElMessage.success(`${resourceLabel}上传成功`)
+      if (typeof options.onSuccess === 'function') {
+        options.onSuccess({ url })
+      }
+    } catch (error) {
+      ElMessage.error(error?.message || `${resourceLabel}上传失败`)
+      if (typeof options.onError === 'function') {
+        options.onError(error)
+      }
+    }
   }
 
   const loadCategoryList = async () => {
@@ -421,7 +580,18 @@
   }
 
   const loadWordList = async () => {
-    const res = await getEnglishWordList({ ...wordQuery.value })
+    const params = {
+      page: wordQuery.value.page,
+      pageSize: wordQuery.value.pageSize
+    }
+    if (wordQuery.value.categoryId) {
+      params.categoryId = wordQuery.value.categoryId
+    }
+    if (wordQuery.value.chapterId) {
+      params.chapterId = wordQuery.value.chapterId
+    }
+
+    const res = await getEnglishWordList(params)
     if (res.code !== 0) return
     wordTable.value = res.data?.list || []
     wordTotal.value = Number(res.data?.total || 0)
@@ -489,7 +659,7 @@
   }
 
   const resetWordSearch = () => {
-    wordQuery.value = { page: 1, pageSize: 10, chapterId: undefined }
+    wordQuery.value = { page: 1, pageSize: 10, categoryId: undefined, chapterId: undefined }
     loadWordList()
   }
 
@@ -508,7 +678,7 @@
     categoryDialogMode.value = row?.ID ? 'edit' : 'create'
     categoryForm.value = {
       ID: row?.ID || 0,
-      name: row?.name || '{}',
+      nameI18n: normalizeI18nObject(row?.name || ''),
       logo: row?.logo || '',
       price: Number(row?.price || 0),
       needVip: !!row?.needVip,
@@ -518,24 +688,18 @@
   }
 
   const submitCategory = async () => {
-    if (!categoryForm.value.name) {
-      ElMessage.warning('分类名称不能为空')
-      return
-    }
-    try {
-      categoryForm.value.name = ensureJsonText(categoryForm.value.name)
-    } catch (e) {
-      ElMessage.error('分类名称必须是合法 JSON')
-      return
-    }
-
     const payload = {
       ID: categoryForm.value.ID,
-      name: categoryForm.value.name,
-      logo: categoryForm.value.logo,
+      name: stringifyI18nObject(categoryForm.value.nameI18n),
+      logo: String(categoryForm.value.logo || '').trim(),
       price: Number(categoryForm.value.price || 0),
       needVip: !!categoryForm.value.needVip,
       sort: Number(categoryForm.value.sort || 0)
+    }
+
+    if (!formatI18nText(payload.name)) {
+      ElMessage.warning('分类名称不能为空')
+      return
     }
 
     const res = categoryDialogMode.value === 'create'
@@ -555,7 +719,7 @@
       const res = await deleteCategory({ ID: row.ID })
       if (res.code !== 0) return
       ElMessage.success('分类删除成功')
-      await Promise.all([loadCategoryList(), loadCategoryOptions(), loadChapterList(), loadChapterOptions()])
+      await Promise.all([loadCategoryList(), loadCategoryOptions(), loadChapterList(), loadChapterOptions(), loadWordList()])
     })
   }
 
@@ -564,7 +728,7 @@
     chapterForm.value = {
       ID: row?.ID || 0,
       categoryId: row?.categoryId || chapterQuery.value.categoryId || undefined,
-      name: row?.name || '{}',
+      nameI18n: normalizeI18nObject(row?.name || ''),
       sort: Number(row?.sort || 0)
     }
     chapterDialogVisible.value = true
@@ -575,22 +739,17 @@
       ElMessage.warning('请选择所属分类')
       return
     }
-    if (!chapterForm.value.name) {
-      ElMessage.warning('章节名称不能为空')
-      return
-    }
-    try {
-      chapterForm.value.name = ensureJsonText(chapterForm.value.name)
-    } catch (e) {
-      ElMessage.error('章节名称必须是合法 JSON')
-      return
-    }
 
     const payload = {
       ID: chapterForm.value.ID,
       categoryId: chapterForm.value.categoryId,
-      name: chapterForm.value.name,
+      name: stringifyI18nObject(chapterForm.value.nameI18n),
       sort: Number(chapterForm.value.sort || 0)
+    }
+
+    if (!formatI18nText(payload.name)) {
+      ElMessage.warning('章节名称不能为空')
+      return
     }
 
     const res = chapterDialogMode.value === 'create'
@@ -610,7 +769,7 @@
       const res = await deleteChapter({ ID: row.ID })
       if (res.code !== 0) return
       ElMessage.success('章节删除成功')
-      await Promise.all([loadChapterList(), loadChapterOptions()])
+      await Promise.all([loadChapterList(), loadChapterOptions(), loadWordList()])
     })
   }
 
@@ -621,8 +780,12 @@
       word: row?.word || '',
       phoneticUs: row?.phoneticUs || '',
       phoneticUk: row?.phoneticUk || '',
-      explanation: row?.explanation || '{}',
-      chapterIds: []
+      audioUs: row?.audioUs || '',
+      audioUk: row?.audioUk || '',
+      explanationI18n: normalizeI18nObject(row?.explanation || ''),
+      categoryIds: [],
+      chapterIds: [],
+      syncBindingsOnUpdate: false
     }
 
     if (row?.ID) {
@@ -632,37 +795,41 @@
       wordForm.value.word = data.word || ''
       wordForm.value.phoneticUs = data.phoneticUs || ''
       wordForm.value.phoneticUk = data.phoneticUk || ''
-      wordForm.value.explanation = data.explanation || '{}'
+      wordForm.value.audioUs = data.audioUs || ''
+      wordForm.value.audioUk = data.audioUk || ''
+      wordForm.value.explanationI18n = normalizeI18nObject(data.explanation || '')
     }
 
     wordDialogVisible.value = true
   }
 
   const submitWord = async () => {
-    if (!wordForm.value.word) {
+    if (!String(wordForm.value.word || '').trim()) {
       ElMessage.warning('单词不能为空')
       return
     }
-    if (wordDialogMode.value === 'create' && wordForm.value.chapterIds.length === 0) {
-      ElMessage.warning('请至少绑定一个章节')
-      return
-    }
-    try {
-      wordForm.value.explanation = ensureJsonText(wordForm.value.explanation)
-    } catch (e) {
-      ElMessage.error('释义必须是合法 JSON')
+
+    const totalBindings = Number(wordForm.value.categoryIds.length || 0) + Number(wordForm.value.chapterIds.length || 0)
+    if (wordDialogMode.value === 'create' && totalBindings === 0) {
+      ElMessage.warning('请至少绑定一个分类或章节')
       return
     }
 
     const payload = {
       ID: wordForm.value.ID,
-      word: wordForm.value.word,
-      phoneticUs: wordForm.value.phoneticUs,
-      phoneticUk: wordForm.value.phoneticUk,
-      explanation: wordForm.value.explanation
+      word: String(wordForm.value.word || '').trim(),
+      phoneticUs: String(wordForm.value.phoneticUs || '').trim(),
+      phoneticUk: String(wordForm.value.phoneticUk || '').trim(),
+      audioUs: String(wordForm.value.audioUs || '').trim(),
+      audioUk: String(wordForm.value.audioUk || '').trim(),
+      explanation: stringifyI18nObject(wordForm.value.explanationI18n)
     }
 
-    if (wordDialogMode.value === 'create' || wordForm.value.chapterIds.length > 0) {
+    if (wordDialogMode.value === 'create') {
+      payload.categoryIds = [...wordForm.value.categoryIds]
+      payload.chapterIds = [...wordForm.value.chapterIds]
+    } else if (wordForm.value.syncBindingsOnUpdate) {
+      payload.categoryIds = [...wordForm.value.categoryIds]
       payload.chapterIds = [...wordForm.value.chapterIds]
     }
 
@@ -723,5 +890,19 @@
 
   .ml-2 {
     margin-left: 8px;
+  }
+
+  .upload-inline {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .dialog-hint {
+    margin-top: 6px;
+    color: #6b7280;
+    font-size: 12px;
+    line-height: 1.4;
   }
 </style>

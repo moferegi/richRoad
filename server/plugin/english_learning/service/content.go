@@ -1,6 +1,10 @@
 package service
 
 import (
+	"fmt"
+	"regexp"
+	"strings"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/model"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/model/request"
@@ -8,6 +12,18 @@ import (
 )
 
 type ContentService struct{}
+
+var storageKeyNormalizeRegexp = regexp.MustCompile(`[^a-z0-9_-]+`)
+
+func normalizeStorageKey(raw string) string {
+	key := strings.ToLower(strings.TrimSpace(raw))
+	if key == "" {
+		return ""
+	}
+	key = storageKeyNormalizeRegexp.ReplaceAllString(key, "-")
+	key = strings.Trim(key, "-")
+	return key
+}
 
 func normalizePage(page, pageSize int) (int, int) {
 	if page < 1 {
@@ -17,6 +33,35 @@ func normalizePage(page, pageSize int) (int, int) {
 		pageSize = 10
 	}
 	return page, pageSize
+}
+
+func resolveContentTableName(baseName string, fallback string) string {
+	if global.GVA_DB != nil && global.GVA_DB.NamingStrategy != nil {
+		resolved := strings.TrimSpace(global.GVA_DB.NamingStrategy.TableName(baseName))
+		if resolved != "" {
+			return resolved
+		}
+	}
+
+	fallback = strings.TrimSpace(fallback)
+	if fallback != "" {
+		return fallback
+	}
+
+	return baseName
+}
+
+func resolveVideoSeriesOrderExpr(seriesAlias string) string {
+	alias := strings.TrimSpace(seriesAlias)
+	if alias == "" {
+		alias = "video_series"
+	}
+
+	if global.GVA_DB != nil && global.GVA_DB.Migrator().HasColumn(&model.VideoSeries{}, "sort") {
+		return fmt.Sprintf("%s.sort ASC, %s.id DESC", alias, alias)
+	}
+
+	return fmt.Sprintf("%s.id DESC", alias)
 }
 
 // EnglishCategory
@@ -106,10 +151,12 @@ func (s *ContentService) GetChapterList(info request.EnglishChapterSearch) (list
 
 // VideoCategory
 func (s *ContentService) CreateVideoCategory(category *model.VideoCategory) error {
+	category.StorageKey = normalizeStorageKey(category.StorageKey)
 	return global.GVA_DB.Create(category).Error
 }
 
 func (s *ContentService) UpdateVideoCategory(category model.VideoCategory) error {
+	category.StorageKey = normalizeStorageKey(category.StorageKey)
 	return global.GVA_DB.Model(&model.VideoCategory{}).Where("id = ?", category.ID).Updates(&category).Error
 }
 
@@ -192,27 +239,43 @@ func (s *ContentService) DeleteVideoSeries(id uint) error {
 
 func (s *ContentService) GetVideoSeries(id uint) (model.VideoSeries, error) {
 	var series model.VideoSeries
+	seriesTable := resolveContentTableName("video_series", "video_series")
+	seriesAlias := "vs"
+	videoEpisodeTable := resolveContentTableName("video_episode", "video_episodes")
+	userWatchHistoryTable := resolveContentTableName("user_watch_history", "user_watch_histories")
+	viewCountExpr := fmt.Sprintf("COALESCE(COUNT(DISTINCT %s.id), 0) as view_count", userWatchHistoryTable)
+	userCountExpr := fmt.Sprintf("COALESCE(COUNT(DISTINCT %s.user_id), 0) as user_count", userWatchHistoryTable)
+	episodeJoin := fmt.Sprintf("LEFT JOIN %s ON %s.series_id = %s.id", videoEpisodeTable, videoEpisodeTable, seriesAlias)
+	historyJoin := fmt.Sprintf("LEFT JOIN %s ON %s.episode_id = %s.id", userWatchHistoryTable, userWatchHistoryTable, videoEpisodeTable)
+
 	err := global.GVA_DB.
-		Select(`
-			video_series.*,
-			COALESCE(COUNT(DISTINCT user_watch_history.id), 0) as view_count,
-			COALESCE(COUNT(DISTINCT user_watch_history.user_id), 0) as user_count
-		`).
-		Joins("LEFT JOIN video_episode ON video_episode.series_id = video_series.id").
-		Joins("LEFT JOIN user_watch_history ON user_watch_history.episode_id = video_episode.id").
-		Where("video_series.id = ?", id).
-		Group("video_series.id").
+		Model(&model.VideoSeries{}).
+		Table(seriesTable+" AS "+seriesAlias).
+		Select(seriesAlias+".*, "+viewCountExpr+", "+userCountExpr).
+		Joins(episodeJoin).
+		Joins(historyJoin).
+		Where(seriesAlias+".id = ?", id).
+		Group(seriesAlias + ".id").
 		First(&series).Error
 	return series, err
 }
 
 func (s *ContentService) GetVideoSeriesList(info request.VideoSeriesSearch) (list []model.VideoSeries, total int64, err error) {
 	page, pageSize := normalizePage(info.Page, info.PageSize)
+	seriesTable := resolveContentTableName("video_series", "video_series")
+	seriesAlias := "vs"
+	videoEpisodeTable := resolveContentTableName("video_episode", "video_episodes")
+	userWatchHistoryTable := resolveContentTableName("user_watch_history", "user_watch_histories")
+	viewCountExpr := fmt.Sprintf("COALESCE(COUNT(DISTINCT %s.id), 0) as view_count", userWatchHistoryTable)
+	userCountExpr := fmt.Sprintf("COALESCE(COUNT(DISTINCT %s.user_id), 0) as user_count", userWatchHistoryTable)
+	episodeJoin := fmt.Sprintf("LEFT JOIN %s ON %s.series_id = %s.id", videoEpisodeTable, videoEpisodeTable, seriesAlias)
+	historyJoin := fmt.Sprintf("LEFT JOIN %s ON %s.episode_id = %s.id", userWatchHistoryTable, userWatchHistoryTable, videoEpisodeTable)
+	orderExpr := resolveVideoSeriesOrderExpr(seriesAlias)
 
 	// 构建基础查询
-	baseQuery := global.GVA_DB.Model(&model.VideoSeries{})
+	baseQuery := global.GVA_DB.Model(&model.VideoSeries{}).Table(seriesTable + " AS " + seriesAlias)
 	if info.CategoryID > 0 {
-		baseQuery = baseQuery.Where("category_id = ?", info.CategoryID)
+		baseQuery = baseQuery.Where(seriesAlias+".category_id = ?", info.CategoryID)
 	}
 
 	// 获取总数
@@ -223,15 +286,11 @@ func (s *ContentService) GetVideoSeriesList(info request.VideoSeriesSearch) (lis
 
 	// 分页查询，并关联统计数据
 	err = baseQuery.
-		Select(`
-			video_series.*,
-			COALESCE(COUNT(DISTINCT user_watch_history.id), 0) as view_count,
-			COALESCE(COUNT(DISTINCT user_watch_history.user_id), 0) as user_count
-		`).
-		Joins("LEFT JOIN video_episode ON video_episode.series_id = video_series.id").
-		Joins("LEFT JOIN user_watch_history ON user_watch_history.episode_id = video_episode.id").
-		Group("video_series.id").
-		Order("video_series.sort ASC, video_series.id DESC").
+		Select(seriesAlias + ".*, " + viewCountExpr + ", " + userCountExpr).
+		Joins(episodeJoin).
+		Joins(historyJoin).
+		Group(seriesAlias + ".id").
+		Order(orderExpr).
 		Limit(pageSize).
 		Offset((page - 1) * pageSize).
 		Find(&list).Error

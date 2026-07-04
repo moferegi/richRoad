@@ -354,12 +354,12 @@ const syncCurrentWord = () => {
 }
 
 const persistProgress = () => {
-  if (!selectedCategoryId.value || !selectedChapterId.value) {
+  if (!selectedCategoryId.value) {
     return
   }
   saveWordProgress({
     categoryId: selectedCategoryId.value,
-    chapterId: selectedChapterId.value,
+    chapterId: selectedChapterId.value || 0,
     wordIndex: currentWordIndex.value
   })
 }
@@ -384,8 +384,15 @@ const loadChapters = async (categoryId) => {
   chapters.value = list.map((item) => ({ ...item, id: getEntityId(item) })).filter((item) => item.id > 0)
 }
 
-const loadWords = async (chapterId) => {
-  const res = await getWordList({ page: 1, pageSize: 500, chapterId })
+const loadWords = async (chapterId, categoryId = 0) => {
+  const params = { page: 1, pageSize: 500 }
+  if (chapterId > 0) {
+    params.chapterId = chapterId
+  } else if (categoryId > 0) {
+    params.categoryId = categoryId
+  }
+
+  const res = await getWordList(params)
   if (res.code !== 0 || !res.data) {
     wordList.value = []
     syncCurrentWord()
@@ -407,8 +414,10 @@ const selectCategory = async (categoryId, preferredChapterId = 0, preferredWordI
   await loadChapters(categoryId)
   if (chapters.value.length === 0) {
     selectedChapterId.value = 0
-    wordList.value = []
-    currentWordIndex.value = 0
+    await loadWords(0, categoryId)
+    currentWordIndex.value = wordList.value.length > 0
+      ? Math.min(Math.max(0, Number(preferredWordIndex || 0)), wordList.value.length - 1)
+      : 0
     syncCurrentWord()
     updateHeaderNames()
     return
@@ -416,7 +425,7 @@ const selectCategory = async (categoryId, preferredChapterId = 0, preferredWordI
 
   const chapterExists = chapters.value.some((item) => item.id === preferredChapterId)
   selectedChapterId.value = chapterExists ? preferredChapterId : chapters.value[0].id
-  await loadWords(selectedChapterId.value)
+  await loadWords(selectedChapterId.value, categoryId)
 
   if (wordList.value.length > 0) {
     const maxIndex = wordList.value.length - 1

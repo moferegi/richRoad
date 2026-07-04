@@ -4,7 +4,7 @@ import commonReq "github.com/flipped-aurora/gin-vue-admin/server/model/common/re
 
 type SaveWordProgressReq struct {
 	CategoryID uint `json:"categoryId" binding:"required"`
-	ChapterID  uint `json:"chapterId" binding:"required"`
+	ChapterID  uint `json:"chapterId"`
 	WordIndex  int  `json:"wordIndex"`
 }
 

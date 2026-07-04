@@ -63,10 +63,12 @@ func (a *EnglishWordApi) CreateEnglishWord(c *gin.Context) {
 		Word:        req.Word,
 		PhoneticUS:  req.PhoneticUS, // 后续也可写脚本用 JSON 词典进行查漏补缺
 		PhoneticUK:  req.PhoneticUK,
+		AudioUS:     req.AudioUS,
+		AudioUK:     req.AudioUK,
 		Explanation: req.Explanation,
 	}
 
-	if err := englishWordService.CreateWord(wordEntity, req.ChapterIDs); err != nil {
+	if err := englishWordService.CreateWord(wordEntity, req.CategoryIDs, req.ChapterIDs); err != nil {
 		global.GVA_LOG.Error("录入英语单词失败!", zap.Error(err))
 		response.FailWithMessage("录入失败: "+err.Error(), c)
 		return
