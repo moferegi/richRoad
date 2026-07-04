@@ -473,6 +473,80 @@ func initNewModulesCasbin(db *gorm.DB) {
 	grantEnglishLearningOpsCasbin(db)
 }
 
+func cleanupLegacyManagedCasbinRules(db *gorm.DB, source string, paths []struct {
+	Path   string
+	Method string
+}, keepAuthorities []string) {
+	if db == nil {
+		return
+	}
+
+	source = strings.TrimSpace(source)
+	if source == "" {
+		return
+	}
+
+	allowedRuleSet := make(map[string]struct{}, len(paths))
+	for _, p := range paths {
+		path := strings.TrimSpace(p.Path)
+		method := strings.ToUpper(strings.TrimSpace(p.Method))
+		if path == "" || method == "" {
+			continue
+		}
+		allowedRuleSet[path+"#"+method] = struct{}{}
+	}
+
+	keepAuthoritySet := make(map[string]struct{}, len(keepAuthorities))
+	for _, authority := range keepAuthorities {
+		authority = strings.TrimSpace(authority)
+		if authority == "" {
+			continue
+		}
+		keepAuthoritySet[authority] = struct{}{}
+	}
+
+	type casbinRuleRow struct {
+		V0 string `gorm:"column:v0"`
+		V1 string `gorm:"column:v1"`
+		V2 string `gorm:"column:v2"`
+	}
+
+	rules := make([]casbinRuleRow, 0)
+	if err := db.Table("casbin_rule").
+		Select("v0", "v1", "v2").
+		Where("ptype = ? AND v3 = ?", "p", source).
+		Scan(&rules).Error; err != nil {
+		global.GVA_LOG.Warn("查询历史托管casbin规则失败", zap.Error(err), zap.String("source", source))
+		return
+	}
+
+	if len(rules) == 0 {
+		return
+	}
+
+	for _, rule := range rules {
+		authority := strings.TrimSpace(rule.V0)
+		ruleKey := strings.TrimSpace(rule.V1) + "#" + strings.ToUpper(strings.TrimSpace(rule.V2))
+
+		if len(keepAuthoritySet) > 0 {
+			if _, keep := keepAuthoritySet[authority]; !keep {
+				if err := db.Table("casbin_rule").Where("ptype = ? AND v0 = ? AND v1 = ? AND v2 = ? AND v3 = ?", "p", authority, rule.V1, rule.V2, source).Delete(nil).Error; err != nil {
+					global.GVA_LOG.Warn("清理历史托管casbin规则失败", zap.Error(err), zap.String("authority", authority), zap.String("path", rule.V1), zap.String("method", rule.V2))
+				}
+				continue
+			}
+		}
+
+		if _, allowed := allowedRuleSet[ruleKey]; allowed {
+			continue
+		}
+
+		if err := db.Table("casbin_rule").Where("ptype = ? AND v0 = ? AND v1 = ? AND v2 = ? AND v3 = ?", "p", authority, rule.V1, rule.V2, source).Delete(nil).Error; err != nil {
+			global.GVA_LOG.Warn("清理过期托管casbin规则失败", zap.Error(err), zap.String("authority", authority), zap.String("path", rule.V1), zap.String("method", rule.V2))
+		}
+	}
+}
+
 func grantEnglishLearningOpsCasbin(db *gorm.DB) {
 	if db == nil {
 		return
