@@ -87,6 +87,12 @@ func initDefaultSysConfigs() {
 		{ConfigKey: "currency_suffix", ConfigValue: "rmb", ConfigName: "货币后缀", ConfigGroup: "system", Remark: "uni端显示的货币后缀(如rmb, usd等)"},
 		{ConfigKey: "app_name", ConfigValue: "{\"zh\":\"RichRoad\",\"en\":\"RichRoad\",\"mn\":\"RichRoad\"}", ConfigName: "应用名称", ConfigGroup: "system", Remark: "uni端显示的应用名称(JSON多语言)"},
 		{ConfigKey: "app_logo", ConfigValue: "", ConfigName: "应用Logo", ConfigGroup: "system", Remark: "uni端显示的应用Logo图片地址"},
+		{ConfigKey: "language_translate_timeout_ms", ConfigValue: "45000", ConfigName: "翻译超时(毫秒)", ConfigGroup: "system", Remark: "语言自动翻译接口请求超时，范围5000-180000"},
+		{ConfigKey: "language_translate_retry_count", ConfigValue: "2", ConfigName: "翻译重试次数", ConfigGroup: "system", Remark: "Google翻译每个网关的重试次数，范围1-5"},
+		{ConfigKey: "language_translate_endpoints", ConfigValue: "https://translate.googleapis.com/translate_a/single,https://translate.google.com/translate_a/single,https://translate.google.com.hk/translate_a/single", ConfigName: "翻译网关列表", ConfigGroup: "system", Remark: "逗号分隔的翻译网关URL列表，按顺序回退"},
+		{ConfigKey: "language_translate_provider_url", ConfigValue: "", ConfigName: "外部翻译服务地址", ConfigGroup: "system", Remark: "非Google翻译回退服务地址（可接入自建服务或兼容网关）"},
+		{ConfigKey: "language_translate_provider_api_key", ConfigValue: "", ConfigName: "外部翻译服务密钥", ConfigGroup: "system", Remark: "外部翻译服务鉴权密钥（可空）"},
+		{ConfigKey: "language_translate_provider_api_key_header", ConfigValue: "Authorization", ConfigName: "外部翻译密钥请求头", ConfigGroup: "system", Remark: "外部翻译服务密钥请求头名称，默认Authorization"},
 		// security 分组
 		{ConfigKey: "captcha_expiry_seconds", ConfigValue: "300", ConfigName: "验证码有效期", ConfigGroup: "security", Remark: "图形验证码有效期(秒)，默认300秒"},
 		{ConfigKey: "captcha_rate_limit", ConfigValue: "10", ConfigName: "验证码请求频率限制", ConfigGroup: "security", Remark: "每分钟每IP最多请求验证码次数"},

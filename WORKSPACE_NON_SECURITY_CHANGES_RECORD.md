@@ -1748,6 +1748,81 @@ Geo 数据链路改动共 3 个文件：
 
 ---
 
+## 15. 2026-07-04 英语学习 PT 结构化改造（非安全）
+
+### 15.1 后端：单词多分类与音频字段完善
+
+改了什么：
+- 单词请求模型新增 `categoryIds`、`audioUs`、`audioUk`，列表查询新增 `categoryId` 过滤。
+  - 文件：[server/plugin/english_learning/model/request/english.go](server/plugin/english_learning/model/request/english.go)
+- 单词创建/更新逻辑改造为“分类+章节联合绑定”，并在更新时补齐“排除自身”的重复词校验。
+- 在线 TTS 生成后新增落盘兜底：尝试下载并上传到 `english-learn/audio`，失败则回退原始 URL。
+- 单词列表查询支持“仅按分类过滤”（章节可选），兼容“分类下无章节”的取词场景。
+  - 文件：[server/plugin/english_learning/service/english_word.go](server/plugin/english_learning/service/english_word.go)
+  - 文件：[server/plugin/english_learning/api/english_word.go](server/plugin/english_learning/api/english_word.go)
+
+有什么用：
+- 词库结构从“必须挂章节”升级为“可按分类组织，章节可选”。
+- 发音资源链路支持“在线生成即落盘”，便于后续统一资产管理与 CDN 策略。
+
+### 15.2 后端：字幕文件化解析链路
+
+改了什么：
+- 新增字幕文件解析请求模型：英文字幕文件必填，其他语言字幕文件可选。
+  - 文件：[server/plugin/english_learning/model/request/video.go](server/plugin/english_learning/model/request/video.go)
+- 新增 `parseSubtitleFiles` API 与路由。
+  - 文件：[server/plugin/english_learning/api/video_subtitle.go](server/plugin/english_learning/api/video_subtitle.go)
+  - 文件：[server/plugin/english_learning/router/video_subtitle.go](server/plugin/english_learning/router/video_subtitle.go)
+- 新增字幕文件下载、SRT/VTT 解析、时间轴对齐、多语言翻译映射入库逻辑；同时写入 `video_subtitles` 与 `video_sentences`。
+  - 文件：[server/plugin/english_learning/service/video_subtitle.go](server/plugin/english_learning/service/video_subtitle.go)
+
+有什么用：
+- 运营可直接上传“英文+多语言字幕文件”完成入库，不再依赖大段 JSON 手工粘贴。
+- Uni 播放端可继续复用现有 `translate` 多语言对象显示逻辑。
+
+### 15.3 后端：视频分类存储目录键
+
+改了什么：
+- 视频分类模型新增 `storageKey` 字段。
+  - 文件：[server/plugin/english_learning/model/video_model.go](server/plugin/english_learning/model/video_model.go)
+- 服务层新增 `storageKey` 规范化处理（小写、仅保留安全字符）。
+  - 文件：[server/plugin/english_learning/service/content.go](server/plugin/english_learning/service/content.go)
+
+有什么用：
+- 支持按业务线规划资源目录，如 `english-learn/video/liblib`，便于后续迁移与审计。
+
+### 15.4 Web/Uni：运营与学习页联动升级
+
+改了什么：
+- Web 单词页改造：
+  - 引入 `MultiLangEditor` 替代 JSON 文本框；
+  - 支持分类过滤、单词归属多分类、章节可选绑定；
+  - 支持 Logo/音频上传（`english-learn/pic`、`english-learn/audio`）。
+  - 文件：[web/src/plugin/english_learning/view/word.vue](web/src/plugin/english_learning/view/word.vue)
+- Web 视频页改造：
+  - 分类支持 `storageKey` 维护；
+  - 剧集封面与单集视频改为上传模式；
+  - 字幕改为“英文必填 + 多语言文件可选”上传解析流程（`parseSubtitleFiles`）。
+  - 文件：[web/src/plugin/english_learning/view/video.vue](web/src/plugin/english_learning/view/video.vue)
+  - 文件：[web/src/plugin/english_learning/api/english.js](web/src/plugin/english_learning/api/english.js)
+- Uni 跟打页适配“分类无章节”：允许按分类直接拉词，进度保存时 `chapterId` 可为 0。
+  - 文件：[uni/src/pages/learning/typing.vue](uni/src/pages/learning/typing.vue)
+  - 文件：[server/plugin/english_learning/model/request/user_data.go](server/plugin/english_learning/model/request/user_data.go)
+
+有什么用：
+- 运营端从“手填 URL/手输 JSON”升级到“上传驱动 + 多语言结构化输入”。
+- C 端跟打链路与后端新结构一致，不再强依赖章节存在。
+
+验证结果：
+- `cd server && go test ./plugin/english_learning/...` 通过。
+- `cd web && npx eslint src/plugin/english_learning/view/word.vue src/plugin/english_learning/view/video.vue src/plugin/english_learning/api/english.js` 通过。
+- VS Code 目标文件诊断：本轮后端、Web、Uni 变更文件无错误。
+
+说明：
+- 本次属于英语学习业务结构与运营工具完善，不涉及安全策略、鉴权边界或权限模型变更。
+
+---
+
 ## 14. 2026-06-17 英语学习 D8 免费时长明细页落地（非安全）
 
 ### 14.1 后端新增免费时长流水与查询接口

@@ -282,6 +282,13 @@ func initNewModulesCasbin(db *gorm.DB) {
 	var authorities []sysModel.SysAuthority
 	db.Find(&authorities)
 
+	seedAuthorities := make([]sysModel.SysAuthority, 0, len(authorities))
+	for _, auth := range authorities {
+		if auth.AuthorityId == 888 || auth.AuthorityId == 8881 || auth.AuthorityId == 8080 || auth.AuthorityId == 9528 {
+			seedAuthorities = append(seedAuthorities, auth)
+		}
+	}
+
 	paths := []struct {
 		Path   string
 		Method string
@@ -384,7 +391,7 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/dbInspector/deleteRecordsByRange", "POST"},
 	}
 
-	for _, auth := range authorities {
+	for _, auth := range seedAuthorities {
 		authId := fmt.Sprintf("%d", auth.AuthorityId)
 		for _, p := range paths {
 			var count int64
@@ -397,11 +404,54 @@ func initNewModulesCasbin(db *gorm.DB) {
 		}
 	}
 
+	cleanupLegacyManagedCasbinRules(db, "new_modules", paths, []string{"888", "8881", "8080", "9528"})
+
 	adminOnlyPaths := []struct {
 		Path   string
 		Method string
 	}{
+		{"/goodPurchase/createGoodPurchase", "POST"},
+		{"/goodPurchase/deleteGoodPurchase", "DELETE"},
+		{"/goodPurchase/updateGoodPurchase", "PUT"},
+		{"/goodPurchase/getGoodPurchaseList", "GET"},
+		{"/goodPurchase/getGoodPurchaseSummary", "GET"},
+		{"/qrcodePayment/createQrcodePayment", "POST"},
+		{"/qrcodePayment/deleteQrcodePayment", "DELETE"},
+		{"/qrcodePayment/updateQrcodePayment", "PUT"},
+		{"/qrcodePayment/getQrcodePaymentList", "GET"},
+		{"/popup/createPopup", "POST"},
+		{"/popup/deletePopup", "DELETE"},
+		{"/popup/updatePopup", "PUT"},
+		{"/popup/getPopupList", "GET"},
+		{"/popup/getPopupPagePathOptions", "GET"},
+		{"/marketingReward/createMarketingReward", "POST"},
+		{"/marketingReward/deleteMarketingReward", "DELETE"},
+		{"/marketingReward/updateMarketingReward", "PUT"},
+		{"/marketingReward/getMarketingRewardList", "GET"},
+		{"/dashboard/getOverview", "GET"},
+		{"/presale/getPresaleParticipants", "GET"},
+		{"/language/createLanguage", "POST"},
+		{"/language/deleteLanguage", "DELETE"},
+		{"/language/updateLanguage", "PUT"},
+		{"/phoneAreaCode/createPhoneAreaCode", "POST"},
+		{"/phoneAreaCode/deletePhoneAreaCode", "DELETE"},
+		{"/phoneAreaCode/updatePhoneAreaCode", "PUT"},
+		{"/phoneAreaCode/getPhoneAreaCodeList", "GET"},
+		{"/signIn/getSignInList", "GET"},
+		{"/signIn/deleteSignIn", "DELETE"},
+		{"/tryonTask/deleteTryonTask", "DELETE"},
+		{"/tryonTask/deleteTryonTaskByIds", "DELETE"},
+		{"/tryonTask/getTryonTaskList", "GET"},
+		{"/tryonTask/getTryonTaskStats", "GET"},
+		{"/tryonTask/getTryonTaskTrend", "GET"},
+		{"/extDomain/createExternalLinkDomain", "POST"},
+		{"/extDomain/deleteExternalLinkDomain", "DELETE"},
+		{"/extDomain/updateExternalLinkDomain", "PUT"},
+		{"/extDomain/getExternalLinkDomainList", "GET"},
+		{"/extDomain/setDefaultDomain", "POST"},
 		{"/sysConfig/getSysConfigList", "GET"},
+		{"/sysConfig/getSysConfigByGroup", "GET"},
+		{"/sysConfig/getSysConfigByKey", "GET"},
 		{"/sysConfig/getAliyunTryonQuotaEstimate", "GET"},
 		{"/sysConfig/updateSysConfig", "PUT"},
 		{"/dbInspector/getOverview", "GET"},
@@ -411,12 +461,71 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/tryonRechargeOrder/confirmTryonRechargeOrderPayment", "POST"},
 		{"/tryonRechargeOrder/findTryonRechargeOrder", "GET"},
 		{"/tryonRechargeOrder/getTryonRechargeOrderList", "GET"},
+		{"/visitor/getKefuGuideStats", "GET"},
 	}
 	for _, p := range adminOnlyPaths {
 		db.Exec(
 			"DELETE FROM casbin_rule WHERE ptype = ? AND v1 = ? AND v2 = ? AND v0 NOT IN (?, ?)",
 			"p", p.Path, p.Method, "888", "8881",
 		)
+	}
+
+	grantEnglishLearningOpsCasbin(db)
+}
+
+func grantEnglishLearningOpsCasbin(db *gorm.DB) {
+	if db == nil {
+		return
+	}
+
+	type authorityMenuRow struct {
+		AuthorityID uint `gorm:"column:authority_id"`
+	}
+
+	var authorityRows []authorityMenuRow
+	if err := db.
+		Table("sys_authority_menus sam").
+		Select("DISTINCT sam.sys_authority_authority_id AS authority_id").
+		Joins("JOIN sys_base_menus sbm ON sbm.id = sam.sys_base_menu_id").
+		Where("sbm.name IN ?", []string{"englishLearningWord", "englishLearningVideo"}).
+		Scan(&authorityRows).Error; err != nil {
+		global.GVA_LOG.Warn("查询英语学习菜单角色失败", zap.Error(err))
+		return
+	}
+
+	if len(authorityRows) == 0 {
+		return
+	}
+
+	dependentPaths := []struct {
+		Path   string
+		Method string
+	}{
+		{Path: "/language/getLanguageList", Method: "GET"},
+		{Path: "/language/translateI18n", Method: "POST"},
+		{Path: "/fileUploadAndDownload/upload", Method: "POST"},
+	}
+
+	for _, row := range authorityRows {
+		if row.AuthorityID == 0 {
+			continue
+		}
+
+		authorityID := fmt.Sprintf("%d", row.AuthorityID)
+		for _, p := range dependentPaths {
+			var count int64
+			if err := db.Table("casbin_rule").Where("ptype = ? AND v0 = ? AND v1 = ? AND v2 = ?", "p", authorityID, p.Path, p.Method).Count(&count).Error; err != nil {
+				global.GVA_LOG.Warn("查询英语学习依赖权限失败", zap.Error(err), zap.String("authorityId", authorityID), zap.String("path", p.Path), zap.String("method", p.Method))
+				continue
+			}
+			if count > 0 {
+				continue
+			}
+
+			if err := db.Exec("INSERT INTO casbin_rule (ptype, v0, v1, v2) VALUES (?, ?, ?, ?)", "p", authorityID, p.Path, p.Method).Error; err != nil {
+				global.GVA_LOG.Warn("补齐英语学习依赖权限失败", zap.Error(err), zap.String("authorityId", authorityID), zap.String("path", p.Path), zap.String("method", p.Method))
+			}
+		}
 	}
 }
 

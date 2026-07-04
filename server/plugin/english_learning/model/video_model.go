@@ -7,8 +7,9 @@ import (
 // VideoCategory 视频分类
 type VideoCategory struct {
 	global.GVA_MODEL
-	Name string `json:"name" gorm:"type:json;comment:视频分类名称(支持多语言)"`
-	Sort int    `json:"sort" gorm:"default:0;comment:排序索引"`
+	Name       string `json:"name" gorm:"type:json;comment:视频分类名称(支持多语言)"`
+	StorageKey string `json:"storageKey" gorm:"size:64;default:'';comment:视频资源存储目录键(如liblib)"`
+	Sort       int    `json:"sort" gorm:"default:0;comment:排序索引"`
 }
 
 // VideoSeries 视频集簇 (类似电视剧系列)

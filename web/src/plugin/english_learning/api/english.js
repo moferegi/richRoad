@@ -245,6 +245,15 @@ export const parseSubtitle = (data) => {
   })
 }
 
+// 提交英文字幕+多语言字幕文件进行解析并入库
+export const parseSubtitleFiles = (data) => {
+  return service({
+    url: '/englishLearning/video/parseSubtitleFiles',
+    method: 'post',
+    data
+  })
+}
+
 // 用户资源授权管理
 export const grantEntitlement = (data) => {
   return service({

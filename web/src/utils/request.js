@@ -103,10 +103,19 @@ service.interceptors.request.use(
     }
     config.baseURL = config.baseURL || import.meta.env.VITE_BASE_API
     const userStore = useUserStore()
-    config.headers = {
-      'Content-Type': 'application/json',
+
+    const isFormDataPayload = typeof FormData !== 'undefined' && config.data instanceof FormData
+    const baseHeaders = {
       'x-token': userStore.token,
       'x-user-id': userStore.userInfo.ID,
+    }
+
+    if (!isFormDataPayload) {
+      baseHeaders['Content-Type'] = 'application/json'
+    }
+
+    config.headers = {
+      ...baseHeaders,
       ...config.headers
     }
     return config

@@ -41,6 +41,31 @@ func (a *VideoSubtitleApi) ParseSubtitle(c *gin.Context) {
 	response.OkWithMessage("字幕成功解析入库并应用高亮", c)
 }
 
+// ParseSubtitleFiles
+// @Tags     VideoSubtitle
+// @Summary  解析字幕文件并入库（英文必填，其他语言可选）
+// @Security ApiKeyAuth
+// @accept   application/json
+// @Produce  application/json
+// @Param    data body request.ParseSubtitleFilesReq true "单集ID、英文字幕地址与多语言字幕地址"
+// @Success  200  {object} response.Response{msg=string} "解析成功"
+// @Router   /englishLearning/video/parseSubtitleFiles [post]
+func (a *VideoSubtitleApi) ParseSubtitleFiles(c *gin.Context) {
+	var req request.ParseSubtitleFilesReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage("参数错误", c)
+		return
+	}
+
+	if err := videoSubtitleService.ParseAndHighlightSubtitleFromFiles(req); err != nil {
+		global.GVA_LOG.Error("解析字幕文件失败!", zap.Error(err))
+		response.FailWithMessage("解析失败: "+err.Error(), c)
+		return
+	}
+
+	response.OkWithMessage("字幕文件解析入库成功", c)
+}
+
 // GetSentenceList
 // @Tags     VideoSubtitle
 // @Summary  获取某视频单集的字幕句子列表

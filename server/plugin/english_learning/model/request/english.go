@@ -14,7 +14,10 @@ type CreateEnglishWordReq struct {
 	Word        string `json:"word" binding:"required"`
 	PhoneticUS  string `json:"phoneticUs"`
 	PhoneticUK  string `json:"phoneticUk"`
+	AudioUS     string `json:"audioUs"`
+	AudioUK     string `json:"audioUk"`
 	Explanation string `json:"explanation"` // JSON string for multiple languages
+	CategoryIDs []uint `json:"categoryIds"` // 单词可归属多个分类
 	ChapterIDs  []uint `json:"chapterIds"`  // 创建单词时自动关联的章节ID列表
 }
 
@@ -23,8 +26,11 @@ type UpdateEnglishWordReq struct {
 	Word        string `json:"word" binding:"required"`
 	PhoneticUS  string `json:"phoneticUs"`
 	PhoneticUK  string `json:"phoneticUk"`
+	AudioUS     string `json:"audioUs"`
+	AudioUK     string `json:"audioUk"`
 	Explanation string `json:"explanation"`
-	ChapterIDs  []uint `json:"chapterIds"` // 可选；传入时会重建章节绑定关系
+	CategoryIDs []uint `json:"categoryIds"` // 可选；传入时会重建分类绑定关系
+	ChapterIDs  []uint `json:"chapterIds"`  // 可选；传入时会重建章节绑定关系
 }
 
 type RegenerateWordAudioReq struct {
@@ -40,7 +46,8 @@ type TTSPreflightReq struct {
 }
 
 type WordListSearch struct {
-	ChapterID uint `json:"chapterId" form:"chapterId"`
+	CategoryID uint `json:"categoryId" form:"categoryId"`
+	ChapterID  uint `json:"chapterId" form:"chapterId"`
 	request.PageInfo
 }
 
