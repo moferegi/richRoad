@@ -12,12 +12,12 @@ autocode:
     module: github.com/flipped-aurora/gin-vue-admin/server
     ai-path: "https://plugin.gin-vue-admin.com/api/app/yourAppToken/{FUNC}"
 aws-s3:
-    bucket: yourBucketName
-    region: yourRegion
-    endpoint: yourEndpoint
-    secret-id: yourAccessKeyId
-    secret-key: yourSecretKey
-    base-url: https://your-cdn.example.com
+    bucket: Moffuu
+    region: us-east-005
+    endpoint: s3.us-east-005.backblazeb2.com
+    secret-id: 0055f54da715c850000000001
+    secret-key: K005Sl4Y4CebI5w8ml7YrzMJmR3pEDI
+    base-url: https://video.mnmovie.icu
     path-prefix: 
     s3-force-path-style: true
     disable-ssl: false
