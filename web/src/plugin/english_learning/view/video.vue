@@ -29,6 +29,13 @@
                 {{ scope.row.storageKey || '-' }}
               </template>
             </el-table-column>
+            <el-table-column label="首页展示" width="120">
+              <template #default="scope">
+                <el-tag :type="scope.row.showHome === false ? 'info' : 'success'">
+                  {{ scope.row.showHome === false ? '隐藏' : '展示' }}
+                </el-tag>
+              </template>
+            </el-table-column>
             <el-table-column prop="sort" label="排序" width="100" />
             <el-table-column label="操作" width="180" fixed="right">
               <template #default="scope">
@@ -86,6 +93,13 @@
             </el-table-column>
             <el-table-column prop="coverUrl" label="封面地址" min-width="240" show-overflow-tooltip />
             <el-table-column prop="price" label="价格" width="120" />
+            <el-table-column label="首页展示" width="120">
+              <template #default="scope">
+                <el-tag :type="scope.row.showHome === false ? 'info' : 'success'">
+                  {{ scope.row.showHome === false ? '隐藏' : '展示' }}
+                </el-tag>
+              </template>
+            </el-table-column>
             <el-table-column label="会员限制" width="120">
               <template #default="scope">
                 <el-tag :type="scope.row.needVip ? 'warning' : 'success'">{{ scope.row.needVip ? '需要会员' : '普通可见' }}</el-tag>
@@ -301,6 +315,9 @@
         <el-form-item label="排序">
           <el-input-number v-model="videoCategoryForm.sort" :min="0" />
         </el-form-item>
+        <el-form-item label="首页展示">
+          <el-switch v-model="videoCategoryForm.showHome" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="videoCategoryDialogVisible = false">取消</el-button>
@@ -345,6 +362,9 @@
         </el-form-item>
         <el-form-item label="需要会员">
           <el-switch v-model="seriesForm.needVip" />
+        </el-form-item>
+        <el-form-item label="首页展示">
+          <el-switch v-model="seriesForm.showHome" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -598,6 +618,7 @@
     ID: 0,
     nameI18n: { zh: '' },
     storageKey: '',
+    showHome: true,
     sort: 0
   })
 
@@ -610,7 +631,8 @@
     coverId: 0,
     coverUrl: '',
     price: 0,
-    needVip: false
+    needVip: false,
+    showHome: true
   })
 
   const episodeDialogVisible = ref(false)
@@ -905,6 +927,7 @@
       ID: row?.ID || 0,
       nameI18n: normalizeI18nObject(row?.name || ''),
       storageKey: row?.storageKey || '',
+      showHome: row?.showHome !== false,
       sort: Number(row?.sort || 0)
     }
     videoCategoryDialogVisible.value = true
@@ -915,6 +938,7 @@
       ID: videoCategoryForm.value.ID,
       name: stringifyI18nObject(videoCategoryForm.value.nameI18n),
       storageKey: normalizeStorageKey(videoCategoryForm.value.storageKey),
+      showHome: videoCategoryForm.value.showHome !== false,
       sort: Number(videoCategoryForm.value.sort || 0)
     }
 
@@ -960,7 +984,8 @@
       coverId: Number(row?.coverId || 0),
       coverUrl: row?.coverUrl || '',
       price: Number(row?.price || 0),
-      needVip: !!row?.needVip
+      needVip: !!row?.needVip,
+      showHome: row?.showHome !== false
     }
     seriesDialogVisible.value = true
   }
@@ -978,7 +1003,8 @@
       coverId: Number(seriesForm.value.coverId || 0),
       coverUrl: String(seriesForm.value.coverUrl || '').trim(),
       price: Number(seriesForm.value.price || 0),
-      needVip: !!seriesForm.value.needVip
+      needVip: !!seriesForm.value.needVip,
+      showHome: seriesForm.value.showHome !== false
     }
 
     if (!formatI18nText(payload.name)) {

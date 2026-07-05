@@ -2,7 +2,7 @@
   <view class="collection-container">
     <view class="header-row">
       <view class="back-btn" @click="goBack">‹</view>
-      <text class="header-title">{{ t('collection.title', '我的收藏') }}</text>
+      <text class="header-title">{{ t('collection.title') }}</text>
       <view class="header-gap"></view>
     </view>
 
@@ -14,11 +14,11 @@
         :class="{ active: targetType === tab.type }"
         @click="switchType(tab.type)"
       >
-        {{ t(tab.key, tab.label) }}
+        {{ t(tab.key) }}
       </view>
     </view>
 
-    <scroll-view class="list-scroll" scroll-y @scrolltolower="loadMore">
+    <scroll-view class="list-scroll" scroll-y>
       <view v-if="!loading && collectionList.length === 0" class="empty-wrap">
         <text class="empty-text">{{ t('collection.empty') }}</text>
       </view>
@@ -56,7 +56,7 @@
       <view v-if="collectionList.length > 0" class="load-more">
         <text v-if="loading">{{ t('collection.loading') }}</text>
         <text v-else-if="noMore">{{ t('collection.no_more') }}</text>
-        <text v-else>{{ t('collection.pull_more') }}</text>
+        <button v-else class="load-more-btn" size="mini" @click="loadMore">{{ t('common.load_more') }}</button>
       </view>
     </scroll-view>
   </view>
@@ -70,30 +70,12 @@ import { localText as i18nLocalText, t as i18nT } from '@/utils/i18n.js'
 import { getCollectionDetailList, uncollect } from '@/api/learning.js'
 
 const langStore = useLangStore()
-const fallbackTexts = {
-  'collection.tab_all': '全部',
-  'collection.tab_word': '单词',
-  'collection.tab_sentence': '句子',
-  'collection.tab_video': '视频',
-  'collection.title': '我的收藏',
-  'collection.empty': '暂无收藏内容',
-  'collection.remove': '取消收藏',
-  'collection.loading': '加载中...',
-  'collection.no_more': '没有更多了',
-  'collection.pull_more': '上拉加载更多',
-  'collection.word': '单词',
-  'collection.sentence': '句子',
-  'collection.video': '视频',
-  'collection.open_failed': '当前内容不可打开',
-  'collection.remove_success': '已取消收藏',
-  'collection.remove_failed': '取消失败'
-}
 
-const t = (key, defaultText = '') => {
+const t = (key) => {
   const locale = langStore.locale || uni.getStorageSync('app-lang') || 'zh'
   const text = i18nT(key, locale)
   if (text && text !== key) return text
-  return defaultText || fallbackTexts[key] || key
+  return key
 }
 
 const localText = (value) => {
@@ -102,15 +84,15 @@ const localText = (value) => {
 }
 
 const tabs = [
-  { type: 0, key: 'collection.tab_all', label: '全部' },
-  { type: 1, key: 'collection.tab_word', label: '单词' },
-  { type: 2, key: 'collection.tab_sentence', label: '句子' },
-  { type: 3, key: 'collection.tab_video', label: '视频' }
+  { type: 0, key: 'collection.tab_all' },
+  { type: 1, key: 'collection.tab_word' },
+  { type: 2, key: 'collection.tab_sentence' },
+  { type: 3, key: 'collection.tab_video' }
 ]
 
 const targetType = ref(0)
 const page = ref(1)
-const pageSize = 20
+const pageSize = 10
 const total = ref(0)
 const loading = ref(false)
 const noMore = ref(false)
@@ -450,4 +432,50 @@ onShow(() => {
   font-size: 24rpx;
   padding: 20rpx 0 40rpx;
 }
+
+.load-more-btn {
+  border: 1rpx solid rgba(20, 184, 166, 0.28);
+  color: #0f766e;
+  background: #fffdf8;
+  border-radius: 999rpx;
+  padding: 0 28rpx;
+}
+
+.collection-container {
+  background: linear-gradient(180deg, #f8f4e7 0%, #f4efe1 100%);
+}
+
+.back-btn {
+  border-radius: 18rpx;
+  border: 1rpx solid rgba(20, 184, 166, 0.22);
+  background: #fffdf8;
+  color: #7c2d12;
+}
+
+.header-title { color: #7c2d12; }
+
+.tab-row,
+.collection-card {
+  background: rgba(255, 253, 248, 0.96);
+  border: 1rpx solid rgba(20, 184, 166, 0.18);
+}
+
+.tab-item.active {
+  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
+}
+
+.type-tag {
+  background: rgba(15, 118, 110, 0.14);
+  color: #0f766e;
+}
+
+.title-text { color: #1e293b; }
+.desc-text, .time-text { color: #64748b; }
+
+.remove-btn {
+  background: rgba(220, 38, 38, 0.1);
+  border: 1rpx solid rgba(220, 38, 38, 0.22);
+}
+
+.load-more, .empty-text { color: #94a3b8; }
 </style>

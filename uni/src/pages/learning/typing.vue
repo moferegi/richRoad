@@ -3,12 +3,12 @@
     <!-- Navbar / 设置区域 -->
     <view class="top-nav">
       <view class="nav-left">
-        <view class="nav-pill" @click="showCategorySheet">
-          <text class="nav-text">{{ categoryName || t('typing.category', '分类') }}</text>
+        <view class="nav-pill" @click="openPickerSheet('category')">
+          <text class="nav-text">{{ categoryName || t('typing.category') }}</text>
           <text class="arrow">▼</text>
         </view>
-        <view v-if="chapters.length > 0" class="nav-pill" @click="showChapterSheet">
-          <text class="nav-text">{{ chapterName || t('typing.chapter', '章节') }}</text>
+        <view v-if="chapters.length > 0" class="nav-pill" @click="openPickerSheet('chapter')">
+          <text class="nav-text">{{ chapterName || t('typing.chapter') }}</text>
           <text class="arrow">▼</text>
         </view>
       </view>
@@ -31,8 +31,10 @@
           {{ (!settings.showWord && index >= typedChars.length) ? '_' : char }}
         </text>
         
-        <view class="audio-btn" @click="playWordAudio">
-          <text>🔊</text>
+        <view class="word-actions">
+          <view class="audio-btn" @click="playWordAudio">
+            <text>🔊</text>
+          </view>
         </view>
       </view>
 
@@ -42,6 +44,12 @@
 
       <view class="word-explanation" v-if="settings.showExplanation">
         <text>{{ localText(currentWord.explanation) }}</text>
+      </view>
+
+      <view class="word-collect-row">
+        <view class="inline-collect-btn" @click="collectWord">
+          <text>{{ isCollected ? t('typing.uncollect') : t('typing.collect') }}</text>
+        </view>
       </view>
     </view>
 
@@ -105,6 +113,24 @@
     </view>
 
     <!-- 功能设置弹窗 (ActionSheet 等价表现) -->
+    <uni-popup ref="pickerPopup" type="bottom">
+      <view class="picker-sheet">
+        <view class="picker-title">{{ pickerType === 'category' ? t('typing.select_category') : t('typing.select_chapter') }}</view>
+        <scroll-view class="picker-list" scroll-y>
+          <view
+            v-for="item in pickerOptions"
+            :key="item.id"
+            class="picker-item"
+            :class="{ active: item.active }"
+            @click="selectPickerItem(item)"
+          >
+            {{ item.label }}
+          </view>
+        </scroll-view>
+        <button class="picker-cancel" @click="closePickerSheet">{{ t('common.cancel') }}</button>
+      </view>
+    </uni-popup>
+
     <uni-popup ref="settingsPopup" type="bottom">
       <view class="settings-sheet">
         <view class="set-item"><text>{{ t('typing.show_word') }}</text><switch :checked="settings.showWord" @change="settings.showWord = $event.detail.value" /></view>
@@ -116,7 +142,7 @@
             <label><radio value="UK" :checked="settings.accent==='UK'"/> UK</label>
           </radio-group>
         </view>
-        <view class="set-item highlight" @click="collectWord">{{ isCollected ? t('typing.uncollect') : t('typing.collect') }}</view>
+        <view class="set-item highlight" @click="closeSettingsSheet">{{ t('common.cancel') }}</view>
       </view>
     </uni-popup>
   </view>
@@ -130,35 +156,12 @@ import { t as i18nT, localText as i18nLocalText } from '@/utils/i18n.js'
 import { collect, uncollect, getCollectionList, getCategoryList, getChapterList, getWordList, getWordProgress, reportWordError, saveWordProgress } from '@/api/learning.js'
 
 const langStore = useLangStore()
-const fallbackTexts = {
-  'typing.error_count': '错误次数',
-  'typing.stop': '停止跟打',
-  'typing.start': '开始跟打',
-  'typing.show_word': '显示单词',
-  'typing.show_phonetic': '显示音标',
-  'typing.show_explanation': '显示释义',
-  'typing.accent': '发音口音',
-  'typing.collect': '收藏单词',
-  'typing.uncollect': '取消收藏',
-  'typing.category': '分类',
-  'typing.chapter': '章节',
-  'typing.load_empty': '当前章节暂无单词',
-  'typing.collect_success': '收藏成功',
-  'typing.uncollect_success': '已取消收藏',
-  'typing.word_done': '完成',
-  'typing.no_chapter': '暂无章节',
-  'typing.audio_debug': '语音播放日志',
-  'typing.audio_debug_clear': '清空',
-  'typing.audio_ok': '成功',
-  'typing.audio_fail': '失败',
-  'typing.audio_skip': '跳过',
-}
 
-const t = (key, dt = '') => {
+const t = (key) => {
   const locale = langStore.locale || uni.getStorageSync('app-lang') || 'zh'
   const text = i18nT(key, locale)
   if (text && text !== key) return text
-  return dt || fallbackTexts[key] || key
+  return key
 }
 const localText = (val) => {
   const locale = langStore.locale || uni.getStorageSync('app-lang') || 'zh'
@@ -194,8 +197,12 @@ const settings = ref({
 })
 
 const settingsPopup = ref(null)
+const pickerPopup = ref(null)
+const pickerType = ref('category')
+const pickerOptions = ref([])
 const isCollected = ref(false)
 const showSettingsSheet = () => settingsPopup.value.open()
+const closeSettingsSheet = () => settingsPopup.value?.close()
 
 const refreshWordCollectedState = async () => {
   const wordId = Number(currentWord.value.id || 0)
@@ -401,7 +408,7 @@ const playNextAudioCandidate = () => {
   }
   currentAudioAttempt = null
   currentAudioLoggedSuccess = false
-  uni.showToast({ title: t('player.load_failed', '音频播放失败'), icon: 'none' })
+  uni.showToast({ title: t('typing.audio_play_failed'), icon: 'none' })
 }
 
 const playAudio = (src, fallbackText = '') => {
@@ -412,7 +419,7 @@ const playAudio = (src, fallbackText = '') => {
 
   audioCandidates = []
   if (audioSrc && isUnreachable) {
-    pushAudioDebugLog({ status: 'skip', source: 'db-local-skip', url: audioSrc, message: '本地/内网地址，直接跳过' })
+    pushAudioDebugLog({ status: 'skip', source: 'db-local-skip', url: audioSrc, message: t('typing.audio_local_skip') })
   }
   if (primary) {
     audioCandidates.push({ url: primary, source: 'db-primary' })
@@ -425,7 +432,7 @@ const playAudio = (src, fallbackText = '') => {
   }
 
   if (audioCandidates.length === 0) {
-    uni.showToast({ title: t('player.load_failed', '音频地址无效'), icon: 'none' })
+    uni.showToast({ title: t('typing.audio_invalid_url'), icon: 'none' })
     return
   }
 
@@ -443,7 +450,7 @@ const playAudio = (src, fallbackText = '') => {
           status: 'fail',
           source: currentAudioAttempt.source,
           url: currentAudioAttempt.url,
-          message: err?.errMsg || '未知错误'
+          message: err?.errMsg || t('typing.audio_unknown_error')
         })
       }
       playNextAudioCandidate()
@@ -617,70 +624,147 @@ const loadTypingData = async () => {
   await selectCategory(categoryId, progressChapterId, progressWordIndex)
 }
 
-const showChapterSheet = () => {
-  if (chapters.value.length === 0) {
+const openPickerSheet = (type) => {
+  isTypingMode.value = false
+  if (type === 'chapter' && chapters.value.length === 0) {
     uni.showToast({ title: t('typing.no_chapter'), icon: 'none' })
     return
   }
-  uni.showActionSheet({
-    itemList: chapters.value.map((item) => localText(item.name) || `#${item.id}`),
-    success: async (res) => {
-      const target = chapters.value[res.tapIndex]
-      if (!target || target.id === selectedChapterId.value) {
-        return
-      }
-      selectedChapterId.value = target.id
-      currentWordIndex.value = 0
-      await loadWords(selectedChapterId.value, selectedCategoryId.value)
-      updateHeaderNames()
-      persistProgress()
-      resetStats()
-    }
-  })
-}
-
-const showCategorySheet = () => {
-  if (categories.value.length === 0) {
+  if (type === 'category' && categories.value.length === 0) {
     return
   }
-  uni.showActionSheet({
-    itemList: categories.value.map((item) => localText(item.name) || `#${item.id}`),
-    success: async (res) => {
-      const target = categories.value[res.tapIndex]
-      if (!target || target.id === selectedCategoryId.value) {
-        return
-      }
-      currentWordIndex.value = 0
-      await selectCategory(target.id)
-      persistProgress()
-      resetStats()
+
+  pickerType.value = type
+  const source = type === 'category' ? categories.value : chapters.value
+  pickerOptions.value = source.map((item) => ({
+    id: item.id,
+    label: localText(item.name) || `#${item.id}`,
+    active: type === 'category' ? item.id === selectedCategoryId.value : item.id === selectedChapterId.value
+  }))
+  pickerPopup.value?.open()
+}
+
+const closePickerSheet = () => {
+  pickerPopup.value?.close()
+}
+
+const selectPickerItem = async (item) => {
+  if (!item?.id) {
+    return
+  }
+  if (pickerType.value === 'chapter') {
+    if (item.id === selectedChapterId.value) {
+      closePickerSheet()
+      return
     }
-  })
+    selectedChapterId.value = item.id
+    currentWordIndex.value = 0
+    await loadWords(selectedChapterId.value, selectedCategoryId.value)
+    updateHeaderNames()
+    persistProgress()
+    resetStats()
+    closePickerSheet()
+    return
+  }
+
+  if (item.id === selectedCategoryId.value) {
+    closePickerSheet()
+    return
+  }
+  currentWordIndex.value = 0
+  await selectCategory(item.id)
+  persistProgress()
+  resetStats()
+  closePickerSheet()
 }
 </script>
 
 <style scoped>
-.typing-container { position: relative; height: 100vh; display: flex; flex-direction: column; background-color: #f7f9fc; }
+.typing-container {
+  position: relative;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #f8f4e7 0%, #f4efe1 100%);
+}
 
-.top-nav { display: flex; justify-content: space-between; padding: 30rpx; background: #fff; box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.02); z-index: 10;}
-.nav-left { display: flex; gap: 14rpx; align-items: center; }
-.nav-pill { display: flex; align-items: center; gap: 8rpx; padding: 10rpx 18rpx; background: #f3f4f6; border-radius: 999rpx; }
-.nav-text { font-size: 28rpx; font-weight: bold; }
-.icon-settings { font-size: 40rpx; }
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  padding: 24rpx;
+  background: rgba(255, 253, 248, 0.95);
+  border-bottom: 1rpx solid rgba(146, 64, 14, 0.12);
+}
 
-/* 单词卡片核心区域 */
-.word-card { background: #fff; margin: 30rpx; padding: 60rpx 40rpx; border-radius: 20rpx; align-items: center; display: flex; flex-direction: column; box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.05); }
-.word-main { display: flex; align-items: center; margin-bottom: 20rpx; }
-.char-item { font-size: 80rpx; font-weight: bold; font-family: monospace; letter-spacing: 4rpx; }
-.char-initial { color: #111; }
-.char-pending { color: #ccc; }
-.char-correct { color: #409eff; }
-.char-wrong { color: #e53935; }
-.audio-btn { margin-left: 20rpx; font-size: 40rpx; }
-.word-meta { color: #888; margin-bottom: 10rpx; font-size: 28rpx; }
-.word-explanation { color: #555; text-align: center; font-size: 30rpx; margin-top: 20rpx; line-height: 1.5; }
+.nav-left { display: flex; gap: 12rpx; align-items: center; }
 
-/* 防止作弊：打错时严重抖动与警示红屏 */
+.nav-pill {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  height: 60rpx;
+  padding: 0 20rpx;
+  border-radius: 999rpx;
+  background: #fff;
+  border: 1rpx solid rgba(20, 184, 166, 0.22);
+}
+
+.nav-text { font-size: 26rpx; font-weight: 700; color: #7c2d12; }
+.arrow { color: rgba(124, 45, 18, 0.6); font-size: 20rpx; }
+
+.nav-right {
+  width: 62rpx;
+  height: 62rpx;
+  border-radius: 18rpx;
+  background: #fff;
+  border: 1rpx solid rgba(20, 184, 166, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-settings { font-size: 34rpx; }
+
+.word-card {
+  background: rgba(255, 253, 248, 0.96);
+  margin: 22rpx;
+  padding: 50rpx 36rpx;
+  border-radius: 24rpx;
+  border: 1rpx solid rgba(20, 184, 166, 0.22);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 14rpx 32rpx rgba(120, 53, 15, 0.1);
+}
+
+.word-main { display: flex; align-items: center; justify-content: center; margin-bottom: 14rpx; }
+.char-item { font-size: 78rpx; font-weight: 700; font-family: monospace; letter-spacing: 3rpx; }
+.char-initial { color: #0f172a; }
+.char-pending { color: #cbd5e1; }
+.char-correct { color: #0f766e; }
+.char-wrong { color: #dc2626; }
+.word-actions { display: flex; align-items: center; gap: 10rpx; margin-left: 18rpx; }
+.audio-btn { font-size: 40rpx; }
+.word-collect-row {
+  margin-top: 16rpx;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.inline-collect-btn {
+  height: 56rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  background: rgba(15, 118, 110, 0.14);
+  border: 1rpx solid rgba(15, 118, 110, 0.22);
+  color: #0f766e;
+  font-size: 22rpx;
+  display: flex;
+  align-items: center;
+}
+.word-meta { color: #78716c; margin-bottom: 10rpx; font-size: 28rpx; }
+.word-explanation { color: #334155; text-align: center; font-size: 29rpx; margin-top: 12rpx; line-height: 1.55; }
+
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-15rpx); }
@@ -689,22 +773,61 @@ const showCategorySheet = () => {
 }
 .shake-animation { animation: shake 0.4s ease-in-out; }
 
-/* 统计与按钮区 */
-.stats-row { display: flex; justify-content: space-between; align-items: center; padding: 0 40rpx; margin-bottom: 20rpx; }
-.count-stat { font-size: 28rpx; color: #666; font-family: monospace; }
-.toggle-typing-btn { background: #409eff; color: #fff; font-size: 28rpx; border-radius: 40rpx; margin: 0; padding: 0 40rpx; height: 60rpx; line-height: 60rpx; }
-.toggle-typing-btn.active { background: #e53935; }
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24rpx;
+  margin-bottom: 16rpx;
+}
 
-/* 句子区域 */
-.sentence-list { flex: 1; padding: 0 30rpx; box-sizing: border-box; }
-.sentence-item { background: #fff; padding: 30rpx; border-radius: 16rpx; margin-bottom: 20rpx; }
-.sentence-en { font-size: 32rpx; font-weight: bold; margin-bottom: 15rpx; color: #333; display: flex; justify-content: space-between; }
-.sentence-zh { font-size: 28rpx; color: #777; }
+.count-stat { font-size: 27rpx; color: #78716c; font-family: monospace; }
 
-.audio-debug-box { margin: 0 30rpx 16rpx; background: #fff; border-radius: 14rpx; padding: 16rpx 18rpx; box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04); }
+.toggle-typing-btn {
+  height: 66rpx;
+  line-height: 66rpx;
+  margin: 0;
+  padding: 0 36rpx;
+  border-radius: 999rpx;
+  font-size: 27rpx;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
+}
+
+.toggle-typing-btn.active { background: linear-gradient(120deg, #dc2626 0%, #f97316 100%); }
+
+.sentence-list { flex: 1; padding: 0 22rpx; box-sizing: border-box; }
+
+.sentence-item {
+  background: rgba(255, 253, 248, 0.96);
+  padding: 24rpx;
+  border-radius: 18rpx;
+  border: 1rpx solid rgba(20, 184, 166, 0.16);
+  margin-bottom: 14rpx;
+}
+
+.sentence-en {
+  font-size: 31rpx;
+  font-weight: 700;
+  margin-bottom: 10rpx;
+  color: #1e293b;
+  display: flex;
+  justify-content: space-between;
+}
+
+.sentence-zh { font-size: 26rpx; color: #64748b; line-height: 1.5; }
+
+.audio-debug-box {
+  margin: 0 22rpx 14rpx;
+  background: #fffdf8;
+  border-radius: 16rpx;
+  padding: 16rpx;
+  border: 1rpx solid rgba(20, 184, 166, 0.16);
+}
 .audio-debug-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10rpx; }
-.audio-debug-title { font-size: 24rpx; color: #334155; font-weight: 600; }
-.audio-debug-clear { font-size: 22rpx; color: #2563eb; }
+.audio-debug-title { font-size: 24rpx; color: #334155; font-weight: 700; }
+.audio-debug-clear { font-size: 22rpx; color: #0f766e; }
 .audio-debug-list { display: flex; flex-direction: column; gap: 8rpx; }
 .audio-debug-item { background: #f8fafc; border-radius: 10rpx; padding: 10rpx 12rpx; display: flex; flex-direction: column; gap: 4rpx; }
 .audio-debug-status { font-size: 22rpx; font-weight: 600; }
@@ -715,20 +838,128 @@ const showCategorySheet = () => {
 .audio-debug-url { font-size: 20rpx; color: #64748b; line-height: 1.3; word-break: break-all; }
 .audio-debug-msg { font-size: 20rpx; color: #b91c1c; line-height: 1.3; word-break: break-all; }
 
-/* 浮动切换按钮 */
-.nav-btn { position: fixed; top: 40%; width: 80rpx; height: 100rpx; background: rgba(0,0,0,0.3); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 40rpx; z-index: 100; border-radius: 10rpx; }
-.nav-btn { top: auto; bottom: 320rpx; }
+.nav-btn {
+  position: fixed;
+  bottom: 340rpx;
+  width: 76rpx;
+  height: 92rpx;
+  background: rgba(15, 118, 110, 0.66);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38rpx;
+  z-index: 100;
+}
+
 .prev-btn { left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
 .next-btn { right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
 
-/* 前端绘制纯安全虚拟键盘 (核心防原声键盘中文作弊机制) */
-.custom-keyboard { position: fixed; bottom: -450rpx; left: 0; width: 100%; height: 450rpx; background: #e0e4e8; transition: bottom 0.3s; padding: 20rpx 10rpx 40rpx 10rpx; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; z-index: 999; }
+.custom-keyboard {
+  position: fixed;
+  bottom: -450rpx;
+  left: 0;
+  width: 100%;
+  height: 450rpx;
+  background: #e7ecee;
+  transition: bottom 0.3s;
+  padding: 20rpx 10rpx 40rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  z-index: 999;
+}
 .keyboard-show { bottom: 0; }
 .keyboard-row { display: flex; justify-content: center; gap: 10rpx; }
-.key-btn { background: #fff; height: 90rpx; min-width: 60rpx; flex: 1; border-radius: 10rpx; display: flex; justify-content: center; align-items: center; font-size: 40rpx; font-family: monospace; font-weight: bold; color: #333; box-shadow: 0 2rpx 0 #999; text-transform: uppercase; }
-.key-hover { background: #ccc; }
 
-.settings-sheet { background: #fff; border-top-left-radius: 20rpx; border-top-right-radius: 20rpx; padding: 40rpx; padding-bottom: calc(40rpx + env(safe-area-inset-bottom) + 120rpx); max-height: 68vh; overflow-y: auto; box-sizing: border-box; }
-.set-item { display: flex; justify-content: space-between; padding: 30rpx 0; border-bottom: 1px solid #eee; font-size: 32rpx; }
-.highlight { color: #409eff; font-weight: bold; justify-content: center; }
+.key-btn {
+  background: #fff;
+  height: 90rpx;
+  min-width: 60rpx;
+  flex: 1;
+  border-radius: 12rpx;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 40rpx;
+  font-family: monospace;
+  font-weight: 700;
+  color: #334155;
+  box-shadow: 0 2rpx 0 #94a3b8;
+  text-transform: uppercase;
+}
+
+.key-hover { background: #dbe3e6; }
+
+.settings-sheet {
+  background: #fffdf8;
+  border-top-left-radius: 22rpx;
+  border-top-right-radius: 22rpx;
+  padding: 34rpx;
+  padding-bottom: calc(34rpx + env(safe-area-inset-bottom) + 120rpx);
+  max-height: 68vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.picker-sheet {
+  background: #fffdf8;
+  border-top-left-radius: 22rpx;
+  border-top-right-radius: 22rpx;
+  padding: 28rpx;
+  padding-bottom: calc(28rpx + env(safe-area-inset-bottom) + 120rpx);
+  max-height: 68vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.picker-title {
+  text-align: center;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #7c2d12;
+  margin-bottom: 14rpx;
+}
+
+.picker-list {
+  max-height: 46vh;
+}
+
+.picker-item {
+  height: 84rpx;
+  border-radius: 14rpx;
+  padding: 0 22rpx;
+  display: flex;
+  align-items: center;
+  margin-bottom: 10rpx;
+  color: #334155;
+  background: #fff;
+  border: 1rpx solid rgba(20, 184, 166, 0.16);
+}
+
+.picker-item.active {
+  color: #0f766e;
+  border-color: rgba(15, 118, 110, 0.34);
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.picker-cancel {
+  margin-top: 10rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(146, 64, 14, 0.14);
+  background: #fff;
+  color: #7c2d12;
+}
+
+.set-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 28rpx 0;
+  border-bottom: 1px solid rgba(146, 64, 14, 0.12);
+  font-size: 30rpx;
+  color: #334155;
+}
+
+.highlight { color: #0f766e; font-weight: 700; justify-content: center; }
 </style>

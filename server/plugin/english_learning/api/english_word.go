@@ -313,3 +313,34 @@ func (a *EnglishWordApi) GetWordErrorLogList(c *gin.Context) {
 
 	response.OkWithDetailed(response.PageResult{List: list, Total: total, Page: page, PageSize: pageSize}, "获取成功", c)
 }
+
+// DeleteWordErrorLog 删除错题本记录
+// @Tags     EnglishWord
+// @Summary  删除当前用户错题本中的一条记录
+// @Security ApiKeyAuth
+// @accept   application/json
+// @Produce  application/json
+// @Param    data body request.DeleteWordErrorLogReq true "要删除的单词ID"
+// @Success  200  {object} response.Response{msg=string} "删除成功"
+// @Router   /englishLearning/word/deleteErrorLog [delete]
+func (a *EnglishWordApi) DeleteWordErrorLog(c *gin.Context) {
+	var req request.DeleteWordErrorLogReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage("参数错误", c)
+		return
+	}
+
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.FailWithMessage("获取用户信息失败", c)
+		return
+	}
+
+	if err = englishWordService.DeleteWordErrorLog(claims.BaseClaims.ID, req.WordID); err != nil {
+		global.GVA_LOG.Error("删除错题本记录失败", zap.Error(err))
+		response.FailWithMessage("删除失败", c)
+		return
+	}
+
+	response.OkWithMessage("删除成功", c)
+}

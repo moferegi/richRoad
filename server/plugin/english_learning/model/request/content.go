@@ -13,11 +13,13 @@ type EnglishChapterSearch struct {
 }
 
 type VideoCategorySearch struct {
+	ShowHome *bool `json:"showHome" form:"showHome"`
 	commonReq.PageInfo
 }
 
 type VideoSeriesSearch struct {
-	CategoryID uint `json:"categoryId" form:"categoryId"`
+	CategoryID uint  `json:"categoryId" form:"categoryId"`
+	ShowHome   *bool `json:"showHome" form:"showHome"`
 	commonReq.PageInfo
 }
 

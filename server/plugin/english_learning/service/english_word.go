@@ -1140,3 +1140,11 @@ func (s *EnglishWordService) GetWordErrorLogList(userID uint, info request.WordE
 
 	return
 }
+
+func (s *EnglishWordService) DeleteWordErrorLog(userID uint, wordID uint) error {
+	if userID == 0 || wordID == 0 {
+		return errors.New("参数错误")
+	}
+
+	return global.GVA_DB.Where("user_id = ? AND word_id = ?", userID, wordID).Delete(&model.EnglishWordErrorLog{}).Error
+}

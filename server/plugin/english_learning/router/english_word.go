@@ -20,5 +20,6 @@ func (s *EnglishWordRouter) InitEnglishWordRouter(Router *gin.RouterGroup) {
 		wordRouter.GET("getWordList", wordApi.GetWordList)
 		wordRouter.POST("reportError", wordApi.ReportWordError)
 		wordRouter.GET("getErrorLogList", wordApi.GetWordErrorLogList)
+		wordRouter.DELETE("deleteErrorLog", wordApi.DeleteWordErrorLog)
 	}
 }

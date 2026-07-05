@@ -2,7 +2,7 @@
   <view class="detail-container">
     <view class="header-row">
       <view class="back-btn" @click="goBack">‹</view>
-      <text class="header-title">{{ t('videoDetail.title', '视频详情') }}</text>
+      <text class="header-title">{{ t('videoDetail.title') }}</text>
       <view class="header-gap"></view>
     </view>
 
@@ -11,9 +11,9 @@
       <view class="series-main">
         <text class="series-name">{{ localText(seriesInfo.name) || `#${seriesInfo.id || '-'}` }}</text>
         <text class="series-sub">
-          {{ t('video.views', '浏览量') }} {{ Number(seriesInfo.viewCount || 0) }}
+          {{ t('video.views') }} {{ Number(seriesInfo.viewCount || 0) }}
           ·
-          {{ t('video.users', '观看人数') }} {{ Number(seriesInfo.userCount || 0) }}
+          {{ t('video.users') }} {{ Number(seriesInfo.userCount || 0) }}
         </text>
         <text class="series-sub" v-if="latestWatchAtText">
           {{ t('videoDetail.last_watch') }} {{ latestWatchAtText }}
@@ -61,27 +61,12 @@ import { localText as i18nLocalText, t as i18nT } from '@/utils/i18n.js'
 import { findVideoEpisode, findVideoSeries, getSeriesWatchProgressList, getVideoEpisodeList } from '@/api/learning.js'
 
 const langStore = useLangStore()
-const fallbackTexts = {
-  'videoDetail.title': '视频详情',
-  'videoDetail.continue_watch': '继续观看',
-  'videoDetail.episode_list': '分集列表',
-  'videoDetail.total_episode': '共',
-  'videoDetail.no_episode': '暂无可播放分集',
-  'videoDetail.episode': '第',
-  'videoDetail.play_now': '立即播放',
-  'videoDetail.watched_to': '已观看到',
-  'videoDetail.last_watch': '最近观看',
-  'videoDetail.load_failed': '加载失败',
-  'videoDetail.invalid_series': '剧集参数异常',
-  'video.views': '浏览量',
-  'video.users': '观看人数'
-}
 
-const t = (key, defaultText = '') => {
+const t = (key) => {
   const locale = langStore.locale || uni.getStorageSync('app-lang') || 'zh'
   const text = i18nT(key, locale)
   if (text && text !== key) return text
-  return defaultText || fallbackTexts[key] || key
+  return key
 }
 
 const localText = (value) => {
@@ -267,8 +252,8 @@ onShow(() => {
 <style scoped>
 .detail-container {
   min-height: 100vh;
-  background: #f5f7fb;
-  padding: 20rpx;
+  background: linear-gradient(180deg, #f8f4e7 0%, #f4efe1 100%);
+  padding: 22rpx;
   box-sizing: border-box;
 }
 
@@ -282,9 +267,10 @@ onShow(() => {
 .back-btn {
   width: 64rpx;
   height: 64rpx;
-  border-radius: 32rpx;
-  background: #ffffff;
-  color: #111827;
+  border-radius: 18rpx;
+  background: #fffdf8;
+  color: #7c2d12;
+  border: 1rpx solid rgba(20, 184, 166, 0.22);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -293,9 +279,9 @@ onShow(() => {
 }
 
 .header-title {
-  font-size: 34rpx;
-  color: #111827;
-  font-weight: 700;
+  font-size: 35rpx;
+  color: #7c2d12;
+  font-weight: 800;
 }
 
 .header-gap {
@@ -304,12 +290,14 @@ onShow(() => {
 }
 
 .series-card {
-  background: #ffffff;
-  border-radius: 16rpx;
-  padding: 16rpx;
+  background: rgba(255, 253, 248, 0.96);
+  border-radius: 20rpx;
+  border: 1rpx solid rgba(20, 184, 166, 0.22);
+  padding: 18rpx;
   display: flex;
   gap: 16rpx;
   margin-bottom: 20rpx;
+  box-shadow: 0 12rpx 28rpx rgba(120, 53, 15, 0.1);
 }
 
 .series-cover {
@@ -329,22 +317,22 @@ onShow(() => {
 
 .series-name {
   font-size: 30rpx;
-  color: #111827;
-  font-weight: 600;
+  color: #1e293b;
+  font-weight: 700;
   line-height: 1.4;
 }
 
 .series-sub {
   margin-top: 8rpx;
   font-size: 24rpx;
-  color: #6b7280;
+  color: #64748b;
 }
 
 .continue-btn {
   margin-top: 12rpx;
-  background: #2563eb;
+  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
   color: #ffffff;
-  border-radius: 10rpx;
+  border-radius: 999rpx;
   font-size: 24rpx;
 }
 
@@ -356,14 +344,14 @@ onShow(() => {
 }
 
 .episode-title {
-  font-size: 30rpx;
-  color: #111827;
-  font-weight: 600;
+  font-size: 31rpx;
+  color: #7c2d12;
+  font-weight: 700;
 }
 
 .episode-count {
   font-size: 24rpx;
-  color: #6b7280;
+  color: #64748b;
 }
 
 .episode-scroll {
@@ -376,25 +364,25 @@ onShow(() => {
 }
 
 .empty-text {
-  color: #9ca3af;
+  color: #94a3b8;
   font-size: 28rpx;
 }
 
 .episode-card {
-  background: #ffffff;
-  border-radius: 14rpx;
+  background: rgba(255, 253, 248, 0.96);
+  border-radius: 16rpx;
   padding: 20rpx;
   margin-bottom: 14rpx;
-  border: 1rpx solid #eef2ff;
+  border: 1rpx solid rgba(20, 184, 166, 0.18);
 }
 
 .episode-card.active {
-  border-color: #2563eb;
-  box-shadow: 0 6rpx 20rpx rgba(37, 99, 235, 0.12);
+  border-color: #0f766e;
+  box-shadow: 0 10rpx 24rpx rgba(15, 118, 110, 0.2);
 }
 
 .episode-card.watched {
-  border-color: #bfdbfe;
+  border-color: #f97316;
 }
 
 .episode-line {
@@ -405,8 +393,8 @@ onShow(() => {
 
 .episode-name {
   font-size: 28rpx;
-  color: #111827;
-  font-weight: 500;
+  color: #1e293b;
+  font-weight: 600;
   flex: 1;
   line-height: 1.4;
 }
@@ -414,7 +402,7 @@ onShow(() => {
 .play-tip {
   margin-left: 16rpx;
   font-size: 24rpx;
-  color: #2563eb;
+  color: #0f766e;
 }
 
 .progress-row {
@@ -423,7 +411,7 @@ onShow(() => {
 
 .progress-text {
   font-size: 23rpx;
-  color: #6b7280;
+  color: #64748b;
 }
 
 .progress-text.time {

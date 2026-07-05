@@ -1,5 +1,10 @@
 import { request } from '@/utils/request.js'
 
+const withIncludeI18n = (params = {}) => ({
+  ...params,
+  includeI18n: params?.includeI18n ?? 1,
+})
+
 export const getCheckinStats = () => {
   return request({
     url: '/englishLearning/checkin/getStats',
@@ -50,7 +55,7 @@ export const getCategoryList = (params = {}) => {
   return request({
     url: '/englishLearning/content/getCategoryList',
     method: 'get',
-    params
+    params: withIncludeI18n(params)
   })
 }
 
@@ -58,7 +63,7 @@ export const getChapterList = (params = {}) => {
   return request({
     url: '/englishLearning/content/getChapterList',
     method: 'get',
-    params
+    params: withIncludeI18n(params)
   })
 }
 
@@ -66,7 +71,7 @@ export const getVideoCategoryList = (params = {}) => {
   return request({
     url: '/englishLearning/content/getVideoCategoryList',
     method: 'get',
-    params
+    params: withIncludeI18n(params)
   })
 }
 
@@ -74,7 +79,7 @@ export const getVideoSeriesList = (params = {}) => {
   return request({
     url: '/englishLearning/content/getVideoSeriesList',
     method: 'get',
-    params
+    params: withIncludeI18n(params)
   })
 }
 
@@ -82,7 +87,7 @@ export const findVideoSeries = (id) => {
   return request({
     url: '/englishLearning/content/findVideoSeries',
     method: 'get',
-    params: { ID: id }
+    params: withIncludeI18n({ ID: id })
   })
 }
 
@@ -90,7 +95,7 @@ export const findVideoEpisode = (id) => {
   return request({
     url: '/englishLearning/content/findVideoEpisode',
     method: 'get',
-    params: { ID: id }
+    params: withIncludeI18n({ ID: id })
   })
 }
 
@@ -98,7 +103,7 @@ export const getVideoEpisodeList = (params = {}) => {
   return request({
     url: '/englishLearning/content/getVideoEpisodeList',
     method: 'get',
-    params
+    params: withIncludeI18n(params)
   })
 }
 
@@ -106,7 +111,7 @@ export const getWordList = (params = {}) => {
   return request({
     url: '/englishLearning/word/getWordList',
     method: 'get',
-    params
+    params: withIncludeI18n(params)
   })
 }
 
@@ -114,7 +119,7 @@ export const findWord = (id) => {
   return request({
     url: '/englishLearning/word/findWord',
     method: 'get',
-    params: { ID: id }
+    params: withIncludeI18n({ ID: id })
   })
 }
 
@@ -130,7 +135,15 @@ export const getWordErrorLogList = (params = {}) => {
   return request({
     url: '/englishLearning/word/getErrorLogList',
     method: 'get',
-    params
+    params: withIncludeI18n(params)
+  })
+}
+
+export const deleteWordErrorLog = (wordId) => {
+  return request({
+    url: '/englishLearning/word/deleteErrorLog',
+    method: 'delete',
+    data: { wordId }
   })
 }
 
@@ -138,7 +151,7 @@ export const getSentenceList = (episodeId) => {
   return request({
     url: '/englishLearning/video/getSentenceList',
     method: 'get',
-    params: { episodeId }
+    params: withIncludeI18n({ episodeId })
   })
 }
 
@@ -177,7 +190,7 @@ export const getWatchHistoryList = (params = {}) => {
   return request({
     url: '/englishLearning/userData/getWatchHistoryList',
     method: 'get',
-    params
+    params: withIncludeI18n(params)
   })
 }
 
@@ -201,7 +214,7 @@ export const getCollectionList = (params = {}) => {
   return request({
     url: '/englishLearning/userData/getCollectionList',
     method: 'get',
-    params
+    params: withIncludeI18n(params)
   })
 }
 
@@ -209,7 +222,7 @@ export const getCollectionDetailList = (params = {}) => {
   return request({
     url: '/englishLearning/userData/getCollectionDetailList',
     method: 'get',
-    params
+    params: withIncludeI18n(params)
   })
 }
 

@@ -482,6 +482,93 @@ func TestEnglishWordAPI_GetWordErrorLogList_NormalizedPage(t *testing.T) {
 	}
 }
 
+func TestEnglishWordAPI_DeleteWordErrorLog_Success(t *testing.T) {
+	wordID, token := setupEnglishWordAPITest(t)
+	api := EnglishWordApi{}
+
+	reportBody := []byte(fmt.Sprintf(`{"wordId":%d,"wrongIndex":2,"expectedChar":"a","inputChar":"b"}`, wordID))
+	reportResp := performEnglishWordAPIRequest(t, http.MethodPost, "/englishLearning/word/reportError", token, reportBody, api.ReportWordError)
+	decodedReport := decodeEnglishWordAPIResp(t, reportResp)
+	if decodedReport.Code != 0 {
+		t.Fatalf("expected report success before delete, code=%d msg=%s", decodedReport.Code, decodedReport.Msg)
+	}
+
+	deleteBody := []byte(fmt.Sprintf(`{"wordId":%d}`, wordID))
+	deleteResp := performEnglishWordAPIRequest(t, http.MethodDelete, "/englishLearning/word/deleteErrorLog", token, deleteBody, api.DeleteWordErrorLog)
+	decodedDelete := decodeEnglishWordAPIResp(t, deleteResp)
+	if decodedDelete.Code != 0 {
+		t.Fatalf("expected deleteErrorLog success, code=%d msg=%s", decodedDelete.Code, decodedDelete.Msg)
+	}
+
+	getResp := performEnglishWordAPIRequest(t, http.MethodGet, "/englishLearning/word/getErrorLogList?page=1&pageSize=10", token, nil, api.GetWordErrorLogList)
+	decodedGet := decodeEnglishWordAPIResp(t, getResp)
+	if decodedGet.Code != 0 {
+		t.Fatalf("expected getErrorLogList success, code=%d msg=%s", decodedGet.Code, decodedGet.Msg)
+	}
+
+	var listData englishWordErrorListData
+	if err := json.Unmarshal(decodedGet.Data, &listData); err != nil {
+		t.Fatalf("decode list data failed: %v raw=%s", err, string(decodedGet.Data))
+	}
+	if _, found := findWordErrorItemByWordID(listData.List, wordID); found {
+		t.Fatalf("expected wordId=%d to be removed from error log, list=%+v", wordID, listData.List)
+	}
+}
+
+func TestEnglishWordAPI_DeleteWordErrorLog_AuthFailure(t *testing.T) {
+	wordID, validToken := setupEnglishWordAPITest(t)
+	api := EnglishWordApi{}
+	body := []byte(fmt.Sprintf(`{"wordId":%d}`, wordID))
+
+	testCases := []struct {
+		name  string
+		token string
+	}{
+		{name: "missing token", token: ""},
+		{name: "invalid token", token: validToken + ".broken"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := performEnglishWordAPIRequest(t, http.MethodDelete, "/englishLearning/word/deleteErrorLog", tc.token, body, api.DeleteWordErrorLog)
+			decoded := decodeEnglishWordAPIResp(t, resp)
+			if decoded.Code == 0 {
+				t.Fatalf("expected auth failure, got success msg=%s", decoded.Msg)
+			}
+			if !strings.Contains(decoded.Msg, "获取用户信息失败") {
+				t.Fatalf("expected auth failure message, got=%s", decoded.Msg)
+			}
+		})
+	}
+}
+
+func TestEnglishWordAPI_DeleteWordErrorLog_ParamError(t *testing.T) {
+	wordID, token := setupEnglishWordAPITest(t)
+	api := EnglishWordApi{}
+
+	testCases := []struct {
+		name string
+		body []byte
+	}{
+		{name: "missing required wordId", body: []byte(`{"wrongIndex":1}`)},
+		{name: "invalid json", body: []byte(`{"wordId":`)},
+		{name: "wordId as wrong type", body: []byte(fmt.Sprintf(`{"wordId":"%d"}`, wordID))},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := performEnglishWordAPIRequest(t, http.MethodDelete, "/englishLearning/word/deleteErrorLog", token, tc.body, api.DeleteWordErrorLog)
+			decoded := decodeEnglishWordAPIResp(t, resp)
+			if decoded.Code == 0 {
+				t.Fatalf("expected parameter failure, got success msg=%s", decoded.Msg)
+			}
+			if !strings.Contains(decoded.Msg, "参数错误") {
+				t.Fatalf("expected parameter error message, got=%s", decoded.Msg)
+			}
+		})
+	}
+}
+
 func TestEnglishWordAPI_FindEnglishWord_ParamError(t *testing.T) {
 	_, token := setupEnglishWordAPITest(t)
 	api := EnglishWordApi{}

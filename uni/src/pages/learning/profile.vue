@@ -35,7 +35,7 @@
         <text class="arrow">></text>
       </view>
       <view class="menu-item" @click="goTo('error_words')">
-        <text>{{ t('profileErrorBook') }}</text>
+        <text>{{ t('profile.error_book') }}</text>
         <text class="arrow">></text>
       </view>
       <view class="menu-item" @click="contactService">
@@ -50,6 +50,8 @@
 
     <button class="logout-btn" @click="logout">{{ t('profile.logout') }}</button>
 
+    <lang-switch v-model="showLangPicker" />
+
     <!-- 积分兑换弹窗 -->
     <uni-popup ref="exchangePopup" type="center">
       <view class="popup-box">
@@ -60,7 +62,7 @@
           <text class="exchange-tips">{{ exchangePoints }} {{ t('profile.points_equals') }} {{ exchangeMinutes }} {{ t('profile.minutes') }}</text>
         </view>
         <view class="popup-actions">
-          <button @click="closeExchangePopup">{{ t('common.cancel', '取消') }}</button>
+          <button @click="closeExchangePopup">{{ t('common.cancel') }}</button>
           <button type="primary" @click="submitExchange">{{ t('common.confirm') }}</button>
         </view>
       </view>
@@ -72,58 +74,45 @@
 import { computed, ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
-import { t as i18nT } from '@/utils/i18n.js'
+import { localText as i18nLocalText, t as i18nT } from '@/utils/i18n.js'
 import { exchangeTime, getAsset } from '@/api/learning.js'
 import { getPointsExchangeRate } from '@/api/sysConfig.js'
+import langSwitch from '@/components/lang-switch/lang-switch.vue'
 
 const langStore = useLangStore()
-const fallbackTexts = {
-  'profile.points': '积分',
-  'profile.minutes': '分钟',
-  'profile.free_time': '免费时长',
-  'profile.exchange_time': '兑换时长',
-  'profile.watch_history': '观看记录',
-  'profile.checkin_record': '签到记录',
-  'profile.my_collections': '我的收藏',
-  profileErrorBook: 'Error Book',
-  'profile.contact_service': '联系客服',
-  'profile.switch_language': '切换语言',
-  'profile.logout': '退出登录',
-  'profile.exchange_popup_title': '积分兑换时长',
-  'profile.current_points': '当前积分',
-  'profile.input_points_to_exchange': '请输入要兑换的积分',
-  'profile.points_equals': '积分可兑换',
-  'profile.exchange_invalid': '请输入有效积分',
-  'profile.exchange_success': '兑换成功',
-  'profile.coming_soon': '功能开发中',
-  'profile.logout_success': '已退出登录',
-  'common.confirm': '确定',
-}
-
-const t = (key, defaultText = '') => {
+const t = (key) => {
   const locale = langStore.locale || uni.getStorageSync('app-lang') || 'zh'
   const text = i18nT(key, locale)
   if (text && text !== key) return text
-  return defaultText || fallbackTexts[key] || key
+  return key
 }
 
-const userInfo = ref({ avatar: '', nickname: 'English Learner' })
+const localText = (value) => {
+  const locale = langStore.locale || uni.getStorageSync('app-lang') || 'zh'
+  return i18nLocalText(value, locale)
+}
+
+const userInfo = ref({ avatar: '', nickname: '' })
 const userAsset = ref({ totalPoints: 0, freeMinutes: 0 })
 const exchangeRate = ref(100)
 const exchangePoints = ref(100)
 
 const exchangePopup = ref(null)
+const showLangPicker = ref(false)
 
 const exchangeMinutes = computed(() => Math.floor(Number(exchangePoints.value || 0) / exchangeRate.value))
 
 const loadUserInfo = () => {
   const raw = uni.getStorageSync('userInfo')
   if (raw && typeof raw === 'object') {
+    const localizedNickname = localText(raw.nickName || raw.nickname)
     userInfo.value = {
       avatar: raw.headerImg || raw.avatar || '',
-      nickname: raw.nickName || raw.nickname || 'English Learner'
+      nickname: String(localizedNickname || raw.nickName || raw.nickname || t('profile.default_nickname'))
     }
+    return
   }
+  userInfo.value = { avatar: '', nickname: t('profile.default_nickname') }
 }
 
 const loadAsset = async () => {
@@ -200,30 +189,25 @@ const contactService = () => {
 }
 
 const showLanguageSwitcher = async () => {
-  await langStore.initLangs()
-  const langs = Array.isArray(langStore.enabledLangs) ? langStore.enabledLangs : []
-  if (langs.length === 0) {
-    return
-  }
-
-  const itemList = langs.map((item) => `${item.flag || '🏳️'} ${item.label || item.native || item.value}`)
-  uni.showActionSheet({
-    itemList,
-    success: (res) => {
-      const target = langs[res.tapIndex]
-      if (!target?.value) {
-        return
-      }
-      langStore.setLocale(target.value)
-    }
-  })
+  showLangPicker.value = true
 }
 
 const logout = () => {
-  uni.removeStorageSync('x-token')
-  uni.removeStorageSync('userInfo')
-  uni.showToast({ title: t('profile.logout_success'), icon: 'none' })
-  uni.reLaunch({ url: '/pages/user/login' })
+  uni.showModal({
+    title: t('profile.logout_confirm_title'),
+    content: t('profile.logout_confirm_desc'),
+    cancelText: t('common.cancel'),
+    confirmText: t('common.confirm'),
+    success: (res) => {
+      if (!res.confirm) {
+        return
+      }
+      uni.removeStorageSync('x-token')
+      uni.removeStorageSync('userInfo')
+      uni.showToast({ title: t('profile.logout_success'), icon: 'none' })
+      uni.reLaunch({ url: '/pages/user/login' })
+    }
+  })
 }
 
 onMounted(() => {
@@ -240,32 +224,158 @@ onShow(() => {
 </script>
 
 <style scoped>
-.profile-container { padding: 30rpx; }
-.user-header { display: flex; align-items: center; margin-bottom: 40rpx; }
-.avatar { width: 120rpx; height: 120rpx; border-radius: 50%; background: #eee; margin-right: 30rpx; }
-.nickname { font-size: 36rpx; font-weight: bold; }
+.profile-container {
+  min-height: 100vh;
+  padding: 26rpx;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #f8f4e7 0%, #f4efe1 100%);
+}
 
-.asset-panel { display: flex; background: #fff; border-radius: 20rpx; padding: 40rpx 20rpx; box-shadow: 0 4rpx 10rpx rgba(0,0,0,0.05); margin-bottom: 40rpx; align-items: center; }
-.asset-item { flex: 1; display: flex; flex-direction: column; align-items: center; border-right: 1px solid #f0f0f0; }
+.user-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 28rpx;
+  padding: 22rpx;
+  border-radius: 22rpx;
+  background: rgba(255, 253, 248, 0.96);
+  border: 1rpx solid rgba(20, 184, 166, 0.2);
+  box-shadow: 0 12rpx 26rpx rgba(120, 53, 15, 0.1);
+}
+
+.avatar {
+  width: 114rpx;
+  height: 114rpx;
+  border-radius: 50%;
+  background: #f1f5f9;
+  margin-right: 22rpx;
+  border: 3rpx solid rgba(15, 118, 110, 0.28);
+}
+
+.nickname {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #7c2d12;
+}
+
+.asset-panel {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 253, 248, 0.96);
+  border-radius: 22rpx;
+  border: 1rpx solid rgba(20, 184, 166, 0.2);
+  box-shadow: 0 12rpx 26rpx rgba(120, 53, 15, 0.1);
+  padding: 28rpx 12rpx;
+  margin-bottom: 26rpx;
+}
+
+.asset-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-right: 1rpx solid rgba(20, 184, 166, 0.18);
+}
+
 .asset-item:last-of-type { border-right: none; }
-.asset-val { font-size: 36rpx; font-weight: bold; color: #ff9800; }
-.asset-label { font-size: 24rpx; color: #888; margin-top: 10rpx; }
+
+.asset-val {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #0f766e;
+}
+
+.asset-label {
+  font-size: 24rpx;
+  color: #64748b;
+  margin-top: 8rpx;
+}
+
 .exchange-btn-wrap { flex: 1; display: flex; justify-content: center; }
-.exchange-btn { background: #409eff; color: #fff; font-size: 24rpx; }
 
-.menu-list { background: #fff; border-radius: 20rpx; overflow: hidden; margin-bottom: 60rpx; }
-.menu-item { display: flex; justify-content: space-between; padding: 30rpx; border-bottom: 1px solid #f5f5f5; font-size: 30rpx; }
+.exchange-btn {
+  height: 66rpx;
+  line-height: 66rpx;
+  margin: 0;
+  padding: 0 26rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  color: #fff;
+  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
+}
+
+.menu-list {
+  background: rgba(255, 253, 248, 0.96);
+  border-radius: 22rpx;
+  border: 1rpx solid rgba(20, 184, 166, 0.2);
+  overflow: hidden;
+  margin-bottom: 40rpx;
+}
+
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 28rpx;
+  border-bottom: 1rpx solid rgba(20, 184, 166, 0.12);
+  font-size: 30rpx;
+  color: #334155;
+}
+
 .menu-item:last-child { border-bottom: none; }
-.arrow { color: #ccc; }
+.arrow { color: #0f766e; font-weight: 700; }
 
-.logout-btn { background: #f5f5f5; color: #e53935; }
+.logout-btn {
+  height: 86rpx;
+  line-height: 86rpx;
+  border-radius: 20rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(120deg, #dc2626 0%, #f97316 100%);
+}
 
-/* Popup styles */
-.popup-box { width: 600rpx; background: #fff; border-radius: 20rpx; padding: 40rpx; }
-.popup-title { font-size: 32rpx; font-weight: bold; text-align: center; margin-bottom: 30rpx; }
-.popup-content { margin-bottom: 30rpx; display:flex; flex-direction:column; gap:20rpx;}
-.exchange-input { border: 1px solid #ddd; padding: 20rpx; border-radius: 10rpx; margin-top: 20rpx;}
-.exchange-tips { font-size: 24rpx; color: #888; }
-.popup-actions { display: flex; justify-content: space-between; }
-.popup-actions button { width: 45%; }
+.popup-box {
+  width: 620rpx;
+  background: #fffdf8;
+  border-radius: 22rpx;
+  padding: 34rpx;
+  border: 1rpx solid rgba(20, 184, 166, 0.2);
+}
+
+.popup-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  text-align: center;
+  color: #7c2d12;
+  margin-bottom: 24rpx;
+}
+
+.popup-content {
+  margin-bottom: 26rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  color: #334155;
+}
+
+.exchange-input {
+  border: 1rpx solid rgba(146, 64, 14, 0.16);
+  background: #fff;
+  padding: 18rpx;
+  border-radius: 12rpx;
+}
+
+.exchange-tips { font-size: 24rpx; color: #64748b; }
+
+.popup-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 14rpx;
+}
+
+.popup-actions button {
+  flex: 1;
+  margin: 0;
+  border-radius: 14rpx;
+}
 </style>

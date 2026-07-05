@@ -199,6 +199,9 @@ func (s *ContentService) GetVideoCategory(id uint) (model.VideoCategory, error) 
 func (s *ContentService) GetVideoCategoryList(info request.VideoCategorySearch) (list []model.VideoCategory, total int64, err error) {
 	page, pageSize := normalizePage(info.Page, info.PageSize)
 	db := global.GVA_DB.Model(&model.VideoCategory{})
+	if info.ShowHome != nil {
+		db = db.Where("show_home = ?", *info.ShowHome)
+	}
 	err = db.Count(&total).Error
 	if err != nil {
 		return
@@ -276,6 +279,9 @@ func (s *ContentService) GetVideoSeriesList(info request.VideoSeriesSearch) (lis
 	baseQuery := global.GVA_DB.Model(&model.VideoSeries{}).Table(seriesTable + " AS " + seriesAlias)
 	if info.CategoryID > 0 {
 		baseQuery = baseQuery.Where(seriesAlias+".category_id = ?", info.CategoryID)
+	}
+	if info.ShowHome != nil {
+		baseQuery = baseQuery.Where(seriesAlias+".show_home = ?", *info.ShowHome)
 	}
 
 	// 获取总数

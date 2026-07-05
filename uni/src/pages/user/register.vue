@@ -502,35 +502,37 @@
 	}
 </script>
 <style lang="scss" scoped>
-page { background-color: #f4f7fb; }
+page { background-color: #f8f4e7; }
 
 .nf-page {
   min-height: 100vh;
-  background: #f4f7fb;
+  background: #f8f4e7;
   position: relative;
 }
 
 .nf-bg {
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 0;
   background:
-    radial-gradient(ellipse at 12% 18%, rgba(14, 165, 233, 0.24) 0%, transparent 52%),
-    radial-gradient(ellipse at 90% 32%, rgba(37, 99, 235, 0.2) 0%, transparent 54%),
-    radial-gradient(ellipse at 50% 95%, rgba(99, 102, 241, 0.14) 0%, transparent 44%),
-    #f4f7fb;
+    radial-gradient(circle at 8% 15%, rgba(20, 184, 166, 0.26) 0%, transparent 46%),
+    radial-gradient(circle at 92% 22%, rgba(249, 115, 22, 0.24) 0%, transparent 48%),
+    radial-gradient(circle at 54% 96%, rgba(245, 158, 11, 0.22) 0%, transparent 40%),
+    linear-gradient(180deg, #fbf7ee 0%, #f8f4e7 100%);
 }
 
-/* 自定义导航栏 */
 .nf-navbar {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 100;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(20px);
-  border-bottom: 1rpx solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 251, 242, 0.88);
+  backdrop-filter: blur(16px);
+  border-bottom: 1rpx solid rgba(146, 64, 14, 0.16);
 }
 
 .nf-navbar-status {
@@ -545,350 +547,264 @@ page { background-color: #f4f7fb; }
   padding: 0 24rpx;
 }
 
-.nf-navbar-back {
+.nf-navbar-back,
+.nf-lang-btn {
   width: 64rpx;
   height: 64rpx;
+  border-radius: 20rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1rpx solid rgba(15, 23, 42, 0.12);
-  transition: background 0.3s;
+  border: 2rpx solid rgba(146, 64, 14, 0.14);
+  background: rgba(255, 255, 255, 0.76);
+  transition: transform 0.2s ease;
 
   &:active {
-    background: rgba(219, 234, 254, 0.85);
     transform: scale(0.93);
   }
 }
 
 .nf-navbar-title {
   font-size: 34rpx;
-  font-weight: 700;
-  color: #0f172a;
+  font-weight: 800;
+  color: #7c2d12;
   letter-spacing: 2rpx;
-}
-
-.nf-lang-btn {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.95);
-  border: 2rpx solid rgba(15, 23, 42, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  transition: all 0.3s;
-
-  &:active {
-    background: rgba(219, 234, 254, 0.85);
-    transform: scale(0.92);
-  }
 }
 
 .nf-lang-label {
   font-size: 22rpx;
-  font-weight: 700;
-  color: #0f172a;
-  line-height: 1;
-  text-align: center;
+  font-weight: 800;
+  color: #7c2d12;
 }
 
 .nf-container {
   position: relative;
   z-index: 1;
-  padding: 0 60rpx;
-  padding-top: calc(var(--status-bar-height, 44px) + 88rpx + 40rpx);
+  padding: 0 34rpx 52rpx;
+  padding-top: calc(var(--status-bar-height, 44px) + 88rpx + 34rpx);
 }
 
 .nf-header {
-  margin-bottom: 64rpx;
+  margin-bottom: 30rpx;
+  padding: 24rpx;
+  border-radius: 30rpx;
+  border: 2rpx solid rgba(20, 184, 166, 0.16);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 248, 236, 0.92) 100%);
 }
 
 .nf-brand-row {
   display: flex;
   align-items: center;
-  gap: 18rpx;
-  margin-bottom: 30rpx;
+  gap: 16rpx;
+  margin-bottom: 18rpx;
 }
 
 .nf-logo {
-  width: 84rpx;
-  height: 84rpx;
-  border-radius: 24rpx;
-  border: 1rpx solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 10rpx 24rpx rgba(15, 23, 42, 0.08);
+  width: 86rpx;
+  height: 86rpx;
+  border-radius: 26rpx;
   background: #fff;
+  border: 2rpx solid rgba(20, 184, 166, 0.3);
+  box-shadow: 0 10rpx 24rpx rgba(146, 64, 14, 0.12);
 }
 
 .nf-logo-fallback {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  font-size: 34rpx;
+  color: #ffffff;
+  font-size: 36rpx;
   font-weight: 700;
-  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  background: linear-gradient(135deg, #0f766e 0%, #f97316 100%);
 }
 
 .nf-brand-meta {
   display: flex;
   flex-direction: column;
-  gap: 4rpx;
 }
 
 .nf-brand-name {
   font-size: 30rpx;
   font-weight: 700;
-  color: #0f172a;
+  color: #7c2d12;
 }
 
 .nf-brand-subtitle {
   font-size: 22rpx;
-  color: rgba(15, 23, 42, 0.56);
+  color: rgba(120, 53, 15, 0.64);
 }
 
 .nf-title {
-  font-size: 52rpx;
+  font-size: 62rpx;
   font-weight: 800;
-  color: #0f172a;
-  letter-spacing: 4rpx;
+  color: #0f766e;
+  letter-spacing: 3rpx;
 }
 
 .nf-title-line {
-  width: 80rpx;
-  height: 6rpx;
-  border-radius: 3rpx;
-  background: linear-gradient(90deg, #2563eb, #0ea5e9);
-  margin-top: 20rpx;
+  width: 112rpx;
+  height: 8rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #0f766e 0%, #f97316 100%);
+  margin-top: 16rpx;
 }
 
+.nf-mode-switch,
 .nf-card {
-  background: rgba(255, 255, 255, 0.96);
-  border: 2rpx solid rgba(15, 23, 42, 0.06);
   border-radius: 28rpx;
-  padding: 40rpx 36rpx;
-  backdrop-filter: blur(20px);
-  box-shadow: 0 16rpx 40rpx rgba(15, 23, 42, 0.08);
+  border: 2rpx solid rgba(20, 184, 166, 0.2);
+  background: rgba(255, 253, 248, 0.94);
+  box-shadow: 0 18rpx 38rpx rgba(120, 53, 15, 0.12);
 }
 
-.nf-field {
-  margin-bottom: 36rpx;
-
-  &:last-child { margin-bottom: 0; }
-}
-
-.nf-label {
-  font-size: 24rpx;
-  color: rgba(15, 23, 42, 0.56);
-  font-weight: 600;
-  letter-spacing: 2rpx;
-  text-transform: uppercase;
-  margin-bottom: 12rpx;
-  display: block;
-}
-
-.nf-input {
-  width: 100%;
-  height: 88rpx;
-  background: rgba(248, 250, 252, 0.95);
-  border: 2rpx solid rgba(15, 23, 42, 0.12);
-  border-radius: 16rpx;
-  padding: 0 24rpx;
-  color: #0f172a;
-  font-size: 30rpx;
-  box-sizing: border-box;
-  transition: border-color 0.3s;
-
-  &:focus {
-    border-color: rgba(37, 99, 235, 0.6);
-  }
-}
-
-.nf-actions {
-  margin-top: 56rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 24rpx;
-}
-
-.nf-btn {
-  width: 100%;
-  height: 96rpx;
-  border-radius: 48rpx;
-  font-size: 32rpx;
-  font-weight: 700;
-  letter-spacing: 4rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  margin: 0;
-  line-height: 1;
-  overflow: hidden;
-  white-space: nowrap;
-  transition: all 0.3s;
-
-  &:active { transform: scale(0.97); }
-  &::after { border: none; }
-}
-
-.nf-btn-primary {
-  background: linear-gradient(120deg, #2563eb 0%, #0ea5e9 100%);
-  color: #fff;
-  box-shadow: 0 12rpx 32rpx rgba(37, 99, 235, 0.34);
-
-  &:active {
-    box-shadow: 0 4rpx 16rpx rgba(37, 99, 235, 0.45);
-  }
-}
-
-.nf-btn-ghost {
-  background: rgba(255, 255, 255, 0.95);
-  color: rgba(15, 23, 42, 0.72);
-  border: 2rpx solid rgba(15, 23, 42, 0.12);
-
-  &:active {
-    background: rgba(219, 234, 254, 0.75);
-    color: #0f172a;
-  }
-}
-
-/* 模式切换 */
 .nf-mode-switch {
   display: flex;
-  margin-bottom: 32rpx;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1rpx solid rgba(15, 23, 42, 0.08);
-  border-radius: 16rpx;
-  padding: 6rpx;
+  margin-bottom: 18rpx;
+  padding: 8rpx;
 }
 
 .nf-mode-tab {
   flex: 1;
   text-align: center;
   padding: 16rpx 0;
-  border-radius: 12rpx;
+  border-radius: 16rpx;
   font-size: 26rpx;
-  color: rgba(15, 23, 42, 0.52);
-  line-height: 1.2;
-  overflow: hidden;
-  white-space: nowrap;
-  transition: all 0.3s;
+  color: rgba(120, 53, 15, 0.68);
+  font-weight: 600;
 
   &.active {
-    background: rgba(219, 234, 254, 0.85);
-    color: #0f172a;
-    font-weight: 600;
+    background: rgba(15, 118, 110, 0.16);
+    color: #0f766e;
   }
 }
 
-/* 手机号输入行 */
-.nf-phone-row {
+.nf-card {
+  padding: 30rpx;
+  border-radius: 30rpx;
+}
+
+.nf-field {
+  margin-bottom: 28rpx;
+  &:last-child { margin-bottom: 0; }
+}
+
+.nf-label {
+  display: block;
+  font-size: 23rpx;
+  color: rgba(120, 53, 15, 0.68);
+  font-weight: 700;
+  margin-bottom: 10rpx;
+}
+
+.nf-input,
+.nf-area-code-btn,
+.nf-captcha-img {
+  height: 88rpx;
+  border-radius: 16rpx;
+  border: 2rpx solid rgba(146, 64, 14, 0.14);
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.nf-input {
+  width: 100%;
+  padding: 0 22rpx;
+  color: #334155;
+  font-size: 30rpx;
+}
+
+.nf-phone-row,
+.nf-captcha-row {
   display: flex;
   align-items: center;
   gap: 12rpx;
 }
 
 .nf-area-code-btn {
-  height: 88rpx;
-  padding: 0 20rpx;
-  background: rgba(248, 250, 252, 0.95);
-  border: 2rpx solid rgba(15, 23, 42, 0.12);
-  border-radius: 16rpx;
+  padding: 0 18rpx;
   display: flex;
   align-items: center;
   gap: 8rpx;
-  flex-shrink: 0;
 }
 
-.nf-area-code-text {
-  color: #0f172a;
-  font-size: 28rpx;
-  font-weight: 600;
+.nf-area-code-text { color: #7c2d12; font-size: 27rpx; font-weight: 700; }
+.nf-area-code-arrow { color: rgba(120, 53, 15, 0.56); font-size: 20rpx; }
+.nf-phone-input, .nf-captcha-input { flex: 1; }
+.nf-captcha-img { width: 204rpx; flex-shrink: 0; }
+
+.nf-actions {
+  margin-top: 26rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
 }
 
-.nf-area-code-arrow {
-  color: rgba(15, 23, 42, 0.38);
-  font-size: 20rpx;
-}
-
-.nf-phone-input {
-  flex: 1;
-}
-
-.nf-captcha-row {
+.nf-btn {
+  width: 100%;
+  height: 96rpx;
+  border-radius: 20rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  border: none;
+  margin: 0;
   display: flex;
   align-items: center;
-  gap: 16rpx;
+  justify-content: center;
+
+  &:active { transform: translateY(2rpx); }
+  &::after { border: none; }
 }
 
-.nf-captcha-input {
-  flex: 1;
+.nf-btn-primary {
+  color: #fff;
+  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
+  box-shadow: 0 12rpx 24rpx rgba(15, 118, 110, 0.28);
 }
 
-.nf-captcha-img {
-  width: 200rpx;
-  height: 88rpx;
-  border-radius: 16rpx;
-  background: rgba(248, 250, 252, 0.95);
-  border: 2rpx solid rgba(15, 23, 42, 0.12);
-  flex-shrink: 0;
+.nf-btn-ghost {
+  color: #7c2d12;
+  background: rgba(255, 255, 255, 0.8);
+  border: 2rpx solid rgba(146, 64, 14, 0.14);
 }
 
-/* 区号弹窗 */
 .nf-popup-mask {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
+  inset: 0;
   z-index: 200;
-  background: rgba(15, 23, 42, 0.36);
+  background: rgba(15, 23, 42, 0.42);
   display: flex;
   align-items: flex-end;
-  justify-content: center;
 }
 
 .nf-popup-content {
   width: 100%;
   max-height: 60vh;
-  background: #ffffff;
-  border-radius: 28rpx 28rpx 0 0;
-  padding: 32rpx 0;
+  background: #fffdf8;
+  border-radius: 30rpx 30rpx 0 0;
+  padding: 30rpx 0;
 }
 
 .nf-popup-title {
   text-align: center;
-  font-size: 32rpx;
+  font-size: 31rpx;
   font-weight: 700;
-  color: #0f172a;
-  padding-bottom: 24rpx;
-  border-bottom: 1rpx solid rgba(15, 23, 42, 0.08);
+  color: #7c2d12;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid rgba(146, 64, 14, 0.12);
 }
 
-.nf-popup-scroll {
-  max-height: 50vh;
-}
+.nf-popup-scroll { max-height: 50vh; }
 
 .nf-area-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 28rpx 40rpx;
-  border-bottom: 1rpx solid rgba(15, 23, 42, 0.06);
+  padding: 26rpx 40rpx;
+  border-bottom: 1rpx solid rgba(146, 64, 14, 0.08);
 
-  &:active {
-    background: rgba(219, 234, 254, 0.55);
-  }
+  &:active { background: rgba(15, 118, 110, 0.1); }
 }
 
-.nf-area-name {
-  color: #0f172a;
-  font-size: 28rpx;
-}
-
-.nf-area-code-val {
-  color: rgba(37, 99, 235, 0.9);
-  font-size: 28rpx;
-  font-weight: 600;
-}
+.nf-area-name { color: #334155; font-size: 28rpx; }
+.nf-area-code-val { color: #0f766e; font-size: 28rpx; font-weight: 700; }
 </style>

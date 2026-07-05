@@ -275,4 +275,34 @@ onShow(() => {
   color: #9ca3af;
   font-size: 24rpx;
 }
+
+.free-time-history-container {
+  background: linear-gradient(180deg, #f8f4e7 0%, #f4efe1 100%);
+}
+
+.back-btn {
+  border-radius: 18rpx;
+  border: 1rpx solid rgba(20, 184, 166, 0.22);
+  background: #fffdf8;
+  color: #7c2d12;
+}
+
+.header-title { color: #7c2d12; }
+
+.summary-card,
+.record-card {
+  background: rgba(255, 253, 248, 0.96);
+  border: 1rpx solid rgba(20, 184, 166, 0.18);
+}
+
+.summary-label,
+.record-time { color: #64748b; }
+
+.summary-value,
+.record-reason { color: #1e293b; }
+
+.record-right.is-plus { color: #0f766e; }
+.record-right.is-minus { color: #dc2626; }
+
+.load-more, .empty-text { color: #94a3b8; }
 </style>

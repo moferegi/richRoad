@@ -76,3 +76,7 @@ type WordErrorLogSearch struct {
 	ChapterID  uint `json:"chapterId" form:"chapterId"`
 	request.PageInfo
 }
+
+type DeleteWordErrorLogReq struct {
+	WordID uint `json:"wordId" binding:"required"`
+}

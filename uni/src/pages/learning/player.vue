@@ -18,6 +18,11 @@
         @error="onVideoError"
         @ended="onVideoEnded"
       ></video>
+      <view v-if="showVideoLoading" class="video-loading-mask">
+        <image v-if="loadingLogo" class="video-loading-logo spin" :src="loadingLogo" mode="aspectFit" />
+        <view v-else class="video-loading-logo-fallback spin">R</view>
+        <text class="video-loading-text">{{ t('player.video_loading') }}</text>
+      </view>
     </view>
 
     <!-- 中央外挂字幕滚动区 -->
@@ -40,7 +45,7 @@
       >
         <view class="sentence-meta">
           <text class="time-badge">{{ formatSeconds(item.startTime) }} - {{ formatSeconds(item.endTime) }}</text>
-          <text class="collect-btn" @click.stop="collectSentence(item.id)">⭐ {{ t('player.collect') }}</text>
+          <text class="collect-btn" @click.stop="collectSentence(item.id)">⭐ {{ sentenceCollectedMap[Number(item.id)] ? t('typing.uncollect') : t('player.collect') }}</text>
         </view>
         
         <!-- 英文句子 (带高亮重点词可点击分析) -->
@@ -76,9 +81,10 @@
         <text class="c-text">{{ controls.speed }}x</text>
       </view>
       
-      <view class="control-item play-btn" @click="togglePlay">
+      <view v-if="!showVideoLoading" class="control-item play-btn" @click="togglePlay">
         <text class="c-icon">{{ isVideoReady ? (isPlaying ? '⏸' : '▶') : '⏳' }}</text>
       </view>
+      <view v-else class="control-item play-btn-placeholder"></view>
       
       <view class="control-item" @click="toggleSubtitles">
         <text class="c-icon" :class="{ 'c-active': controls.showSubtitles }">💬</text>
@@ -87,7 +93,7 @@
 
       <view class="control-item" @click="openMoreSheet">
         <text class="c-icon" :class="{ 'c-active': controls.loop }">⋯</text>
-        <text class="c-text">{{ t('common.more', '更多') }}</text>
+        <text class="c-text">{{ t('common.more') }}</text>
       </view>
     </view>
 
@@ -110,7 +116,10 @@
           <text>{{ controls.loop ? t('player.loop') + '：ON' : t('player.loop') + '：OFF' }}</text>
         </view>
         <view class="more-item" @click="handleBack">
-          <text>{{ t('common.back', '返回') }}</text>
+          <text>{{ t('common.back') }}</text>
+        </view>
+        <view class="more-item cancel" @click="closeMoreSheet">
+          <text>{{ t('common.cancel') }}</text>
         </view>
       </view>
     </uni-popup>
@@ -118,35 +127,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { t as i18nT, localText as i18nLocalText } from '@/utils/i18n.js'
-import { collect, findVideoEpisode, findWord, getSentenceList, getWatchProgress, heartbeat } from '@/api/learning.js'
+import { getExternalUrl } from '@/utils/url.js'
+import { collect, findVideoEpisode, findWord, getCollectionList, getSentenceList, getWatchProgress, heartbeat, uncollect } from '@/api/learning.js'
 
 const langStore = useLangStore()
-const fallbackTexts = {
-  'player.collect': '收藏句子',
-  'player.bilingual': '双语',
-  'player.loop': '循环',
-  'player.subtitle': '字幕',
-  'typing.collect': '收藏单词',
-  'player.trial_end_title': '试看结束',
-  'player.trial_end_desc': '免费额度已用完，积分兑换观看时长或升级会员解锁全集。',
-  'player.btn_vip': '去开通',
-  'player.load_failed': '视频加载失败',
-  'player.no_subtitle': '暂无字幕',
-  'player.collect_success': '收藏成功',
-  'player.sentence_focused': '已定位到目标句子',
-  'player.sentence_not_found': '未找到目标句子',
-  'player.play_loading': '视频加载中',
-}
+const appConfigStore = useAppConfigStore()
 
-const t = (k, d = '') => {
+const t = (k) => {
   const locale = langStore.locale || uni.getStorageSync('app-lang') || 'zh'
   const text = i18nT(k, locale)
   if (text && text !== k) return text
-  return d || fallbackTexts[k] || k
+  return k
 }
 const localText = (val) => {
   const locale = langStore.locale || uni.getStorageSync('app-lang') || 'zh'
@@ -194,12 +190,16 @@ const activeSentenceId = ref('')
 const focusedSentenceId = ref(0)
 const pendingSeekTime = ref(0)
 const isRefreshingSignedUrl = ref(false)
+const loadingLogo = computed(() => getExternalUrl(appConfigStore.appLogo || ''))
+const showVideoLoading = computed(() => !isVideoReady.value || isRefreshingSignedUrl.value)
+const sentenceCollectedMap = ref({})
 let lastSignedRefreshAt = 0
 let focusSentenceTimer = null
 const morePopup = ref(null)
 
 onMounted(() => {
   videoCtx = uni.createVideoContext('englishVideo')
+  appConfigStore.loadConfig({ force: true, localeOnly: true })
   if (pendingSeekTime.value > 0) {
     videoCtx.seek(pendingSeekTime.value)
     pendingSeekTime.value = 0
@@ -268,9 +268,9 @@ const ensureTrialLimit = (currentTime) => {
   lastTrialModalAt.value = now
 
   uni.showModal({
-    title: t('player.trial_end_title', '试看结束'),
-    content: t('player.trial_end_desc', '免费额度已用完，积分兑换观看时长或升级会员解锁全集。'),
-    confirmText: t('player.btn_vip', '去开通'),
+    title: t('player.trial_end_title'),
+    content: t('player.trial_end_desc'),
+    confirmText: t('player.btn_vip'),
     success: (res) => {
       if (res.confirm) {
         uni.navigateTo({ url: '/pages/learning/profile' })
@@ -344,6 +344,8 @@ const refreshSignedEpisodeUrl = async (resumeSecs = 0) => {
   }
 
   isRefreshingSignedUrl.value = true
+  isVideoReady.value = false
+  const wasPlayingBeforeRefresh = isPlaying.value
   const previousUrl = videoInfo.value.videoUrl
   const resumeTarget = Math.max(0, Number(resumeSecs || 0))
 
@@ -370,7 +372,8 @@ const refreshSignedEpisodeUrl = async (resumeSecs = 0) => {
         if (resumeTarget > 0) {
           seekVideo(Math.max(0, resumeTarget - 1))
         }
-        if (isPlaying.value && videoCtx) {
+        if (wasPlayingBeforeRefresh && videoCtx) {
+          isPlaying.value = true
           videoCtx.play()
         }
       }, 350)
@@ -421,6 +424,52 @@ const loadSubtitleList = async () => {
   }
 }
 
+const loadSentenceCollectionState = async () => {
+  const subtitleIds = subtitleList.value
+    .map((item) => Number(item?.id || 0))
+    .filter((id) => id > 0)
+
+  if (subtitleIds.length === 0) {
+    sentenceCollectedMap.value = {}
+    return
+  }
+
+  const subtitleIdSet = new Set(subtitleIds)
+  const map = {}
+  const maxPages = 20
+  let page = 1
+
+  try {
+    while (page <= maxPages) {
+      const res = await getCollectionList({ targetType: 2, page, pageSize: 100 })
+      if (res.code !== 0 || !res.data) {
+        sentenceCollectedMap.value = {}
+        return
+      }
+
+      const list = Array.isArray(res.data.list) ? res.data.list : []
+      for (const item of list) {
+        const targetId = Number(item?.targetId || 0)
+        if (targetId > 0 && subtitleIdSet.has(targetId)) {
+          map[targetId] = true
+        }
+      }
+
+      if (Object.keys(map).length >= subtitleIdSet.size) {
+        break
+      }
+      if (list.length < 100) {
+        break
+      }
+      page += 1
+    }
+
+    sentenceCollectedMap.value = map
+  } catch (error) {
+    sentenceCollectedMap.value = {}
+  }
+}
+
 const loadWatchHistory = async () => {
   const res = await getWatchProgress(episodeId.value)
   if (res.code !== 0 || !res.data) {
@@ -440,6 +489,7 @@ const initPage = async () => {
   }
   await loadEpisode()
   await loadSubtitleList()
+  await loadSentenceCollectionState()
   const focused = focusSentence()
   if (!focused) {
     if (sentenceId.value > 0) {
@@ -579,6 +629,7 @@ const onVideoPause = () => {
 }
 
 const onVideoError = async () => {
+  isVideoReady.value = false
   const recovered = await refreshSignedEpisodeUrl(lastHeartbeatTime)
   if (!recovered) {
     uni.showToast({ title: t('player.load_failed'), icon: 'none' })
@@ -644,6 +695,10 @@ const togglePlay = () => {
   if (!videoCtx) {
     return
   }
+  if (!isVideoReady.value) {
+    uni.showToast({ title: t('player.video_loading'), icon: 'none' })
+    return
+  }
   if (!authData.value.hasFullAuth && isTrialLocked.value) {
     return
   }
@@ -670,8 +725,12 @@ const openMoreSheet = () => {
   morePopup.value?.open()
 }
 
-const handleBack = () => {
+const closeMoreSheet = () => {
   morePopup.value?.close()
+}
+
+const handleBack = () => {
+  closeMoreSheet()
   const pages = getCurrentPages()
   if (Array.isArray(pages) && pages.length > 1) {
     uni.navigateBack()
@@ -680,9 +739,18 @@ const handleBack = () => {
   uni.switchTab({ url: '/pages/learning/home' })
 }
 const collectSentence = async (id) => {
-  const res = await collect(2, Number(id || 0))
+  const sentenceIdNum = Number(id || 0)
+  if (!sentenceIdNum) {
+    return
+  }
+  const collected = !!sentenceCollectedMap.value[sentenceIdNum]
+  const res = collected ? await uncollect(2, sentenceIdNum) : await collect(2, sentenceIdNum)
   if (res.code === 0) {
-    uni.showToast({ title: t('player.collect_success'), icon: 'success' })
+    sentenceCollectedMap.value = {
+      ...sentenceCollectedMap.value,
+      [sentenceIdNum]: !collected,
+    }
+    uni.showToast({ title: !collected ? t('player.collect_success') : t('typing.uncollect_success'), icon: 'success' })
   }
 }
 
@@ -709,8 +777,54 @@ const playWordAudio = (src) => {
 .player-container { display: flex; flex-direction: column; height: 100vh; background: #1a1a1a; color: #fff;}
 
 /* 视频区域 */
-.video-section { width: 100%; height: 420rpx; background: #000; flex-shrink: 0; }
+.video-section { width: 100%; height: 420rpx; background: #000; flex-shrink: 0; position: relative; }
 .main-video { width: 100%; height: 100%; }
+
+.video-loading-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 420rpx;
+  background: rgba(2, 6, 23, 0.66);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14rpx;
+  pointer-events: none;
+}
+
+.video-loading-logo,
+.video-loading-logo-fallback {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 22rpx;
+}
+
+.video-loading-logo-fallback {
+  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.video-loading-text {
+  color: #e2e8f0;
+  font-size: 24rpx;
+}
+
+@keyframes logo-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: logo-spin 1.5s linear infinite;
+}
 
 /* 外挂字幕区域 */
 .subtitle-section { flex: 1; overflow: hidden; position: relative; }
@@ -736,6 +850,10 @@ const playWordAudio = (src) => {
 .c-text { font-size: 20rpx; color: #888; }
 .c-text-active { color: #4ea2ff; }
 .play-btn .c-icon { font-size: 60rpx; filter: grayscale(0); color: #fff;}
+.play-btn-placeholder {
+  width: 64rpx;
+  height: 64rpx;
+}
 
 /* 弹窗内容 */
 .word-detail-box { padding: 40rpx; display: flex; flex-direction: column; }
@@ -746,7 +864,79 @@ const playWordAudio = (src) => {
 .w-exp { font-size: 32rpx; color: #444; line-height: 1.6; margin-bottom: 40rpx; }
 .w-collect { background: #409eff; color: #fff; border-radius: 40rpx; }
 
-.more-sheet { padding: 20rpx 24rpx 30rpx; background: #fff; color: #111; border-top-left-radius: 24rpx; border-top-right-radius: 24rpx; }
-.more-item { padding: 26rpx; border-bottom: 1px solid #eee; font-size: 30rpx; text-align: center; color: #111; }
+.more-sheet {
+  padding: 22rpx 24rpx;
+  padding-bottom: calc(22rpx + env(safe-area-inset-bottom) + 120rpx);
+  background: #fff;
+  color: #111;
+  border-top-left-radius: 28rpx;
+  border-top-right-radius: 28rpx;
+  box-shadow: 0 -12rpx 30rpx rgba(15, 23, 42, 0.12);
+}
+.more-item {
+  padding: 26rpx;
+  border-bottom: 1px solid #eee;
+  font-size: 30rpx;
+  text-align: center;
+  color: #111;
+  border-radius: 14rpx;
+}
 .more-item:last-child { border-bottom: none; }
+
+.player-container {
+  background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+}
+
+.sentence-row {
+  border-radius: 14rpx;
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.sentence-row.is-active {
+  border-left: 6rpx solid #0f766e;
+  box-shadow: 0 0 0 2rpx rgba(15, 118, 110, 0.28) inset;
+}
+
+.time-badge {
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.collect-btn { color: #fb923c; }
+
+.highlight-word {
+  color: #f59e0b;
+  border-bottom: 1px dashed #f59e0b;
+}
+
+.bottom-controls {
+  border-top: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(2, 6, 23, 0.95);
+}
+
+.c-text-active { color: #2dd4bf; }
+
+.word-detail-box,
+.more-sheet {
+  background: #fffdf8;
+}
+
+.w-title { color: #7c2d12; }
+.w-exp { color: #334155; }
+
+.w-collect {
+  border-radius: 999rpx;
+  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
+}
+
+.more-item {
+  color: #334155;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.more-item.cancel {
+  margin-top: 14rpx;
+  color: #7c2d12;
+  border: 1px solid rgba(146, 64, 14, 0.18);
+  background: rgba(255, 255, 255, 0.9);
+}
 </style>

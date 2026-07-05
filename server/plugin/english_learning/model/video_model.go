@@ -9,6 +9,7 @@ type VideoCategory struct {
 	global.GVA_MODEL
 	Name       string `json:"name" gorm:"type:json;comment:视频分类名称(支持多语言)"`
 	StorageKey string `json:"storageKey" gorm:"size:64;default:'';comment:视频资源存储目录键(如liblib)"`
+	ShowHome   *bool  `json:"showHome" gorm:"default:true;comment:是否在英语首页展示"`
 	Sort       int    `json:"sort" gorm:"default:0;comment:排序索引"`
 }
 
@@ -21,6 +22,7 @@ type VideoSeries struct {
 	CoverUrl   string  `json:"coverUrl" gorm:"type:text;comment:视频封面图外链"`
 	Price      float64 `json:"price" gorm:"comment:单买价格(0代表免费)"`
 	NeedVip    *bool   `json:"needVip" gorm:"default:false;comment:是否需要开通VIP才可观看"`
+	ShowHome   *bool   `json:"showHome" gorm:"default:true;comment:是否在英语首页展示"`
 	ViewCount  int     `json:"viewCount" gorm:"default:0;comment:外部展示总浏览量(次)"`
 	UserCount  int     `json:"userCount" gorm:"default:0;comment:外部展示总观看人数(人)"`
 }

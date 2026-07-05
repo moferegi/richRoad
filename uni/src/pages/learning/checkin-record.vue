@@ -33,7 +33,7 @@
       </view>
     </view>
 
-    <scroll-view class="list-scroll" scroll-y @scrolltolower="loadMore">
+    <scroll-view class="list-scroll" scroll-y>
       <view v-if="!loading && recordList.length === 0" class="empty-wrap">
         <text class="empty-text">{{ t('learningCheckinRecordEmpty') }}</text>
       </view>
@@ -49,7 +49,7 @@
       <view v-if="recordList.length > 0" class="load-more">
         <text v-if="loading">{{ t('learningCheckinRecordLoading') }}</text>
         <text v-else-if="noMore">{{ t('learningCheckinRecordNoMore') }}</text>
-        <text v-else>{{ t('learningCheckinRecordPullMore') }}</text>
+        <button v-else class="load-more-btn" size="mini" @click="loadMore">{{ t('common.load_more') }}</button>
       </view>
     </scroll-view>
   </view>
@@ -64,7 +64,7 @@ import { doCheckin, getCheckinStats, getLearningCheckinRecordList } from '@/api/
 
 const langStore = useLangStore()
 const page = ref(1)
-const pageSize = 20
+const pageSize = 10
 const total = ref(0)
 const loading = ref(false)
 const checkinLoading = ref(false)
@@ -338,4 +338,48 @@ onShow(() => {
   color: #9ca3af;
   font-size: 24rpx;
 }
+
+.load-more-btn {
+  border: 1rpx solid rgba(20, 184, 166, 0.28);
+  color: #0f766e;
+  background: #fffdf8;
+  border-radius: 999rpx;
+  padding: 0 28rpx;
+}
+
+.checkin-record-container {
+  background: linear-gradient(180deg, #f8f4e7 0%, #f4efe1 100%);
+}
+
+.back-btn {
+  border-radius: 18rpx;
+  border: 1rpx solid rgba(20, 184, 166, 0.22);
+  background: #fffdf8;
+  color: #7c2d12;
+}
+
+.header-title { color: #7c2d12; }
+
+.stats-card,
+.record-card {
+  background: rgba(255, 253, 248, 0.96);
+  border: 1rpx solid rgba(20, 184, 166, 0.18);
+}
+
+.stats-label,
+.checkin-status,
+.record-date { color: #64748b; }
+
+.stats-value,
+.record-title { color: #1e293b; }
+
+.checkin-btn {
+  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
+  border-radius: 999rpx;
+}
+
+.checked-tag,
+.record-right { color: #0f766e; }
+
+.load-more, .empty-text { color: #94a3b8; }
 </style>

@@ -11,7 +11,7 @@
       <text class="summary-value">{{ totalWrongCount }}</text>
     </view>
 
-    <scroll-view class="list-scroll" scroll-y @scrolltolower="loadMore">
+    <scroll-view class="list-scroll" scroll-y>
       <view v-if="!loading && errorLogList.length === 0" class="empty-wrap">
         <text class="empty-text">{{ t('learningErrorLogEmpty') }}</text>
       </view>
@@ -47,13 +47,14 @@
 
         <view class="card-footer">
           <button class="practice-btn" size="mini" @click.stop="goTyping">{{ t('learningErrorLogGoPractice') }}</button>
+          <button class="delete-btn" size="mini" @click.stop="removeLog(item)">{{ t('learningErrorLogDelete') }}</button>
         </view>
       </view>
 
       <view v-if="errorLogList.length > 0" class="load-more">
         <text v-if="loading">{{ t('learningErrorLogLoading') }}</text>
         <text v-else-if="noMore">{{ t('learningErrorLogNoMore') }}</text>
-        <text v-else>{{ t('learningErrorLogPullMore') }}</text>
+        <button v-else class="load-more-btn" size="mini" @click="loadMore">{{ t('common.load_more') }}</button>
       </view>
     </scroll-view>
   </view>
@@ -64,21 +65,21 @@ import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { localText as i18nLocalText, resolveApiMessage, t as i18nT } from '@/utils/i18n.js'
-import { getWordErrorLogList } from '@/api/learning.js'
+import { deleteWordErrorLog, getWordErrorLogList } from '@/api/learning.js'
 
 const langStore = useLangStore()
 const page = ref(1)
-const pageSize = 20
+const pageSize = 10
 const totalWrongCount = ref(0)
 const loading = ref(false)
 const noMore = ref(false)
 const errorLogList = ref([])
 
-const t = (key, defaultText = '') => {
+const t = (key) => {
   const locale = langStore.locale || uni.getStorageSync('app-lang') || 'zh'
   const text = i18nT(key, locale)
   if (text && text !== key) return text
-  return defaultText || key
+  return key
 }
 
 const localText = (value) => {
@@ -159,6 +160,37 @@ const fetchErrorLogList = async (isLoadMore = false) => {
 
 const loadMore = () => {
   fetchErrorLogList(true)
+}
+
+const removeLog = (item) => {
+  const wordId = Number(item?.wordId || 0)
+  if (!wordId) {
+    uni.showToast({ title: t('learningErrorLogDeleteFailed'), icon: 'none' })
+    return
+  }
+
+  uni.showModal({
+    title: t('learningErrorLogTitle'),
+    content: t('learningErrorLogDeleteConfirm'),
+    cancelText: t('common.cancel'),
+    confirmText: t('common.confirm'),
+    success: async (res) => {
+      if (!res.confirm) {
+        return
+      }
+      const resp = await deleteWordErrorLog(wordId)
+      if (resp.code !== 0) {
+        uni.showToast({ title: t('learningErrorLogDeleteFailed'), icon: 'none' })
+        return
+      }
+      uni.showToast({ title: t('learningErrorLogDeleteSuccess'), icon: 'success' })
+      errorLogList.value = errorLogList.value.filter((row) => Number(row.wordId || 0) !== wordId)
+      totalWrongCount.value = Math.max(0, totalWrongCount.value - 1)
+      if (errorLogList.value.length === 0) {
+        noMore.value = true
+      }
+    }
+  })
 }
 
 const goTyping = () => {
@@ -311,6 +343,7 @@ onShow(() => {
   margin-top: 18rpx;
   display: flex;
   justify-content: flex-end;
+  gap: 10rpx;
 }
 
 .practice-btn {
@@ -327,4 +360,58 @@ onShow(() => {
   font-size: 24rpx;
   padding: 20rpx 0 40rpx;
 }
+
+.error-log-container {
+  background: linear-gradient(180deg, #f8f4e7 0%, #f4efe1 100%);
+}
+
+.back-btn {
+  border-radius: 18rpx;
+  border: 1rpx solid rgba(20, 184, 166, 0.22);
+  background: #fffdf8;
+  color: #7c2d12;
+}
+
+.header-title { color: #7c2d12; }
+
+.summary-card,
+.log-card {
+  background: rgba(255, 253, 248, 0.96);
+  border: 1rpx solid rgba(20, 184, 166, 0.18);
+}
+
+.summary-label,
+.meta-label,
+.word-desc { color: #64748b; }
+
+.word-text,
+.meta-value { color: #1e293b; }
+
+.count-pill {
+  background: linear-gradient(120deg, #dc2626 0%, #f97316 100%);
+}
+
+.practice-btn {
+  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
+  color: #fff;
+  border: none;
+  border-radius: 999rpx;
+}
+
+.delete-btn {
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+  border: 1rpx solid rgba(220, 38, 38, 0.26);
+  border-radius: 999rpx;
+}
+
+.load-more-btn {
+  border: 1rpx solid rgba(20, 184, 166, 0.28);
+  color: #0f766e;
+  background: #fffdf8;
+  border-radius: 999rpx;
+  padding: 0 28rpx;
+}
+
+.load-more, .empty-text { color: #94a3b8; }
 </style>

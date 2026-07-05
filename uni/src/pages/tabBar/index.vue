@@ -3063,4 +3063,43 @@ page {
   opacity: 0;
   pointer-events: none;
 }
+
+.room-page {
+  background: linear-gradient(180deg, #f8f4e7 0%, #f4efe1 100%);
+}
+
+.room-header,
+.room-body,
+.refiner-card,
+.model-card,
+.upper-only-split-card,
+.image-size-rule-card {
+  background: rgba(255, 253, 248, 0.96);
+  border: 1rpx solid rgba(20, 184, 166, 0.18);
+  box-shadow: 0 12rpx 26rpx rgba(120, 53, 15, 0.1);
+}
+
+.room-title,
+.model-label,
+.refiner-label,
+.upper-only-split-option {
+  color: #7c2d12;
+}
+
+.generate-btn,
+.model-switch,
+.upload-main-btn,
+.upload-drawer-btn {
+  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
+}
+
+.upload-tab.active {
+  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
+}
+
+.popup-panel,
+.upload-drawer,
+.crop-editor-panel {
+  background: #fffdf8;
+}
 </style>

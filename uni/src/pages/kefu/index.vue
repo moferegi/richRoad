@@ -10,7 +10,9 @@
           <uni-icons type="left" size="20" color="#0f172a"></uni-icons>
         </view>
         <text class="nf-navbar-title">{{ $t('kefuTitle') }}</text>
-        <view style="width: 64rpx;"></view>
+        <view class="nf-lang-btn" @tap="showLangPicker = true">
+          <text class="nf-lang-label">{{ langLabel }}</text>
+        </view>
       </view>
     </view>
 
@@ -102,6 +104,8 @@
         <text class="nf-kefu-empty-text">{{ $t('kefuEmpty') }}</text>
       </view>
     </scroll-view>
+
+    <lang-switch v-model="showLangPicker" />
   </view>
 </template>
 
@@ -113,9 +117,15 @@ import { getUrl } from '@/utils/url.js'
 import { localText, t as i18nT } from '@/utils/i18n.js'
 import { trackVisitorEvent } from '@/utils/visitorEvent.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
+import langSwitch from '@/components/lang-switch/lang-switch.vue'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
+const showLangPicker = ref(false)
+const langLabel = computed(() => {
+  const map = { zh: 'ZH', en: 'EN', mn: 'MN', 'zh-TW': 'TW', th: 'TH', hi: 'HI', id: 'ID', vi: 'VI', ar: 'AR', ja: 'JA', ko: 'KO', ms: 'MS' }
+  return map[langStore.locale] || String(langStore.locale || 'zh').slice(0, 2).toUpperCase()
+})
 
 const kefuList = ref([])
 const isLoading = ref(true)
@@ -139,19 +149,26 @@ const prefillPreferredPayMethodLabel = ref('')
 const prefillPreferredPayMethodCopyText = ref('')
 const prefillSelectedQrName = ref('')
 
+const resolveLocalizedText = (value) => {
+  const resolved = localText(value, langStore.locale)
+  return String(resolved || value || '').trim()
+}
+
 const hasPaymentContext = computed(() => !!prefillOrderID.value)
 const expectedPayMethodLabel = computed(() => {
   const preferredKey = String(prefillPreferredPayMethod.value || '').trim().toLowerCase()
+  const preferredLabel = resolveLocalizedText(prefillPreferredPayMethodLabel.value)
   if (preferredKey && preferredKey !== 'contact' && preferredKey !== 'qrcode') {
-    return prefillPreferredPayMethodLabel.value || getPayMethodLabel(preferredKey)
+    return preferredLabel || getPayMethodLabel(preferredKey)
   }
 
   const payKey = String(prefillPayMethod.value || '').trim().toLowerCase()
+  const payLabel = resolveLocalizedText(prefillPayMethodLabel.value)
   if (payKey === 'contact') {
     return $t.value('paymentPreferredMethodMissing')
   }
 
-  return prefillPayMethodLabel.value || getPayMethodLabel(payKey)
+  return payLabel || getPayMethodLabel(payKey)
 })
 
 const extractLinkHost = (link) => {
@@ -198,7 +215,7 @@ const getPayMethodLabel = (method) => {
 
 const paymentDraftText = computed(() => {
   if (!prefillOrderID.value) return ''
-  const template = prefillPreferredPayMethodCopyText.value || $t.value('kefuPaymentDraftTemplatePending')
+  const template = resolveLocalizedText(prefillPreferredPayMethodCopyText.value) || $t.value('kefuPaymentDraftTemplatePending')
   let text = template
     .replace('{orderID}', prefillOrderID.value || '-')
     .replace('{payMethod}', expectedPayMethodLabel.value || '-')
@@ -595,6 +612,27 @@ page {
   }
 }
 
+.nf-lang-btn {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 18rpx;
+  border: 1rpx solid rgba(20, 184, 166, 0.24);
+  background: rgba(255, 255, 255, 0.86);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    transform: scale(0.93);
+  }
+}
+
+.nf-lang-label {
+  font-size: 22rpx;
+  font-weight: 800;
+  color: #7c2d12;
+}
+
 .nf-navbar-title {
   font-size: 34rpx;
   font-weight: 700;
@@ -912,5 +950,58 @@ page {
   font-size: 28rpx;
   color: rgba(15, 23, 42, 0.48);
   letter-spacing: 2rpx;
+}
+
+.nf-kefu {
+  background: linear-gradient(180deg, #f8f4e7 0%, #f4efe1 100%);
+}
+
+.nf-navbar {
+  background: rgba(255, 253, 248, 0.88);
+  border-bottom: 1rpx solid rgba(146, 64, 14, 0.12);
+}
+
+.nf-navbar-back {
+  border-radius: 18rpx;
+  border: 1rpx solid rgba(20, 184, 166, 0.22);
+  background: #fffdf8;
+}
+
+.nf-navbar-title {
+  color: #7c2d12;
+  font-weight: 800;
+}
+
+.nf-payment-hint-card,
+.nf-plat-cs-card,
+.nf-kefu-card {
+  background: rgba(255, 253, 248, 0.96);
+  border: 1rpx solid rgba(20, 184, 166, 0.18);
+  box-shadow: 0 12rpx 24rpx rgba(120, 53, 15, 0.1);
+}
+
+.nf-payment-copy-btn,
+.nf-plat-cs-avatar {
+  background: rgba(15, 118, 110, 0.14);
+}
+
+.nf-payment-copy-btn-text {
+  color: #0f766e;
+}
+
+.nf-kefu-name,
+.nf-plat-cs-name,
+.nf-payment-hint-title {
+  color: #1e293b;
+}
+
+.nf-kefu-action {
+  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
+  box-shadow: 0 8rpx 18rpx rgba(15, 118, 110, 0.28);
+}
+
+.nf-kefu-empty-icon {
+  background: rgba(15, 118, 110, 0.1);
+  border: 1rpx solid rgba(15, 118, 110, 0.24);
 }
 </style>
