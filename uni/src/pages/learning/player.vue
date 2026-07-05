@@ -7,10 +7,13 @@
         class="main-video" 
         :src="videoInfo.videoUrl" 
         :autoplay="true"
+        :show-center-play-btn="!showVideoLoading"
         :loop="controls.loop"
         @timeupdate="onTimeUpdate"
         @loadedmetadata="onVideoLoadedMeta"
         @canplay="onVideoCanPlay"
+        @seeking="onVideoSeeking"
+        @seeked="onVideoSeeked"
         @waiting="onVideoWaiting"
         @playing="onVideoPlaying"
         @play="onVideoPlay"
@@ -81,10 +84,9 @@
         <text class="c-text">{{ controls.speed }}x</text>
       </view>
       
-      <view v-if="!showVideoLoading" class="control-item play-btn" @click="togglePlay">
-        <text class="c-icon">{{ isVideoReady ? (isPlaying ? '⏸' : '▶') : '⏳' }}</text>
+      <view class="control-item play-btn" @click="togglePlay">
+        <text class="c-icon">{{ showVideoLoading ? '⏳' : (isPlaying ? '⏸' : '▶') }}</text>
       </view>
-      <view v-else class="control-item play-btn-placeholder"></view>
       
       <view class="control-item" @click="toggleSubtitles">
         <text class="c-icon" :class="{ 'c-active': controls.showSubtitles }">💬</text>
@@ -190,8 +192,11 @@ const activeSentenceId = ref('')
 const focusedSentenceId = ref(0)
 const pendingSeekTime = ref(0)
 const isRefreshingSignedUrl = ref(false)
+const autoPlayPending = ref(true)
+const isVideoBuffering = ref(true)
+const lastPlaybackTime = ref(0)
 const loadingLogo = computed(() => getExternalUrl(appConfigStore.appLogo || ''))
-const showVideoLoading = computed(() => !isVideoReady.value || isRefreshingSignedUrl.value)
+const showVideoLoading = computed(() => isVideoBuffering.value || isRefreshingSignedUrl.value)
 const sentenceCollectedMap = ref({})
 let lastSignedRefreshAt = 0
 let focusSentenceTimer = null
@@ -200,6 +205,8 @@ const morePopup = ref(null)
 onMounted(() => {
   videoCtx = uni.createVideoContext('englishVideo')
   appConfigStore.loadConfig({ force: true, localeOnly: true })
+  isVideoBuffering.value = true
+  isVideoReady.value = false
   if (pendingSeekTime.value > 0) {
     videoCtx.seek(pendingSeekTime.value)
     pendingSeekTime.value = 0
@@ -344,10 +351,13 @@ const refreshSignedEpisodeUrl = async (resumeSecs = 0) => {
   }
 
   isRefreshingSignedUrl.value = true
+  isVideoBuffering.value = true
   isVideoReady.value = false
   const wasPlayingBeforeRefresh = isPlaying.value
   const previousUrl = videoInfo.value.videoUrl
   const resumeTarget = Math.max(0, Number(resumeSecs || 0))
+  const shouldResumeAfterRefresh = wasPlayingBeforeRefresh || autoPlayPending.value || resumeTarget <= 0
+  autoPlayPending.value = shouldResumeAfterRefresh
 
   try {
     const res = await findVideoEpisode(episodeId.value)
@@ -367,17 +377,15 @@ const refreshSignedEpisodeUrl = async (resumeSecs = 0) => {
     authData.value.trialPercent = percent > 0 ? percent : 8
 
     const urlChanged = nextUrl !== previousUrl
-    if (urlChanged) {
-      setTimeout(() => {
-        if (resumeTarget > 0) {
-          seekVideo(Math.max(0, resumeTarget - 1))
-        }
-        if (wasPlayingBeforeRefresh && videoCtx) {
-          isPlaying.value = true
-          videoCtx.play()
-        }
-      }, 350)
-    }
+    setTimeout(() => {
+      if (urlChanged && resumeTarget > 0) {
+        seekVideo(Math.max(0, resumeTarget - 1))
+      }
+      if (shouldResumeAfterRefresh && videoCtx && !isTrialLocked.value) {
+        isPlaying.value = true
+        videoCtx.play()
+      }
+    }, 350)
 
     return true
   } finally {
@@ -487,6 +495,10 @@ const initPage = async () => {
     uni.showToast({ title: t('player.load_failed'), icon: 'none' })
     return
   }
+  autoPlayPending.value = true
+  isVideoBuffering.value = true
+  isVideoReady.value = false
+  lastPlaybackTime.value = 0
   await loadEpisode()
   await loadSubtitleList()
   await loadSentenceCollectionState()
@@ -550,6 +562,11 @@ const sendHeartbeatQueue = async (progressSecs) => {
 const onTimeUpdate = (e) => {
   const currentTime = e.detail.currentTime
   const duration = e.detail.duration || videoInfo.value.duration
+  if (currentTime > lastPlaybackTime.value + 0.05) {
+    isVideoBuffering.value = false
+    isVideoReady.value = true
+  }
+  lastPlaybackTime.value = currentTime
   if (duration > 0) {
     videoInfo.value.duration = duration
   }
@@ -603,25 +620,45 @@ const onVideoLoadedMeta = (e) => {
   if (duration > 0) {
     videoInfo.value.duration = duration
   }
+  isVideoBuffering.value = true
   isVideoReady.value = false
 }
 
 const onVideoCanPlay = () => {
+  isVideoBuffering.value = false
   isVideoReady.value = true
+  if (autoPlayPending.value && videoCtx && !isTrialLocked.value) {
+    videoCtx.play()
+  }
+}
+
+const onVideoSeeking = () => {
+  isVideoBuffering.value = true
+}
+
+const onVideoSeeked = () => {
+  if (videoCtx && !isTrialLocked.value) {
+    videoCtx.play()
+  }
 }
 
 const onVideoWaiting = () => {
+  isVideoBuffering.value = true
   isVideoReady.value = false
 }
 
 const onVideoPlaying = () => {
+  isVideoBuffering.value = false
   isVideoReady.value = true
   isPlaying.value = true
+  autoPlayPending.value = false
 }
 
 const onVideoPlay = () => {
+  isVideoBuffering.value = false
   isPlaying.value = true
   isVideoReady.value = true
+  autoPlayPending.value = false
 }
 
 const onVideoPause = () => {
@@ -629,7 +666,9 @@ const onVideoPause = () => {
 }
 
 const onVideoError = async () => {
+  isVideoBuffering.value = true
   isVideoReady.value = false
+  autoPlayPending.value = true
   const recovered = await refreshSignedEpisodeUrl(lastHeartbeatTime)
   if (!recovered) {
     uni.showToast({ title: t('player.load_failed'), icon: 'none' })
@@ -695,11 +734,12 @@ const togglePlay = () => {
   if (!videoCtx) {
     return
   }
-  if (!isVideoReady.value) {
-    uni.showToast({ title: t('player.video_loading'), icon: 'none' })
+  if (!authData.value.hasFullAuth && isTrialLocked.value) {
     return
   }
-  if (!authData.value.hasFullAuth && isTrialLocked.value) {
+  if (showVideoLoading.value) {
+    autoPlayPending.value = true
+    videoCtx.play()
     return
   }
   isPlaying.value ? videoCtx.pause() : videoCtx.play()
@@ -850,10 +890,6 @@ const playWordAudio = (src) => {
 .c-text { font-size: 20rpx; color: #888; }
 .c-text-active { color: #4ea2ff; }
 .play-btn .c-icon { font-size: 60rpx; filter: grayscale(0); color: #fff;}
-.play-btn-placeholder {
-  width: 64rpx;
-  height: 64rpx;
-}
 
 /* 弹窗内容 */
 .word-detail-box { padding: 40rpx; display: flex; flex-direction: column; }
