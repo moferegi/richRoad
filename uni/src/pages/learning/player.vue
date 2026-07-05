@@ -9,8 +9,12 @@
         :autoplay="true"
         :loop="controls.loop"
         @timeupdate="onTimeUpdate"
-        @play="isPlaying = true"
-        @pause="isPlaying = false"
+        @loadedmetadata="onVideoLoadedMeta"
+        @canplay="onVideoCanPlay"
+        @waiting="onVideoWaiting"
+        @playing="onVideoPlaying"
+        @play="onVideoPlay"
+        @pause="onVideoPause"
         @error="onVideoError"
         @ended="onVideoEnded"
       ></video>
@@ -32,10 +36,11 @@
         :id="'sentence_' + index"
         class="sentence-row"
         :class="{ 'is-active': activeSentenceIndex === index, 'is-focused': focusedSentenceId === Number(item.id) }"
+        @click="jumpBySubtitle(item, index)"
       >
         <view class="sentence-meta">
           <text class="time-badge">{{ formatSeconds(item.startTime) }} - {{ formatSeconds(item.endTime) }}</text>
-          <text class="collect-btn" @click="collectSentence(item.id)">⭐ {{ t('player.collect') }}</text>
+          <text class="collect-btn" @click.stop="collectSentence(item.id)">⭐ {{ t('player.collect') }}</text>
         </view>
         
         <!-- 英文句子 (带高亮重点词可点击分析) -->
@@ -62,8 +67,8 @@
     <!-- 底部控制栏 -->
     <view class="bottom-controls">
       <view class="control-item" @click="toggleBilingual">
-        <text class="c-icon">{{ controls.showBilingual ? '🇺🇳' : '🇬🇧' }}</text>
-        <text class="c-text">{{ t('player.bilingual') }}</text>
+        <text class="c-icon" :class="{ 'c-active': controls.showBilingual }">{{ controls.showBilingual ? '🇺🇳' : '🇬🇧' }}</text>
+        <text class="c-text" :class="{ 'c-text-active': controls.showBilingual }">{{ t('player.bilingual') }}</text>
       </view>
       
       <view class="control-item" @click="changeSpeed">
@@ -72,17 +77,17 @@
       </view>
       
       <view class="control-item play-btn" @click="togglePlay">
-        <text class="c-icon">{{ isPlaying ? '⏸' : '▶' }}</text>
-      </view>
-      
-      <view class="control-item" @click="toggleLoop">
-        <text class="c-icon" :class="{ 'c-active': controls.loop }">🔁</text>
-        <text class="c-text">{{ t('player.loop') }}</text>
+        <text class="c-icon">{{ isVideoReady ? (isPlaying ? '⏸' : '▶') : '⏳' }}</text>
       </view>
       
       <view class="control-item" @click="toggleSubtitles">
         <text class="c-icon" :class="{ 'c-active': controls.showSubtitles }">💬</text>
-        <text class="c-text">{{ t('player.subtitle') }}</text>
+        <text class="c-text" :class="{ 'c-text-active': controls.showSubtitles }">{{ t('player.subtitle') }}</text>
+      </view>
+
+      <view class="control-item" @click="openMoreSheet">
+        <text class="c-icon" :class="{ 'c-active': controls.loop }">⋯</text>
+        <text class="c-text">{{ t('common.more', '更多') }}</text>
       </view>
     </view>
 
@@ -96,6 +101,17 @@
         <text class="w-phonetic">{{ currentWord.phoneticUs }}</text>
         <view class="w-exp">{{ localText(currentWord.explanation) }}</view>
         <button class="w-collect" @click="collectWord(currentWord.id)">⭐ {{ t('typing.collect') }}</button>
+      </view>
+    </uni-popup>
+
+    <uni-popup ref="morePopup" type="bottom" background-color="#fff">
+      <view class="more-sheet">
+        <view class="more-item" @click="toggleLoop">
+          <text>{{ controls.loop ? t('player.loop') + '：ON' : t('player.loop') + '：OFF' }}</text>
+        </view>
+        <view class="more-item" @click="handleBack">
+          <text>{{ t('common.back', '返回') }}</text>
+        </view>
       </view>
     </uni-popup>
   </view>
@@ -123,6 +139,7 @@ const fallbackTexts = {
   'player.collect_success': '收藏成功',
   'player.sentence_focused': '已定位到目标句子',
   'player.sentence_not_found': '未找到目标句子',
+  'player.play_loading': '视频加载中',
 }
 
 const t = (k, d = '') => {
@@ -143,7 +160,10 @@ const formatSeconds = (secs) => {
 
 let videoCtx = null
 let audioCtx = null
-const isPlaying = ref(true)
+const isPlaying = ref(false)
+const isVideoReady = ref(false)
+const isTrialLocked = ref(false)
+const lastTrialModalAt = ref(0)
 const episodeId = ref(0)
 const sentenceId = ref(0)
 
@@ -176,6 +196,7 @@ const pendingSeekTime = ref(0)
 const isRefreshingSignedUrl = ref(false)
 let lastSignedRefreshAt = 0
 let focusSentenceTimer = null
+const morePopup = ref(null)
 
 onMounted(() => {
   videoCtx = uni.createVideoContext('englishVideo')
@@ -210,6 +231,53 @@ const seekVideo = (secs) => {
   } else {
     pendingSeekTime.value = target
   }
+}
+
+const maxTrialAllowedTime = () => {
+  const duration = Number(videoInfo.value.duration || 0)
+  if (authData.value.hasFullAuth || duration <= 0) {
+    return Number.POSITIVE_INFINITY
+  }
+  const safePercent = Math.max(1, Number(authData.value.trialPercent || 8))
+  return Math.max(0, Math.floor((duration * safePercent) / 100) - 1)
+}
+
+const ensureTrialLimit = (currentTime) => {
+  if (authData.value.hasFullAuth || !videoInfo.value.duration) {
+    return false
+  }
+
+  const limitTime = maxTrialAllowedTime()
+  if (currentTime <= limitTime) {
+    if (isTrialLocked.value) {
+      isTrialLocked.value = false
+    }
+    return false
+  }
+
+  if (videoCtx) {
+    videoCtx.pause()
+  }
+  seekVideo(limitTime)
+  isTrialLocked.value = true
+
+  const now = Date.now()
+  if (now - lastTrialModalAt.value < 4000) {
+    return true
+  }
+  lastTrialModalAt.value = now
+
+  uni.showModal({
+    title: t('player.trial_end_title', '试看结束'),
+    content: t('player.trial_end_desc', '免费额度已用完，积分兑换观看时长或升级会员解锁全集。'),
+    confirmText: t('player.btn_vip', '去开通'),
+    success: (res) => {
+      if (res.confirm) {
+        uni.navigateTo({ url: '/pages/learning/profile' })
+      }
+    }
+  })
+  return true
 }
 
 const focusSentence = () => {
@@ -436,21 +504,9 @@ const onTimeUpdate = (e) => {
     videoInfo.value.duration = duration
   }
 
-  // 1. 防盗验证：如果没买且过了 8%，直接暂停+弹窗斩断
-  if (!authData.value.hasFullAuth && duration > 0) {
-    const percent = (currentTime / duration) * 100
-    if (percent >= authData.value.trialPercent) {
-      videoCtx.pause()
-      uni.showModal({
-        title: t('player.trial_end_title', '试看结束'),
-        content: t('player.trial_end_desc', '免费额度已用完，积分兑换观看时长或升级会员解锁全集。'),
-        confirmText: t('player.btn_vip', '去开通'),
-        success: (res) => { if(res.confirm) { uni.navigateTo({url: '/pages/learning/profile'}) } }
-      })
-      // 可以防止用户拖进度条强看
-      videoCtx.seek(currentTime - 2) 
-      return
-    }
+  // 1. 防盗验证：超出试看比例时回弹到阈值，不重复弹窗轰炸。
+  if (ensureTrialLimit(currentTime)) {
+    return
   }
 
   // 2. 匹配外挂字幕轴并滚动
@@ -492,10 +548,55 @@ const onVideoEnded = () => {
   flushHeartbeat(videoInfo.value.duration || lastHeartbeatTime, true)
 }
 
+const onVideoLoadedMeta = (e) => {
+  const duration = Number(e?.detail?.duration || 0)
+  if (duration > 0) {
+    videoInfo.value.duration = duration
+  }
+  isVideoReady.value = false
+}
+
+const onVideoCanPlay = () => {
+  isVideoReady.value = true
+}
+
+const onVideoWaiting = () => {
+  isVideoReady.value = false
+}
+
+const onVideoPlaying = () => {
+  isVideoReady.value = true
+  isPlaying.value = true
+}
+
+const onVideoPlay = () => {
+  isPlaying.value = true
+  isVideoReady.value = true
+}
+
+const onVideoPause = () => {
+  isPlaying.value = false
+}
+
 const onVideoError = async () => {
   const recovered = await refreshSignedEpisodeUrl(lastHeartbeatTime)
   if (!recovered) {
     uni.showToast({ title: t('player.load_failed'), icon: 'none' })
+  }
+}
+
+const jumpBySubtitle = (item, index) => {
+  const startTime = Number(item?.startTime || 0)
+  activeSentenceIndex.value = index
+  activeSentenceId.value = 'sentence_' + Math.max(0, index - 1)
+  seekVideo(startTime)
+  heartbeat({
+    episodeId: episodeId.value,
+    progressSecs: startTime,
+    usingTimeSecs: 0
+  }).catch(() => {})
+  if (videoCtx) {
+    videoCtx.play()
   }
 }
 
@@ -539,15 +640,44 @@ const showWordDetail = async (wordId) => {
 }
 
 // 底部控制
-const togglePlay = () => { isPlaying.value ? videoCtx.pause() : videoCtx.play() }
+const togglePlay = () => {
+  if (!videoCtx) {
+    return
+  }
+  if (!authData.value.hasFullAuth && isTrialLocked.value) {
+    return
+  }
+  isPlaying.value ? videoCtx.pause() : videoCtx.play()
+}
 const toggleBilingual = () => { controls.value.showBilingual = !controls.value.showBilingual }
 const toggleSubtitles = () => { controls.value.showSubtitles = !controls.value.showSubtitles }
 const toggleLoop = () => { controls.value.loop = !controls.value.loop }
 const changeSpeed = () => {
-  let next = controls.value.speed + 0.25
-  if (next > 2.0) next = 0.75
-  controls.value.speed = next
-  videoCtx.playbackRate(next)
+  const rates = [0.75, 1.0, 1.25, 1.5, 2.0]
+  uni.showActionSheet({
+    itemList: rates.map((rate) => `${rate}x`),
+    success: (res) => {
+      const target = rates[res.tapIndex]
+      controls.value.speed = target
+      if (videoCtx) {
+        videoCtx.playbackRate(target)
+      }
+    }
+  })
+}
+
+const openMoreSheet = () => {
+  morePopup.value?.open()
+}
+
+const handleBack = () => {
+  morePopup.value?.close()
+  const pages = getCurrentPages()
+  if (Array.isArray(pages) && pages.length > 1) {
+    uni.navigateBack()
+    return
+  }
+  uni.switchTab({ url: '/pages/learning/home' })
 }
 const collectSentence = async (id) => {
   const res = await collect(2, Number(id || 0))
@@ -604,6 +734,7 @@ const playWordAudio = (src) => {
 .c-icon { font-size: 40rpx; margin-bottom: 6rpx; filter: grayscale(1); }
 .c-active { filter: grayscale(0); text-shadow: 0 0 10rpx rgba(255,255,255,0.8); }
 .c-text { font-size: 20rpx; color: #888; }
+.c-text-active { color: #4ea2ff; }
 .play-btn .c-icon { font-size: 60rpx; filter: grayscale(0); color: #fff;}
 
 /* 弹窗内容 */
@@ -614,4 +745,8 @@ const playWordAudio = (src) => {
 .w-phonetic { font-size: 28rpx; color: #888; margin: 10rpx 0 30rpx 0; }
 .w-exp { font-size: 32rpx; color: #444; line-height: 1.6; margin-bottom: 40rpx; }
 .w-collect { background: #409eff; color: #fff; border-radius: 40rpx; }
+
+.more-sheet { padding: 20rpx 24rpx 30rpx; background: #fff; color: #111; border-top-left-radius: 24rpx; border-top-right-radius: 24rpx; }
+.more-item { padding: 26rpx; border-bottom: 1px solid #eee; font-size: 30rpx; text-align: center; color: #111; }
+.more-item:last-child { border-bottom: none; }
 </style>

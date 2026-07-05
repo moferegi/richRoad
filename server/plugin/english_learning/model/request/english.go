@@ -10,27 +10,38 @@ type EnglishWordSearch struct {
 	request.PageInfo
 }
 
+type EnglishWordSentenceReq struct {
+	Source    string `json:"source"`
+	Translate string `json:"translate"`
+	AudioUS   string `json:"audioUs"`
+	AudioUK   string `json:"audioUk"`
+	VideoID   uint   `json:"videoId"`
+	Sort      int    `json:"sort"`
+}
+
 type CreateEnglishWordReq struct {
-	Word        string `json:"word" binding:"required"`
-	PhoneticUS  string `json:"phoneticUs"`
-	PhoneticUK  string `json:"phoneticUk"`
-	AudioUS     string `json:"audioUs"`
-	AudioUK     string `json:"audioUk"`
-	Explanation string `json:"explanation"` // JSON string for multiple languages
-	CategoryIDs []uint `json:"categoryIds"` // 单词可归属多个分类
-	ChapterIDs  []uint `json:"chapterIds"`  // 创建单词时自动关联的章节ID列表
+	Word        string                   `json:"word" binding:"required"`
+	PhoneticUS  string                   `json:"phoneticUs"`
+	PhoneticUK  string                   `json:"phoneticUk"`
+	AudioUS     string                   `json:"audioUs"`
+	AudioUK     string                   `json:"audioUk"`
+	Explanation string                   `json:"explanation"` // JSON string for multiple languages
+	CategoryIDs []uint                   `json:"categoryIds"` // 单词可归属多个分类
+	ChapterIDs  []uint                   `json:"chapterIds"`  // 创建单词时自动关联的章节ID列表
+	Sentences   []EnglishWordSentenceReq `json:"sentences"`
 }
 
 type UpdateEnglishWordReq struct {
-	ID          uint   `json:"ID" binding:"required"`
-	Word        string `json:"word" binding:"required"`
-	PhoneticUS  string `json:"phoneticUs"`
-	PhoneticUK  string `json:"phoneticUk"`
-	AudioUS     string `json:"audioUs"`
-	AudioUK     string `json:"audioUk"`
-	Explanation string `json:"explanation"`
-	CategoryIDs []uint `json:"categoryIds"` // 可选；传入时会重建分类绑定关系
-	ChapterIDs  []uint `json:"chapterIds"`  // 可选；传入时会重建章节绑定关系
+	ID          uint                     `json:"ID" binding:"required"`
+	Word        string                   `json:"word" binding:"required"`
+	PhoneticUS  string                   `json:"phoneticUs"`
+	PhoneticUK  string                   `json:"phoneticUk"`
+	AudioUS     string                   `json:"audioUs"`
+	AudioUK     string                   `json:"audioUk"`
+	Explanation string                   `json:"explanation"`
+	CategoryIDs []uint                   `json:"categoryIds"` // 可选；传入时会重建分类绑定关系
+	ChapterIDs  []uint                   `json:"chapterIds"`  // 可选；传入时会重建章节绑定关系
+	Sentences   []EnglishWordSentenceReq `json:"sentences"`
 }
 
 type RegenerateWordAudioReq struct {

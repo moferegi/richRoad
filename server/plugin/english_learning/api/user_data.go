@@ -46,6 +46,10 @@ func (a *UserDataApi) SaveWordProgress(c *gin.Context) {
 		response.FailWithMessage("获取用户信息失败", c)
 		return
 	}
+	if claims.BaseClaims.ID == 0 {
+		response.FailWithMessage("用户信息无效，请重新登录", c)
+		return
+	}
 	if err = userDataService.SaveWordProgress(claims.BaseClaims.ID, req); err != nil {
 		global.GVA_LOG.Error("保存学习进度失败", zap.Error(err))
 		response.FailWithMessage("保存失败", c)

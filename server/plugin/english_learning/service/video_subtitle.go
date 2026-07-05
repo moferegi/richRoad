@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -30,6 +31,12 @@ type subtitleLine struct {
 var subtitleWordRegexp = regexp.MustCompile(`([a-zA-Z]+)`)
 var subtitleTagRegexp = regexp.MustCompile(`<[^>]+>`)
 var subtitleBlankSplitRegexp = regexp.MustCompile(`\n\s*\n+`)
+var supportedSubtitleExt = map[string]struct{}{
+	".srt": {},
+	".vtt": {},
+	".ass": {},
+	".ssa": {},
+}
 
 // ParseAndHighlightSubtitle 解析字幕，碰对单词库，生成带高亮标签的入库句表
 func (s *VideoSubtitleService) ParseAndHighlightSubtitle(episodeID uint, items []request.SubtitleItem) error {
@@ -61,6 +68,9 @@ func (s *VideoSubtitleService) ParseAndHighlightSubtitleFromFiles(req request.Pa
 	if englishURL == "" {
 		return errors.New("英文字幕文件不能为空")
 	}
+	if err := validateSubtitleURL(englishURL); err != nil {
+		return fmt.Errorf("英文字幕地址无效: %w", err)
+	}
 
 	englishContent, err := fetchRemoteSubtitleContent(englishURL)
 	if err != nil {
@@ -90,6 +100,9 @@ func (s *VideoSubtitleService) ParseAndHighlightSubtitleFromFiles(req request.Pa
 		subtitleURL := strings.TrimSpace(item.SubtitleURL)
 		if lang == "" || subtitleURL == "" || lang == "en" {
 			continue
+		}
+		if err = validateSubtitleURL(subtitleURL); err != nil {
+			return fmt.Errorf("字幕地址无效(%s): %w", lang, err)
 		}
 
 		content, readErr := fetchRemoteSubtitleContent(subtitleURL)
@@ -199,14 +212,35 @@ func highlightSubtitleSentence(text string, wordMap map[string]uint) string {
 }
 
 func fetchRemoteSubtitleContent(rawURL string) (string, error) {
+	requestURL := strings.TrimSpace(rawURL)
+	if requestURL == "" {
+		return "", errors.New("字幕地址为空")
+	}
+	requestURL = resolveSubtitleFetchURL(requestURL)
+
 	client := &http.Client{Timeout: 20 * time.Second}
-	resp, err := client.Get(strings.TrimSpace(rawURL))
+	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("User-Agent", "richroad-subtitle-fetch/1.0")
+	req.Header.Set("Accept", "text/plain, text/vtt, application/octet-stream;q=0.9, */*;q=0.8")
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		errBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		workerErr := strings.TrimSpace(resp.Header.Get("X-Worker-Error"))
+		if workerErr != "" {
+			return "", fmt.Errorf("HTTP状态异常(%d), worker=%s, body=%s", resp.StatusCode, workerErr, compactSubtitleErrorBody(errBody))
+		}
+		if len(errBody) > 0 {
+			return "", fmt.Errorf("HTTP状态异常(%d), body=%s", resp.StatusCode, compactSubtitleErrorBody(errBody))
+		}
 		return "", fmt.Errorf("HTTP状态异常(%d)", resp.StatusCode)
 	}
 
@@ -216,6 +250,117 @@ func fetchRemoteSubtitleContent(rawURL string) (string, error) {
 	}
 
 	return string(body), nil
+}
+
+func resolveSubtitleFetchURL(raw string) string {
+	text := strings.TrimSpace(raw)
+	if text == "" {
+		return text
+	}
+
+	parsed, err := url.Parse(text)
+	if err != nil || strings.TrimSpace(parsed.Host) == "" {
+		return text
+	}
+
+	cdnDomain := strings.TrimSpace(global.GVA_CONFIG.Hotlink.CdnDomain)
+	if cdnDomain == "" {
+		return text
+	}
+	cdnURL, err := url.Parse(cdnDomain)
+	if err != nil || strings.TrimSpace(cdnURL.Host) == "" {
+		return text
+	}
+	if !strings.EqualFold(strings.TrimSpace(parsed.Host), strings.TrimSpace(cdnURL.Host)) {
+		return text
+	}
+
+	originBase, bucketName := buildB2OriginBaseURL()
+	if originBase == "" || bucketName == "" {
+		return text
+	}
+
+	pathValue := strings.TrimSpace(parsed.EscapedPath())
+	if pathValue == "" {
+		pathValue = strings.TrimSpace(parsed.Path)
+	}
+	if pathValue == "" {
+		return text
+	}
+
+	b2Prefix := "/file/" + bucketName
+	if strings.HasPrefix(pathValue, b2Prefix+"/") {
+		pathValue = strings.TrimPrefix(pathValue, b2Prefix)
+	}
+	if !strings.HasPrefix(pathValue, "/") {
+		pathValue = "/" + pathValue
+	}
+
+	return strings.TrimRight(originBase, "/") + pathValue
+}
+
+func buildB2OriginBaseURL() (string, string) {
+	if !strings.EqualFold(strings.TrimSpace(global.GVA_CONFIG.System.OssType), "aws-s3") {
+		return "", ""
+	}
+
+	bucketName := strings.TrimSpace(global.GVA_CONFIG.AwsS3.Bucket)
+	endpoint := strings.TrimSpace(global.GVA_CONFIG.AwsS3.Endpoint)
+	if bucketName == "" || endpoint == "" {
+		return "", ""
+	}
+
+	if !strings.HasPrefix(endpoint, "http://") && !strings.HasPrefix(endpoint, "https://") {
+		scheme := "https://"
+		if global.GVA_CONFIG.AwsS3.DisableSSL {
+			scheme = "http://"
+		}
+		endpoint = scheme + endpoint
+	}
+
+	base := strings.TrimRight(endpoint, "/")
+	if !strings.HasSuffix(base, "/"+bucketName) {
+		base = base + "/" + bucketName
+	}
+
+	return base, bucketName
+}
+
+func compactSubtitleErrorBody(raw []byte) string {
+	text := strings.TrimSpace(string(raw))
+	if text == "" {
+		return "-"
+	}
+	text = strings.Join(strings.Fields(text), " ")
+	if len(text) > 200 {
+		return text[:200] + "..."
+	}
+	return text
+}
+
+func validateSubtitleURL(raw string) error {
+	pathValue := strings.TrimSpace(raw)
+	if pathValue == "" {
+		return errors.New("地址为空")
+	}
+
+	if strings.HasPrefix(pathValue, "http://") || strings.HasPrefix(pathValue, "https://") {
+		parsed, err := url.Parse(pathValue)
+		if err != nil {
+			return errors.New("URL格式错误")
+		}
+		pathValue = parsed.Path
+	}
+
+	ext := strings.ToLower(strings.TrimSpace(filepath.Ext(pathValue)))
+	if _, ok := supportedSubtitleExt[ext]; ok {
+		return nil
+	}
+
+	if ext == "" {
+		return errors.New("缺少字幕文件后缀(.srt/.vtt/.ass/.ssa)")
+	}
+	return fmt.Errorf("不支持的字幕后缀(%s)，仅支持 .srt/.vtt/.ass/.ssa", ext)
 }
 
 func parseSubtitleLines(content string) []subtitleLine {

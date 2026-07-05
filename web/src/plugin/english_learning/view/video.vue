@@ -150,9 +150,11 @@
             <el-table-column prop="videoUrl" label="视频地址" min-width="260" show-overflow-tooltip />
             <el-table-column prop="trialPercent" label="试看比例(%)" width="120" />
             <el-table-column prop="sort" label="排序" width="100" />
-            <el-table-column label="操作" width="180" fixed="right">
+            <el-table-column label="操作" width="320" fixed="right">
               <template #default="scope">
                 <el-button type="primary" link icon="edit" @click="openEpisodeDialog(scope.row)">编辑</el-button>
+                <el-button type="success" link @click="openSubtitleParser(scope.row)">字幕解析</el-button>
+                <el-button type="warning" link @click="previewEpisodeSubtitles(scope.row)">查看字幕</el-button>
                 <el-button type="danger" link icon="delete" @click="removeEpisode(scope.row)">删除</el-button>
               </template>
             </el-table-column>
@@ -170,7 +172,7 @@
             />
           </div>
 
-          <div class="subtitle-box">
+          <div ref="subtitleSectionRef" class="subtitle-box">
             <el-divider content-position="left">字幕文件解析入库</el-divider>
             <el-form label-width="140px">
               <el-form-item label="目标单集">
@@ -282,7 +284,7 @@
       </el-tabs>
     </div>
 
-    <el-dialog v-model="videoCategoryDialogVisible" :title="videoCategoryDialogMode === 'create' ? '新增视频分类' : '编辑视频分类'" width="760px">
+    <el-dialog v-model="videoCategoryDialogVisible" :title="videoCategoryDialogMode === 'create' ? '新增视频分类' : '编辑视频分类'" width="760px" :close-on-click-modal="false" :close-on-press-escape="false">
       <el-form :model="videoCategoryForm" label-width="120px">
         <el-form-item label="分类名称">
           <MultiLangEditor
@@ -306,7 +308,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="seriesDialogVisible" :title="seriesDialogMode === 'create' ? '新增剧集' : '编辑剧集'" width="860px">
+    <el-dialog v-model="seriesDialogVisible" :title="seriesDialogMode === 'create' ? '新增剧集' : '编辑剧集'" width="860px" :close-on-click-modal="false" :close-on-press-escape="false">
       <el-form :model="seriesForm" label-width="120px">
         <el-form-item label="所属分类">
           <el-select v-model="seriesForm.categoryId" placeholder="请选择分类" style="width: 100%">
@@ -351,7 +353,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="episodeDialogVisible" :title="episodeDialogMode === 'create' ? '新增单集' : '编辑单集'" width="860px">
+    <el-dialog v-model="episodeDialogVisible" :title="episodeDialogMode === 'create' ? '新增单集' : '编辑单集'" width="860px" :close-on-click-modal="false" :close-on-press-escape="false">
       <el-form :model="episodeForm" label-width="120px">
         <el-form-item label="所属剧集">
           <el-select v-model="episodeForm.seriesId" filterable placeholder="请选择剧集" style="width: 100%">
@@ -397,7 +399,24 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="entitlementDialogVisible" title="新增资源授权" width="760px">
+    <el-dialog v-model="sentencePreviewVisible" :title="`字幕预览 - ${sentencePreviewEpisodeName || ''}`" width="980px">
+      <el-table :data="sentencePreviewTable" border max-height="560">
+        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column prop="startTime" label="开始(s)" width="110" />
+        <el-table-column prop="endTime" label="结束(s)" width="110" />
+        <el-table-column prop="english" label="英文句子" min-width="340" show-overflow-tooltip />
+        <el-table-column label="翻译" min-width="300" show-overflow-tooltip>
+          <template #default="scope">
+            {{ formatI18nText(scope.row.translate) }}
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button @click="sentencePreviewVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="entitlementDialogVisible" title="新增资源授权" width="760px" :close-on-click-modal="false" :close-on-press-escape="false">
       <el-form :model="entitlementForm" label-width="120px">
         <el-form-item label="用户ID">
           <el-input-number v-model="entitlementForm.userId" :min="1" controls-position="right" />
@@ -464,6 +483,7 @@
     getEntitlementList,
     getVideoCategoryList,
     getVideoEpisodeList,
+    getVideoSentenceList,
     getVideoSeriesList,
     grantEntitlement,
     parseSubtitleFiles,
@@ -609,6 +629,11 @@
     englishSubtitleUrl: '',
     translationSubtitleMap: {}
   })
+  const subtitleSectionRef = ref(null)
+
+  const sentencePreviewVisible = ref(false)
+  const sentencePreviewEpisodeName = ref('')
+  const sentencePreviewTable = ref([])
 
   const entitlementDialogVisible = ref(false)
   const entitlementForm = ref({
@@ -1038,6 +1063,38 @@
       ElMessage.success('单集删除成功')
       await Promise.all([loadEpisodeList(), loadEpisodeOptions()])
     })
+  }
+
+  const openSubtitleParser = (row) => {
+    const episodeId = Number(row?.ID || row?.id || 0)
+    subtitleForm.value = {
+      episodeId,
+      englishSubtitleUrl: '',
+      translationSubtitleMap: {}
+    }
+    activeTab.value = 'episode'
+    if (subtitleSectionRef.value?.scrollIntoView) {
+      setTimeout(() => {
+        subtitleSectionRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 30)
+    }
+  }
+
+  const previewEpisodeSubtitles = async (row) => {
+    const episodeId = Number(row?.ID || row?.id || 0)
+    if (!episodeId) {
+      ElMessage.warning('单集ID无效')
+      return
+    }
+
+    const res = await getVideoSentenceList({ episodeId })
+    if (res.code !== 0) {
+      return
+    }
+
+    sentencePreviewEpisodeName.value = formatI18nText(row?.name)
+    sentencePreviewTable.value = Array.isArray(res.data) ? res.data : []
+    sentencePreviewVisible.value = true
   }
 
   const handleParseSubtitleFiles = async () => {

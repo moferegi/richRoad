@@ -6,6 +6,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/model"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/model/request"
+	"gorm.io/gorm"
 )
 
 type UserDataService struct{}
@@ -43,9 +44,14 @@ type CollectionDetailItem struct {
 }
 
 func (s *UserDataService) SaveWordProgress(userID uint, req request.SaveWordProgressReq) error {
+	if userID == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
 	var history model.UserWordHistory
-	return global.GVA_DB.Where("user_id = ?", userID).
+	return global.GVA_DB.Where(&model.UserWordHistory{UserID: userID}).
 		Assign(model.UserWordHistory{
+			UserID:     userID,
 			CategoryID: req.CategoryID,
 			ChapterID:  req.ChapterID,
 			WordIndex:  req.WordIndex,

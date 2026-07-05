@@ -42,6 +42,10 @@
         <text>{{ t('profile.contact_service') }}</text>
         <text class="arrow">></text>
       </view>
+      <view class="menu-item" @click="showLanguageSwitcher">
+        <text>{{ t('profile.switch_language') }}</text>
+        <text class="arrow">></text>
+      </view>
     </view>
 
     <button class="logout-btn" @click="logout">{{ t('profile.logout') }}</button>
@@ -83,6 +87,7 @@ const fallbackTexts = {
   'profile.my_collections': '我的收藏',
   profileErrorBook: 'Error Book',
   'profile.contact_service': '联系客服',
+  'profile.switch_language': '切换语言',
   'profile.logout': '退出登录',
   'profile.exchange_popup_title': '积分兑换时长',
   'profile.current_points': '当前积分',
@@ -192,6 +197,26 @@ const submitExchange = () => {
 
 const contactService = () => {
   uni.navigateTo({ url: '/pages/kefu/index?from=learning_profile' })
+}
+
+const showLanguageSwitcher = async () => {
+  await langStore.initLangs()
+  const langs = Array.isArray(langStore.enabledLangs) ? langStore.enabledLangs : []
+  if (langs.length === 0) {
+    return
+  }
+
+  const itemList = langs.map((item) => `${item.flag || '🏳️'} ${item.label || item.native || item.value}`)
+  uni.showActionSheet({
+    itemList,
+    success: (res) => {
+      const target = langs[res.tapIndex]
+      if (!target?.value) {
+        return
+      }
+      langStore.setLocale(target.value)
+    }
+  })
 }
 
 const logout = () => {

@@ -9,7 +9,7 @@
  */
 
 const PROTECTED_EXTENSIONS = ['.mp4', '.mov', '.webm', '.m3u8', '.ts']
-const PUBLIC_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg']
+const PUBLIC_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg', '.srt', '.vtt', '.ass', '.ssa']
 
 export default {
   async fetch(request, env) {

@@ -27,13 +27,18 @@ func SignURL(filePath string) string {
 		}
 	}
 
+	signPath := normalizeSignPath(filePath)
+	if signPath == "" {
+		signPath = "/" + strings.TrimPrefix(filePath, "/")
+	}
+
 	if cfg.CdnDomain == "" {
 		// 没有配置CDN域名，使用当前OSS的baseURL
-		return getOssBaseURL() + "/" + strings.TrimPrefix(filePath, "/")
+		return strings.TrimRight(getOssBaseURL(), "/") + signPath
 	}
 
 	domain := strings.TrimRight(cfg.CdnDomain, "/")
-	path := "/" + strings.TrimPrefix(filePath, "/")
+	path := signPath
 
 	if !cfg.Enabled || cfg.SignKey == "" {
 		// 防盗链关闭，返回明文URL
@@ -84,12 +89,37 @@ func VerifySignURL(rawURL string) bool {
 	}
 
 	// 验证签名: HMAC-SHA256(key, path + ":" + t)
-	path := u.Path
+	path := strings.TrimSpace(u.EscapedPath())
+	if path == "" {
+		path = normalizeSignPath(u.Path)
+	}
 	mac := hmac.New(sha256.New, []byte(cfg.SignKey))
 	mac.Write([]byte(path + ":" + t))
 	expectedSign := hex.EncodeToString(mac.Sum(nil))
 
 	return hmac.Equal([]byte(sign), []byte(expectedSign))
+}
+
+func normalizeSignPath(raw string) string {
+	raw = strings.TrimSpace(strings.ReplaceAll(raw, "\\", "/"))
+	if raw == "" {
+		return ""
+	}
+
+	if idx := strings.IndexAny(raw, "?#"); idx >= 0 {
+		raw = raw[:idx]
+	}
+
+	pathValue := "/" + strings.TrimPrefix(raw, "/")
+	if decoded, err := url.PathUnescape(pathValue); err == nil {
+		pathValue = decoded
+	}
+
+	escaped := (&url.URL{Path: pathValue}).EscapedPath()
+	if escaped == "" {
+		return pathValue
+	}
+	return escaped
 }
 
 // getOssBaseURL 获取当前OSS的baseURL

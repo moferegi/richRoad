@@ -254,6 +254,15 @@ export const parseSubtitleFiles = (data) => {
   })
 }
 
+// 查询单集字幕解析后的句表
+export const getVideoSentenceList = (params) => {
+  return service({
+    url: '/englishLearning/video/getSentenceList',
+    method: 'get',
+    params
+  })
+}
+
 // 用户资源授权管理
 export const grantEntitlement = (data) => {
   return service({

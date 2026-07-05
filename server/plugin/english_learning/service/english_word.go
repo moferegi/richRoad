@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -125,6 +126,43 @@ func buildAudioUploadFileName(text, voice, sourceURL, ext string) string {
 	return fmt.Sprintf("word-%x-%d%s", hash[:8], time.Now().Unix(), ext)
 }
 
+func buildWordAudioFolder(word string) string {
+	normalized := normalizeWordKey(word)
+	if normalized == "" {
+		return "english-learn/audio/word"
+	}
+
+	var builder strings.Builder
+	builder.Grow(len(normalized))
+	lastDash := false
+	for _, r := range normalized {
+		isDigit := r >= '0' && r <= '9'
+		isLowerAlpha := r >= 'a' && r <= 'z'
+		if isDigit || isLowerAlpha {
+			builder.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			builder.WriteByte('-')
+			lastDash = true
+		}
+	}
+
+	folderKey := strings.Trim(builder.String(), "-")
+	if folderKey == "" {
+		folderKey = "word"
+	}
+	if len(folderKey) > 64 {
+		folderKey = strings.Trim(folderKey[:64], "-")
+		if folderKey == "" {
+			folderKey = "word"
+		}
+	}
+
+	return "english-learn/audio/" + folderKey
+}
+
 func buildMultipartFileHeader(fileName, contentType string, data []byte) (*multipart.FileHeader, error) {
 	if len(data) == 0 {
 		return nil, errors.New("音频内容为空")
@@ -163,10 +201,14 @@ func buildMultipartFileHeader(fileName, contentType string, data []byte) (*multi
 	return header, nil
 }
 
-func (s *EnglishWordService) cacheGeneratedAudioURL(text, voice, audioURL string, timeoutMS int64) (string, error) {
+func (s *EnglishWordService) cacheGeneratedAudioURL(text, voice, audioURL string, timeoutMS int64, saveFolder string) (string, error) {
 	audioURL = strings.TrimSpace(audioURL)
 	if audioURL == "" {
 		return "", errors.New("音频地址为空")
+	}
+	saveFolder = strings.TrimSpace(saveFolder)
+	if saveFolder == "" {
+		saveFolder = "english-learn/audio"
 	}
 
 	if strings.Contains(strings.ToLower(audioURL), "/english-learn/audio/") {
@@ -210,7 +252,7 @@ func (s *EnglishWordService) cacheGeneratedAudioURL(text, voice, audioURL string
 	}
 
 	oss := upload.NewOss()
-	savedURL, _, err := upload.UploadFileToFolder(oss, header, "english-learn/audio")
+	savedURL, _, err := upload.UploadFileToFolder(oss, header, saveFolder)
 	if err != nil {
 		return "", err
 	}
@@ -278,13 +320,75 @@ func (s *EnglishWordService) buildCategoryWordAssociations(tx *gorm.DB, wordID u
 	return associations, nil
 }
 
+func (s *EnglishWordService) buildWordSentenceEntities(word string, sentenceReqs []request.EnglishWordSentenceReq) []model.EnglishWordSentence {
+	if len(sentenceReqs) == 0 {
+		return []model.EnglishWordSentence{}
+	}
+
+	entities := make([]model.EnglishWordSentence, 0, len(sentenceReqs))
+	for index, item := range sentenceReqs {
+		source := strings.TrimSpace(item.Source)
+		if source == "" {
+			continue
+		}
+
+		entity := model.EnglishWordSentence{
+			Source:    source,
+			Translate: strings.TrimSpace(item.Translate),
+			AudioUS:   strings.TrimSpace(item.AudioUS),
+			AudioUK:   strings.TrimSpace(item.AudioUK),
+			VideoID:   item.VideoID,
+			Sort:      item.Sort,
+		}
+		if entity.Sort == 0 {
+			entity.Sort = index + 1
+		}
+
+		if entity.AudioUS == "" {
+			audioUS, err := s.generateWordAudioURLWithFolder(source, "learning_tts_voice_us", "LEARNING_TTS_VOICE_US", defaultLearningTTSVoiceUS, buildWordAudioFolder(word))
+			if err == nil {
+				entity.AudioUS = audioUS
+			} else if !errors.Is(err, errLearningTTSDisabled) && !errors.Is(err, errLearningTTSProviderURLNotConfigured) {
+				logEnglishLearningWarn("自动生成造句美式发音失败", zap.String("word", word), zap.String("sentence", source), zap.Error(err))
+			}
+		}
+
+		if entity.AudioUK == "" {
+			audioUK, err := s.generateWordAudioURLWithFolder(source, "learning_tts_voice_uk", "LEARNING_TTS_VOICE_UK", defaultLearningTTSVoiceUK, buildWordAudioFolder(word))
+			if err == nil {
+				entity.AudioUK = audioUK
+			} else if !errors.Is(err, errLearningTTSDisabled) && !errors.Is(err, errLearningTTSProviderURLNotConfigured) {
+				logEnglishLearningWarn("自动生成造句英式发音失败", zap.String("word", word), zap.String("sentence", source), zap.Error(err))
+			}
+		}
+
+		entities = append(entities, entity)
+	}
+
+	return entities
+}
+
+func (s *EnglishWordService) replaceWordSentences(tx *gorm.DB, wordID uint, sentences []model.EnglishWordSentence) error {
+	if err := tx.Unscoped().Where("word_id = ?", wordID).Delete(&model.EnglishWordSentence{}).Error; err != nil {
+		return err
+	}
+	if len(sentences) == 0 {
+		return nil
+	}
+	for i := range sentences {
+		sentences[i].WordID = wordID
+	}
+	return tx.CreateInBatches(sentences, 100).Error
+}
+
 // CreateWord 创建单词库实体，集成自动TTS生成以及分类映射
-func (s *EnglishWordService) CreateWord(word model.EnglishWord, categoryIDs []uint, chapterIDs []uint) error {
+func (s *EnglishWordService) CreateWord(word model.EnglishWord, categoryIDs []uint, chapterIDs []uint, sentenceReqs []request.EnglishWordSentenceReq) error {
 	word.Word = strings.TrimSpace(word.Word)
 	if word.Word == "" {
 		return errors.New("单词不能为空")
 	}
 	normalizedWord := normalizeWordKey(word.Word)
+	sentenceEntities := s.buildWordSentenceEntities(word.Word, sentenceReqs)
 
 	// 2. 智能 TTS 旁路服务：未手工上传音频时，尝试通过外部TTS服务自动生成。
 	if word.AudioUS == "" {
@@ -327,20 +431,72 @@ func (s *EnglishWordService) CreateWord(word model.EnglishWord, categoryIDs []ui
 				return err
 			}
 		}
+
+		if err = s.replaceWordSentences(tx, word.ID, sentenceEntities); err != nil {
+			return err
+		}
 		return nil
 	})
 }
 
 func (s *EnglishWordService) generateWordAudioURL(text, voiceConfigKey, voiceEnvKey, defaultVoice string) (string, error) {
+	return s.generateWordAudioURLWithFolder(text, voiceConfigKey, voiceEnvKey, defaultVoice, buildWordAudioFolder(text))
+}
+
+func (s *EnglishWordService) generateWordAudioURLWithFolder(text, voiceConfigKey, voiceEnvKey, defaultVoice, saveFolder string) (string, error) {
 	voice := getLearningStringSetting(voiceConfigKey, voiceEnvKey, defaultVoice)
-	return s.requestTTSAudioURL(text, voice)
+	return s.requestTTSAudioURLWithSaveFolder(text, voice, true, saveFolder)
 }
 
 func (s *EnglishWordService) requestTTSAudioURL(text, voice string) (string, error) {
-	return s.requestTTSAudioURLWithOptions(text, voice, true)
+	return s.requestTTSAudioURLWithSaveFolder(text, voice, true, buildWordAudioFolder(text))
 }
 
 func (s *EnglishWordService) requestTTSAudioURLWithOptions(text, voice string, persistToStore bool) (string, error) {
+	return s.requestTTSAudioURLWithSaveFolder(text, voice, persistToStore, buildWordAudioFolder(text))
+}
+
+func signLearningAudioURL(rawAudioURL string) string {
+	rawAudioURL = strings.TrimSpace(rawAudioURL)
+	if rawAudioURL == "" {
+		return ""
+	}
+
+	cdnDomain := strings.TrimSpace(global.GVA_CONFIG.Hotlink.CdnDomain)
+	if cdnDomain == "" {
+		return rawAudioURL
+	}
+
+	if strings.HasPrefix(rawAudioURL, "http://") || strings.HasPrefix(rawAudioURL, "https://") {
+		audioParsed, audioErr := url.Parse(rawAudioURL)
+		cdnParsed, cdnErr := url.Parse(cdnDomain)
+		if audioErr != nil || cdnErr != nil {
+			return rawAudioURL
+		}
+		if !strings.EqualFold(strings.TrimSpace(audioParsed.Host), strings.TrimSpace(cdnParsed.Host)) {
+			return rawAudioURL
+		}
+	}
+
+	return SignLearningVideoURL(rawAudioURL)
+}
+
+func applyWordAudioSignatures(word *model.EnglishWord) {
+	if word == nil {
+		return
+	}
+	word.AudioUS = signLearningAudioURL(word.AudioUS)
+	word.AudioUK = signLearningAudioURL(word.AudioUK)
+}
+
+func applySentenceAudioSignatures(sentences []model.EnglishWordSentence) {
+	for i := range sentences {
+		sentences[i].AudioUS = signLearningAudioURL(sentences[i].AudioUS)
+		sentences[i].AudioUK = signLearningAudioURL(sentences[i].AudioUK)
+	}
+}
+
+func (s *EnglishWordService) requestTTSAudioURLWithSaveFolder(text, voice string, persistToStore bool, saveFolder string) (string, error) {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return "", errors.New("单词不能为空")
@@ -353,16 +509,14 @@ func (s *EnglishWordService) requestTTSAudioURLWithOptions(text, voice string, p
 
 	providerURL := getLearningStringSetting("learning_tts_provider_url", "LEARNING_TTS_PROVIDER_URL", "")
 	if providerURL == "" {
-		return "", errLearningTTSProviderURLNotConfigured
+		fallback := buildFreeFallbackTTSAudioURL(text, voice)
+		if fallback == "" {
+			return "", errLearningTTSProviderURLNotConfigured
+		}
+		return s.persistAudioURLIfNeeded(text, voice, fallback, timeoutMSForTTS(), persistToStore, saveFolder), nil
 	}
 
-	timeoutMS := utils.GetInt64Setting("learning_tts_timeout_ms", "LEARNING_TTS_TIMEOUT_MS", defaultLearningTTSTimeoutMS)
-	if timeoutMS < 1000 {
-		timeoutMS = 1000
-	}
-	if timeoutMS > 60000 {
-		timeoutMS = 60000
-	}
+	timeoutMS := timeoutMSForTTS()
 
 	bodyBytes, err := json.Marshal(map[string]string{
 		"text":   text,
@@ -385,7 +539,15 @@ func (s *EnglishWordService) requestTTSAudioURLWithOptions(text, voice string, p
 	httpClient := &http.Client{Timeout: time.Duration(timeoutMS) * time.Millisecond}
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return "", err
+		fallback := ""
+		if isLocalTTSProvider(providerURL) {
+			fallback = buildFreeFallbackTTSAudioURL(text, voice)
+		}
+		if fallback != "" {
+			logEnglishLearningWarn("主TTS服务不可用，回退免费TTS", zap.String("provider", providerURL), zap.Error(err))
+			return s.persistAudioURLIfNeeded(text, voice, fallback, timeoutMS, persistToStore, saveFolder), nil
+		}
+		return "", fmt.Errorf("TTS服务不可用(provider=%s): %w", providerURL, err)
 	}
 	defer resp.Body.Close()
 
@@ -395,24 +557,111 @@ func (s *EnglishWordService) requestTTSAudioURLWithOptions(text, voice string, p
 	}
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return "", fmt.Errorf("TTS服务响应异常(%d)", resp.StatusCode)
+		errBody := strings.TrimSpace(string(rawResp))
+		if len(errBody) > 160 {
+			errBody = errBody[:160] + "..."
+		}
+		fallback := ""
+		if isLocalTTSProvider(providerURL) {
+			fallback = buildFreeFallbackTTSAudioURL(text, voice)
+		}
+		if fallback != "" {
+			logEnglishLearningWarn("主TTS服务状态异常，回退免费TTS", zap.String("provider", providerURL), zap.Int("status", resp.StatusCode))
+			return s.persistAudioURLIfNeeded(text, voice, fallback, timeoutMS, persistToStore, saveFolder), nil
+		}
+		if errBody != "" {
+			return "", fmt.Errorf("TTS服务响应异常(%d, provider=%s): %s", resp.StatusCode, providerURL, errBody)
+		}
+		return "", fmt.Errorf("TTS服务响应异常(%d, provider=%s)", resp.StatusCode, providerURL)
 	}
 
 	audioURL := extractTTSAudioURL(rawResp)
 	if audioURL == "" {
+		fallback := ""
+		if isLocalTTSProvider(providerURL) {
+			fallback = buildFreeFallbackTTSAudioURL(text, voice)
+		}
+		if fallback != "" {
+			logEnglishLearningWarn("主TTS服务未返回音频地址，回退免费TTS", zap.String("provider", providerURL))
+			return s.persistAudioURLIfNeeded(text, voice, fallback, timeoutMS, persistToStore, saveFolder), nil
+		}
 		return "", errLearningTTSMissingAudioURL
 	}
 
-	if persistToStore {
-		cachedURL, cacheErr := s.cacheGeneratedAudioURL(text, voice, audioURL, timeoutMS)
-		if cacheErr != nil {
-			logEnglishLearningWarn("在线TTS音频落盘失败，回退原始地址", zap.String("word", text), zap.String("voice", voice), zap.String("audioURL", audioURL), zap.Error(cacheErr))
-		} else if strings.TrimSpace(cachedURL) != "" {
-			audioURL = cachedURL
-		}
+	return s.persistAudioURLIfNeeded(text, voice, audioURL, timeoutMS, persistToStore, saveFolder), nil
+}
+
+func timeoutMSForTTS() int64 {
+	timeoutMS := utils.GetInt64Setting("learning_tts_timeout_ms", "LEARNING_TTS_TIMEOUT_MS", defaultLearningTTSTimeoutMS)
+	if timeoutMS < 1000 {
+		timeoutMS = 1000
+	}
+	if timeoutMS > 60000 {
+		timeoutMS = 60000
+	}
+	return timeoutMS
+}
+
+func (s *EnglishWordService) persistAudioURLIfNeeded(text, voice, audioURL string, timeoutMS int64, persistToStore bool, saveFolder string) string {
+	audioURL = strings.TrimSpace(audioURL)
+	if !persistToStore || audioURL == "" {
+		return audioURL
 	}
 
-	return audioURL, nil
+	cachedURL, cacheErr := s.cacheGeneratedAudioURL(text, voice, audioURL, timeoutMS, saveFolder)
+	if cacheErr != nil {
+		logEnglishLearningWarn("在线TTS音频落盘失败，回退原始地址", zap.String("word", text), zap.String("voice", voice), zap.String("audioURL", audioURL), zap.Error(cacheErr))
+		return audioURL
+	}
+	if strings.TrimSpace(cachedURL) != "" {
+		return cachedURL
+	}
+	return audioURL
+}
+
+func buildFreeFallbackTTSAudioURL(text, voice string) string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return ""
+	}
+
+	baseURL := strings.TrimSpace(getLearningStringSetting("learning_tts_fallback_url", "LEARNING_TTS_FALLBACK_URL", "https://dict.youdao.com/dictvoice"))
+	if baseURL == "" {
+		return ""
+	}
+
+	voiceType := "1"
+	voiceLower := strings.ToLower(strings.TrimSpace(voice))
+	if strings.Contains(voiceLower, "uk") || strings.Contains(voiceLower, "gb") {
+		voiceType = "2"
+	}
+
+	parsed, err := url.Parse(baseURL)
+	if err != nil {
+		return ""
+	}
+	query := parsed.Query()
+	query.Set("audio", text)
+	query.Set("type", voiceType)
+	query.Set("le", "en")
+	parsed.RawQuery = query.Encode()
+	return parsed.String()
+}
+
+func isLocalTTSProvider(providerURL string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(providerURL))
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(strings.TrimSpace(parsed.Hostname()))
+	if host != "127.0.0.1" && host != "localhost" {
+		return false
+	}
+	port := strings.TrimSpace(parsed.Port())
+	if port != "19090" {
+		return false
+	}
+	return strings.Contains(strings.ToLower(strings.TrimSpace(parsed.Path)), "tts")
 }
 
 func extractTTSAudioURL(raw []byte) string {
@@ -465,7 +714,46 @@ func lookupNestedString(payload map[string]interface{}, path ...string) string {
 func (s *EnglishWordService) GetWord(id uint) (model.EnglishWord, error) {
 	var word model.EnglishWord
 	err := global.GVA_DB.Where("id = ?", id).First(&word).Error
+	if err == nil {
+		applyWordAudioSignatures(&word)
+	}
 	return word, err
+}
+
+func (s *EnglishWordService) GetWordBindingIDs(wordID uint) ([]uint, []uint, error) {
+	if wordID == 0 {
+		return []uint{}, []uint{}, nil
+	}
+
+	var relations []model.EnglishCategoryWord
+	if err := global.GVA_DB.
+		Select("category_id", "chapter_id").
+		Where("word_id = ?", wordID).
+		Find(&relations).Error; err != nil {
+		return nil, nil, err
+	}
+
+	categorySet := map[uint]struct{}{}
+	chapterSet := map[uint]struct{}{}
+	categoryIDs := make([]uint, 0, len(relations))
+	chapterIDs := make([]uint, 0, len(relations))
+
+	for _, relation := range relations {
+		if relation.CategoryID > 0 {
+			if _, exists := categorySet[relation.CategoryID]; !exists {
+				categorySet[relation.CategoryID] = struct{}{}
+				categoryIDs = append(categoryIDs, relation.CategoryID)
+			}
+		}
+		if relation.ChapterID > 0 {
+			if _, exists := chapterSet[relation.ChapterID]; !exists {
+				chapterSet[relation.ChapterID] = struct{}{}
+				chapterIDs = append(chapterIDs, relation.ChapterID)
+			}
+		}
+	}
+
+	return categoryIDs, chapterIDs, nil
 }
 
 func (s *EnglishWordService) UpdateWord(req request.UpdateEnglishWordReq) error {
@@ -508,21 +796,30 @@ func (s *EnglishWordService) UpdateWord(req request.UpdateEnglishWordReq) error 
 			return err
 		}
 
-		if req.CategoryIDs == nil && req.ChapterIDs == nil {
+		if req.CategoryIDs == nil && req.ChapterIDs == nil && req.Sentences == nil {
 			return nil
 		}
 
-		if err := tx.Where("word_id = ?", req.ID).Delete(&model.EnglishCategoryWord{}).Error; err != nil {
-			return err
+		if req.CategoryIDs != nil || req.ChapterIDs != nil {
+			if err := tx.Unscoped().Where("word_id = ?", req.ID).Delete(&model.EnglishCategoryWord{}).Error; err != nil {
+				return err
+			}
+
+			associations, err := s.buildCategoryWordAssociations(tx, req.ID, req.CategoryIDs, req.ChapterIDs)
+			if err != nil {
+				return err
+			}
+
+			for _, assoc := range associations {
+				if err = tx.Create(&assoc).Error; err != nil {
+					return err
+				}
+			}
 		}
 
-		associations, err := s.buildCategoryWordAssociations(tx, req.ID, req.CategoryIDs, req.ChapterIDs)
-		if err != nil {
-			return err
-		}
-
-		for _, assoc := range associations {
-			if err = tx.Create(&assoc).Error; err != nil {
+		if req.Sentences != nil {
+			sentenceEntities := s.buildWordSentenceEntities(req.Word, req.Sentences)
+			if err := s.replaceWordSentences(tx, req.ID, sentenceEntities); err != nil {
 				return err
 			}
 		}
@@ -538,25 +835,37 @@ func (s *EnglishWordService) DeleteWord(id uint) error {
 
 	return global.GVA_DB.Transaction(func(tx *gorm.DB) error {
 		var existing model.EnglishWord
-		if err := tx.Select("id").Where("id = ?", id).First(&existing).Error; err != nil {
+		if err := tx.Unscoped().Select("id").Where("id = ?", id).First(&existing).Error; err != nil {
 			return err
 		}
 
-		if err := tx.Where("word_id = ?", id).Delete(&model.EnglishCategoryWord{}).Error; err != nil {
+		if err := tx.Unscoped().Where("word_id = ?", id).Delete(&model.EnglishCategoryWord{}).Error; err != nil {
 			return err
 		}
-		if err := tx.Where("word_id = ?", id).Delete(&model.EnglishWordSentence{}).Error; err != nil {
+		if err := tx.Unscoped().Where("word_id = ?", id).Delete(&model.EnglishWordSentence{}).Error; err != nil {
 			return err
 		}
-		if err := tx.Where("word_id = ?", id).Delete(&model.EnglishWordErrorLog{}).Error; err != nil {
+		if err := tx.Unscoped().Where("word_id = ?", id).Delete(&model.EnglishWordErrorLog{}).Error; err != nil {
 			return err
 		}
-		if err := tx.Where("target_type = ? AND target_id = ?", 1, id).Delete(&model.UserCollection{}).Error; err != nil {
+		if err := tx.Unscoped().Where("target_type = ? AND target_id = ?", 1, id).Delete(&model.UserCollection{}).Error; err != nil {
 			return err
 		}
 
-		return tx.Delete(&model.EnglishWord{}, "id = ?", id).Error
+		return tx.Unscoped().Delete(&model.EnglishWord{}, "id = ?", id).Error
 	})
+}
+
+func (s *EnglishWordService) GetWordSentences(wordID uint) ([]model.EnglishWordSentence, error) {
+	if wordID == 0 {
+		return []model.EnglishWordSentence{}, nil
+	}
+	list := make([]model.EnglishWordSentence, 0)
+	err := global.GVA_DB.Where("word_id = ?", wordID).Order("sort ASC, id ASC").Find(&list).Error
+	if err == nil && len(list) > 0 {
+		applySentenceAudioSignatures(list)
+	}
+	return list, err
 }
 
 func resolveRegenerateFlag(flag *bool) bool {
@@ -645,7 +954,8 @@ func (s *EnglishWordService) PreflightTTS(req request.TTSPreflightReq) (TTSPrefl
 }
 
 func buildWordListBaseQuery(db *gorm.DB, info request.WordListSearch) *gorm.DB {
-	query := db.Table("english_words w").Joins("LEFT JOIN english_category_words cw ON cw.word_id = w.id")
+	query := db.Table("english_words w").
+		Joins("LEFT JOIN english_category_words cw ON cw.word_id = w.id AND cw.deleted_at IS NULL")
 	if info.CategoryID > 0 {
 		query = query.Where("cw.category_id = ?", info.CategoryID)
 	}
@@ -676,6 +986,38 @@ func (s *EnglishWordService) GetWordListByChapter(info request.WordListSearch) (
 		Limit(pageSize).
 		Offset((page - 1) * pageSize).
 		Scan(&list).Error
+	if err != nil || len(list) == 0 {
+		return
+	}
+
+	wordIDs := make([]uint, 0, len(list))
+	for _, item := range list {
+		if item.ID > 0 {
+			wordIDs = append(wordIDs, item.ID)
+		}
+	}
+	wordIDs = uniqueUintIDs(wordIDs)
+	if len(wordIDs) == 0 {
+		return
+	}
+
+	var sentences []model.EnglishWordSentence
+	err = global.GVA_DB.Where("word_id IN ?", wordIDs).Order("sort ASC, id ASC").Find(&sentences).Error
+	if err != nil {
+		return
+	}
+
+	sentenceMap := make(map[uint][]model.EnglishWordSentence, len(wordIDs))
+	for _, sentence := range sentences {
+		sentenceMap[sentence.WordID] = append(sentenceMap[sentence.WordID], sentence)
+	}
+	for i := range list {
+		list[i].Sentences = sentenceMap[list[i].ID]
+		applyWordAudioSignatures(&list[i])
+		if len(list[i].Sentences) > 0 {
+			applySentenceAudioSignatures(list[i].Sentences)
+		}
+	}
 	return
 }
 

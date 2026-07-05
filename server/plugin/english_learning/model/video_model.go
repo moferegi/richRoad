@@ -18,7 +18,7 @@ type VideoSeries struct {
 	CategoryID uint    `json:"categoryId" gorm:"index;comment:所属视频分类ID"`
 	Name       string  `json:"name" gorm:"type:json;comment:剧集名称(支持多语言)"`
 	CoverID    uint    `json:"coverId" gorm:"comment:视频封面图(关联附件库)"`
-	CoverUrl   string  `json:"coverUrl" gorm:"comment:视频封面图外链"`
+	CoverUrl   string  `json:"coverUrl" gorm:"type:text;comment:视频封面图外链"`
 	Price      float64 `json:"price" gorm:"comment:单买价格(0代表免费)"`
 	NeedVip    *bool   `json:"needVip" gorm:"default:false;comment:是否需要开通VIP才可观看"`
 	ViewCount  int     `json:"viewCount" gorm:"default:0;comment:外部展示总浏览量(次)"`
@@ -30,7 +30,7 @@ type VideoEpisode struct {
 	global.GVA_MODEL
 	SeriesID     uint   `json:"seriesId" gorm:"index;comment:所属剧集ID"`
 	Name         string `json:"name" gorm:"type:json;comment:单集名称(支持多语言)"`
-	VideoUrl     string `json:"videoUrl" gorm:"comment:外部视频链接"`
+	VideoUrl     string `json:"videoUrl" gorm:"type:text;comment:外部视频链接"`
 	TrialPercent int    `json:"trialPercent" gorm:"default:8;comment:无权限时最大可试看百分比(默认8%)"`
 	HasFullAuth  bool   `json:"hasFullAuth" gorm:"-"`
 	Sort         int    `json:"sort" gorm:"default:0;comment:集数排序(第几集)"`
@@ -42,7 +42,7 @@ type VideoSubtitle struct {
 	EpisodeID   uint   `json:"episodeId" gorm:"index;comment:所属单集ID"`
 	Language    string `json:"language" gorm:"comment:字幕所属语种(如 en, zh)"`
 	Format      string `json:"format" gorm:"comment:字幕格式(srt/vtt等)"`
-	SubtitleUrl string `json:"subtitleUrl" gorm:"comment:外部字幕链接"`
+	SubtitleUrl string `json:"subtitleUrl" gorm:"type:text;comment:外部字幕链接"`
 }
 
 // VideoSentence 视频字幕文本入库 (用于词汇碰对、高亮和允许收藏)

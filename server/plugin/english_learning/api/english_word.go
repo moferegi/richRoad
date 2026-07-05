@@ -17,6 +17,12 @@ import (
 
 type EnglishWordApi struct{}
 
+type EnglishWordDetailResponse struct {
+	model.EnglishWord
+	CategoryIDs []uint `json:"categoryIds"`
+	ChapterIDs  []uint `json:"chapterIds"`
+}
+
 func normalizeWordListPage(page, pageSize int) (int, int) {
 	if page < 1 {
 		page = 1
@@ -68,7 +74,7 @@ func (a *EnglishWordApi) CreateEnglishWord(c *gin.Context) {
 		Explanation: req.Explanation,
 	}
 
-	if err := englishWordService.CreateWord(wordEntity, req.CategoryIDs, req.ChapterIDs); err != nil {
+	if err := englishWordService.CreateWord(wordEntity, req.CategoryIDs, req.ChapterIDs, req.Sentences); err != nil {
 		global.GVA_LOG.Error("录入英语单词失败!", zap.Error(err))
 		response.FailWithMessage("录入失败: "+err.Error(), c)
 		return
@@ -97,8 +103,25 @@ func (a *EnglishWordApi) FindEnglishWord(c *gin.Context) {
 		response.FailWithMessage("查询失败", c)
 		return
 	}
+	categoryIDs, chapterIDs, err := englishWordService.GetWordBindingIDs(uint(id))
+	if err != nil {
+		global.GVA_LOG.Error("查询单词绑定关系失败", zap.Error(err))
+		response.FailWithMessage("查询失败", c)
+		return
+	}
+	sentences, err := englishWordService.GetWordSentences(uint(id))
+	if err != nil {
+		global.GVA_LOG.Error("查询单词造句失败", zap.Error(err))
+		response.FailWithMessage("查询失败", c)
+		return
+	}
+	data.Sentences = sentences
 
-	response.OkWithData(data, c)
+	response.OkWithData(EnglishWordDetailResponse{
+		EnglishWord: data,
+		CategoryIDs: categoryIDs,
+		ChapterIDs:  chapterIDs,
+	}, c)
 }
 
 // UpdateEnglishWord 更新单词信息
@@ -142,7 +165,7 @@ func (a *EnglishWordApi) DeleteEnglishWord(c *gin.Context) {
 
 	if err := englishWordService.DeleteWord(id); err != nil {
 		global.GVA_LOG.Error("删除英语单词失败", zap.Error(err))
-		response.FailWithMessage("删除失败", c)
+		response.FailWithMessage("删除失败: "+err.Error(), c)
 		return
 	}
 

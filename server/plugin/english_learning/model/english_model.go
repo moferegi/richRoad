@@ -25,12 +25,13 @@ type EnglishChapter struct {
 // EnglishWord 英语单词字典
 type EnglishWord struct {
 	global.GVA_MODEL
-	Word        string `json:"word" gorm:"uniqueIndex;comment:单词本体"`
-	PhoneticUS  string `json:"phoneticUs" gorm:"comment:美式音标"`
-	PhoneticUK  string `json:"phoneticUk" gorm:"comment:英式音标"`
-	AudioUS     string `json:"audioUs" gorm:"comment:美式发音音频外链"`
-	AudioUK     string `json:"audioUk" gorm:"comment:英式发音音频外链"`
-	Explanation string `json:"explanation" gorm:"type:json;comment:单词解释(多语言JSON)"`
+	Word        string                `json:"word" gorm:"uniqueIndex;comment:单词本体"`
+	PhoneticUS  string                `json:"phoneticUs" gorm:"comment:美式音标"`
+	PhoneticUK  string                `json:"phoneticUk" gorm:"comment:英式音标"`
+	AudioUS     string                `json:"audioUs" gorm:"comment:美式发音音频外链"`
+	AudioUK     string                `json:"audioUk" gorm:"comment:英式发音音频外链"`
+	Explanation string                `json:"explanation" gorm:"type:json;comment:单词解释(多语言JSON)"`
+	Sentences   []EnglishWordSentence `json:"sentences,omitempty" gorm:"-"`
 }
 
 // EnglishCategoryWord 英语分类/章节与单词的关联表 (多对多)

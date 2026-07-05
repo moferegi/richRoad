@@ -174,7 +174,15 @@
               <template #default="scope">
                 <el-button type="primary" link icon="edit" @click="openWordDialog(scope.row)">编辑</el-button>
                 <el-button type="warning" link icon="refresh" @click="regenerateWord(scope.row)">重生发音</el-button>
-                <el-button type="danger" link icon="delete" @click="removeWord(scope.row)">删除</el-button>
+                <el-button
+                  type="danger"
+                  link
+                  icon="delete"
+                  :disabled="deletingWordIds.has(getEntityID(scope.row))"
+                  @click="removeWord(scope.row)"
+                >
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -194,7 +202,7 @@
       </el-tabs>
     </div>
 
-    <el-dialog v-model="categoryDialogVisible" :title="categoryDialogMode === 'create' ? '新增分类' : '编辑分类'" width="760px">
+    <el-dialog v-model="categoryDialogVisible" :title="categoryDialogMode === 'create' ? '新增分类' : '编辑分类'" width="760px" :close-on-click-modal="false" :close-on-press-escape="false">
       <el-form :model="categoryForm" label-width="120px">
         <el-form-item label="分类名称">
           <MultiLangEditor
@@ -232,7 +240,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="chapterDialogVisible" :title="chapterDialogMode === 'create' ? '新增章节' : '编辑章节'" width="760px">
+    <el-dialog v-model="chapterDialogVisible" :title="chapterDialogMode === 'create' ? '新增章节' : '编辑章节'" width="760px" :close-on-click-modal="false" :close-on-press-escape="false">
       <el-form :model="chapterForm" label-width="120px">
         <el-form-item label="所属分类">
           <el-select v-model="chapterForm.categoryId" placeholder="请选择分类" style="width: 100%">
@@ -263,7 +271,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="wordDialogVisible" :title="wordDialogMode === 'create' ? '新增单词' : '编辑单词'" width="860px">
+    <el-dialog v-model="wordDialogVisible" :title="wordDialogMode === 'create' ? '新增单词' : '编辑单词'" width="860px" :close-on-click-modal="false" :close-on-press-escape="false">
       <el-form :model="wordForm" label-width="130px">
         <el-form-item label="单词本体">
           <el-input v-model="wordForm.word" placeholder="例如: destiny" />
@@ -305,6 +313,41 @@
             </el-upload>
           </div>
         </el-form-item>
+        <el-form-item label="造句列表">
+          <div class="sentence-editor">
+            <div class="sentence-toolbar">
+              <el-button type="primary" plain size="small" @click="appendWordSentence">新增造句</el-button>
+            </div>
+            <div v-if="wordForm.sentences.length === 0" class="dialog-hint">暂无造句，建议至少添加1条，便于跟打页展示。</div>
+            <div v-for="(sentence, sentenceIndex) in wordForm.sentences" :key="sentence.__key" class="sentence-card">
+              <div class="sentence-card-header">
+                <span>造句 {{ sentenceIndex + 1 }}</span>
+                <el-button type="danger" link @click="removeWordSentence(sentenceIndex)">删除</el-button>
+              </div>
+              <el-form-item label="英文句子" label-width="100px">
+                <el-input v-model="sentence.source" placeholder="例如: The bowl is on the table." />
+              </el-form-item>
+              <el-form-item label="翻译" label-width="100px">
+                <MultiLangEditor
+                  :model="sentence.translateI18n"
+                  title="造句翻译多语言"
+                  input-type="textarea"
+                  :rows="3"
+                  :use-tabs="true"
+                />
+              </el-form-item>
+              <el-form-item label="美式音频" label-width="100px">
+                <el-input v-model="sentence.audioUs" placeholder="留空则后端自动生成" />
+              </el-form-item>
+              <el-form-item label="英式音频" label-width="100px">
+                <el-input v-model="sentence.audioUk" placeholder="留空则后端自动生成" />
+              </el-form-item>
+              <el-form-item label="排序" label-width="100px">
+                <el-input-number v-model="sentence.sort" :min="0" :step="1" />
+              </el-form-item>
+            </div>
+          </div>
+        </el-form-item>
         <el-form-item label="归属分类">
           <el-select v-model="wordForm.categoryIds" multiple filterable clearable placeholder="可选多个分类" style="width: 100%">
             <el-option
@@ -318,7 +361,7 @@
         <el-form-item label="绑定章节">
           <el-select v-model="wordForm.chapterIds" multiple filterable clearable placeholder="章节可不选" style="width: 100%">
             <el-option
-              v-for="item in chapterOptions"
+              v-for="item in filteredWordBindChapterOptions"
               :key="item.ID"
               :label="`${categoryNameMap[item.categoryId] || '-'} / ${formatI18nText(item.name)}`"
               :value="item.ID"
@@ -392,6 +435,7 @@
   })
   const wordTable = ref([])
   const wordTotal = ref(0)
+  const deletingWordIds = ref(new Set())
 
   const categoryOptions = ref([])
   const chapterOptions = ref([])
@@ -455,10 +499,49 @@
     audioUs: '',
     audioUk: '',
     explanationI18n: { zh: '' },
+    sentences: [],
     categoryIds: [],
     chapterIds: [],
     syncBindingsOnUpdate: false
   })
+
+  let sentenceKeySeed = 1
+  const createWordSentenceFormItem = () => ({
+    __key: `sentence_${Date.now()}_${sentenceKeySeed++}`,
+    source: '',
+    translateI18n: { zh: '' },
+    audioUs: '',
+    audioUk: '',
+    sort: 0
+  })
+
+  const appendWordSentence = () => {
+    wordForm.value.sentences.push(createWordSentenceFormItem())
+  }
+
+  const removeWordSentence = (index) => {
+    wordForm.value.sentences.splice(index, 1)
+  }
+
+  const filteredWordBindChapterOptions = computed(() => {
+    const selectedCategoryIDs = Array.isArray(wordForm.value.categoryIds)
+      ? wordForm.value.categoryIds.map((id) => Number(id || 0)).filter((id) => id > 0)
+      : []
+    if (selectedCategoryIDs.length === 0) {
+      return chapterOptions.value
+    }
+    const allowed = new Set(selectedCategoryIDs)
+    return chapterOptions.value.filter((item) => allowed.has(Number(item.categoryId || 0)))
+  })
+
+  watch(
+    () => wordForm.value.categoryIds,
+    () => {
+      const validChapterIDs = new Set(filteredWordBindChapterOptions.value.map((item) => getEntityID(item)))
+      wordForm.value.chapterIds = (wordForm.value.chapterIds || []).filter((id) => validChapterIDs.has(Number(id || 0)))
+    },
+    { deep: true }
+  )
 
   const formatI18nText = (raw) => {
     if (!raw) return ''
@@ -774,22 +857,24 @@
   }
 
   const openWordDialog = async (row) => {
-    wordDialogMode.value = row?.ID ? 'edit' : 'create'
+    const wordId = getEntityID(row)
+    wordDialogMode.value = wordId ? 'edit' : 'create'
     wordForm.value = {
-      ID: row?.ID || 0,
+      ID: wordId,
       word: row?.word || '',
       phoneticUs: row?.phoneticUs || '',
       phoneticUk: row?.phoneticUk || '',
       audioUs: row?.audioUs || '',
       audioUk: row?.audioUk || '',
       explanationI18n: normalizeI18nObject(row?.explanation || ''),
+      sentences: [],
       categoryIds: [],
       chapterIds: [],
       syncBindingsOnUpdate: false
     }
 
-    if (row?.ID) {
-      const res = await findEnglishWord({ ID: row.ID })
+    if (wordId) {
+      const res = await findEnglishWord({ ID: wordId })
       if (res.code !== 0) return
       const data = res.data || {}
       wordForm.value.word = data.word || ''
@@ -798,6 +883,18 @@
       wordForm.value.audioUs = data.audioUs || ''
       wordForm.value.audioUk = data.audioUk || ''
       wordForm.value.explanationI18n = normalizeI18nObject(data.explanation || '')
+      wordForm.value.sentences = Array.isArray(data.sentences)
+        ? data.sentences.map((item, idx) => ({
+          __key: `sentence_${Date.now()}_${idx}_${sentenceKeySeed++}`,
+          source: item?.source || '',
+          translateI18n: normalizeI18nObject(item?.translate || ''),
+          audioUs: item?.audioUs || '',
+          audioUk: item?.audioUk || '',
+          sort: Number(item?.sort || idx + 1)
+        }))
+        : []
+      wordForm.value.categoryIds = Array.isArray(data.categoryIds) ? data.categoryIds.map((id) => Number(id || 0)).filter((id) => id > 0) : []
+      wordForm.value.chapterIds = Array.isArray(data.chapterIds) ? data.chapterIds.map((id) => Number(id || 0)).filter((id) => id > 0) : []
     }
 
     wordDialogVisible.value = true
@@ -822,7 +919,16 @@
       phoneticUk: String(wordForm.value.phoneticUk || '').trim(),
       audioUs: String(wordForm.value.audioUs || '').trim(),
       audioUk: String(wordForm.value.audioUk || '').trim(),
-      explanation: stringifyI18nObject(wordForm.value.explanationI18n)
+      explanation: stringifyI18nObject(wordForm.value.explanationI18n),
+      sentences: (wordForm.value.sentences || [])
+        .map((item, idx) => ({
+          source: String(item?.source || '').trim(),
+          translate: stringifyI18nObject(item?.translateI18n),
+          audioUs: String(item?.audioUs || '').trim(),
+          audioUk: String(item?.audioUk || '').trim(),
+          sort: Number(item?.sort || idx + 1)
+        }))
+        .filter((item) => item.source)
     }
 
     if (wordDialogMode.value === 'create') {
@@ -846,21 +952,51 @@
   }
 
   const removeWord = (row) => {
+    const wordId = getEntityID(row)
+    if (!wordId) {
+      ElMessage.warning('单词ID无效，无法删除')
+      return
+    }
+    if (deletingWordIds.value.has(wordId)) {
+      return
+    }
+
     ElMessageBox.confirm(`确认删除单词【${row.word}】吗？`, '删除确认', {
       type: 'warning'
     }).then(async () => {
-      const res = await deleteEnglishWord({ ID: row.ID })
-      if (res.code !== 0) return
-      ElMessage.success('单词删除成功')
-      loadWordList()
+      deletingWordIds.value = new Set([...deletingWordIds.value, wordId])
+      try {
+        const res = await deleteEnglishWord({ ID: wordId })
+        if (res.code !== 0) {
+          await loadWordList()
+          return
+        }
+
+        wordTable.value = wordTable.value.filter((item) => getEntityID(item) !== wordId)
+        wordTotal.value = Math.max(0, Number(wordTotal.value || 0) - 1)
+        if (wordTable.value.length === 0 && Number(wordQuery.value.page || 1) > 1) {
+          wordQuery.value.page = Number(wordQuery.value.page || 1) - 1
+        }
+        await loadWordList()
+        ElMessage.success('单词删除成功')
+      } finally {
+        const next = new Set(deletingWordIds.value)
+        next.delete(wordId)
+        deletingWordIds.value = next
+      }
     })
   }
 
   const regenerateWord = (row) => {
+    const wordId = getEntityID(row)
+    if (!wordId) {
+      ElMessage.warning('单词ID无效，无法重生发音')
+      return
+    }
     ElMessageBox.confirm(`确认重生成单词【${row.word}】的美式和英式发音吗？`, '重生成确认', {
       type: 'warning'
     }).then(async () => {
-      const res = await regenerateWordAudio({ ID: row.ID })
+      const res = await regenerateWordAudio({ ID: wordId })
       if (res.code !== 0) return
       ElMessage.success('发音重生成任务执行成功')
       loadWordList()
@@ -904,5 +1040,33 @@
     color: #6b7280;
     font-size: 12px;
     line-height: 1.4;
+  }
+
+  .sentence-editor {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .sentence-toolbar {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .sentence-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px;
+    background: #fafafa;
+  }
+
+  .sentence-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: #374151;
+    margin-bottom: 6px;
   }
 </style>

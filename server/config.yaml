@@ -240,7 +240,7 @@ system:
     disable-auto-migrate: false
 # 防盗链配置
 hotlink:
-    enabled: true
+    enabled: false
     cdn-domain: https://video.mnmovie.icu
     sign-key: a7K2xP9mL4vQ8nR5sT6uV7wX8yZ9aB0c1D2eF3gH4iJ5kL6mN7oP8qR9sT0uV1wX
     expire-seconds: 300
