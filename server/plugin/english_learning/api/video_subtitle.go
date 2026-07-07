@@ -91,3 +91,28 @@ func (a *VideoSubtitleApi) GetSentenceList(c *gin.Context) {
 
 	response.OkWithData(list, c)
 }
+
+// UpdateSentenceList
+// @Tags     VideoSubtitle
+// @Summary  批量更新单集字幕句子
+// @Security ApiKeyAuth
+// @accept   application/json
+// @Produce  application/json
+// @Param    data body request.UpdateVideoSentenceListReq true "单集ID与字幕句子列表"
+// @Success  200  {object} response.Response{msg=string} "更新成功"
+// @Router   /englishLearning/video/updateSentenceList [put]
+func (a *VideoSubtitleApi) UpdateSentenceList(c *gin.Context) {
+	var req request.UpdateVideoSentenceListReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage("参数错误", c)
+		return
+	}
+
+	if err := videoSubtitleService.UpdateSentenceList(req); err != nil {
+		global.GVA_LOG.Error("更新字幕句子失败", zap.Error(err))
+		response.FailWithMessage("更新失败: "+err.Error(), c)
+		return
+	}
+
+	response.OkWithMessage("字幕更新成功", c)
+}

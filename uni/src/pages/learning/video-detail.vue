@@ -7,7 +7,7 @@
     </view>
 
     <view class="series-card">
-      <image class="series-cover" :src="seriesInfo.coverUrl || ''" mode="aspectFill" />
+      <image class="series-cover" :src="seriesInfo.coverUrl || ''" mode="aspectFit" />
       <view class="series-main">
         <text class="series-name">{{ localText(seriesInfo.name) || `#${seriesInfo.id || '-'}` }}</text>
         <text class="series-sub">

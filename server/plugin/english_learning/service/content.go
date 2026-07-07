@@ -283,6 +283,10 @@ func (s *ContentService) GetVideoSeriesList(info request.VideoSeriesSearch) (lis
 	if info.ShowHome != nil {
 		baseQuery = baseQuery.Where(seriesAlias+".show_home = ?", *info.ShowHome)
 	}
+	keyword := strings.TrimSpace(info.Keyword)
+	if keyword != "" {
+		baseQuery = baseQuery.Where(seriesAlias+".name LIKE ?", "%"+keyword+"%")
+	}
 
 	// 获取总数
 	err = baseQuery.Count(&total).Error
@@ -336,6 +340,10 @@ func (s *ContentService) GetVideoEpisodeList(info request.VideoEpisodeSearch) (l
 	db := global.GVA_DB.Model(&model.VideoEpisode{})
 	if info.SeriesID > 0 {
 		db = db.Where("series_id = ?", info.SeriesID)
+	}
+	keyword := strings.TrimSpace(info.Keyword)
+	if keyword != "" {
+		db = db.Where("name LIKE ?", "%"+keyword+"%")
 	}
 	err = db.Count(&total).Error
 	if err != nil {

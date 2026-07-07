@@ -18,12 +18,14 @@ type VideoCategorySearch struct {
 }
 
 type VideoSeriesSearch struct {
-	CategoryID uint  `json:"categoryId" form:"categoryId"`
-	ShowHome   *bool `json:"showHome" form:"showHome"`
+	CategoryID uint   `json:"categoryId" form:"categoryId"`
+	ShowHome   *bool  `json:"showHome" form:"showHome"`
+	Keyword    string `json:"keyword" form:"keyword"`
 	commonReq.PageInfo
 }
 
 type VideoEpisodeSearch struct {
-	SeriesID uint `json:"seriesId" form:"seriesId"`
+	SeriesID uint   `json:"seriesId" form:"seriesId"`
+	Keyword  string `json:"keyword" form:"keyword"`
 	commonReq.PageInfo
 }

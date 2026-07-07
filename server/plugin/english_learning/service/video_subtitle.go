@@ -585,3 +585,35 @@ func (s *VideoSubtitleService) GetSentenceList(episodeID uint) (list []model.Vid
 	err = global.GVA_DB.Where("episode_id = ?", episodeID).Order("start_time ASC, id ASC").Find(&list).Error
 	return
 }
+
+func (s *VideoSubtitleService) UpdateSentenceList(req request.UpdateVideoSentenceListReq) error {
+	if req.EpisodeID == 0 {
+		return errors.New("episodeId不能为空")
+	}
+	if len(req.Sentences) == 0 {
+		return errors.New("sentences不能为空")
+	}
+
+	return global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		for _, item := range req.Sentences {
+			if item.ID == 0 {
+				continue
+			}
+
+			updates := map[string]interface{}{
+				"english":    strings.TrimSpace(item.English),
+				"translate":  strings.TrimSpace(item.Translate),
+				"start_time": item.StartTime,
+				"end_time":   item.EndTime,
+			}
+
+			res := tx.Model(&model.VideoSentence{}).
+				Where("id = ? AND episode_id = ?", item.ID, req.EpisodeID).
+				Updates(updates)
+			if res.Error != nil {
+				return res.Error
+			}
+		}
+		return nil
+	})
+}

@@ -2,7 +2,7 @@
   <view class="learning-home">
     <view class="home-nav">
       <view class="nav-brand">
-        <image v-if="appLogo" class="brand-logo" :src="appLogo" mode="aspectFill" />
+        <image v-if="appLogo" class="brand-logo" :src="appLogo" mode="aspectFit" />
         <view v-else class="brand-logo fallback">{{ (appTitle || 'R').slice(0, 1).toUpperCase() }}</view>
         <text class="brand-title">{{ appTitle || 'RichRoad' }}</text>
       </view>
@@ -38,7 +38,7 @@
 
       <view class="video-grid">
         <view class="video-card" v-for="item in videoList" :key="item.id" @tap="goDetail(item.id)">
-          <image class="video-cover" :src="item.coverUrl || ''" mode="aspectFill" />
+          <image class="video-cover" :src="item.coverUrl || ''" mode="aspectFit" />
           <view class="video-content">
             <text class="video-title">{{ localText(item.name) }}</text>
             <view class="video-meta">

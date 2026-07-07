@@ -7,6 +7,17 @@
         :closable="false"
         show-icon
       />
+      <div class="lang-switch-row">
+        <span>展示语言：</span>
+        <el-select v-model="displayLang" style="width: 140px">
+          <el-option
+            v-for="lang in displayLanguageOptions"
+            :key="lang.value"
+            :label="lang.label"
+            :value="lang.value"
+          />
+        </el-select>
+      </div>
     </div>
 
     <div class="gva-table-box">
@@ -70,6 +81,9 @@
                     :value="item.ID"
                   />
                 </el-select>
+              </el-form-item>
+              <el-form-item label="剧集关键词">
+                <el-input v-model="seriesQuery.keyword" clearable placeholder="名称模糊查询" style="width: 220px" />
               </el-form-item>
               <el-form-item>
                 <el-button type="primary" icon="search" @click="handleSeriesSearch">查询</el-button>
@@ -140,6 +154,9 @@
                     :value="item.ID"
                   />
                 </el-select>
+              </el-form-item>
+              <el-form-item label="单集关键词">
+                <el-input v-model="episodeQuery.keyword" clearable placeholder="名称模糊查询" style="width: 220px" />
               </el-form-item>
               <el-form-item>
                 <el-button type="primary" icon="search" @click="handleEpisodeSearch">查询</el-button>
@@ -419,20 +436,51 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="sentencePreviewVisible" :title="`字幕预览 - ${sentencePreviewEpisodeName || ''}`" width="980px">
+    <el-dialog
+      v-model="sentencePreviewVisible"
+      :title="`字幕预览 - ${sentencePreviewEpisodeName || ''}`"
+      width="1100px"
+      :before-close="handleSentencePreviewBeforeClose"
+    >
+      <div class="subtitle-preview-toolbar">
+        <span>字幕语言：</span>
+        <el-select v-model="sentencePreviewLang" style="width: 140px">
+          <el-option
+            v-for="lang in displayLanguageOptions"
+            :key="lang.value"
+            :label="lang.label"
+            :value="lang.value"
+          />
+        </el-select>
+        <el-tag type="warning" effect="light">已改动 {{ pendingSentenceChanges.length }} 条</el-tag>
+      </div>
       <el-table :data="sentencePreviewTable" border max-height="560">
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="startTime" label="开始(s)" width="110" />
-        <el-table-column prop="endTime" label="结束(s)" width="110" />
-        <el-table-column prop="english" label="英文句子" min-width="340" show-overflow-tooltip />
-        <el-table-column label="翻译" min-width="300" show-overflow-tooltip>
+        <el-table-column label="开始(s)" width="120">
           <template #default="scope">
-            {{ formatI18nText(scope.row.translate) }}
+            <el-input-number v-model="scope.row.startTime" :min="0" :step="0.1" controls-position="right" />
+          </template>
+        </el-table-column>
+        <el-table-column label="结束(s)" width="120">
+          <template #default="scope">
+            <el-input-number v-model="scope.row.endTime" :min="0" :step="0.1" controls-position="right" />
+          </template>
+        </el-table-column>
+        <el-table-column label="英文句子" min-width="320">
+          <template #default="scope">
+            <el-input v-model="scope.row.english" type="textarea" :rows="2" />
+          </template>
+        </el-table-column>
+        <el-table-column label="翻译" min-width="320">
+          <template #default="scope">
+            <el-input v-model="scope.row.translateText" type="textarea" :rows="2" @input="syncSentenceTranslate(scope.row)" />
           </template>
         </el-table-column>
       </el-table>
       <template #footer>
-        <el-button @click="sentencePreviewVisible = false">关闭</el-button>
+        <el-button :disabled="pendingSentenceChanges.length === 0" @click="resetSentencePreviewChanges">重置改动</el-button>
+        <el-button type="primary" :loading="sentenceSaving" :disabled="pendingSentenceChanges.length === 0" @click="saveSentencePreview">保存修改</el-button>
+        <el-button @click="closeSentencePreview">关闭</el-button>
       </template>
     </el-dialog>
 
@@ -488,7 +536,7 @@
 </template>
 
 <script setup>
-  import { computed, onMounted, ref } from 'vue'
+  import { computed, onMounted, ref, watch } from 'vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
   import { uploadFile } from '@/api/fileUploadAndDownload'
@@ -508,6 +556,7 @@
     grantEntitlement,
     parseSubtitleFiles,
     revokeEntitlement,
+    updateVideoSentenceList,
     updateVideoCategory,
     updateVideoEpisode,
     updateVideoSeries
@@ -518,6 +567,7 @@
   })
 
   const activeTab = ref('videoCategory')
+  const displayLang = ref('zh')
 
   const normalizeI18nObject = (raw) => {
     if (!raw) return { zh: '' }
@@ -554,11 +604,25 @@
     try {
       const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
       if (typeof parsed === 'object' && parsed !== null) {
-        return parsed.zh || parsed.en || parsed.mn || Object.values(parsed)[0] || ''
+        const lang = String(displayLang.value || 'zh')
+        return parsed[lang] || parsed.zh || parsed.en || parsed.mn || Object.values(parsed)[0] || ''
       }
       return String(raw)
     } catch (e) {
       return String(raw)
+    }
+  }
+
+  const parseI18nObject = (raw) => {
+    if (!raw) return {}
+    if (typeof raw === 'object') {
+      return { ...raw }
+    }
+    try {
+      const parsed = JSON.parse(String(raw))
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? { ...parsed } : {}
+    } catch (e) {
+      return {}
     }
   }
 
@@ -574,11 +638,11 @@
   const videoCategoryTable = ref([])
   const videoCategoryTotal = ref(0)
 
-  const seriesQuery = ref({ page: 1, pageSize: 10, categoryId: undefined })
+  const seriesQuery = ref({ page: 1, pageSize: 10, categoryId: undefined, keyword: '' })
   const seriesTable = ref([])
   const seriesTotal = ref(0)
 
-  const episodeQuery = ref({ page: 1, pageSize: 10, seriesId: undefined })
+  const episodeQuery = ref({ page: 1, pageSize: 10, seriesId: undefined, keyword: '' })
   const episodeTable = ref([])
   const episodeTotal = ref(0)
 
@@ -591,6 +655,20 @@
   const episodeOptions = ref([])
 
   const managedLanguages = ref([])
+
+  const displayLanguageOptions = computed(() => {
+    if (managedLanguages.value.length === 0) {
+      return [
+        { value: 'zh', label: '中文' },
+        { value: 'en', label: 'English' },
+        { value: 'mn', label: 'Монгол' }
+      ]
+    }
+    return managedLanguages.value.map((lang) => ({
+      value: lang.code,
+      label: lang.nativeName || lang.name || lang.code
+    }))
+  })
 
   const subtitleLanguages = computed(() => {
     return managedLanguages.value.filter((lang) => String(lang.code || '').toLowerCase() !== 'en')
@@ -656,6 +734,55 @@
   const sentencePreviewVisible = ref(false)
   const sentencePreviewEpisodeName = ref('')
   const sentencePreviewTable = ref([])
+  const sentencePreviewEpisodeId = ref(0)
+  const sentencePreviewLang = ref('zh')
+  const sentenceSaving = ref(false)
+  const sentencePreviewOriginalMap = ref({})
+
+  const normalizeSentenceSnapshot = (item) => {
+    const normalizeTranslateObj = (raw) => {
+      const source = parseI18nObject(raw)
+      const sorted = {}
+      for (const key of Object.keys(source).sort()) {
+        sorted[key] = String(source[key] ?? '').trim()
+      }
+      return sorted
+    }
+    return {
+      english: String(item?.english || '').trim(),
+      startTime: Number(item?.startTime || 0),
+      endTime: Number(item?.endTime || 0),
+      translateObj: normalizeTranslateObj(item?.translateObj || item?.translate)
+    }
+  }
+
+  const buildSentencePreviewSnapshotMap = (rows) => {
+    const snapshot = {}
+    for (const row of rows || []) {
+      const rowId = Number(row?.id || row?.ID || 0)
+      if (!rowId) continue
+      snapshot[rowId] = normalizeSentenceSnapshot(row)
+    }
+    return snapshot
+  }
+
+  const isSentenceRowChanged = (row) => {
+    const rowId = Number(row?.id || row?.ID || 0)
+    if (!rowId) return false
+    const current = normalizeSentenceSnapshot(row)
+    const original = sentencePreviewOriginalMap.value[rowId]
+    if (!original) return true
+    return (
+      current.english !== original.english ||
+      current.startTime !== original.startTime ||
+      current.endTime !== original.endTime ||
+      JSON.stringify(current.translateObj) !== JSON.stringify(original.translateObj)
+    )
+  }
+
+  const pendingSentenceChanges = computed(() => {
+    return sentencePreviewTable.value.filter((row) => isSentenceRowChanged(row))
+  })
 
   const entitlementDialogVisible = ref(false)
   const entitlementForm = ref({
@@ -780,6 +907,13 @@
         { code: 'en', name: '英文' }
       ]
     }
+
+    if (!managedLanguages.value.some((lang) => lang.code === displayLang.value)) {
+      displayLang.value = managedLanguages.value[0]?.code || 'zh'
+    }
+    if (!managedLanguages.value.some((lang) => lang.code === sentencePreviewLang.value)) {
+      sentencePreviewLang.value = managedLanguages.value[0]?.code || 'zh'
+    }
   }
 
   const loadVideoCategoryList = async () => {
@@ -792,7 +926,13 @@
   }
 
   const loadSeriesList = async () => {
-    const res = await getVideoSeriesList({ ...seriesQuery.value })
+    const params = { ...seriesQuery.value }
+    if (!String(params.keyword || '').trim()) {
+      delete params.keyword
+    } else {
+      params.keyword = String(params.keyword).trim()
+    }
+    const res = await getVideoSeriesList(params)
     if (res.code !== 0) return
     seriesTable.value = res.data?.list || []
     seriesTotal.value = Number(res.data?.total || 0)
@@ -801,7 +941,13 @@
   }
 
   const loadEpisodeList = async () => {
-    const res = await getVideoEpisodeList({ ...episodeQuery.value })
+    const params = { ...episodeQuery.value }
+    if (!String(params.keyword || '').trim()) {
+      delete params.keyword
+    } else {
+      params.keyword = String(params.keyword).trim()
+    }
+    const res = await getVideoEpisodeList(params)
     if (res.code !== 0) return
     episodeTable.value = res.data?.list || []
     episodeTotal.value = Number(res.data?.total || 0)
@@ -864,7 +1010,7 @@
   }
 
   const resetSeriesSearch = () => {
-    seriesQuery.value = { page: 1, pageSize: 10, categoryId: undefined }
+    seriesQuery.value = { page: 1, pageSize: 10, categoryId: undefined, keyword: '' }
     loadSeriesList()
   }
 
@@ -885,7 +1031,7 @@
   }
 
   const resetEpisodeSearch = () => {
-    episodeQuery.value = { page: 1, pageSize: 10, seriesId: undefined }
+    episodeQuery.value = { page: 1, pageSize: 10, seriesId: undefined, keyword: '' }
     loadEpisodeList()
   }
 
@@ -1118,10 +1264,118 @@
       return
     }
 
+    sentencePreviewEpisodeId.value = episodeId
     sentencePreviewEpisodeName.value = formatI18nText(row?.name)
-    sentencePreviewTable.value = Array.isArray(res.data) ? res.data : []
+    sentencePreviewTable.value = (Array.isArray(res.data) ? res.data : []).map((item) => {
+      const translateObj = parseI18nObject(item?.translate)
+      const lang = String(sentencePreviewLang.value || 'zh')
+      return {
+        ...item,
+        translateObj,
+        translateText: translateObj[lang] || translateObj.zh || translateObj.en || translateObj.mn || ''
+      }
+    })
+    sentencePreviewOriginalMap.value = buildSentencePreviewSnapshotMap(sentencePreviewTable.value)
     sentencePreviewVisible.value = true
   }
+
+  const syncSentenceTranslate = (row) => {
+    if (!row || typeof row !== 'object') return
+    const lang = String(sentencePreviewLang.value || 'zh')
+    const next = { ...(row.translateObj || {}) }
+    next[lang] = String(row.translateText || '')
+    row.translateObj = next
+    row.translate = JSON.stringify(next)
+  }
+
+  const refreshSentenceTranslateByLang = () => {
+    const lang = String(sentencePreviewLang.value || 'zh')
+    sentencePreviewTable.value = sentencePreviewTable.value.map((item) => {
+      const translateObj = parseI18nObject(item?.translateObj || item?.translate)
+      return {
+        ...item,
+        translateObj,
+        translateText: translateObj[lang] || translateObj.zh || translateObj.en || translateObj.mn || ''
+      }
+    })
+  }
+
+  const saveSentencePreview = async () => {
+    if (!sentencePreviewEpisodeId.value) {
+      ElMessage.warning('单集ID无效')
+      return
+    }
+    sentenceSaving.value = true
+    const payload = {
+      episodeId: sentencePreviewEpisodeId.value,
+      sentences: pendingSentenceChanges.value.map((item) => ({
+        id: Number(item?.id || item?.ID || 0),
+        english: String(item?.english || '').trim(),
+        translate: JSON.stringify(item?.translateObj || {}),
+        startTime: Number(item?.startTime || 0),
+        endTime: Number(item?.endTime || 0)
+      }))
+    }
+    if (payload.sentences.length === 0) {
+      sentenceSaving.value = false
+      ElMessage.info('没有可保存的改动')
+      return
+    }
+    const res = await updateVideoSentenceList(payload)
+    sentenceSaving.value = false
+    if (res.code !== 0) return
+    ElMessage.success('字幕修改已保存')
+    sentencePreviewOriginalMap.value = buildSentencePreviewSnapshotMap(sentencePreviewTable.value)
+    sentencePreviewVisible.value = false
+  }
+
+  const resetSentencePreviewChanges = () => {
+    const lang = String(sentencePreviewLang.value || 'zh')
+    sentencePreviewTable.value = sentencePreviewTable.value.map((row) => {
+      const rowId = Number(row?.id || row?.ID || 0)
+      const original = sentencePreviewOriginalMap.value[rowId]
+      if (!original) return row
+      const translateObj = { ...original.translateObj }
+      return {
+        ...row,
+        english: original.english,
+        startTime: original.startTime,
+        endTime: original.endTime,
+        translateObj,
+        translate: JSON.stringify(translateObj),
+        translateText: translateObj[lang] || translateObj.zh || translateObj.en || translateObj.mn || ''
+      }
+    })
+  }
+
+  const closeSentencePreview = () => {
+    if (pendingSentenceChanges.value.length === 0) {
+      sentencePreviewVisible.value = false
+      return
+    }
+    ElMessageBox.confirm(`当前有 ${pendingSentenceChanges.value.length} 条未保存改动，确认关闭？`, '未保存改动', {
+      type: 'warning'
+    }).then(() => {
+      sentencePreviewVisible.value = false
+    })
+  }
+
+  const handleSentencePreviewBeforeClose = (done) => {
+    if (pendingSentenceChanges.value.length === 0) {
+      done()
+      return
+    }
+    ElMessageBox.confirm(`当前有 ${pendingSentenceChanges.value.length} 条未保存改动，确认关闭？`, '未保存改动', {
+      type: 'warning'
+    }).then(() => done())
+  }
+
+  watch(
+    () => sentencePreviewLang.value,
+    () => {
+      refreshSentenceTranslateByLang()
+    }
+  )
 
   const handleParseSubtitleFiles = async () => {
     if (!subtitleForm.value.episodeId) {
@@ -1224,6 +1478,20 @@
 </script>
 
 <style scoped>
+  .lang-switch-row {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .subtitle-preview-toolbar {
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   .toolbar-row {
     display: flex;
     align-items: center;

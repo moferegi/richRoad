@@ -12,7 +12,7 @@
       </view>
 
       <view v-for="(item, index) in historyList" :key="`${item.episodeId}-${index}`" class="history-card">
-        <image class="cover" :src="item.coverUrl || ''" mode="aspectFill" />
+        <image class="cover" :src="item.coverUrl || ''" mode="aspectFit" />
 
         <view class="content-wrap">
           <text class="series-name">{{ localText(item.seriesName) || t('learningWatchHistoryUnknownSeries') }}</text>

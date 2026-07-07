@@ -44,6 +44,13 @@ type TTSPreflightResult struct {
 	DurationMS int64  `json:"durationMs"`
 }
 
+type UpsertWordFromSQLResult struct {
+	Action           string `json:"action"`
+	WordID           uint   `json:"wordId"`
+	AudioUSGenerated bool   `json:"audioUsGenerated"`
+	AudioUKGenerated bool   `json:"audioUkGenerated"`
+}
+
 const (
 	defaultLearningTTSTimeoutMS int64 = 8000
 	defaultLearningTTSVoiceUS         = "en-US-JennyNeural"
@@ -956,11 +963,15 @@ func (s *EnglishWordService) PreflightTTS(req request.TTSPreflightReq) (TTSPrefl
 func buildWordListBaseQuery(db *gorm.DB, info request.WordListSearch) *gorm.DB {
 	query := db.Table("english_words w").
 		Joins("LEFT JOIN english_category_words cw ON cw.word_id = w.id AND cw.deleted_at IS NULL")
+	keyword := strings.ToLower(strings.TrimSpace(info.Keyword))
 	if info.CategoryID > 0 {
 		query = query.Where("cw.category_id = ?", info.CategoryID)
 	}
 	if info.ChapterID > 0 {
 		query = query.Where("cw.chapter_id = ?", info.ChapterID)
+	}
+	if keyword != "" {
+		query = query.Where("LOWER(TRIM(w.word)) LIKE ?", "%"+keyword+"%")
 	}
 	return query
 }
@@ -1147,4 +1158,148 @@ func (s *EnglishWordService) DeleteWordErrorLog(userID uint, wordID uint) error 
 	}
 
 	return global.GVA_DB.Where("user_id = ? AND word_id = ?", userID, wordID).Delete(&model.EnglishWordErrorLog{}).Error
+}
+
+func normalizeI18nJSONWithZh(text string) string {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return `{"zh":""}`
+	}
+	buf, err := json.Marshal(map[string]string{"zh": trimmed})
+	if err != nil {
+		return `{"zh":""}`
+	}
+	return string(buf)
+}
+
+func mergeI18nZhText(existingRaw, zhText string) string {
+	zhText = strings.TrimSpace(zhText)
+	if strings.TrimSpace(existingRaw) == "" {
+		return normalizeI18nJSONWithZh(zhText)
+	}
+
+	var obj map[string]interface{}
+	if err := json.Unmarshal([]byte(existingRaw), &obj); err != nil || obj == nil {
+		return normalizeI18nJSONWithZh(zhText)
+	}
+	obj["zh"] = zhText
+	buf, err := json.Marshal(obj)
+	if err != nil {
+		return normalizeI18nJSONWithZh(zhText)
+	}
+	return string(buf)
+}
+
+func ensureWordAssociation(tx *gorm.DB, categoryID, chapterID, wordID uint) error {
+	if categoryID == 0 || wordID == 0 {
+		return errors.New("分类或单词参数错误")
+	}
+
+	var relation model.EnglishCategoryWord
+	err := tx.Where("category_id = ? AND chapter_id = ? AND word_id = ?", categoryID, chapterID, wordID).First(&relation).Error
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+
+	return tx.Create(&model.EnglishCategoryWord{
+		CategoryID: categoryID,
+		ChapterID:  chapterID,
+		WordID:     wordID,
+	}).Error
+}
+
+func (s *EnglishWordService) UpsertWordFromSQL(req request.UpsertWordFromSQLReq) (UpsertWordFromSQLResult, error) {
+	result := UpsertWordFromSQLResult{}
+	req.Word = strings.TrimSpace(req.Word)
+	if req.Word == "" {
+		return result, errors.New("单词不能为空")
+	}
+	if req.CategoryID == 0 {
+		return result, errors.New("分类不能为空")
+	}
+	normalizedWord := normalizeWordKey(req.Word)
+	translate := strings.TrimSpace(req.TranslateZh)
+
+	err := global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		var category model.EnglishCategory
+		if err := tx.Select("id").Where("id = ?", req.CategoryID).First(&category).Error; err != nil {
+			return errors.New("分类不存在")
+		}
+
+		if req.ChapterID > 0 {
+			var chapter model.EnglishChapter
+			if err := tx.Select("id", "category_id").Where("id = ?", req.ChapterID).First(&chapter).Error; err != nil {
+				return errors.New("章节不存在")
+			}
+			if chapter.CategoryID != req.CategoryID {
+				return errors.New("章节不属于所选分类")
+			}
+		}
+
+		var word model.EnglishWord
+		err := tx.Where("LOWER(TRIM(word)) = ?", normalizedWord).First(&word).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			word = model.EnglishWord{
+				Word:        req.Word,
+				Explanation: normalizeI18nJSONWithZh(translate),
+			}
+			if req.GenerateAudio {
+				if audioUS, audioErr := s.generateWordAudioURL(req.Word, "learning_tts_voice_us", "LEARNING_TTS_VOICE_US", defaultLearningTTSVoiceUS); audioErr == nil {
+					word.AudioUS = audioUS
+					result.AudioUSGenerated = true
+				}
+				if audioUK, audioErr := s.generateWordAudioURL(req.Word, "learning_tts_voice_uk", "LEARNING_TTS_VOICE_UK", defaultLearningTTSVoiceUK); audioErr == nil {
+					word.AudioUK = audioUK
+					result.AudioUKGenerated = true
+				}
+			}
+			if err = tx.Create(&word).Error; err != nil {
+				return err
+			}
+			result.Action = "create"
+		} else {
+			updates := map[string]interface{}{
+				"explanation": mergeI18nZhText(word.Explanation, translate),
+			}
+			if req.GenerateAudio {
+				if strings.TrimSpace(word.AudioUS) == "" {
+					if audioUS, audioErr := s.generateWordAudioURL(word.Word, "learning_tts_voice_us", "LEARNING_TTS_VOICE_US", defaultLearningTTSVoiceUS); audioErr == nil {
+						updates["audio_us"] = audioUS
+						result.AudioUSGenerated = true
+					}
+				}
+				if strings.TrimSpace(word.AudioUK) == "" {
+					if audioUK, audioErr := s.generateWordAudioURL(word.Word, "learning_tts_voice_uk", "LEARNING_TTS_VOICE_UK", defaultLearningTTSVoiceUK); audioErr == nil {
+						updates["audio_uk"] = audioUK
+						result.AudioUKGenerated = true
+					}
+				}
+			}
+			if err = tx.Model(&model.EnglishWord{}).Where("id = ?", word.ID).Updates(updates).Error; err != nil {
+				return err
+			}
+			result.Action = "update"
+		}
+
+		if err = ensureWordAssociation(tx, req.CategoryID, 0, word.ID); err != nil {
+			return err
+		}
+		if req.ChapterID > 0 {
+			if err = ensureWordAssociation(tx, req.CategoryID, req.ChapterID, word.ID); err != nil {
+				return err
+			}
+		}
+
+		result.WordID = word.ID
+		return nil
+	})
+
+	return result, err
 }

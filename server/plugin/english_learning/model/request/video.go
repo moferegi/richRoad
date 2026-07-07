@@ -22,3 +22,16 @@ type ParseSubtitleFilesReq struct {
 	EnglishSubtitleURL  string             `json:"englishSubtitleUrl" binding:"required"`
 	TranslationSubtitle []SubtitleFileItem `json:"translationSubtitle"`
 }
+
+type UpdateVideoSentenceItem struct {
+	ID        uint    `json:"id" binding:"required"`
+	English   string  `json:"english"`
+	Translate string  `json:"translate"`
+	StartTime float64 `json:"startTime"`
+	EndTime   float64 `json:"endTime"`
+}
+
+type UpdateVideoSentenceListReq struct {
+	EpisodeID uint                      `json:"episodeId" binding:"required"`
+	Sentences []UpdateVideoSentenceItem `json:"sentences" binding:"required"`
+}

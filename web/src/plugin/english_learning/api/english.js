@@ -63,6 +63,15 @@ export const getEnglishWordList = (params) => {
   })
 }
 
+// SQL导入逐行新增/更新
+export const upsertSqlWord = (data) => {
+  return service({
+    url: '/englishLearning/word/upsertSqlWord',
+    method: 'post',
+    data
+  })
+}
+
 // 分类管理
 export const createCategory = (data) => {
   return service({
@@ -260,6 +269,15 @@ export const getVideoSentenceList = (params) => {
     url: '/englishLearning/video/getSentenceList',
     method: 'get',
     params
+  })
+}
+
+// 批量更新单集字幕句子
+export const updateVideoSentenceList = (data) => {
+  return service({
+    url: '/englishLearning/video/updateSentenceList',
+    method: 'put',
+    data
   })
 }
 

@@ -7,6 +7,17 @@
         :closable="false"
         show-icon
       />
+      <div class="lang-switch-row">
+        <span>展示语言：</span>
+        <el-select v-model="displayLang" style="width: 140px">
+          <el-option
+            v-for="lang in displayLanguageOptions"
+            :key="lang.value"
+            :label="lang.label"
+            :value="lang.value"
+          />
+        </el-select>
+      </div>
     </div>
 
     <div class="gva-table-box">
@@ -146,12 +157,18 @@
                   />
                 </el-select>
               </el-form-item>
+              <el-form-item label="单词关键词">
+                <el-input v-model="wordQuery.keyword" clearable placeholder="支持模糊查询" style="width: 220px" />
+              </el-form-item>
               <el-form-item>
                 <el-button type="primary" icon="search" @click="handleWordSearch">查询</el-button>
                 <el-button icon="refresh" @click="resetWordSearch">重置</el-button>
               </el-form-item>
             </el-form>
-            <el-button type="primary" icon="plus" @click="openWordDialog()">新增单词</el-button>
+              <div class="toolbar-actions">
+                <el-button type="warning" icon="upload" @click="openSqlImportDialog">批量SQL导入</el-button>
+                <el-button type="primary" icon="plus" @click="openWordDialog()">新增单词</el-button>
+              </div>
           </div>
 
           <el-table :data="wordTable" row-key="ID" border>
@@ -380,6 +397,79 @@
         <el-button type="primary" :loading="wordSubmitting" @click="submitWord">确定</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="sqlImportDialogVisible" title="批量SQL导入单词" width="980px" :close-on-click-modal="false" :close-on-press-escape="false">
+      <el-form :model="sqlImportForm" label-width="140px">
+        <el-form-item label="目标分类">
+          <el-select v-model="sqlImportForm.categoryId" placeholder="请选择分类" style="width: 100%" filterable>
+            <el-option
+              v-for="item in categoryOptions"
+              :key="item.ID"
+              :label="formatI18nText(item.name)"
+              :value="item.ID"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="SQL文件">
+          <el-upload
+            :show-file-list="false"
+            :auto-upload="false"
+            accept=".sql,text/plain"
+            :on-change="handleSqlFileChange"
+          >
+            <el-button type="primary" plain>选择SQL文件</el-button>
+          </el-upload>
+          <div class="dialog-hint">支持 INSERT INTO junior (word,translate) VALUES ('word','中文'); 格式。</div>
+        </el-form-item>
+        <el-form-item label="SQL内容">
+          <el-input
+            v-model="sqlImportForm.sqlContent"
+            type="textarea"
+            :rows="8"
+            placeholder="可粘贴SQL文本，或通过上方选择文件自动填充"
+          />
+        </el-form-item>
+        <el-form-item label="自动分章节">
+          <el-switch v-model="sqlImportForm.autoGenerateChapters" />
+        </el-form-item>
+        <el-form-item v-if="!sqlImportForm.autoGenerateChapters" label="指定章节（可选）">
+          <el-select v-model="sqlImportForm.chapterId" clearable placeholder="不选则仅绑定分类" style="width: 100%" filterable>
+            <el-option
+              v-for="item in sqlImportChapterOptions"
+              :key="item.ID"
+              :label="formatI18nText(item.name)"
+              :value="item.ID"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-else label="每章单词数">
+          <el-input-number v-model="sqlImportForm.wordsPerChapter" :min="1" :step="1" />
+          <div class="dialog-hint">将按导入顺序自动创建并分配到“第n章”。</div>
+        </el-form-item>
+        <el-form-item label="自动补发音">
+          <el-switch v-model="sqlImportForm.generateAudio" />
+        </el-form-item>
+      </el-form>
+
+      <div class="import-progress-box" v-if="sqlImportLogs.length > 0">
+        <div class="import-progress-head">
+          <span>导入进度日志（逐行）</span>
+          <el-tag type="info">{{ sqlImportLogs.length }} 条</el-tag>
+        </div>
+        <div class="import-progress-list">
+          <div v-for="(item, index) in sqlImportLogs" :key="`${item.time}_${index}`" class="import-progress-line">
+            <el-tag :type="item.level === 'success' ? 'success' : item.level === 'error' ? 'danger' : 'warning'" size="small">{{ item.level }}</el-tag>
+            <span class="import-progress-time">{{ item.time }}</span>
+            <span class="import-progress-text">{{ item.message }}</span>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button :disabled="sqlImportSubmitting" @click="sqlImportDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="sqlImportSubmitting" @click="runSqlImport">开始导入</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -388,6 +478,7 @@
   import { ElMessage, ElMessageBox } from 'element-plus'
   import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
   import { uploadFile } from '@/api/fileUploadAndDownload'
+  import { getLanguageList } from '@/api/client/language'
   import {
     createCategory,
     createChapter,
@@ -400,6 +491,7 @@
     getChapterList,
     getEnglishWordList,
     regenerateWordAudio,
+    upsertSqlWord,
     updateCategory,
     updateChapter,
     updateEnglishWord
@@ -410,6 +502,22 @@
   })
 
   const activeTab = ref('category')
+  const displayLang = ref('zh')
+  const managedLanguages = ref([])
+
+  const displayLanguageOptions = computed(() => {
+    if (managedLanguages.value.length === 0) {
+      return [
+        { value: 'zh', label: '中文' },
+        { value: 'en', label: 'English' },
+        { value: 'mn', label: 'Монгол' }
+      ]
+    }
+    return managedLanguages.value.map((lang) => ({
+      value: lang.code,
+      label: lang.nativeName || lang.name || lang.code
+    }))
+  })
 
   const categoryQuery = ref({
     page: 1,
@@ -431,7 +539,8 @@
     page: 1,
     pageSize: 10,
     categoryId: undefined,
-    chapterId: undefined
+    chapterId: undefined,
+    keyword: ''
   })
   const wordTable = ref([])
   const wordTotal = ref(0)
@@ -505,6 +614,18 @@
     syncBindingsOnUpdate: false
   })
 
+  const sqlImportDialogVisible = ref(false)
+  const sqlImportSubmitting = ref(false)
+  const sqlImportForm = ref({
+    categoryId: undefined,
+    chapterId: undefined,
+    autoGenerateChapters: false,
+    wordsPerChapter: 30,
+    generateAudio: false,
+    sqlContent: ''
+  })
+  const sqlImportLogs = ref([])
+
   let sentenceKeySeed = 1
   const createWordSentenceFormItem = () => ({
     __key: `sentence_${Date.now()}_${sentenceKeySeed++}`,
@@ -523,6 +644,182 @@
     wordForm.value.sentences.splice(index, 1)
   }
 
+  const nowTimeText = () => {
+    const d = new Date()
+    const p = (n) => String(n).padStart(2, '0')
+    return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+  }
+
+  const appendSqlLog = (level, message) => {
+    sqlImportLogs.value.push({
+      level,
+      message,
+      time: nowTimeText()
+    })
+  }
+
+  const parseSqlWordRows = (sqlContent) => {
+    const rows = []
+    const lines = String(sqlContent || '').split(/\r?\n/)
+    const pattern = /insert\s+into\s+[^\(]*\(\s*`?word`?\s*,\s*`?translate`?\s*\)\s*values\s*\(\s*'((?:''|[^'])*)'\s*,\s*'((?:''|[^'])*)'\s*\)/i
+    for (const rawLine of lines) {
+      const line = String(rawLine || '').trim()
+      if (!line) {
+        continue
+      }
+      const match = line.match(pattern)
+      if (!match) {
+        continue
+      }
+      const word = String(match[1] || '').replace(/''/g, "'").trim()
+      const translateZh = String(match[2] || '').replace(/''/g, "'").trim()
+      if (!word) {
+        continue
+      }
+      rows.push({ word, translateZh })
+    }
+    return rows
+  }
+
+  const openSqlImportDialog = () => {
+    sqlImportForm.value = {
+      categoryId: wordQuery.value.categoryId || undefined,
+      chapterId: undefined,
+      autoGenerateChapters: false,
+      wordsPerChapter: 30,
+      generateAudio: false,
+      sqlContent: ''
+    }
+    sqlImportLogs.value = []
+    sqlImportDialogVisible.value = true
+  }
+
+  const handleSqlFileChange = (file) => {
+    const raw = file?.raw
+    if (!raw) {
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      sqlImportForm.value.sqlContent = String(reader.result || '')
+      appendSqlLog('warning', `已加载文件：${file.name || 'unknown.sql'}`)
+    }
+    reader.onerror = () => {
+      ElMessage.error('读取SQL文件失败')
+    }
+    reader.readAsText(raw, 'utf-8')
+  }
+
+  const findChapterByZhName = (categoryId, chapterNameZh) => {
+    return chapterOptions.value.find((item) => {
+      return Number(item.categoryId || 0) === Number(categoryId || 0) && formatI18nText(item.name) === chapterNameZh
+    })
+  }
+
+  const ensureAutoChapter = async (categoryId, chapterIndex, cache) => {
+    const chapterNameZh = `第${chapterIndex}章`
+    if (cache.has(chapterNameZh)) {
+      return cache.get(chapterNameZh)
+    }
+
+    let chapter = findChapterByZhName(categoryId, chapterNameZh)
+    if (!chapter) {
+      const createRes = await createChapter({
+        categoryId,
+        name: JSON.stringify({ zh: chapterNameZh, en: '', mn: '' }),
+        sort: chapterIndex
+      })
+      if (createRes.code !== 0) {
+        throw new Error(`自动创建章节失败: ${chapterNameZh}`)
+      }
+      await loadChapterOptions()
+      chapter = findChapterByZhName(categoryId, chapterNameZh)
+      if (!chapter) {
+        throw new Error(`章节创建后未找到: ${chapterNameZh}`)
+      }
+      appendSqlLog('warning', `已自动创建章节：${chapterNameZh}`)
+    }
+
+    const chapterId = getEntityID(chapter)
+    cache.set(chapterNameZh, chapterId)
+    return chapterId
+  }
+
+  const runSqlImport = async () => {
+    if (!sqlImportForm.value.categoryId) {
+      ElMessage.warning('请选择目标分类')
+      return
+    }
+    if (!String(sqlImportForm.value.sqlContent || '').trim()) {
+      ElMessage.warning('请提供SQL内容')
+      return
+    }
+    if (sqlImportForm.value.autoGenerateChapters && Number(sqlImportForm.value.wordsPerChapter || 0) <= 0) {
+      ElMessage.warning('每章单词数必须大于0')
+      return
+    }
+
+    const rows = parseSqlWordRows(sqlImportForm.value.sqlContent)
+    if (rows.length === 0) {
+      ElMessage.warning('未解析到有效的SQL单词行')
+      return
+    }
+
+    sqlImportSubmitting.value = true
+    sqlImportLogs.value = []
+    appendSqlLog('warning', `开始导入，共 ${rows.length} 行`)
+
+    const chapterCache = new Map()
+    let successCount = 0
+    let failCount = 0
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]
+      try {
+        let chapterId = Number(sqlImportForm.value.chapterId || 0)
+        if (sqlImportForm.value.autoGenerateChapters) {
+          const chapterIndex = Math.floor(i / Number(sqlImportForm.value.wordsPerChapter || 1)) + 1
+          chapterId = await ensureAutoChapter(sqlImportForm.value.categoryId, chapterIndex, chapterCache)
+        }
+
+        const res = await upsertSqlWord({
+          word: row.word,
+          translateZh: row.translateZh,
+          categoryId: sqlImportForm.value.categoryId,
+          chapterId,
+          generateAudio: sqlImportForm.value.generateAudio
+        })
+
+        if (res.code !== 0) {
+          failCount++
+          appendSqlLog('error', `第${i + 1}行 ${row.word} 失败: ${res.msg || '接口返回异常'}`)
+          continue
+        }
+
+        successCount++
+        const data = res.data || {}
+        const actionText = data.action === 'create' ? '新增' : '修改'
+        const chapterText = chapterId ? `章节#${chapterId}` : '仅分类'
+        const audioText = sqlImportForm.value.generateAudio
+          ? `美音:${data.audioUsGenerated ? '补齐' : '保留'} 英音:${data.audioUkGenerated ? '补齐' : '保留'}`
+          : '未启用语音补齐'
+        appendSqlLog('success', `第${i + 1}行 ${row.word} ${actionText}成功，${chapterText}，${audioText}`)
+      } catch (error) {
+        failCount++
+        appendSqlLog('error', `第${i + 1}行 ${row.word} 失败: ${error?.message || '未知错误'}`)
+      }
+    }
+
+    appendSqlLog('warning', `导入完成：成功 ${successCount}，失败 ${failCount}`)
+    sqlImportSubmitting.value = false
+    await Promise.all([loadWordList(), loadChapterList(), loadChapterOptions()])
+    if (failCount === 0) {
+      ElMessage.success(`导入完成，共 ${successCount} 条`)
+    } else {
+      ElMessage.warning(`导入完成，成功 ${successCount} 条，失败 ${failCount} 条`)
+    }
+  }
+
   const filteredWordBindChapterOptions = computed(() => {
     const selectedCategoryIDs = Array.isArray(wordForm.value.categoryIds)
       ? wordForm.value.categoryIds.map((id) => Number(id || 0)).filter((id) => id > 0)
@@ -532,6 +829,14 @@
     }
     const allowed = new Set(selectedCategoryIDs)
     return chapterOptions.value.filter((item) => allowed.has(Number(item.categoryId || 0)))
+  })
+
+  const sqlImportChapterOptions = computed(() => {
+    const categoryId = Number(sqlImportForm.value.categoryId || 0)
+    if (!categoryId) {
+      return []
+    }
+    return chapterOptions.value.filter((item) => Number(item.categoryId || 0) === categoryId)
   })
 
   watch(
@@ -548,7 +853,8 @@
     try {
       const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
       if (typeof parsed === 'object' && parsed !== null) {
-        return parsed.zh || parsed.en || parsed.mn || Object.values(parsed)[0] || ''
+        const lang = String(displayLang.value || 'zh')
+        return parsed[lang] || parsed.zh || parsed.en || parsed.mn || Object.values(parsed)[0] || ''
       }
       return String(raw)
     } catch (e) {
@@ -673,6 +979,9 @@
     if (wordQuery.value.chapterId) {
       params.chapterId = wordQuery.value.chapterId
     }
+    if (String(wordQuery.value.keyword || '').trim()) {
+      params.keyword = String(wordQuery.value.keyword || '').trim()
+    }
 
     const res = await getEnglishWordList(params)
     if (res.code !== 0) return
@@ -692,6 +1001,30 @@
     const res = await getChapterList({ page: 1, pageSize: 1000 })
     if (res.code !== 0) return
     chapterOptions.value = res.data?.list || []
+  }
+
+  const loadManagedLanguages = async () => {
+    try {
+      const res = await getLanguageList({ page: 1, pageSize: 500 })
+      const list = Array.isArray(res?.data) ? res.data : (res?.data?.list || [])
+      managedLanguages.value = list
+        .map((lang) => ({
+          code: String(lang?.code || '').trim(),
+          name: String(lang?.name || '').trim(),
+          nativeName: String(lang?.nativeName || '').trim()
+        }))
+        .filter((lang) => lang.code)
+    } catch (error) {
+      managedLanguages.value = [
+        { code: 'zh', name: '中文', nativeName: '中文' },
+        { code: 'en', name: 'English', nativeName: 'English' },
+        { code: 'mn', name: 'Монгол', nativeName: 'Монгол' }
+      ]
+    }
+
+    if (!managedLanguages.value.some((lang) => lang.code === displayLang.value)) {
+      displayLang.value = managedLanguages.value[0]?.code || 'zh'
+    }
   }
 
   const handleCategorySearch = () => {
@@ -742,7 +1075,7 @@
   }
 
   const resetWordSearch = () => {
-    wordQuery.value = { page: 1, pageSize: 10, categoryId: undefined, chapterId: undefined }
+    wordQuery.value = { page: 1, pageSize: 10, categoryId: undefined, chapterId: undefined, keyword: '' }
     loadWordList()
   }
 
@@ -1009,12 +1342,20 @@
       loadChapterList(),
       loadWordList(),
       loadCategoryOptions(),
-      loadChapterOptions()
+      loadChapterOptions(),
+      loadManagedLanguages()
     ])
   })
 </script>
 
 <style scoped>
+  .lang-switch-row {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   .toolbar-row {
     display: flex;
     align-items: center;
@@ -1068,5 +1409,54 @@
     font-size: 13px;
     color: #374151;
     margin-bottom: 6px;
+  }
+
+  .toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .import-progress-box {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px;
+    background: #fafafa;
+  }
+
+  .import-progress-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    color: #111827;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .import-progress-list {
+    max-height: 260px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .import-progress-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #374151;
+  }
+
+  .import-progress-time {
+    color: #6b7280;
+    min-width: 60px;
+  }
+
+  .import-progress-text {
+    line-height: 1.4;
+    word-break: break-all;
   }
 </style>

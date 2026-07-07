@@ -1,5 +1,5 @@
 <template>
-  <view class="typing-container">
+  <view class="typing-container" @click="closeWordSearchResult">
     <!-- Navbar / 设置区域 -->
     <view class="top-nav">
       <view class="nav-left">
@@ -32,7 +32,7 @@
         </text>
         
         <view class="word-actions">
-          <view class="audio-btn" @click="playWordAudio">
+          <view class="audio-btn" @click.stop="playWordAudio">
             <text>🔊</text>
           </view>
         </view>
@@ -47,8 +47,46 @@
       </view>
 
       <view class="word-collect-row">
-        <view class="inline-collect-btn" @click="collectWord">
+        <view class="inline-collect-btn" @click.stop="collectWord">
           <text>{{ isCollected ? t('typing.uncollect') : t('typing.collect') }}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="word-tools-wrap" @click.stop>
+      <view class="word-tools-row">
+        <view class="word-list-btn" @click="openWordDrawer">
+          <text>{{ t('typing.word_list') }}</text>
+        </view>
+        <view class="word-search-box">
+          <input
+            v-model="wordSearchKeyword"
+            class="word-search-input"
+            :placeholder="t('typing.search_word_placeholder')"
+            confirm-type="search"
+            @confirm="runWordSearch"
+          />
+          <view v-if="wordSearchKeyword" class="word-search-clear" @click="clearWordSearchKeyword">
+            <text>×</text>
+          </view>
+          <view class="word-search-btn" @click="runWordSearch">
+            <text>{{ t('typing.search_action') }}</text>
+          </view>
+        </view>
+      </view>
+
+      <view v-if="showWordSearchResult" class="word-search-result-wrap">
+        <view v-if="wordSearchResults.length === 0" class="word-search-empty">
+          {{ t('typing.search_empty') }}
+        </view>
+        <view
+          v-for="item in wordSearchResults"
+          :key="item.id"
+          class="word-search-item"
+          @click="selectSearchWord(item)"
+        >
+          <text class="word-search-main">{{ item.word }}</text>
+          <text class="word-search-sub">{{ localText(item.explanation) }}</text>
         </view>
       </view>
     </view>
@@ -65,23 +103,8 @@
       </button>
     </view>
 
-    <view v-if="audioDebugLogs.length > 0" class="audio-debug-box">
-      <view class="audio-debug-head">
-        <text class="audio-debug-title">{{ t('typing.audio_debug') }}</text>
-        <text class="audio-debug-clear" @click="clearAudioDebugLogs">{{ t('typing.audio_debug_clear') }}</text>
-      </view>
-      <view class="audio-debug-list">
-        <view class="audio-debug-item" v-for="item in audioDebugLogs" :key="item.id">
-          <text class="audio-debug-status" :class="item.status">{{ item.statusLabel }}</text>
-          <text class="audio-debug-source">{{ item.source }}</text>
-          <text class="audio-debug-url">{{ item.url }}</text>
-          <text v-if="item.message" class="audio-debug-msg">{{ item.message }}</text>
-        </view>
-      </view>
-    </view>
-
     <!-- 造句列表区 (需要自适应高度并在键盘弹出时滚动) -->
-    <scroll-view class="sentence-list" scroll-y :style="{ paddingBottom: isTypingMode ? '450rpx' : '0' }">
+    <view class="sentence-list" :style="{ paddingBottom: isTypingMode ? '450rpx' : '0' }">
       <view class="sentence-item" v-for="(sentence, index) in currentWord.sentences" :key="index">
         <view class="sentence-en">
           <text>{{ sentence.source }}</text>
@@ -91,11 +114,11 @@
           <text>{{ localText(sentence.translate) }}</text>
         </view>
       </view>
-    </scroll-view>
+    </view>
 
     <!-- 左右切换悬浮按钮 -->
-    <view class="nav-btn prev-btn" @click="prevWord"> <text>❮</text> </view>
-    <view class="nav-btn next-btn" @click="nextWord"> <text>❯</text> </view>
+    <view class="nav-btn prev-btn" @click="handlePrevNav"> <text>{{ prevNavLabel }}</text> </view>
+    <view class="nav-btn next-btn" @click="handleNextNav"> <text>{{ nextNavLabel }}</text> </view>
 
     <!-- 自定义防串扰 26 键英语键盘 (原生键盘容易激活输入法联想和中文，坚决摒弃) -->
     <view class="custom-keyboard" :class="{ 'keyboard-show': isTypingMode }">
@@ -145,15 +168,36 @@
         <view class="set-item highlight" @click="closeSettingsSheet">{{ t('common.cancel') }}</view>
       </view>
     </uni-popup>
+
+    <uni-popup ref="wordDrawerPopup" type="left">
+      <view class="word-drawer">
+        <view class="word-drawer-head">
+          <text class="word-drawer-title">{{ t('typing.word_list') }}</text>
+          <text class="word-drawer-close" @click="closeWordDrawer">×</text>
+        </view>
+        <view class="word-drawer-list">
+          <view
+            v-for="(item, idx) in wordList"
+            :key="item.id || idx"
+            class="word-drawer-item"
+            :class="{ active: idx === currentWordIndex }"
+            @click="selectWordFromDrawer(idx)"
+          >
+            <text class="word-drawer-item-main">{{ item.word }}</text>
+            <text class="word-drawer-item-sub">{{ localText(item.explanation) }}</text>
+          </view>
+        </view>
+      </view>
+    </uni-popup>
   </view>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { t as i18nT, localText as i18nLocalText } from '@/utils/i18n.js'
-import { collect, uncollect, getCollectionList, getCategoryList, getChapterList, getWordList, getWordProgress, reportWordError, saveWordProgress } from '@/api/learning.js'
+import { collect, uncollect, findWord, getCollectionList, getCategoryList, getChapterList, getWordList, getWordProgress, reportWordError, saveWordProgress } from '@/api/learning.js'
 
 const langStore = useLangStore()
 
@@ -188,6 +232,23 @@ const selectedCategoryId = ref(0)
 const selectedChapterId = ref(0)
 const currentWordIndex = ref(0)
 
+const hasChapters = computed(() => chapters.value.length > 0 && selectedChapterId.value > 0)
+const currentChapterIndex = computed(() => chapters.value.findIndex((item) => item.id === selectedChapterId.value))
+const isAtFirstWord = computed(() => wordList.value.length > 0 && currentWordIndex.value <= 0)
+const isAtLastWord = computed(() => wordList.value.length > 0 && currentWordIndex.value >= wordList.value.length - 1)
+const prevNavLabel = computed(() => {
+  if (hasChapters.value && isAtFirstWord.value) {
+    return t('typing.prev_chapter')
+  }
+  return t('typing.prev_word')
+})
+const nextNavLabel = computed(() => {
+  if (hasChapters.value && isAtLastWord.value) {
+    return t('typing.next_chapter')
+  }
+  return t('typing.next_word')
+})
+
 // 系统配置
 const settings = ref({
   showWord: true,        // 显示单词原文(不开就是下划线默写模式)
@@ -198,11 +259,25 @@ const settings = ref({
 
 const settingsPopup = ref(null)
 const pickerPopup = ref(null)
+const wordDrawerPopup = ref(null)
 const pickerType = ref('category')
 const pickerOptions = ref([])
+const wordSearchKeyword = ref('')
+const showWordSearchResult = ref(false)
+const wordSearchResults = ref([])
 const isCollected = ref(false)
 const showSettingsSheet = () => settingsPopup.value.open()
 const closeSettingsSheet = () => settingsPopup.value?.close()
+const openWordDrawer = () => wordDrawerPopup.value?.open()
+const closeWordDrawer = () => wordDrawerPopup.value?.close()
+const closeWordSearchResult = () => {
+  showWordSearchResult.value = false
+}
+const clearWordSearchKeyword = () => {
+  wordSearchKeyword.value = ''
+  wordSearchResults.value = []
+  showWordSearchResult.value = false
+}
 
 const refreshWordCollectedState = async () => {
   const wordId = Number(currentWord.value.id || 0)
@@ -267,7 +342,10 @@ const onKeyPress = (key) => {
     if (typedChars.value.length === targetWord.length) {
       uni.showToast({ title: t('typing.word_done'), icon: 'success' })
       setTimeout(() => {
-        nextWord()
+        currentWordIndex.value = (currentWordIndex.value + 1) % wordList.value.length
+        syncCurrentWord()
+        persistProgress()
+        resetStats()
       }, 800)
     }
   } else {
@@ -302,24 +380,80 @@ const getCharClass = (index) => {
   return 'char-pending' // 尚未按到的是灰色
 }
 
-// 上下首切换逻辑
-const nextWord = () => {
-  if (wordList.value.length === 0) {
+const jumpToChapter = async (offset, targetWordAtEnd = false) => {
+  if (chapters.value.length === 0) {
+    uni.showToast({ title: t('typing.no_chapter'), icon: 'none' })
     return
   }
-  currentWordIndex.value = (currentWordIndex.value + 1) % wordList.value.length
+  const currentIdx = chapters.value.findIndex((item) => item.id === selectedChapterId.value)
+  if (currentIdx < 0) {
+    return
+  }
+  const targetIdx = currentIdx + offset
+  if (targetIdx < 0) {
+    uni.showToast({ title: t('typing.chapter_first'), icon: 'none' })
+    return
+  }
+  if (targetIdx >= chapters.value.length) {
+    uni.showToast({ title: t('typing.chapter_last'), icon: 'none' })
+    return
+  }
+
+  selectedChapterId.value = chapters.value[targetIdx].id
+  await loadWords(selectedChapterId.value, selectedCategoryId.value)
+  if (wordList.value.length > 0) {
+    currentWordIndex.value = targetWordAtEnd ? wordList.value.length - 1 : 0
+    syncCurrentWord()
+  } else {
+    currentWordIndex.value = 0
+  }
+  updateHeaderNames()
+  persistProgress()
+  resetStats()
+}
+
+const prevWord = () => {
+  if (wordList.value.length === 0 || currentWordIndex.value <= 0) {
+    return
+  }
+  currentWordIndex.value -= 1
   syncCurrentWord()
   persistProgress()
   resetStats()
 }
-const prevWord = () => {
-  if (wordList.value.length === 0) {
+
+const nextWord = () => {
+  if (wordList.value.length === 0 || currentWordIndex.value >= wordList.value.length - 1) {
     return
   }
-  currentWordIndex.value = currentWordIndex.value <= 0 ? wordList.value.length - 1 : currentWordIndex.value - 1
+  currentWordIndex.value += 1
   syncCurrentWord()
   persistProgress()
   resetStats()
+}
+
+const handlePrevNav = () => {
+  if (hasChapters.value && isAtFirstWord.value) {
+    if (currentChapterIndex.value <= 0) {
+      uni.showToast({ title: t('typing.chapter_first'), icon: 'none' })
+      return
+    }
+    jumpToChapter(-1, true)
+    return
+  }
+  prevWord()
+}
+
+const handleNextNav = () => {
+  if (hasChapters.value && isAtLastWord.value) {
+    if (currentChapterIndex.value >= chapters.value.length - 1) {
+      uni.showToast({ title: t('typing.chapter_last'), icon: 'none' })
+      return
+    }
+    jumpToChapter(1, false)
+    return
+  }
+  nextWord()
 }
 const resetStats = () => {
   errorCount.value = 0
@@ -327,31 +461,121 @@ const resetStats = () => {
   isWrong.value = false
 }
 
+const selectWordFromDrawer = (index) => {
+  if (index < 0 || index >= wordList.value.length) {
+    return
+  }
+  currentWordIndex.value = index
+  syncCurrentWord()
+  persistProgress()
+  resetStats()
+  closeWordDrawer()
+}
+
+const normalizeWordBindingIds = (source) => {
+  if (!Array.isArray(source)) {
+    return []
+  }
+  return source.map((id) => Number(id || 0)).filter((id) => id > 0)
+}
+
+const jumpToWordBySearchResult = async (wordItem) => {
+  const wordID = Number(wordItem?.id || wordItem?.ID || 0)
+  if (!wordID) {
+    return
+  }
+
+  const detailRes = await findWord(wordID)
+  if (detailRes.code !== 0 || !detailRes.data) {
+    return
+  }
+  const detail = detailRes.data
+  const categoryIds = normalizeWordBindingIds(detail.categoryIds)
+  const chapterIds = normalizeWordBindingIds(detail.chapterIds)
+
+  let targetCategoryId = categoryIds[0] || selectedCategoryId.value || 0
+  if (!targetCategoryId) {
+    await loadCategories()
+    targetCategoryId = categories.value[0]?.id || 0
+  }
+  if (!targetCategoryId) {
+    return
+  }
+
+  selectedCategoryId.value = targetCategoryId
+  await loadChapters(targetCategoryId)
+
+  let targetChapterId = 0
+  if (chapters.value.length > 0) {
+    targetChapterId = chapterIds.find((id) => chapters.value.some((item) => item.id === id)) || chapters.value[0].id
+  }
+  selectedChapterId.value = targetChapterId
+  await loadWords(targetChapterId, targetCategoryId)
+
+  let targetWordIndex = wordList.value.findIndex((item) => item.id === wordID)
+  if (targetWordIndex < 0 && chapterIds.length > 1) {
+    for (const chapterId of chapterIds) {
+      if (!chapters.value.some((item) => item.id === chapterId) || chapterId === targetChapterId) {
+        continue
+      }
+      selectedChapterId.value = chapterId
+      await loadWords(chapterId, targetCategoryId)
+      targetWordIndex = wordList.value.findIndex((item) => item.id === wordID)
+      if (targetWordIndex >= 0) {
+        break
+      }
+    }
+  }
+
+  if (targetWordIndex < 0) {
+    selectedChapterId.value = 0
+    await loadWords(0, targetCategoryId)
+    targetWordIndex = wordList.value.findIndex((item) => item.id === wordID)
+  }
+
+  if (targetWordIndex < 0) {
+    uni.showToast({ title: t('typing.search_empty'), icon: 'none' })
+    return
+  }
+
+  currentWordIndex.value = targetWordIndex
+  syncCurrentWord()
+  updateHeaderNames()
+  persistProgress()
+  resetStats()
+}
+
+const selectSearchWord = async (item) => {
+  showWordSearchResult.value = false
+  wordSearchKeyword.value = item.word || ''
+  await jumpToWordBySearchResult(item)
+}
+
+const runWordSearch = async () => {
+  const keyword = String(wordSearchKeyword.value || '').trim()
+  if (!keyword) {
+    uni.showToast({ title: t('typing.search_no_keyword'), icon: 'none' })
+    showWordSearchResult.value = false
+    wordSearchResults.value = []
+    return
+  }
+
+  const res = await getWordList({ page: 1, pageSize: 50, keyword })
+  if (res.code !== 0 || !res.data) {
+    showWordSearchResult.value = false
+    wordSearchResults.value = []
+    return
+  }
+
+  const list = Array.isArray(res.data.list) ? res.data.list : []
+  wordSearchResults.value = list.map(normalizeWord)
+  showWordSearchResult.value = true
+}
+
 let audioCtx = null
 let audioCandidates = []
 let currentAudioAttempt = null
 let currentAudioLoggedSuccess = false
-let audioDebugSeed = 1
-const audioDebugLogs = ref([])
-
-const pushAudioDebugLog = ({ status, source, url, message = '' }) => {
-  const statusKey = status === 'success' ? 'typing.audio_ok' : status === 'skip' ? 'typing.audio_skip' : 'typing.audio_fail'
-  audioDebugLogs.value = [
-    {
-      id: `${Date.now()}_${audioDebugSeed++}`,
-      status,
-      statusLabel: t(statusKey),
-      source: String(source || ''),
-      url: String(url || ''),
-      message: String(message || '')
-    },
-    ...audioDebugLogs.value
-  ].slice(0, 8)
-}
-
-const clearAudioDebugLogs = () => {
-  audioDebugLogs.value = []
-}
 onMounted(() => {
   loadTypingData()
 })
@@ -419,7 +643,6 @@ const playAudio = (src, fallbackText = '') => {
 
   audioCandidates = []
   if (audioSrc && isUnreachable) {
-    pushAudioDebugLog({ status: 'skip', source: 'db-local-skip', url: audioSrc, message: t('typing.audio_local_skip') })
   }
   if (primary) {
     audioCandidates.push({ url: primary, source: 'db-primary' })
@@ -441,18 +664,9 @@ const playAudio = (src, fallbackText = '') => {
     audioCtx.onPlay(() => {
       if (currentAudioAttempt && !currentAudioLoggedSuccess) {
         currentAudioLoggedSuccess = true
-        pushAudioDebugLog({ status: 'success', source: currentAudioAttempt.source, url: currentAudioAttempt.url })
       }
     })
     audioCtx.onError((err) => {
-      if (currentAudioAttempt) {
-        pushAudioDebugLog({
-          status: 'fail',
-          source: currentAudioAttempt.source,
-          url: currentAudioAttempt.url,
-          message: err?.errMsg || t('typing.audio_unknown_error')
-        })
-      }
       playNextAudioCandidate()
     })
   }
@@ -696,6 +910,121 @@ const selectPickerItem = async (item) => {
   border-bottom: 1rpx solid rgba(146, 64, 14, 0.12);
 }
 
+.word-tools-wrap {
+  margin: 0 22rpx 16rpx;
+  position: relative;
+  z-index: 20;
+}
+
+.word-tools-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.word-list-btn {
+  height: 64rpx;
+  min-width: 164rpx;
+  padding: 0 20rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(15, 118, 110, 0.26);
+  background: rgba(15, 118, 110, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f766e;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.word-search-box {
+  flex: 1;
+  height: 64rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(20, 184, 166, 0.22);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.word-search-input {
+  flex: 1;
+  height: 64rpx;
+  padding: 0 20rpx;
+  font-size: 24rpx;
+  color: #334155;
+}
+
+.word-search-clear {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  margin-right: 8rpx;
+  background: rgba(148, 163, 184, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  font-size: 30rpx;
+  line-height: 1;
+}
+
+.word-search-btn {
+  height: 64rpx;
+  min-width: 120rpx;
+  padding: 0 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: 700;
+  background: linear-gradient(120deg, #0f766e 0%, #14b8a6 100%);
+}
+
+.word-search-result-wrap {
+  margin-top: 10rpx;
+  max-height: 320rpx;
+  overflow-y: auto;
+  border-radius: 16rpx;
+  border: 1rpx solid rgba(20, 184, 166, 0.16);
+  background: #fffdf8;
+  box-shadow: 0 8rpx 20rpx rgba(15, 23, 42, 0.06);
+}
+
+.word-search-empty {
+  min-height: 88rpx;
+  padding: 0 22rpx;
+  color: #64748b;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+}
+
+.word-search-item {
+  padding: 14rpx 20rpx;
+  border-bottom: 1rpx solid rgba(148, 163, 184, 0.14);
+}
+
+.word-search-item:last-child {
+  border-bottom: none;
+}
+
+.word-search-main {
+  color: #0f172a;
+  font-size: 28rpx;
+  font-weight: 700;
+  display: block;
+}
+
+.word-search-sub {
+  margin-top: 4rpx;
+  color: #64748b;
+  font-size: 22rpx;
+  display: block;
+}
+
 .nav-left { display: flex; gap: 12rpx; align-items: center; }
 
 .nav-pill {
@@ -797,7 +1126,13 @@ const selectPickerItem = async (item) => {
 
 .toggle-typing-btn.active { background: linear-gradient(120deg, #dc2626 0%, #f97316 100%); }
 
-.sentence-list { flex: 1; padding: 0 22rpx; box-sizing: border-box; }
+.sentence-list {
+  flex: 1;
+  padding: 0 22rpx;
+  box-sizing: border-box;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
 .sentence-item {
   background: rgba(255, 253, 248, 0.96);
@@ -818,42 +1153,24 @@ const selectPickerItem = async (item) => {
 
 .sentence-zh { font-size: 26rpx; color: #64748b; line-height: 1.5; }
 
-.audio-debug-box {
-  margin: 0 22rpx 14rpx;
-  background: #fffdf8;
-  border-radius: 16rpx;
-  padding: 16rpx;
-  border: 1rpx solid rgba(20, 184, 166, 0.16);
-}
-.audio-debug-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10rpx; }
-.audio-debug-title { font-size: 24rpx; color: #334155; font-weight: 700; }
-.audio-debug-clear { font-size: 22rpx; color: #0f766e; }
-.audio-debug-list { display: flex; flex-direction: column; gap: 8rpx; }
-.audio-debug-item { background: #f8fafc; border-radius: 10rpx; padding: 10rpx 12rpx; display: flex; flex-direction: column; gap: 4rpx; }
-.audio-debug-status { font-size: 22rpx; font-weight: 600; }
-.audio-debug-status.success { color: #15803d; }
-.audio-debug-status.fail { color: #dc2626; }
-.audio-debug-status.skip { color: #92400e; }
-.audio-debug-source { font-size: 22rpx; color: #475569; }
-.audio-debug-url { font-size: 20rpx; color: #64748b; line-height: 1.3; word-break: break-all; }
-.audio-debug-msg { font-size: 20rpx; color: #b91c1c; line-height: 1.3; word-break: break-all; }
-
 .nav-btn {
   position: fixed;
   bottom: 340rpx;
-  width: 76rpx;
-  height: 92rpx;
+  min-width: 120rpx;
+  height: 72rpx;
+  padding: 0 16rpx;
   background: rgba(15, 118, 110, 0.66);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 38rpx;
+  font-size: 24rpx;
   z-index: 100;
+  border-radius: 36rpx;
 }
 
-.prev-btn { left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
-.next-btn { right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.prev-btn { left: 16rpx; }
+.next-btn { right: 16rpx; }
 
 .custom-keyboard {
   position: fixed;
@@ -962,4 +1279,78 @@ const selectPickerItem = async (item) => {
 }
 
 .highlight { color: #0f766e; font-weight: 700; justify-content: center; }
+
+.word-drawer {
+  width: 560rpx;
+  height: 100vh;
+  background: #fffdf8;
+  border-top-right-radius: 18rpx;
+  border-bottom-right-radius: 18rpx;
+  box-shadow: 10rpx 0 26rpx rgba(15, 23, 42, 0.12);
+  display: flex;
+  flex-direction: column;
+}
+
+.word-drawer-head {
+  height: calc(88rpx + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 20rpx 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1rpx solid rgba(148, 163, 184, 0.18);
+}
+
+.word-drawer-title {
+  color: #7c2d12;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.word-drawer-close {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 42rpx;
+  line-height: 1;
+}
+
+.word-drawer-list {
+  flex: 1;
+  padding: 12rpx 14rpx calc(16rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.word-drawer-item {
+  border: 1rpx solid rgba(148, 163, 184, 0.2);
+  border-radius: 14rpx;
+  padding: 14rpx 16rpx;
+  background: #fff;
+  margin-bottom: 10rpx;
+}
+
+.word-drawer-item.active {
+  border-color: rgba(15, 118, 110, 0.4);
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.word-drawer-item-main {
+  color: #0f172a;
+  font-size: 26rpx;
+  font-weight: 700;
+  display: block;
+}
+
+.word-drawer-item-sub {
+  margin-top: 4rpx;
+  color: #64748b;
+  font-size: 21rpx;
+  line-height: 1.45;
+  display: block;
+}
 </style>

@@ -344,3 +344,29 @@ func (a *EnglishWordApi) DeleteWordErrorLog(c *gin.Context) {
 
 	response.OkWithMessage("删除成功", c)
 }
+
+// UpsertWordFromSQL 按SQL行批量导入时的单词新增/更新
+// @Tags     EnglishWord
+// @Summary  按单词唯一键执行新增或更新，并补充分类/章节绑定
+// @Security ApiKeyAuth
+// @accept   application/json
+// @Produce  application/json
+// @Param    data body request.UpsertWordFromSQLReq true "导入行参数"
+// @Success  200  {object} response.Response{data=service.UpsertWordFromSQLResult,msg=string} "处理成功"
+// @Router   /englishLearning/word/upsertSqlWord [post]
+func (a *EnglishWordApi) UpsertWordFromSQL(c *gin.Context) {
+	var req request.UpsertWordFromSQLReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage("参数错误", c)
+		return
+	}
+
+	data, err := englishWordService.UpsertWordFromSQL(req)
+	if err != nil {
+		global.GVA_LOG.Error("SQL单词导入处理失败", zap.Error(err))
+		response.FailWithMessage("处理失败: "+err.Error(), c)
+		return
+	}
+
+	response.OkWithDetailed(data, "处理成功", c)
+}

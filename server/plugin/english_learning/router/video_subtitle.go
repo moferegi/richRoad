@@ -14,5 +14,6 @@ func (s *VideoSubtitleRouter) InitVideoSubtitleRouter(Router *gin.RouterGroup) {
 		videoRouter.POST("parseSubtitle", videoSubtitleApi.ParseSubtitle)           // 解析字幕生成高亮
 		videoRouter.POST("parseSubtitleFiles", videoSubtitleApi.ParseSubtitleFiles) // 上传字幕文件解析
 		videoRouter.GET("getSentenceList", videoSubtitleApi.GetSentenceList)
+		videoRouter.PUT("updateSentenceList", videoSubtitleApi.UpdateSentenceList)
 	}
 }

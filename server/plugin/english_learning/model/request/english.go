@@ -57,8 +57,9 @@ type TTSPreflightReq struct {
 }
 
 type WordListSearch struct {
-	CategoryID uint `json:"categoryId" form:"categoryId"`
-	ChapterID  uint `json:"chapterId" form:"chapterId"`
+	CategoryID uint   `json:"categoryId" form:"categoryId"`
+	ChapterID  uint   `json:"chapterId" form:"chapterId"`
+	Keyword    string `json:"keyword" form:"keyword"`
 	request.PageInfo
 }
 
@@ -79,4 +80,12 @@ type WordErrorLogSearch struct {
 
 type DeleteWordErrorLogReq struct {
 	WordID uint `json:"wordId" binding:"required"`
+}
+
+type UpsertWordFromSQLReq struct {
+	Word          string `json:"word" binding:"required"`
+	TranslateZh   string `json:"translateZh"`
+	CategoryID    uint   `json:"categoryId" binding:"required"`
+	ChapterID     uint   `json:"chapterId"`
+	GenerateAudio bool   `json:"generateAudio"`
 }

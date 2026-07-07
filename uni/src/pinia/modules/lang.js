@@ -109,9 +109,9 @@ export const useLangStore = defineStore('lang', () => {
   const updateTabBar = (lang, retry = 0) => {
     const currentLang = getEffectiveLocale(lang)
     const tabFallbackTextMap = {
-      zh: ['首页', '跟打', '我的'],
-      en: ['Home', 'Typing', 'Me'],
-      mn: ['Нүүр', 'Бичих', 'Миний'],
+      zh: ['首页', '单词', '我的'],
+      en: ['Home', 'Word', 'Me'],
+      mn: ['Нүүр', 'Үг', 'Миний'],
     }
     const fallbackTexts = tabFallbackTextMap[currentLang] || tabFallbackTextMap.en
     const tabs = [
