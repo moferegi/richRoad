@@ -120,6 +120,8 @@ func initDefaultSysConfigs() {
 		{ConfigKey: "learning_tts_timeout_ms", ConfigValue: "8000", ConfigName: "英语TTS请求超时(毫秒)", ConfigGroup: "english_learning", Remark: "调用外部TTS服务的超时时间，范围1000-60000"},
 		{ConfigKey: "learning_tts_voice_us", ConfigValue: "en-US-JennyNeural", ConfigName: "英语TTS美式音色", ConfigGroup: "english_learning", Remark: "自动生成美式发音使用的voice参数"},
 		{ConfigKey: "learning_tts_voice_uk", ConfigValue: "en-GB-SoniaNeural", ConfigName: "英语TTS英式音色", ConfigGroup: "english_learning", Remark: "自动生成英式发音使用的voice参数"},
+		{ConfigKey: "learning_api_encrypt_enabled", ConfigValue: "true", ConfigName: "英语学习UNI接口响应加密开关", ConfigGroup: "english_learning", Remark: "是否启用英语学习UNI接口JSON响应加密(true/false)，便于调试可关闭"},
+		{ConfigKey: "learning_api_sign_enabled", ConfigValue: "true", ConfigName: "英语学习UNI接口签名校验开关", ConfigGroup: "english_learning", Remark: "是否启用英语学习UNI接口请求签名校验(true/false)，便于调试可关闭"},
 		// points 分组
 		{ConfigKey: "points_exchange_rate", ConfigValue: "100", ConfigName: "积分兑换比率", ConfigGroup: "points", Remark: "多少积分兑换1货币单位，如100积分=1元"},
 		// tryon 分组

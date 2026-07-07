@@ -195,17 +195,17 @@ const showLanguageSwitcher = async () => {
 
 const logout = () => {
   uni.showModal({
-    title: t('profile.logout_confirm_title'),
-    content: t('profile.logout_confirm_desc'),
-    cancelText: t('common.cancel'),
-    confirmText: t('common.confirm'),
+    title: t('logout'),
+    content: t('confirmLogout'),
+    cancelText: t('cancel'),
+    confirmText: t('confirm'),
     success: (res) => {
       if (!res.confirm) {
         return
       }
       uni.removeStorageSync('x-token')
       uni.removeStorageSync('userInfo')
-      uni.showToast({ title: t('profile.logout_success'), icon: 'none' })
+      uni.showToast({ title: t('logoutSuccess'), icon: 'none' })
       uni.reLaunch({ url: '/pages/user/login' })
     }
   })

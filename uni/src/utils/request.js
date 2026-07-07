@@ -1,5 +1,6 @@
 import { myRouter }from  '@/utils/permission.js'
 import { localText, t } from '@/utils/i18n.js'
+import CryptoJS from 'crypto-js'
 
 const BACKEND_ERROR_KEYS = [
     'captchaRateLimit',
@@ -342,6 +343,73 @@ const shouldNormalizeI18nByUrl = (rawUrl) => {
     })
 }
 
+const isUniEncryptEnabled = () => uni.getStorageSync('learning-api-encrypt-enabled') !== '0'
+
+const deriveEncryptKey = (token) => {
+    const base = `${String(token || '').trim()}|uni-api-v1`
+    return CryptoJS.SHA256(base)
+}
+
+const deriveSignKey = (token) => CryptoJS.SHA256(`${String(token || '').trim()}|uni-api-sign-v1`).toString()
+
+const buildReqSign = ({ method, path, rawQuery, ts, nonce, token }) => {
+    const material = [
+        String(method || '').toUpperCase().trim(),
+        String(path || '').trim(),
+        String(rawQuery || '').trim(),
+        String(ts || '').trim(),
+        String(nonce || '').trim(),
+    ].join('|')
+    return CryptoJS.HmacSHA256(material, CryptoJS.enc.Hex.parse(deriveSignKey(token))).toString(CryptoJS.enc.Hex)
+}
+
+const buildSignHeaders = ({ finalUrl, method, token }) => {
+    const nowTs = String(Math.floor(Date.now() / 1000))
+    const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+    const rawPath = String(finalUrl || '').replace(String(baseUrl || ''), '')
+    const parts = rawPath.split('?')
+    const path = parts[0] || ''
+    const rawQuery = parts[1] || ''
+    const sign = buildReqSign({ method, path, rawQuery, ts: nowTs, nonce, token })
+    return {
+        'X-Req-Ts': nowTs,
+        'X-Req-Nonce': nonce,
+        'X-Req-Sign': sign,
+    }
+}
+
+const tryDecryptPayloadData = (rawData, token) => {
+    if (!rawData || typeof rawData !== 'object' || Array.isArray(rawData)) {
+        return rawData
+    }
+    const payload = String(rawData.payload || '')
+    const iv = String(rawData.iv || '')
+    if (!payload || !iv) {
+        return rawData
+    }
+    try {
+        const key = deriveEncryptKey(token)
+        const ivWord = CryptoJS.enc.Base64.parse(iv)
+        const cipherText = CryptoJS.enc.Base64.parse(payload)
+        const decrypted = CryptoJS.AES.decrypt(
+            { ciphertext: cipherText },
+            key,
+            {
+                iv: ivWord,
+                mode: CryptoJS.mode.CBC,
+                padding: CryptoJS.pad.Pkcs7,
+            }
+        )
+        const utf8 = decrypted.toString(CryptoJS.enc.Utf8)
+        if (!utf8) {
+            return rawData
+        }
+        return JSON.parse(utf8)
+    } catch (e) {
+        return rawData
+    }
+}
+
 export const request = ({url, data, header, method, params}) => {
     // 处理 params 参数拼接到 url
     let finalUrl = baseUrl + url;
@@ -360,14 +428,18 @@ export const request = ({url, data, header, method, params}) => {
     }
 
     const requestPromise = new Promise((resolve, reject) => {
+        const token = uni.getStorageSync('x-token')
+        const signHeaders = buildSignHeaders({ finalUrl, method: requestMethod, token })
         uni.request({
             url: finalUrl, // 使用拼接后的 URL
             data: data || '',
             method,
             header: {
-                'x-token': uni.getStorageSync('x-token'),
+                'x-token': token,
                 'Accept-Language': uni.getStorageSync('app-lang') || 'zh',
                 'X-Client-Platform': 'uni',
+                'X-Resp-Encrypt': isUniEncryptEnabled() ? '1' : '0',
+                ...signHeaders,
                 ...header
             },
             success: (res) => {
@@ -411,6 +483,9 @@ export const request = ({url, data, header, method, params}) => {
                     return
                 }
                 const payload = normalizeApiResponse(res.data)
+                if (payload.code === 0 && payload.data && typeof payload.data === 'object' && payload.data.alg === 'aes-cbc') {
+                    payload.data = tryDecryptPayloadData(payload.data, token)
+                }
                 if (!isApiResponseObject(res.data)) {
                     uni.showToast({
                         title: payload.msg,
