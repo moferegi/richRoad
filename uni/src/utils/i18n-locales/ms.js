@@ -1057,4 +1057,5 @@ export default {
   'player.sentence_focused': 'Berjaya ke ayat sasaran',
   'player.sentence_not_found': 'Ayat sasaran tidak ditemui',
   'player.play_loading': 'Video sedang dimuatkan',
+  'player.video_loading': 'Video sedang dimuatkan',
 }

@@ -125,6 +125,7 @@
 		ref,
 		computed,
     onMounted,
+    onUnmounted,
     watch
 	} from 'vue';
 
@@ -154,6 +155,7 @@
 	})
 	const showLangPicker = ref(false)
   const lastLoadedLocale = ref('')
+  const localeRefreshing = ref(false)
 
   const tryAutoShowLangPicker = () => {
     if (showLangPicker.value) return
@@ -333,6 +335,9 @@
 	})
 
   onShow(() => {
+    if (localeRefreshing.value) {
+      return
+    }
     const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
     if (localeChanged) {
       reloadLocaleSensitiveData()
@@ -341,6 +346,7 @@
   })
 
   watch(() => locale.value, (newLocale, oldLocale) => {
+    if (localeRefreshing.value) return
     if (!oldLocale || newLocale === oldLocale) return
     reloadLocaleSensitiveData()
     lastLoadedLocale.value = newLocale
@@ -356,6 +362,28 @@
     }
     tryAutoShowLangPicker()
 	})
+
+  const forceRefreshByLocale = () => {
+    if (localeRefreshing.value) return
+    localeRefreshing.value = true
+    const inviteCode = safeDecode(form.inviteCode || uni.getStorageSync('pendingInviteCode') || '')
+    const nextUrl = inviteCode
+      ? `/pages/user/register?inviteCode=${encodeURIComponent(inviteCode)}`
+      : '/pages/user/register'
+    uni.reLaunch({ url: nextUrl })
+  }
+
+  onMounted(() => {
+    if (typeof uni.$on === 'function') {
+      uni.$on('app:locale-force-refresh', forceRefreshByLocale)
+    }
+  })
+
+  onUnmounted(() => {
+    if (typeof uni.$off === 'function') {
+      uni.$off('app:locale-force-refresh', forceRefreshByLocale)
+    }
+  })
 
   const syncTabBarLocale = () => {
     const lang = langStore.locale || uni.getStorageSync('app-lang') || 'mn'

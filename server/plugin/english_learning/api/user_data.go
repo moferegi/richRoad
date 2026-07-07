@@ -169,7 +169,7 @@ func (a *UserDataApi) GetWatchHistoryList(c *gin.Context) {
 		return
 	}
 
-	response.OkWithDetailed(response.PageResult{List: list, Total: total, Page: page, PageSize: pageSize}, "获取成功", c)
+	response.OkWithDetailed(response.PageResult{List: utils.LocalizeI18nPayloadByContext(c, list), Total: total, Page: page, PageSize: pageSize}, "获取成功", c)
 }
 
 // Collect 收藏
@@ -254,7 +254,7 @@ func (a *UserDataApi) GetCollectionList(c *gin.Context) {
 		response.FailWithMessage("获取失败", c)
 		return
 	}
-	response.OkWithDetailed(response.PageResult{List: list, Total: total, Page: pageInfo.Page, PageSize: pageInfo.PageSize}, "获取成功", c)
+	response.OkWithDetailed(response.PageResult{List: utils.LocalizeI18nPayloadByContext(c, list), Total: total, Page: pageInfo.Page, PageSize: pageInfo.PageSize}, "获取成功", c)
 }
 
 // GetCollectionDetailList 获取收藏详情列表
@@ -283,7 +283,7 @@ func (a *UserDataApi) GetCollectionDetailList(c *gin.Context) {
 		response.FailWithMessage("获取失败", c)
 		return
 	}
-	response.OkWithDetailed(response.PageResult{List: list, Total: total, Page: pageInfo.Page, PageSize: pageInfo.PageSize}, "获取成功", c)
+	response.OkWithDetailed(response.PageResult{List: utils.LocalizeI18nPayloadByContext(c, list), Total: total, Page: pageInfo.Page, PageSize: pageInfo.PageSize}, "获取成功", c)
 }
 
 // GetAsset 获取当前用户学习资产
@@ -306,5 +306,5 @@ func (a *UserDataApi) GetAsset(c *gin.Context) {
 		response.FailWithMessage("获取失败", c)
 		return
 	}
-	response.OkWithData(asset, c)
+	response.OkWithData(utils.LocalizeI18nPayloadByContext(c, asset), c)
 }

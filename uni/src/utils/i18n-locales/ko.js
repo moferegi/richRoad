@@ -1057,4 +1057,5 @@ export default {
   'player.sentence_focused': '대상 문장으로 이동했습니다',
   'player.sentence_not_found': '대상 문장을 찾을 수 없습니다',
   'player.play_loading': '비디오 로딩 중',
+  'player.video_loading': '비디오 로딩 중',
 }

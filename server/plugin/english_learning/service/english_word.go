@@ -15,6 +15,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -49,6 +50,38 @@ type UpsertWordFromSQLResult struct {
 	WordID           uint   `json:"wordId"`
 	AudioUSGenerated bool   `json:"audioUsGenerated"`
 	AudioUKGenerated bool   `json:"audioUkGenerated"`
+}
+
+type BatchFillWordFromDictionaryItem struct {
+	Word       string   `json:"word"`
+	WordID     uint     `json:"wordId"`
+	Status     string   `json:"status"`
+	Message    string   `json:"message"`
+	Applied    []string `json:"applied,omitempty"`
+	Translated []string `json:"translated,omitempty"`
+}
+
+type BatchFillWordFromDictionaryResult struct {
+	CategoryID uint                              `json:"categoryId"`
+	Total      int                               `json:"total"`
+	Success    int                               `json:"success"`
+	Skipped    int                               `json:"skipped"`
+	Failed     int                               `json:"failed"`
+	Items      []BatchFillWordFromDictionaryItem `json:"items"`
+}
+
+type dictionaryEntry struct {
+	Phonetics []struct {
+		Text  string `json:"text"`
+		Audio string `json:"audio"`
+	} `json:"phonetics"`
+	Meanings []struct {
+		PartOfSpeech string `json:"partOfSpeech"`
+		Definitions  []struct {
+			Definition string `json:"definition"`
+			Example    string `json:"example"`
+		} `json:"definitions"`
+	} `json:"meanings"`
 }
 
 const (
@@ -792,12 +825,13 @@ func (s *EnglishWordService) UpdateWord(req request.UpdateEnglishWordReq) error 
 		}
 
 		updates := map[string]interface{}{
-			"word":        req.Word,
-			"phonetic_us": req.PhoneticUS,
-			"phonetic_uk": req.PhoneticUK,
-			"audio_us":    req.AudioUS,
-			"audio_uk":    req.AudioUK,
-			"explanation": req.Explanation,
+			"word":           req.Word,
+			"phonetic_us":    req.PhoneticUS,
+			"phonetic_uk":    req.PhoneticUK,
+			"part_of_speech": strings.TrimSpace(req.PartOfSpeech),
+			"audio_us":       req.AudioUS,
+			"audio_uk":       req.AudioUK,
+			"explanation":    req.Explanation,
 		}
 		if err := tx.Model(&model.EnglishWord{}).Where("id = ?", req.ID).Updates(updates).Error; err != nil {
 			return err
@@ -1302,4 +1336,479 @@ func (s *EnglishWordService) UpsertWordFromSQL(req request.UpsertWordFromSQLReq)
 	})
 
 	return result, err
+}
+
+func normalizeLangCodes(input []string) []string {
+	if len(input) == 0 {
+		return []string{}
+	}
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(input))
+	for _, item := range input {
+		lang := strings.ToLower(strings.TrimSpace(item))
+		if lang == "" {
+			continue
+		}
+		if _, exists := seen[lang]; exists {
+			continue
+		}
+		seen[lang] = struct{}{}
+		out = append(out, lang)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func parseI18nMap(raw string) map[string]string {
+	out := map[string]string{}
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return out
+	}
+
+	var obj map[string]interface{}
+	if err := json.Unmarshal([]byte(trimmed), &obj); err != nil || obj == nil {
+		out["zh"] = trimmed
+		return out
+	}
+
+	for key, value := range obj {
+		lang := strings.ToLower(strings.TrimSpace(key))
+		if lang == "" {
+			continue
+		}
+		text := strings.TrimSpace(fmt.Sprintf("%v", value))
+		if text != "" {
+			out[lang] = text
+		}
+	}
+	return out
+}
+
+func stringifyI18nMap(data map[string]string) string {
+	cleaned := map[string]string{}
+	for key, value := range data {
+		lang := strings.ToLower(strings.TrimSpace(key))
+		text := strings.TrimSpace(value)
+		if lang == "" || text == "" {
+			continue
+		}
+		cleaned[lang] = text
+	}
+	if len(cleaned) == 0 {
+		return `{"zh":""}`
+	}
+	buf, err := json.Marshal(cleaned)
+	if err != nil {
+		return `{"zh":""}`
+	}
+	return string(buf)
+}
+
+func pickPhonetic(entries []dictionaryEntry, preferUS bool) string {
+	if len(entries) == 0 {
+		return ""
+	}
+	candidates := make([]string, 0, 4)
+	for _, entry := range entries {
+		for _, item := range entry.Phonetics {
+			text := strings.TrimSpace(item.Text)
+			if text == "" {
+				continue
+			}
+			audio := strings.ToLower(strings.TrimSpace(item.Audio))
+			if preferUS {
+				if strings.Contains(audio, "-us") || strings.Contains(audio, "/us") || strings.Contains(audio, "en-us") {
+					return text
+				}
+			} else {
+				if strings.Contains(audio, "-uk") || strings.Contains(audio, "/uk") || strings.Contains(audio, "en-gb") {
+					return text
+				}
+			}
+			candidates = append(candidates, text)
+		}
+	}
+	if len(candidates) == 0 {
+		return ""
+	}
+	return candidates[0]
+}
+
+func extractDictionaryData(entries []dictionaryEntry) (string, string, string, string, []string) {
+	phoneticUS := pickPhonetic(entries, true)
+	phoneticUK := pickPhonetic(entries, false)
+
+	posSet := map[string]struct{}{}
+	posList := make([]string, 0, 4)
+	definition := ""
+	exampleSet := map[string]struct{}{}
+	examples := make([]string, 0, 4)
+
+	for _, entry := range entries {
+		for _, meaning := range entry.Meanings {
+			pos := strings.TrimSpace(meaning.PartOfSpeech)
+			if pos != "" {
+				if _, exists := posSet[pos]; !exists {
+					posSet[pos] = struct{}{}
+					posList = append(posList, pos)
+				}
+			}
+			for _, def := range meaning.Definitions {
+				if definition == "" {
+					definition = strings.TrimSpace(def.Definition)
+				}
+				example := strings.TrimSpace(def.Example)
+				if example == "" {
+					continue
+				}
+				if _, exists := exampleSet[example]; exists {
+					continue
+				}
+				exampleSet[example] = struct{}{}
+				examples = append(examples, example)
+			}
+		}
+	}
+
+	partOfSpeech := strings.Join(posList, ", ")
+	return phoneticUS, phoneticUK, partOfSpeech, definition, examples
+}
+
+func fetchDictionaryEntries(word string) ([]dictionaryEntry, error) {
+	endpoint := "https://api.dictionaryapi.dev/api/v2/entries/en/" + url.PathEscape(strings.ToLower(strings.TrimSpace(word)))
+	client := &http.Client{Timeout: 12 * time.Second}
+	resp, err := client.Get(endpoint)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return []dictionaryEntry{}, nil
+	}
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return nil, fmt.Errorf("dictionaryapi状态异常(%d): %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+
+	var data []dictionaryEntry
+	if err = json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func requestTranslateText(endpoint, serviceName, sourceLang, targetLang, text string) (string, error) {
+	payload, err := json.Marshal(map[string]string{
+		"text":        text,
+		"source_lang": sourceLang,
+		"target_lang": targetLang,
+		"service":     serviceName,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return "", fmt.Errorf("翻译接口状态异常(%d): %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+
+	var out struct {
+		TranslatedText string `json:"translated_text"`
+	}
+	if err = json.Unmarshal(body, &out); err != nil {
+		return "", err
+	}
+	translated := strings.TrimSpace(out.TranslatedText)
+	if translated == "" {
+		return "", errors.New("翻译接口未返回translated_text")
+	}
+	return translated, nil
+}
+
+func (s *EnglishWordService) BatchFillWordFromDictionary(req request.BatchFillWordFromDictionaryReq) (BatchFillWordFromDictionaryResult, error) {
+	result := BatchFillWordFromDictionaryResult{CategoryID: req.CategoryID, Items: []BatchFillWordFromDictionaryItem{}}
+	if req.CategoryID == 0 {
+		return result, errors.New("分类不能为空")
+	}
+	if !req.FillPhonetic && !req.FillPartOfSpeech && !req.FillExplanation && !req.FillSentences && !req.TranslateExplanation && !req.TranslateSentences {
+		return result, errors.New("请至少选择一个补全或翻译项")
+	}
+
+	targetLangs := normalizeLangCodes(req.TargetLangs)
+	if (req.TranslateExplanation || req.TranslateSentences) && len(targetLangs) == 0 {
+		return result, errors.New("启用翻译时必须选择目标语言")
+	}
+
+	serviceName := strings.ToLower(strings.TrimSpace(req.TranslateService))
+	if serviceName == "" {
+		serviceName = "gtx"
+	}
+	if serviceName != "gtx" && serviceName != "edge" {
+		return result, errors.New("translateService仅支持 gtx 或 edge")
+	}
+
+	translateURL := strings.TrimSpace(req.TranslateURL)
+	if translateURL == "" {
+		translateURL = getLearningStringSetting("learning_translate_provider_url", "LEARNING_TRANSLATE_PROVIDER_URL", "http://localhost:3000/api/free-translate")
+	}
+
+	query := global.GVA_DB.Table("english_words w").
+		Select("w.*").
+		Joins("JOIN english_category_words cw ON cw.word_id = w.id AND cw.deleted_at IS NULL").
+		Where("cw.category_id = ?", req.CategoryID).
+		Group("w.id").
+		Order("COALESCE(MIN(cw.sort), 0) ASC, w.id ASC")
+	if req.Limit > 0 {
+		query = query.Limit(req.Limit)
+	}
+
+	words := make([]model.EnglishWord, 0)
+	if err := query.Scan(&words).Error; err != nil {
+		return result, err
+	}
+
+	result.Total = len(words)
+	if len(words) == 0 {
+		return result, nil
+	}
+
+	translateCache := map[string]string{}
+	translateText := func(text, target string) (string, error) {
+		cacheKey := strings.ToLower(strings.TrimSpace(text)) + "|" + target
+		if value, ok := translateCache[cacheKey]; ok {
+			return value, nil
+		}
+		translated, err := requestTranslateText(translateURL, serviceName, "en", target, text)
+		if err != nil {
+			return "", err
+		}
+		translateCache[cacheKey] = translated
+		return translated, nil
+	}
+
+	for _, row := range words {
+		item := BatchFillWordFromDictionaryItem{Word: row.Word, WordID: row.ID, Applied: []string{}, Translated: []string{}}
+		entries, err := fetchDictionaryEntries(row.Word)
+		if err != nil {
+			item.Status = "failed"
+			item.Message = err.Error()
+			result.Failed++
+			result.Items = append(result.Items, item)
+			continue
+		}
+		if len(entries) == 0 {
+			item.Status = "skipped"
+			item.Message = "dictionaryapi未找到该单词"
+			result.Skipped++
+			result.Items = append(result.Items, item)
+			continue
+		}
+
+		phoneticUS, phoneticUK, partOfSpeech, englishDefinition, examples := extractDictionaryData(entries)
+		warnings := make([]string, 0)
+
+		err = global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+			var word model.EnglishWord
+			if err := tx.Where("id = ?", row.ID).First(&word).Error; err != nil {
+				return err
+			}
+
+			updates := map[string]interface{}{}
+
+			if req.FillPhonetic {
+				if phoneticUS != "" && (req.OverwriteExisting || strings.TrimSpace(word.PhoneticUS) == "") {
+					updates["phonetic_us"] = phoneticUS
+					item.Applied = append(item.Applied, "phoneticUs")
+				}
+				if phoneticUK != "" && (req.OverwriteExisting || strings.TrimSpace(word.PhoneticUK) == "") {
+					updates["phonetic_uk"] = phoneticUK
+					item.Applied = append(item.Applied, "phoneticUk")
+				}
+			}
+
+			if req.FillPartOfSpeech && partOfSpeech != "" && (req.OverwriteExisting || strings.TrimSpace(word.PartOfSpeech) == "") {
+				updates["part_of_speech"] = partOfSpeech
+				item.Applied = append(item.Applied, "partOfSpeech")
+			}
+
+			explanationMap := parseI18nMap(word.Explanation)
+			explanationChanged := false
+			if req.FillExplanation && englishDefinition != "" {
+				if req.OverwriteExisting || strings.TrimSpace(explanationMap["en"]) == "" {
+					explanationMap["en"] = englishDefinition
+					explanationChanged = true
+					item.Applied = append(item.Applied, "explanation")
+				}
+			}
+
+			if req.TranslateExplanation {
+				sourceText := strings.TrimSpace(explanationMap["en"])
+				if sourceText != "" {
+					for _, lang := range targetLangs {
+						if lang == "en" {
+							continue
+						}
+						if !req.OverwriteExisting && strings.TrimSpace(explanationMap[lang]) != "" {
+							continue
+						}
+						translated, transErr := translateText(sourceText, lang)
+						if transErr != nil {
+							warnings = append(warnings, fmt.Sprintf("释义->%s翻译失败", lang))
+							continue
+						}
+						explanationMap[lang] = translated
+						explanationChanged = true
+						item.Translated = append(item.Translated, "explanation:"+lang)
+					}
+				}
+			}
+
+			if explanationChanged {
+				updates["explanation"] = stringifyI18nMap(explanationMap)
+			}
+
+			if len(updates) > 0 {
+				if err := tx.Model(&model.EnglishWord{}).Where("id = ?", word.ID).Updates(updates).Error; err != nil {
+					return err
+				}
+			}
+
+			needLoadSentences := req.FillSentences || req.TranslateSentences
+			if !needLoadSentences {
+				return nil
+			}
+
+			sentences := make([]model.EnglishWordSentence, 0)
+			if err := tx.Where("word_id = ?", word.ID).Order("sort ASC, id ASC").Find(&sentences).Error; err != nil {
+				return err
+			}
+
+			if req.FillSentences {
+				exampleList := make([]string, 0, len(examples))
+				seen := map[string]struct{}{}
+				for _, sentence := range examples {
+					trimmed := strings.TrimSpace(sentence)
+					if trimmed == "" {
+						continue
+					}
+					key := strings.ToLower(trimmed)
+					if _, exists := seen[key]; exists {
+						continue
+					}
+					seen[key] = struct{}{}
+					exampleList = append(exampleList, trimmed)
+				}
+
+				if req.OverwriteExisting {
+					if err := tx.Unscoped().Where("word_id = ?", word.ID).Delete(&model.EnglishWordSentence{}).Error; err != nil {
+						return err
+					}
+					sentences = []model.EnglishWordSentence{}
+				}
+
+				existingSource := map[string]struct{}{}
+				maxSort := 0
+				for _, sentence := range sentences {
+					existingSource[strings.ToLower(strings.TrimSpace(sentence.Source))] = struct{}{}
+					if sentence.Sort > maxSort {
+						maxSort = sentence.Sort
+					}
+				}
+
+				newRows := make([]model.EnglishWordSentence, 0)
+				for _, source := range exampleList {
+					if _, exists := existingSource[strings.ToLower(source)]; exists {
+						continue
+					}
+					maxSort++
+					newRows = append(newRows, model.EnglishWordSentence{
+						WordID: word.ID,
+						Source: source,
+						Sort:   maxSort,
+					})
+				}
+
+				if len(newRows) > 0 {
+					if err := tx.Create(&newRows).Error; err != nil {
+						return err
+					}
+					item.Applied = append(item.Applied, fmt.Sprintf("sentences(+%d)", len(newRows)))
+					sentences = append(sentences, newRows...)
+				}
+			}
+
+			if req.TranslateSentences {
+				for _, sentence := range sentences {
+					sourceText := strings.TrimSpace(sentence.Source)
+					if sourceText == "" {
+						continue
+					}
+					translateMap := parseI18nMap(sentence.Translate)
+					changed := false
+					for _, lang := range targetLangs {
+						if lang == "en" {
+							continue
+						}
+						if !req.OverwriteExisting && strings.TrimSpace(translateMap[lang]) != "" {
+							continue
+						}
+						translated, transErr := translateText(sourceText, lang)
+						if transErr != nil {
+							warnings = append(warnings, fmt.Sprintf("例句[%d]->%s翻译失败", sentence.ID, lang))
+							continue
+						}
+						translateMap[lang] = translated
+						changed = true
+						item.Translated = append(item.Translated, fmt.Sprintf("sentence:%d:%s", sentence.ID, lang))
+					}
+					if changed {
+						if err := tx.Model(&model.EnglishWordSentence{}).Where("id = ?", sentence.ID).Update("translate", stringifyI18nMap(translateMap)).Error; err != nil {
+							return err
+						}
+					}
+				}
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			item.Status = "failed"
+			item.Message = err.Error()
+			result.Failed++
+			result.Items = append(result.Items, item)
+			continue
+		}
+
+		if len(item.Applied) == 0 && len(item.Translated) == 0 {
+			item.Status = "skipped"
+			item.Message = "无可更新字段"
+			result.Skipped++
+		} else {
+			item.Status = "success"
+			if len(warnings) > 0 {
+				item.Message = strings.Join(warnings, "; ")
+			}
+			result.Success++
+		}
+		result.Items = append(result.Items, item)
+	}
+
+	return result, nil
 }

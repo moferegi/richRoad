@@ -66,12 +66,13 @@ func (a *EnglishWordApi) CreateEnglishWord(c *gin.Context) {
 	}
 
 	wordEntity := model.EnglishWord{
-		Word:        req.Word,
-		PhoneticUS:  req.PhoneticUS, // 后续也可写脚本用 JSON 词典进行查漏补缺
-		PhoneticUK:  req.PhoneticUK,
-		AudioUS:     req.AudioUS,
-		AudioUK:     req.AudioUK,
-		Explanation: req.Explanation,
+		Word:         req.Word,
+		PhoneticUS:   req.PhoneticUS, // 后续也可写脚本用 JSON 词典进行查漏补缺
+		PhoneticUK:   req.PhoneticUK,
+		PartOfSpeech: req.PartOfSpeech,
+		AudioUS:      req.AudioUS,
+		AudioUK:      req.AudioUK,
+		Explanation:  req.Explanation,
 	}
 
 	if err := englishWordService.CreateWord(wordEntity, req.CategoryIDs, req.ChapterIDs, req.Sentences); err != nil {
@@ -117,11 +118,11 @@ func (a *EnglishWordApi) FindEnglishWord(c *gin.Context) {
 	}
 	data.Sentences = sentences
 
-	response.OkWithData(EnglishWordDetailResponse{
+	response.OkWithData(utils.LocalizeI18nPayloadByContext(c, EnglishWordDetailResponse{
 		EnglishWord: data,
 		CategoryIDs: categoryIDs,
 		ChapterIDs:  chapterIDs,
-	}, c)
+	}), c)
 }
 
 // UpdateEnglishWord 更新单词信息
@@ -247,7 +248,7 @@ func (a *EnglishWordApi) GetWordList(c *gin.Context) {
 		return
 	}
 
-	response.OkWithDetailed(response.PageResult{List: list, Total: total, Page: page, PageSize: pageSize}, "获取成功", c)
+	response.OkWithDetailed(response.PageResult{List: utils.LocalizeI18nPayloadByContext(c, list), Total: total, Page: page, PageSize: pageSize}, "获取成功", c)
 }
 
 // ReportWordError 上报错词
@@ -311,7 +312,7 @@ func (a *EnglishWordApi) GetWordErrorLogList(c *gin.Context) {
 		return
 	}
 
-	response.OkWithDetailed(response.PageResult{List: list, Total: total, Page: page, PageSize: pageSize}, "获取成功", c)
+	response.OkWithDetailed(response.PageResult{List: utils.LocalizeI18nPayloadByContext(c, list), Total: total, Page: page, PageSize: pageSize}, "获取成功", c)
 }
 
 // DeleteWordErrorLog 删除错题本记录
@@ -364,6 +365,32 @@ func (a *EnglishWordApi) UpsertWordFromSQL(c *gin.Context) {
 	data, err := englishWordService.UpsertWordFromSQL(req)
 	if err != nil {
 		global.GVA_LOG.Error("SQL单词导入处理失败", zap.Error(err))
+		response.FailWithMessage("处理失败: "+err.Error(), c)
+		return
+	}
+
+	response.OkWithDetailed(data, "处理成功", c)
+}
+
+// BatchFillWordFromDictionary 按分类批量补全词典信息
+// @Tags     EnglishWord
+// @Summary  按分类批量补全音标/词性/释义/例句，并可选翻译释义与例句
+// @Security ApiKeyAuth
+// @accept   application/json
+// @Produce  application/json
+// @Param    data body request.BatchFillWordFromDictionaryReq true "批量补全参数"
+// @Success  200  {object} response.Response{data=service.BatchFillWordFromDictionaryResult,msg=string} "处理成功"
+// @Router   /englishLearning/word/batchFillFromDictionary [post]
+func (a *EnglishWordApi) BatchFillWordFromDictionary(c *gin.Context) {
+	var req request.BatchFillWordFromDictionaryReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage("参数错误", c)
+		return
+	}
+
+	data, err := englishWordService.BatchFillWordFromDictionary(req)
+	if err != nil {
+		global.GVA_LOG.Error("词典批量补全失败", zap.Error(err))
 		response.FailWithMessage("处理失败: "+err.Error(), c)
 		return
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/model"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/model/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/service"
+	serverUtils "github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -146,7 +147,7 @@ func (a *ContentApi) GetCategoryList(c *gin.Context) {
 		response.FailWithMessage("获取失败", c)
 		return
 	}
-	response.OkWithDetailed(response.PageResult{List: list, Total: total, Page: pageInfo.Page, PageSize: pageInfo.PageSize}, "获取成功", c)
+	response.OkWithDetailed(response.PageResult{List: serverUtils.LocalizeI18nPayloadByContext(c, list), Total: total, Page: pageInfo.Page, PageSize: pageInfo.PageSize}, "获取成功", c)
 }
 
 // CreateChapter 创建英语章节
@@ -263,7 +264,7 @@ func (a *ContentApi) GetChapterList(c *gin.Context) {
 		response.FailWithMessage("获取失败", c)
 		return
 	}
-	response.OkWithDetailed(response.PageResult{List: list, Total: total, Page: pageInfo.Page, PageSize: pageInfo.PageSize}, "获取成功", c)
+	response.OkWithDetailed(response.PageResult{List: serverUtils.LocalizeI18nPayloadByContext(c, list), Total: total, Page: pageInfo.Page, PageSize: pageInfo.PageSize}, "获取成功", c)
 }
 
 // CreateVideoCategory 创建视频分类
@@ -380,7 +381,7 @@ func (a *ContentApi) GetVideoCategoryList(c *gin.Context) {
 		response.FailWithMessage("获取失败", c)
 		return
 	}
-	response.OkWithDetailed(response.PageResult{List: list, Total: total, Page: pageInfo.Page, PageSize: pageInfo.PageSize}, "获取成功", c)
+	response.OkWithDetailed(response.PageResult{List: serverUtils.LocalizeI18nPayloadByContext(c, list), Total: total, Page: pageInfo.Page, PageSize: pageInfo.PageSize}, "获取成功", c)
 }
 
 // CreateVideoSeries 创建视频剧集
@@ -473,7 +474,7 @@ func (a *ContentApi) FindVideoSeries(c *gin.Context) {
 		response.FailWithMessage("获取失败", c)
 		return
 	}
-	response.OkWithData(data, c)
+	response.OkWithData(serverUtils.LocalizeI18nPayloadByContext(c, data), c)
 }
 
 // GetVideoSeriesList 分页获取视频剧集
@@ -497,7 +498,7 @@ func (a *ContentApi) GetVideoSeriesList(c *gin.Context) {
 		response.FailWithMessage("获取失败", c)
 		return
 	}
-	response.OkWithDetailed(response.PageResult{List: list, Total: total, Page: pageInfo.Page, PageSize: pageInfo.PageSize}, "获取成功", c)
+	response.OkWithDetailed(response.PageResult{List: serverUtils.LocalizeI18nPayloadByContext(c, list), Total: total, Page: pageInfo.Page, PageSize: pageInfo.PageSize}, "获取成功", c)
 }
 
 // CreateVideoEpisode 创建视频单集
@@ -612,7 +613,7 @@ func (a *ContentApi) FindVideoEpisode(c *gin.Context) {
 	}
 
 	data.HasFullAuth = hasFullAuth
-	response.OkWithData(data, c)
+	response.OkWithData(serverUtils.LocalizeI18nPayloadByContext(c, data), c)
 }
 
 // GetVideoEpisodeList 分页获取视频单集
@@ -639,5 +640,5 @@ func (a *ContentApi) GetVideoEpisodeList(c *gin.Context) {
 	for i := range list {
 		list[i].VideoUrl = service.SignLearningVideoURL(list[i].VideoUrl)
 	}
-	response.OkWithDetailed(response.PageResult{List: list, Total: total, Page: pageInfo.Page, PageSize: pageInfo.PageSize}, "获取成功", c)
+	response.OkWithDetailed(response.PageResult{List: serverUtils.LocalizeI18nPayloadByContext(c, list), Total: total, Page: pageInfo.Page, PageSize: pageInfo.PageSize}, "获取成功", c)
 }

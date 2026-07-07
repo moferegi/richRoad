@@ -10,9 +10,7 @@
           <uni-icons type="left" size="20" color="#0f172a"></uni-icons>
         </view>
         <text class="nf-navbar-title">{{ $t('kefuTitle') }}</text>
-        <view class="nf-lang-btn" @tap="showLangPicker = true">
-          <text class="nf-lang-label">{{ langLabel }}</text>
-        </view>
+        <view class="nf-nav-space"></view>
       </view>
     </view>
 
@@ -104,8 +102,6 @@
         <text class="nf-kefu-empty-text">{{ $t('kefuEmpty') }}</text>
       </view>
     </scroll-view>
-
-    <lang-switch v-model="showLangPicker" />
   </view>
 </template>
 
@@ -117,15 +113,9 @@ import { getUrl } from '@/utils/url.js'
 import { localText, t as i18nT } from '@/utils/i18n.js'
 import { trackVisitorEvent } from '@/utils/visitorEvent.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
-import langSwitch from '@/components/lang-switch/lang-switch.vue'
 
 const langStore = useLangStore()
 const $t = computed(() => langStore.$t)
-const showLangPicker = ref(false)
-const langLabel = computed(() => {
-  const map = { zh: 'ZH', en: 'EN', mn: 'MN', 'zh-TW': 'TW', th: 'TH', hi: 'HI', id: 'ID', vi: 'VI', ar: 'AR', ja: 'JA', ko: 'KO', ms: 'MS' }
-  return map[langStore.locale] || String(langStore.locale || 'zh').slice(0, 2).toUpperCase()
-})
 
 const kefuList = ref([])
 const isLoading = ref(true)
@@ -612,25 +602,9 @@ page {
   }
 }
 
-.nf-lang-btn {
+.nf-nav-space {
   width: 64rpx;
   height: 64rpx;
-  border-radius: 18rpx;
-  border: 1rpx solid rgba(20, 184, 166, 0.24);
-  background: rgba(255, 255, 255, 0.86);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:active {
-    transform: scale(0.93);
-  }
-}
-
-.nf-lang-label {
-  font-size: 22rpx;
-  font-weight: 800;
-  color: #7c2d12;
 }
 
 .nf-navbar-title {

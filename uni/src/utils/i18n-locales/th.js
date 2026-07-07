@@ -1057,4 +1057,5 @@ export default {
   'player.sentence_focused': 'เลื่อนไปยังประโยคเป้าหมายแล้ว',
   'player.sentence_not_found': 'ไม่พบประโยคเป้าหมาย',
   'player.play_loading': 'กำลังโหลดวิดีโอ',
+  'player.video_loading': 'กำลังโหลดวิดีโอ',
 }

@@ -101,9 +101,25 @@ onUnmounted(() => {
 })
 
 const selectLang = (lang) => {
-  langStore.setLocale(lang)
+  langStore.setLocale(lang, { emitRefresh: false })
   emit('change', lang)
   close('select')
+  forceRefreshCurrentPage()
+}
+
+const forceRefreshCurrentPage = () => {
+  const pages = getCurrentPages()
+  if (!pages || !pages.length) return
+  const current = pages[pages.length - 1]
+  const route = String(current?.route || '').trim()
+  if (!route) return
+  const options = current?.options || {}
+  const query = Object.keys(options)
+    .filter((key) => options[key] !== undefined && options[key] !== null && String(options[key]).trim() !== '')
+    .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(String(options[key]))}`)
+    .join('&')
+  const url = `/${route}${query ? `?${query}` : ''}`
+  uni.reLaunch({ url })
 }
 
 const close = (reason = 'cancel') => {

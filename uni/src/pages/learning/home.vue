@@ -95,6 +95,8 @@ const finished = ref(false)
 const videoCategories = ref([])
 const currentCategoryId = ref(0)
 const videoList = ref([])
+const homeInited = ref(false)
+const homeShownOnce = ref(false)
 
 const normalizeId = (item) => Number(item?.id || item?.ID || 0)
 
@@ -175,10 +177,19 @@ const reloadHome = async () => {
 }
 
 onLoad(() => {
+  homeInited.value = true
   reloadHome()
 })
 
 onShow(() => {
+  if (!homeInited.value) {
+    homeInited.value = true
+    return
+  }
+  if (!homeShownOnce.value) {
+    homeShownOnce.value = true
+    return
+  }
   reloadHome()
 })
 

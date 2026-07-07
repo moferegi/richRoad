@@ -20,28 +20,30 @@ type EnglishWordSentenceReq struct {
 }
 
 type CreateEnglishWordReq struct {
-	Word        string                   `json:"word" binding:"required"`
-	PhoneticUS  string                   `json:"phoneticUs"`
-	PhoneticUK  string                   `json:"phoneticUk"`
-	AudioUS     string                   `json:"audioUs"`
-	AudioUK     string                   `json:"audioUk"`
-	Explanation string                   `json:"explanation"` // JSON string for multiple languages
-	CategoryIDs []uint                   `json:"categoryIds"` // 单词可归属多个分类
-	ChapterIDs  []uint                   `json:"chapterIds"`  // 创建单词时自动关联的章节ID列表
-	Sentences   []EnglishWordSentenceReq `json:"sentences"`
+	Word         string                   `json:"word" binding:"required"`
+	PhoneticUS   string                   `json:"phoneticUs"`
+	PhoneticUK   string                   `json:"phoneticUk"`
+	PartOfSpeech string                   `json:"partOfSpeech"`
+	AudioUS      string                   `json:"audioUs"`
+	AudioUK      string                   `json:"audioUk"`
+	Explanation  string                   `json:"explanation"` // JSON string for multiple languages
+	CategoryIDs  []uint                   `json:"categoryIds"` // 单词可归属多个分类
+	ChapterIDs   []uint                   `json:"chapterIds"`  // 创建单词时自动关联的章节ID列表
+	Sentences    []EnglishWordSentenceReq `json:"sentences"`
 }
 
 type UpdateEnglishWordReq struct {
-	ID          uint                     `json:"ID" binding:"required"`
-	Word        string                   `json:"word" binding:"required"`
-	PhoneticUS  string                   `json:"phoneticUs"`
-	PhoneticUK  string                   `json:"phoneticUk"`
-	AudioUS     string                   `json:"audioUs"`
-	AudioUK     string                   `json:"audioUk"`
-	Explanation string                   `json:"explanation"`
-	CategoryIDs []uint                   `json:"categoryIds"` // 可选；传入时会重建分类绑定关系
-	ChapterIDs  []uint                   `json:"chapterIds"`  // 可选；传入时会重建章节绑定关系
-	Sentences   []EnglishWordSentenceReq `json:"sentences"`
+	ID           uint                     `json:"ID" binding:"required"`
+	Word         string                   `json:"word" binding:"required"`
+	PhoneticUS   string                   `json:"phoneticUs"`
+	PhoneticUK   string                   `json:"phoneticUk"`
+	PartOfSpeech string                   `json:"partOfSpeech"`
+	AudioUS      string                   `json:"audioUs"`
+	AudioUK      string                   `json:"audioUk"`
+	Explanation  string                   `json:"explanation"`
+	CategoryIDs  []uint                   `json:"categoryIds"` // 可选；传入时会重建分类绑定关系
+	ChapterIDs   []uint                   `json:"chapterIds"`  // 可选；传入时会重建章节绑定关系
+	Sentences    []EnglishWordSentenceReq `json:"sentences"`
 }
 
 type RegenerateWordAudioReq struct {
@@ -88,4 +90,19 @@ type UpsertWordFromSQLReq struct {
 	CategoryID    uint   `json:"categoryId" binding:"required"`
 	ChapterID     uint   `json:"chapterId"`
 	GenerateAudio bool   `json:"generateAudio"`
+}
+
+type BatchFillWordFromDictionaryReq struct {
+	CategoryID           uint     `json:"categoryId" binding:"required"`
+	FillPhonetic         bool     `json:"fillPhonetic"`
+	FillPartOfSpeech     bool     `json:"fillPartOfSpeech"`
+	FillExplanation      bool     `json:"fillExplanation"`
+	FillSentences        bool     `json:"fillSentences"`
+	OverwriteExisting    bool     `json:"overwriteExisting"`
+	TranslateExplanation bool     `json:"translateExplanation"`
+	TranslateSentences   bool     `json:"translateSentences"`
+	TargetLangs          []string `json:"targetLangs"`
+	TranslateService     string   `json:"translateService"`
+	TranslateURL         string   `json:"translateUrl"`
+	Limit                int      `json:"limit"`
 }

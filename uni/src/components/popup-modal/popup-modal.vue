@@ -49,6 +49,8 @@ const loading = ref(false)
 // 弹窗队列，支持多个连续弹窗
 const popupQueue = ref([])
 const currentIndex = ref(0)
+const lastLoadKey = ref('')
+const lastLoadAt = ref(0)
 
 const parsedTitle = computed(() => {
   if (!popup.value.title) return ''
@@ -89,6 +91,14 @@ const loadPopup = async () => {
   if (props.position) {
     params.position = props.position
   }
+  const loadKey = `${params.clientType || ''}|${params.page || ''}|${params.position || ''}`
+  const now = Date.now()
+  if (lastLoadKey.value === loadKey && now - Number(lastLoadAt.value || 0) < 1200) {
+    loading.value = false
+    return
+  }
+  lastLoadKey.value = loadKey
+  lastLoadAt.value = now
 
   try {
     const res = await getActivePopups(params)

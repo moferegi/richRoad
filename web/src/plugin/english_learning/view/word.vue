@@ -166,6 +166,7 @@
               </el-form-item>
             </el-form>
               <div class="toolbar-actions">
+                <el-button type="success" icon="magic-stick" @click="openBatchFillDialog">按分类词典补全</el-button>
                 <el-button type="warning" icon="upload" @click="openSqlImportDialog">批量SQL导入</el-button>
                 <el-button type="primary" icon="plus" @click="openWordDialog()">新增单词</el-button>
               </div>
@@ -176,6 +177,7 @@
             <el-table-column prop="word" label="单词" min-width="150" />
             <el-table-column prop="phoneticUs" label="美式音标" min-width="160" show-overflow-tooltip />
             <el-table-column prop="phoneticUk" label="英式音标" min-width="160" show-overflow-tooltip />
+            <el-table-column prop="partOfSpeech" label="词性" min-width="140" show-overflow-tooltip />
             <el-table-column label="释义" min-width="260" show-overflow-tooltip>
               <template #default="scope">
                 {{ formatI18nText(scope.row.explanation) }}
@@ -298,6 +300,9 @@
         </el-form-item>
         <el-form-item label="英式音标">
           <el-input v-model="wordForm.phoneticUk" placeholder="例如: /ˈdestəni/" />
+        </el-form-item>
+        <el-form-item label="词性">
+          <el-input v-model="wordForm.partOfSpeech" placeholder="例如: noun, verb" />
         </el-form-item>
         <el-form-item label="释义">
           <MultiLangEditor
@@ -470,6 +475,76 @@
         <el-button type="primary" :loading="sqlImportSubmitting" @click="runSqlImport">开始导入</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="batchFillDialogVisible" title="按分类批量词典补全" width="980px" :close-on-click-modal="false" :close-on-press-escape="false">
+      <el-form :model="batchFillForm" label-width="160px">
+        <el-form-item label="目标分类">
+          <el-select v-model="batchFillForm.categoryId" placeholder="请选择分类" style="width: 100%" filterable>
+            <el-option
+              v-for="item in categoryOptions"
+              :key="item.ID"
+              :label="formatI18nText(item.name)"
+              :value="item.ID"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="补全字段">
+          <el-checkbox-group v-model="batchFillForm.fieldKeys">
+            <el-checkbox label="phonetic">音标(美/英)</el-checkbox>
+            <el-checkbox label="partOfSpeech">词性</el-checkbox>
+            <el-checkbox label="explanation">释义</el-checkbox>
+            <el-checkbox label="sentences">例句</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+        <el-form-item label="写入策略">
+          <el-switch v-model="batchFillForm.overwriteExisting" />
+          <span class="dialog-hint-inline">开启后覆盖已有值；关闭则仅补空字段。</span>
+        </el-form-item>
+        <el-form-item label="翻译填充">
+          <el-checkbox v-model="batchFillForm.translateExplanation">翻译释义</el-checkbox>
+          <el-checkbox v-model="batchFillForm.translateSentences">翻译例句</el-checkbox>
+        </el-form-item>
+        <el-form-item label="目标语言（多选）">
+          <el-select v-model="batchFillForm.targetLangs" multiple clearable filterable style="width: 100%" placeholder="可选择多个语言">
+            <el-option
+              v-for="lang in translationLanguageOptions"
+              :key="lang.value"
+              :label="lang.label"
+              :value="lang.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="翻译服务">
+          <el-select v-model="batchFillForm.translateService" style="width: 180px">
+            <el-option label="gtx" value="gtx" />
+            <el-option label="edge" value="edge" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="处理数量上限">
+          <el-input-number v-model="batchFillForm.limit" :min="0" :step="10" />
+          <span class="dialog-hint-inline">0 表示按该分类全部处理。</span>
+        </el-form-item>
+      </el-form>
+
+      <div class="import-progress-box" v-if="batchFillLogs.length > 0">
+        <div class="import-progress-head">
+          <span>补全执行日志（逐词）</span>
+          <el-tag type="info">{{ batchFillLogs.length }} 条</el-tag>
+        </div>
+        <div class="import-progress-list">
+          <div v-for="(item, index) in batchFillLogs" :key="`${item.time}_${index}`" class="import-progress-line">
+            <el-tag :type="item.level === 'success' ? 'success' : item.level === 'error' ? 'danger' : 'warning'" size="small">{{ item.level }}</el-tag>
+            <span class="import-progress-time">{{ item.time }}</span>
+            <span class="import-progress-text">{{ item.message }}</span>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button :disabled="batchFillSubmitting" @click="batchFillDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="batchFillSubmitting" @click="runBatchFill">开始补全</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -490,6 +565,7 @@
     getCategoryList,
     getChapterList,
     getEnglishWordList,
+    batchFillWordFromDictionary,
     regenerateWordAudio,
     upsertSqlWord,
     updateCategory,
@@ -605,6 +681,7 @@
     word: '',
     phoneticUs: '',
     phoneticUk: '',
+    partOfSpeech: '',
     audioUs: '',
     audioUk: '',
     explanationI18n: { zh: '' },
@@ -625,6 +702,20 @@
     sqlContent: ''
   })
   const sqlImportLogs = ref([])
+
+  const batchFillDialogVisible = ref(false)
+  const batchFillSubmitting = ref(false)
+  const batchFillLogs = ref([])
+  const batchFillForm = ref({
+    categoryId: undefined,
+    fieldKeys: ['phonetic', 'partOfSpeech', 'explanation'],
+    overwriteExisting: false,
+    translateExplanation: false,
+    translateSentences: false,
+    targetLangs: ['zh'],
+    translateService: 'edge',
+    limit: 0
+  })
 
   let sentenceKeySeed = 1
   const createWordSentenceFormItem = () => ({
@@ -657,6 +748,18 @@
       time: nowTimeText()
     })
   }
+
+  const appendBatchFillLog = (level, message) => {
+    batchFillLogs.value.push({
+      level,
+      message,
+      time: nowTimeText()
+    })
+  }
+
+  const translationLanguageOptions = computed(() => {
+    return displayLanguageOptions.value.filter((item) => item.value !== 'en')
+  })
 
   const parseSqlWordRows = (sqlContent) => {
     const rows = []
@@ -692,6 +795,83 @@
     }
     sqlImportLogs.value = []
     sqlImportDialogVisible.value = true
+  }
+
+  const openBatchFillDialog = () => {
+    batchFillForm.value = {
+      categoryId: wordQuery.value.categoryId || undefined,
+      fieldKeys: ['phonetic', 'partOfSpeech', 'explanation'],
+      overwriteExisting: false,
+      translateExplanation: false,
+      translateSentences: false,
+      targetLangs: ['zh'],
+      translateService: 'edge',
+      limit: 0
+    }
+    batchFillLogs.value = []
+    batchFillDialogVisible.value = true
+  }
+
+  const runBatchFill = async () => {
+    if (!batchFillForm.value.categoryId) {
+      ElMessage.warning('请选择目标分类')
+      return
+    }
+
+    const hasField = Array.isArray(batchFillForm.value.fieldKeys) && batchFillForm.value.fieldKeys.length > 0
+    if (!hasField && !batchFillForm.value.translateExplanation && !batchFillForm.value.translateSentences) {
+      ElMessage.warning('请至少选择一个补全项或翻译项')
+      return
+    }
+
+    if ((batchFillForm.value.translateExplanation || batchFillForm.value.translateSentences) && (!Array.isArray(batchFillForm.value.targetLangs) || batchFillForm.value.targetLangs.length === 0)) {
+      ElMessage.warning('启用翻译时至少选择一个目标语言')
+      return
+    }
+
+    const fields = new Set(batchFillForm.value.fieldKeys || [])
+    const payload = {
+      categoryId: Number(batchFillForm.value.categoryId),
+      fillPhonetic: fields.has('phonetic'),
+      fillPartOfSpeech: fields.has('partOfSpeech'),
+      fillExplanation: fields.has('explanation'),
+      fillSentences: fields.has('sentences'),
+      overwriteExisting: !!batchFillForm.value.overwriteExisting,
+      translateExplanation: !!batchFillForm.value.translateExplanation,
+      translateSentences: !!batchFillForm.value.translateSentences,
+      targetLangs: (batchFillForm.value.targetLangs || []).map((lang) => String(lang || '').trim()).filter(Boolean),
+      translateService: String(batchFillForm.value.translateService || 'gtx').trim(),
+      limit: Number(batchFillForm.value.limit || 0)
+    }
+
+    batchFillSubmitting.value = true
+    batchFillLogs.value = []
+    appendBatchFillLog('warning', '开始执行批量补全任务')
+
+    try {
+      const res = await batchFillWordFromDictionary(payload)
+      if (res.code !== 0) {
+        appendBatchFillLog('error', res.msg || '接口返回异常')
+        return
+      }
+
+      const data = res.data || {}
+      const items = Array.isArray(data.items) ? data.items : []
+      for (const item of items) {
+        const level = item.status === 'success' ? 'success' : item.status === 'failed' ? 'error' : 'warning'
+        const applied = Array.isArray(item.applied) && item.applied.length > 0 ? `，写入: ${item.applied.join(', ')}` : ''
+        const translated = Array.isArray(item.translated) && item.translated.length > 0 ? `，翻译: ${item.translated.length} 项` : ''
+        const msg = item.message ? `，备注: ${item.message}` : ''
+        appendBatchFillLog(level, `${item.word || '-'} -> ${item.status || 'unknown'}${applied}${translated}${msg}`)
+      }
+      appendBatchFillLog('warning', `处理完成：总数 ${Number(data.total || 0)}，成功 ${Number(data.success || 0)}，跳过 ${Number(data.skipped || 0)}，失败 ${Number(data.failed || 0)}`)
+      await loadWordList()
+      ElMessage.success('批量补全执行完成')
+    } catch (error) {
+      appendBatchFillLog('error', error?.message || '执行失败')
+    } finally {
+      batchFillSubmitting.value = false
+    }
   }
 
   const handleSqlFileChange = (file) => {
@@ -1197,6 +1377,7 @@
       word: row?.word || '',
       phoneticUs: row?.phoneticUs || '',
       phoneticUk: row?.phoneticUk || '',
+      partOfSpeech: row?.partOfSpeech || '',
       audioUs: row?.audioUs || '',
       audioUk: row?.audioUk || '',
       explanationI18n: normalizeI18nObject(row?.explanation || ''),
@@ -1213,6 +1394,7 @@
       wordForm.value.word = data.word || ''
       wordForm.value.phoneticUs = data.phoneticUs || ''
       wordForm.value.phoneticUk = data.phoneticUk || ''
+      wordForm.value.partOfSpeech = data.partOfSpeech || ''
       wordForm.value.audioUs = data.audioUs || ''
       wordForm.value.audioUk = data.audioUk || ''
       wordForm.value.explanationI18n = normalizeI18nObject(data.explanation || '')
@@ -1250,6 +1432,7 @@
       word: String(wordForm.value.word || '').trim(),
       phoneticUs: String(wordForm.value.phoneticUs || '').trim(),
       phoneticUk: String(wordForm.value.phoneticUk || '').trim(),
+      partOfSpeech: String(wordForm.value.partOfSpeech || '').trim(),
       audioUs: String(wordForm.value.audioUs || '').trim(),
       audioUk: String(wordForm.value.audioUk || '').trim(),
       explanation: stringifyI18nObject(wordForm.value.explanationI18n),
@@ -1381,6 +1564,12 @@
     color: #6b7280;
     font-size: 12px;
     line-height: 1.4;
+  }
+
+  .dialog-hint-inline {
+    margin-left: 10px;
+    color: #6b7280;
+    font-size: 12px;
   }
 
   .sentence-editor {

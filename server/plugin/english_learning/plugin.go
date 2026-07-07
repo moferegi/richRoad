@@ -27,7 +27,8 @@ func (p *plugin) Register(engine *gin.Engine) {
 	initialize.Gorm(ctx)
 
 	group := engine.Group(global.GVA_CONFIG.System.RouterPrefix).Group("englishLearning")
-	group.Use(systemMiddleware.JWTAuth(), learningMiddleware.LearningAuth())
+	group.Use(systemMiddleware.Locale(), systemMiddleware.JWTAuth(), learningMiddleware.LearningAuth())
+	group.Use(learningMiddleware.LearningReadRateLimit())
 
 	englishRouter.RouterGroupApp.InitUserLearningAssetRouter(group)
 	englishRouter.RouterGroupApp.InitEnglishWordRouter(group)

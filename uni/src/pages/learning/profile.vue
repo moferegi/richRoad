@@ -71,7 +71,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { localText as i18nLocalText, t as i18nT } from '@/utils/i18n.js'
@@ -99,6 +99,7 @@ const exchangePoints = ref(100)
 
 const exchangePopup = ref(null)
 const showLangPicker = ref(false)
+const localeRefreshing = ref(false)
 
 const exchangeMinutes = computed(() => Math.floor(Number(exchangePoints.value || 0) / exchangeRate.value))
 
@@ -220,6 +221,24 @@ onShow(() => {
   loadUserInfo()
   loadAsset()
   loadExchangeRate()
+})
+
+const forceRefreshByLocale = () => {
+  if (localeRefreshing.value) return
+  localeRefreshing.value = true
+  uni.reLaunch({ url: '/pages/learning/profile' })
+}
+
+onMounted(() => {
+  if (typeof uni.$on === 'function') {
+    uni.$on('app:locale-force-refresh', forceRefreshByLocale)
+  }
+})
+
+onUnmounted(() => {
+  if (typeof uni.$off === 'function') {
+    uni.$off('app:locale-force-refresh', forceRefreshByLocale)
+  }
 })
 </script>
 

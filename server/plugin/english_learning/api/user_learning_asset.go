@@ -111,7 +111,7 @@ func (a *UserLearningAssetApi) GetFreeTimeRecordList(c *gin.Context) {
 
 	page, pageSize = normalizeAssetPage(page, pageSize)
 	response.OkWithDetailed(response.PageResult{
-		List:     list,
+		List:     utils.LocalizeI18nPayloadByContext(c, list),
 		Total:    total,
 		Page:     page,
 		PageSize: pageSize,

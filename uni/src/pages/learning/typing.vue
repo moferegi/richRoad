@@ -193,7 +193,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { t as i18nT, localText as i18nLocalText } from '@/utils/i18n.js'
@@ -266,6 +266,9 @@ const wordSearchKeyword = ref('')
 const showWordSearchResult = ref(false)
 const wordSearchResults = ref([])
 const isCollected = ref(false)
+const collectedWordIdSet = ref(new Set())
+const collectionsLoadedAt = ref(0)
+const typingInitialized = ref(false)
 const showSettingsSheet = () => settingsPopup.value.open()
 const closeSettingsSheet = () => settingsPopup.value?.close()
 const openWordDrawer = () => wordDrawerPopup.value?.open()
@@ -279,23 +282,37 @@ const clearWordSearchKeyword = () => {
   showWordSearchResult.value = false
 }
 
-const refreshWordCollectedState = async () => {
-  const wordId = Number(currentWord.value.id || 0)
-  if (!wordId) {
-    isCollected.value = false
+const loadWordCollections = async (force = false) => {
+  const now = Date.now()
+  if (!force && now - Number(collectionsLoadedAt.value || 0) < 20000) {
     return
   }
   try {
     const res = await getCollectionList({ targetType: 1, page: 1, pageSize: 200 })
     if (res.code !== 0 || !res.data) {
-      isCollected.value = false
       return
     }
     const list = Array.isArray(res.data.list) ? res.data.list : []
-    isCollected.value = list.some((item) => Number(item?.targetId || 0) === wordId)
+    const nextSet = new Set()
+    list.forEach((item) => {
+      const targetId = Number(item?.targetId || 0)
+      if (targetId > 0) {
+        nextSet.add(targetId)
+      }
+    })
+    collectedWordIdSet.value = nextSet
+    collectionsLoadedAt.value = now
   } catch (error) {
-    isCollected.value = false
   }
+}
+
+const refreshWordCollectedState = () => {
+  const wordId = Number(currentWord.value.id || 0)
+  if (!wordId) {
+    isCollected.value = false
+    return
+  }
+  isCollected.value = collectedWordIdSet.value.has(wordId)
 }
 
 const collectWord = async () => {
@@ -305,7 +322,14 @@ const collectWord = async () => {
   }
   const res = isCollected.value ? await uncollect(1, wordId) : await collect(1, wordId)
   if (res.code === 0) {
-    isCollected.value = !isCollected.value
+    const nextSet = new Set(collectedWordIdSet.value)
+    if (isCollected.value) {
+      nextSet.delete(wordId)
+    } else {
+      nextSet.add(wordId)
+    }
+    collectedWordIdSet.value = nextSet
+    refreshWordCollectedState()
     uni.showToast({ title: isCollected.value ? t('typing.collect_success') : t('typing.uncollect_success'), icon: 'success' })
   }
 }
@@ -576,11 +600,11 @@ let audioCtx = null
 let audioCandidates = []
 let currentAudioAttempt = null
 let currentAudioLoggedSuccess = false
-onMounted(() => {
-  loadTypingData()
-})
 onShow(() => {
-  loadTypingData()
+  if (!typingInitialized.value) {
+    typingInitialized.value = true
+    loadTypingData()
+  }
 })
 onUnmounted(() => {
   persistProgress()
@@ -725,7 +749,7 @@ const syncCurrentWord = () => {
     return
   }
   currentWord.value = wordList.value[currentWordIndex.value]
-  void refreshWordCollectedState()
+  refreshWordCollectedState()
 }
 
 const persistProgress = () => {
@@ -836,6 +860,8 @@ const loadTypingData = async () => {
   const categoryId = hasProgressCategory ? progressCategoryId : categories.value[0].id
 
   await selectCategory(categoryId, progressChapterId, progressWordIndex)
+  await loadWordCollections(true)
+  refreshWordCollectedState()
 }
 
 const openPickerSheet = (type) => {

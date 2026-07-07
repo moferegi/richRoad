@@ -1057,4 +1057,5 @@ export default {
   'player.sentence_focused': 'تم الانتقال إلى الجملة المستهدفة',
   'player.sentence_not_found': 'لم يتم العثور على الجملة المستهدفة',
   'player.play_loading': 'جارٍ تحميل الفيديو',
+  'player.video_loading': 'جارٍ تحميل الفيديو',
 }

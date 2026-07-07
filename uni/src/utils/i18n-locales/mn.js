@@ -1137,4 +1137,5 @@ export default {
   'player.sentence_focused': 'Зорилтот өгүүлбэрт шилжлээ',
   'player.sentence_not_found': 'Зорилтот өгүүлбэр олдсонгүй',
   'player.play_loading': 'Видео ачаалж байна',
+  'player.video_loading': 'Видео ачаалж байна',
 }

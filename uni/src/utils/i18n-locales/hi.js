@@ -1057,4 +1057,5 @@ export default {
   'player.sentence_focused': 'लक्ष्य वाक्य पर पहुँच गए',
   'player.sentence_not_found': 'लक्ष्य वाक्य नहीं मिला',
   'player.play_loading': 'वीडियो लोड हो रहा है',
+  'player.video_loading': 'वीडियो लोड हो रहा है',
 }

@@ -1057,4 +1057,5 @@ export default {
   'player.sentence_focused': 'Đã định vị câu mục tiêu',
   'player.sentence_not_found': 'Không tìm thấy câu mục tiêu',
   'player.play_loading': 'Đang tải video',
+  'player.video_loading': 'Đang tải video',
 }

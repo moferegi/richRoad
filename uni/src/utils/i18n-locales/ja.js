@@ -1057,4 +1057,5 @@ export default {
   'player.sentence_focused': '対象の文に移動しました',
   'player.sentence_not_found': '対象の文が見つかりません',
   'player.play_loading': '動画を読み込み中',
+  'player.video_loading': '動画を読み込み中',
 }

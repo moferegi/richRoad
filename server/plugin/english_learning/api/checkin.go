@@ -165,7 +165,7 @@ func (a *CheckinApi) GetPointRecordList(c *gin.Context) {
 
 	page, pageSize = normalizeCheckinPage(page, pageSize)
 	response.OkWithDetailed(response.PageResult{
-		List:     list,
+		List:     utils.LocalizeI18nPayloadByContext(c, list),
 		Total:    total,
 		Page:     page,
 		PageSize: pageSize,
@@ -203,7 +203,7 @@ func (a *CheckinApi) GetCheckinRecordList(c *gin.Context) {
 
 	page, pageSize = normalizeCheckinPage(page, pageSize)
 	response.OkWithDetailed(response.PageResult{
-		List:     list,
+		List:     utils.LocalizeI18nPayloadByContext(c, list),
 		Total:    total,
 		Page:     page,
 		PageSize: pageSize,

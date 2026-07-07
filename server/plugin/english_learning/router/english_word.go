@@ -22,5 +22,6 @@ func (s *EnglishWordRouter) InitEnglishWordRouter(Router *gin.RouterGroup) {
 		wordRouter.GET("getErrorLogList", wordApi.GetWordErrorLogList)
 		wordRouter.DELETE("deleteErrorLog", wordApi.DeleteWordErrorLog)
 		wordRouter.POST("upsertSqlWord", wordApi.UpsertWordFromSQL)
+		wordRouter.POST("batchFillFromDictionary", wordApi.BatchFillWordFromDictionary)
 	}
 }

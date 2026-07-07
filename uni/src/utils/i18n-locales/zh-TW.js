@@ -1057,4 +1057,5 @@ export default {
   'player.sentence_focused': '已定位到目標句子',
   'player.sentence_not_found': '未找到目標句子',
   'player.play_loading': '影片載入中',
+  'player.video_loading': '影片載入中',
 }

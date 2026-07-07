@@ -236,6 +236,112 @@ if (process.env.NODE_ENV === 'development') {
     baseUrl = 'https://clothapi.235235.vip'
 }
 
+const inflightGetRequests = new Map()
+const ENABLE_CLIENT_I18N_FALLBACK = uni.getStorageSync('client-i18n-fallback') === '1'
+const i18nNormalizeEndpoints = [
+    '/popup/getActivePopups',
+    '/phoneAreaCode/getEnabledPhoneAreaCodes',
+    '/kefu/',
+    '/englishLearning/content/getCategoryList',
+    '/englishLearning/content/getChapterList',
+    '/englishLearning/content/getVideoCategoryList',
+    '/englishLearning/content/getVideoSeriesList',
+    '/englishLearning/content/findVideoSeries',
+    '/englishLearning/content/findVideoEpisode',
+    '/englishLearning/content/getVideoEpisodeList',
+    '/englishLearning/word/getWordList',
+    '/englishLearning/word/findWord',
+    '/englishLearning/word/getErrorLogList',
+    '/englishLearning/video/getSentenceList',
+    '/englishLearning/userData/getWatchHistoryList',
+    '/englishLearning/userData/getCollectionList',
+    '/englishLearning/userData/getCollectionDetailList',
+    '/englishLearning/checkin/getCheckinRecordList',
+    '/englishLearning/checkin/getPointRecordList',
+    '/englishLearning/asset/getFreeTimeRecordList'
+]
+const i18nFieldKeys = new Set([
+    'name', 'title', 'content', 'countryName',
+    'seriesName', 'episodeName', 'description',
+    'explanation', 'translate', 'announcementContent'
+])
+const i18nLangKeyReg = /^[a-z]{2}(?:-[A-Za-z]{2})?$/
+
+const isObjectLike = (value) => !!value && typeof value === 'object' && !Array.isArray(value)
+
+const isLikelyI18nMapObject = (value) => {
+    if (!isObjectLike(value)) {
+        return false
+    }
+    const keys = Object.keys(value)
+    if (keys.length === 0 || keys.length > 16) {
+        return false
+    }
+    let langKeyCount = 0
+    for (const key of keys) {
+        if (i18nLangKeyReg.test(key)) {
+            langKeyCount += 1
+            continue
+        }
+        return false
+    }
+    return langKeyCount > 0
+}
+
+const normalizeI18nFieldValue = (value, lang) => {
+    if (value === null || value === undefined) {
+        return ''
+    }
+    if (isLikelyI18nMapObject(value)) {
+        return localText(value, lang)
+    }
+    if (typeof value === 'string' && value.charAt(0) === '{') {
+        try {
+            const parsed = JSON.parse(value)
+            if (isLikelyI18nMapObject(parsed)) {
+                return localText(parsed, lang)
+            }
+        } catch (e) {
+            return value
+        }
+    }
+    return value
+}
+
+const normalizeI18nPayload = (payload, lang, parentKey = '') => {
+    if (Array.isArray(payload)) {
+        return payload.map((item) => normalizeI18nPayload(item, lang, parentKey))
+    }
+    if (!isObjectLike(payload)) {
+        return payload
+    }
+
+    if (isLikelyI18nMapObject(payload)) {
+        return localText(payload, lang)
+    }
+
+    const out = {}
+    Object.keys(payload).forEach((key) => {
+        const rawValue = payload[key]
+        if (i18nFieldKeys.has(key)) {
+            out[key] = normalizeI18nFieldValue(rawValue, lang)
+            return
+        }
+        out[key] = normalizeI18nPayload(rawValue, lang, key)
+    })
+    return out
+}
+
+const shouldNormalizeI18nByUrl = (rawUrl) => {
+    const purePath = String(rawUrl || '').split('?')[0]
+    return i18nNormalizeEndpoints.some((item) => {
+        if (item.endsWith('/')) {
+            return purePath.startsWith(item)
+        }
+        return purePath === item
+    })
+}
+
 export const request = ({url, data, header, method, params}) => {
     // 处理 params 参数拼接到 url
     let finalUrl = baseUrl + url;
@@ -246,7 +352,14 @@ export const request = ({url, data, header, method, params}) => {
         finalUrl += (url.includes('?') ? '&' : '?') + queryString;
     }
 
-    return new Promise((resolve, reject) => {
+    const requestMethod = String(method || 'get').toUpperCase()
+    const currentLang = uni.getStorageSync('app-lang') || 'zh'
+    const dedupeKey = `${requestMethod}::${finalUrl}::${currentLang}`
+    if (requestMethod === 'GET' && inflightGetRequests.has(dedupeKey)) {
+        return inflightGetRequests.get(dedupeKey)
+    }
+
+    const requestPromise = new Promise((resolve, reject) => {
         uni.request({
             url: finalUrl, // 使用拼接后的 URL
             data: data || '',
@@ -254,6 +367,7 @@ export const request = ({url, data, header, method, params}) => {
             header: {
                 'x-token': uni.getStorageSync('x-token'),
                 'Accept-Language': uni.getStorageSync('app-lang') || 'zh',
+                'X-Client-Platform': 'uni',
                 ...header
             },
             success: (res) => {
@@ -315,6 +429,14 @@ export const request = ({url, data, header, method, params}) => {
 						});
                     }
 				}
+                const shouldNormalizeI18n = ENABLE_CLIENT_I18N_FALLBACK && payload.code === 0 && shouldNormalizeI18nByUrl(url)
+                if (shouldNormalizeI18n) {
+                    resolve({
+                        ...payload,
+                        data: normalizeI18nPayload(payload.data, currentLang)
+                    })
+                    return
+                }
                 resolve(payload)
 
             },
@@ -324,4 +446,13 @@ export const request = ({url, data, header, method, params}) => {
             timeout: 30000
         });
     })
+
+    if (requestMethod === 'GET') {
+        inflightGetRequests.set(dedupeKey, requestPromise)
+        requestPromise.finally(() => {
+            inflightGetRequests.delete(dedupeKey)
+        })
+    }
+
+    return requestPromise
 }

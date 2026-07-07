@@ -72,6 +72,15 @@ export const upsertSqlWord = (data) => {
   })
 }
 
+// 按分类批量词典补全
+export const batchFillWordFromDictionary = (data) => {
+  return service({
+    url: '/englishLearning/word/batchFillFromDictionary',
+    method: 'post',
+    data
+  })
+}
+
 // 分类管理
 export const createCategory = (data) => {
   return service({

@@ -7,6 +7,7 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/model/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/service"
+	"github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -89,7 +90,7 @@ func (a *VideoSubtitleApi) GetSentenceList(c *gin.Context) {
 		return
 	}
 
-	response.OkWithData(list, c)
+	response.OkWithData(utils.LocalizeI18nPayloadByContext(c, list), c)
 }
 
 // UpdateSentenceList

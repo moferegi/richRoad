@@ -88,7 +88,7 @@ export const useLangStore = defineStore('lang', () => {
   }
 
   const setLocale = (lang, options = {}) => {
-    const { manual = true } = options
+    const { manual = true, emitRefresh = true } = options
     if (!lang) return
     locale.value = lang
     uni.setStorageSync('app-lang', lang)
@@ -104,6 +104,9 @@ export const useLangStore = defineStore('lang', () => {
       tabBarSyncTimers.value.push(timer)
     })
     useAppConfigStore().refreshLocalizedConfig()
+    if (emitRefresh && typeof uni.$emit === 'function') {
+      uni.$emit('app:locale-force-refresh', { locale: lang, at: Date.now() })
+    }
   }
 
   const updateTabBar = (lang, retry = 0) => {

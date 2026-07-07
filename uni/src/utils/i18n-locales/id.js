@@ -1057,4 +1057,5 @@ export default {
   'player.sentence_focused': 'Berhasil ke kalimat target',
   'player.sentence_not_found': 'Kalimat target tidak ditemukan',
   'player.play_loading': 'Video sedang dimuat',
+  'player.video_loading': 'Video sedang dimuat',
 }

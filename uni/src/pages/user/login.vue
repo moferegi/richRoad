@@ -111,6 +111,7 @@
 		ref,
 		computed,
     onMounted,
+    onUnmounted,
     watch
 	} from 'vue';
   import { onLoad, onShow } from '@dcloudio/uni-app'
@@ -135,6 +136,7 @@
 	const showLangPicker = ref(false)
   const lastLoadedLocale = ref('')
   const inviteCodeFromShare = ref('')
+  const localeRefreshing = ref(false)
 
   const tryAutoShowLangPicker = () => {
     if (showLangPicker.value) return
@@ -317,6 +319,9 @@
   })
 
   onShow(() => {
+    if (localeRefreshing.value) {
+      return
+    }
     const localeChanged = !!lastLoadedLocale.value && lastLoadedLocale.value !== locale.value
     if (localeChanged) {
       reloadLocaleSensitiveData()
@@ -325,6 +330,7 @@
   })
 
   watch(() => locale.value, (newLocale, oldLocale) => {
+    if (localeRefreshing.value) return
     if (!oldLocale || newLocale === oldLocale) return
     reloadLocaleSensitiveData()
     lastLoadedLocale.value = newLocale
@@ -340,6 +346,28 @@
 		loadAreaCodes()
     appConfigStore.loadConfig()
 	})
+
+  const forceRefreshByLocale = () => {
+    if (localeRefreshing.value) return
+    localeRefreshing.value = true
+    const inviteCode = safeDecode(inviteCodeFromShare.value || uni.getStorageSync('pendingInviteCode') || '')
+    const nextUrl = inviteCode
+      ? `/pages/user/login?inviteCode=${encodeURIComponent(inviteCode)}`
+      : '/pages/user/login'
+    uni.reLaunch({ url: nextUrl })
+  }
+
+  onMounted(() => {
+    if (typeof uni.$on === 'function') {
+      uni.$on('app:locale-force-refresh', forceRefreshByLocale)
+    }
+  })
+
+  onUnmounted(() => {
+    if (typeof uni.$off === 'function') {
+      uni.$off('app:locale-force-refresh', forceRefreshByLocale)
+    }
+  })
 
 
 	//当前登录按钮操作
