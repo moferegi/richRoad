@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API_DOMAIN="clothapi.235235.vip"
-WEB_DOMAIN="clothweb.235235.vip"
-H5_DOMAIN="235235.vip"
-API_LOCAL_PORT="8899"
+API_DOMAIN="enapi.235235.vip"
+WEB_DOMAIN="enweb.235235.vip"
+H5_DOMAIN="en.235235.vip"
+API_LOCAL_PORT="8658"
 
 ok()   { printf "[OK] %s\n" "$1"; }
 warn() { printf "[WARN] %s\n" "$1"; }

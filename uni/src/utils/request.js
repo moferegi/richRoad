@@ -229,12 +229,12 @@ if (process.env.NODE_ENV === 'development') {
     // #endif
     
     // #ifndef H5
-    baseUrl = 'http://localhost:8888' // 如果本地手机调试，记得改成本机内网IP
+    baseUrl = 'http://localhost:8658' // 如果本地手机调试，记得改成本机内网IP
     // #endif
 } else {
     // 生产环境：直接指向你的公网后端域名
     // 注意：由于你之前配置的 Nginx 已经处理了转发，这里不需要加端口号
-    baseUrl = 'https://clothapi.235235.vip'
+    baseUrl = 'https://enapi.235235.vip'
 }
 
 const inflightGetRequests = new Map()
