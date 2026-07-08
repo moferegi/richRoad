@@ -78,10 +78,12 @@ func Routers() *gin.Engine {
 
 	PublicGroup := Router.Group(global.GVA_CONFIG.System.RouterPrefix)
 	PublicGroup.Use(middleware.Locale())
+	PublicGroup.Use(middleware.UniResponseProtect())
 	PublicGroup.Use(middleware.Maintenance()) // 维护模式拦截（仅拦截客户端业务请求）
 	PublicGroup.Use(middleware.BanIPCheck())  // IP封禁检查
 	PrivateGroup := Router.Group(global.GVA_CONFIG.System.RouterPrefix)
 	PrivateGroup.Use(middleware.Locale())
+	PrivateGroup.Use(middleware.UniResponseProtect())
 
 	PrivateGroup.Use(middleware.JWTAuth()).Use(middleware.CasbinHandler())
 

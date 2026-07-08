@@ -570,6 +570,9 @@ const jumpToWordBySearchResult = async (wordItem) => {
 }
 
 const selectSearchWord = async (item) => {
+  if (!item || typeof item !== 'object') {
+    return
+  }
   showWordSearchResult.value = false
   wordSearchKeyword.value = item.word || ''
   await jumpToWordBySearchResult(item)
@@ -592,7 +595,7 @@ const runWordSearch = async () => {
   }
 
   const list = Array.isArray(res.data.list) ? res.data.list : []
-  wordSearchResults.value = list.map(normalizeWord)
+  wordSearchResults.value = list.map((item) => normalizeWord(item || {}))
   showWordSearchResult.value = true
 }
 
@@ -727,6 +730,17 @@ const normalizeWord = (item) => ({
   sentences: Array.isArray(item?.sentences) ? item.sentences : []
 })
 
+const buildEmptyWord = () => ({
+  id: 0,
+  word: '-',
+  phoneticUs: '',
+  phoneticUk: '',
+  audioUs: '',
+  audioUk: '',
+  explanation: '',
+  sentences: []
+})
+
 const updateHeaderNames = () => {
   const category = categories.value.find((item) => item.id === selectedCategoryId.value)
   const chapter = chapters.value.find((item) => item.id === selectedChapterId.value)
@@ -736,19 +750,17 @@ const updateHeaderNames = () => {
 
 const syncCurrentWord = () => {
   if (wordList.value.length === 0) {
-    currentWord.value = {
-      id: 0,
-      word: '-',
-      phoneticUs: '',
-      phoneticUk: '',
-      audioUs: '',
-      audioUk: '',
-      explanation: '',
-      sentences: []
-    }
+    currentWord.value = buildEmptyWord()
     return
   }
-  currentWord.value = wordList.value[currentWordIndex.value]
+  if (currentWordIndex.value < 0) {
+    currentWordIndex.value = 0
+  }
+  if (currentWordIndex.value >= wordList.value.length) {
+    currentWordIndex.value = wordList.value.length - 1
+  }
+  const target = wordList.value[currentWordIndex.value]
+  currentWord.value = target ? normalizeWord(target) : buildEmptyWord()
   refreshWordCollectedState()
 }
 

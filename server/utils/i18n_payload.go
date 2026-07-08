@@ -11,8 +11,11 @@ import (
 
 var i18nPayloadFieldKeys = map[string]struct{}{
 	"name":                {},
+	"nameI18n":            {},
 	"title":               {},
+	"titleI18n":           {},
 	"content":             {},
+	"contentI18n":         {},
 	"countryName":         {},
 	"seriesName":          {},
 	"episodeName":         {},
