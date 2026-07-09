@@ -39,13 +39,13 @@ cors:
     whitelist:
         - allow-origin: https://en.235235.vip
                     allow-methods: POST, GET, OPTIONS, PUT, DELETE
-                    allow-headers: Content-Type,AccessToken,X-CSRF-Token, Authorization, Token,X-Token,X-User-Id,Accept-Language
-          expose-headers: Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Content-Type
+                    allow-headers: Content-Type,AccessToken,X-CSRF-Token, Authorization, Token,X-Token,X-User-Id,Accept-Language,X-Client-Platform,X-Resp-Encrypt,X-Req-Ts,X-Req-Nonce,X-Req-Sign
+          expose-headers: Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Content-Type, X-Resp-Encrypted
           allow-credentials: true
         - allow-origin: https://enweb.235235.vip
                     allow-methods: POST, GET, OPTIONS, PUT, DELETE
-                    allow-headers: Content-Type,AccessToken,X-CSRF-Token, Authorization, Token,X-Token,X-User-Id,Accept-Language
-          expose-headers: Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Content-Type
+                    allow-headers: Content-Type,AccessToken,X-CSRF-Token, Authorization, Token,X-Token,X-User-Id,Accept-Language,X-Client-Platform,X-Resp-Encrypt,X-Req-Ts,X-Req-Nonce,X-Req-Sign
+          expose-headers: Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Content-Type, X-Resp-Encrypted
           allow-credentials: true
 db-list:
     - type: ""
