@@ -1,7 +1,7 @@
 <template>
   <view class="profile-container">
     <view class="user-header">
-      <image class="avatar" :src="userInfo.avatar"></image>
+      <image class="avatar" :src="avatarSrc" mode="aspectFill"></image>
       <text class="nickname">{{ userInfo.nickname }}</text>
     </view>
 
@@ -77,9 +77,12 @@ import { useLangStore } from '@/pinia/modules/lang.js'
 import { localText as i18nLocalText, t as i18nT } from '@/utils/i18n.js'
 import { exchangeTime, getAsset } from '@/api/learning.js'
 import { getPointsExchangeRate } from '@/api/sysConfig.js'
+import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
+import { getExternalUrl } from '@/utils/url.js'
 import langSwitch from '@/components/lang-switch/lang-switch.vue'
 
 const langStore = useLangStore()
+const appConfigStore = useAppConfigStore()
 const t = (key) => {
   const locale = langStore.locale || uni.getStorageSync('app-lang') || 'zh'
   const text = i18nT(key, locale)
@@ -100,6 +103,13 @@ const exchangePoints = ref(100)
 const exchangePopup = ref(null)
 const showLangPicker = ref(false)
 const localeRefreshing = ref(false)
+const avatarSrc = computed(() => {
+  const logo = getExternalUrl(appConfigStore.appLogo || '')
+  if (logo) {
+    return logo
+  }
+  return userInfo.value.avatar || ''
+})
 
 const exchangeMinutes = computed(() => Math.floor(Number(exchangePoints.value || 0) / exchangeRate.value))
 
@@ -212,12 +222,14 @@ const logout = () => {
 }
 
 onMounted(() => {
+  appConfigStore.loadConfig({ force: true, localeOnly: true })
   loadUserInfo()
   loadAsset()
   loadExchangeRate()
 })
 
 onShow(() => {
+  appConfigStore.loadConfig({ force: true, localeOnly: true })
   loadUserInfo()
   loadAsset()
   loadExchangeRate()

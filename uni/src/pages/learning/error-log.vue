@@ -47,7 +47,7 @@
 
         <view class="card-footer">
           <button class="practice-btn" size="mini" @click.stop="goTyping">{{ t('learningErrorLogGoPractice') }}</button>
-          <button class="delete-btn" size="mini" @click.stop="removeLog(item)">{{ t('learningErrorLogDelete') }}</button>
+          <button class="delete-btn" size="mini" @click.stop="removeLog(item)">{{ tt('learningErrorLogDelete', 'delete') }}</button>
         </view>
       </view>
 
@@ -80,6 +80,17 @@ const t = (key) => {
   const text = i18nT(key, locale)
   if (text && text !== key) return text
   return key
+}
+
+const tt = (...keys) => {
+  for (const key of keys) {
+    const text = t(key)
+    if (text && text !== key) {
+      return text
+    }
+  }
+  const last = keys[keys.length - 1]
+  return typeof last === 'string' ? last : ''
 }
 
 const localText = (value) => {
@@ -171,9 +182,9 @@ const removeLog = (item) => {
 
   uni.showModal({
     title: t('learningErrorLogTitle'),
-    content: t('learningErrorLogDeleteConfirm'),
-    cancelText: t('common.cancel'),
-    confirmText: t('common.confirm'),
+    content: tt('learningErrorLogDeleteConfirm', 'confirmDelete'),
+    cancelText: tt('common.cancel', 'cancel'),
+    confirmText: tt('common.confirm', 'confirm'),
     success: async (res) => {
       if (!res.confirm) {
         return

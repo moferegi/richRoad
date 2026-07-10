@@ -138,7 +138,7 @@
     <!-- 功能设置弹窗 (ActionSheet 等价表现) -->
     <uni-popup ref="pickerPopup" type="bottom">
       <view class="picker-sheet">
-        <view class="picker-title">{{ pickerType === 'category' ? t('typing.select_category') : t('typing.select_chapter') }}</view>
+        <view class="picker-title">{{ pickerType === 'category' ? tt('typing.select_category', 'typing.category') : tt('typing.select_chapter', 'typing.chapter') }}</view>
         <scroll-view class="picker-list" scroll-y>
           <view
             v-for="item in pickerOptions"
@@ -150,7 +150,7 @@
             {{ item.label }}
           </view>
         </scroll-view>
-        <button class="picker-cancel" @click="closePickerSheet">{{ t('common.cancel') }}</button>
+        <button class="picker-cancel" @click="closePickerSheet">{{ t('cancel') }}</button>
       </view>
     </uni-popup>
 
@@ -165,7 +165,7 @@
             <label><radio value="UK" :checked="settings.accent==='UK'"/> UK</label>
           </radio-group>
         </view>
-        <view class="set-item highlight" @click="closeSettingsSheet">{{ t('common.cancel') }}</view>
+        <view class="set-item highlight" @click="closeSettingsSheet">{{ t('cancel') }}</view>
       </view>
     </uni-popup>
 
@@ -207,6 +207,18 @@ const t = (key) => {
   if (text && text !== key) return text
   return key
 }
+
+const tt = (...keys) => {
+  for (const key of keys) {
+    const text = t(key)
+    if (text && text !== key) {
+      return text
+    }
+  }
+  const last = keys[keys.length - 1]
+  return typeof last === 'string' ? last : ''
+}
+
 const localText = (val) => {
   const locale = langStore.locale || uni.getStorageSync('app-lang') || 'zh'
   return i18nLocalText(val, locale)

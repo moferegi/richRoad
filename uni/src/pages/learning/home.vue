@@ -38,7 +38,7 @@
 
       <view class="video-grid">
         <view class="video-card" v-for="item in videoList" :key="item.id" @tap="goDetail(item.id)">
-          <image class="video-cover" :src="item.coverUrl || ''" mode="aspectFit" />
+          <image class="video-cover" :src="item.coverUrl || ''" mode="scaleToFill" />
           <view class="video-content">
             <text class="video-title">{{ localText(item.name) }}</text>
             <view class="video-meta">
@@ -97,6 +97,8 @@ const currentCategoryId = ref(0)
 const videoList = ref([])
 const homeInited = ref(false)
 const homeShownOnce = ref(false)
+const homeLocaleLoaded = ref('')
+const reloading = ref(false)
 
 const normalizeId = (item) => Number(item?.id || item?.ID || 0)
 
@@ -105,25 +107,33 @@ const loadAppInfo = async () => {
 }
 
 const loadBanner = async () => {
-  const res = await getBannerList()
-  if (res.code !== 0) {
+  try {
+    const res = await getBannerList()
+    if (res.code !== 0) {
+      bannerList.value = []
+      return
+    }
+    const list = Array.isArray(res.data) ? res.data : (res.data?.list || [])
+    bannerList.value = list
+  } catch (error) {
     bannerList.value = []
-    return
   }
-  const list = Array.isArray(res.data) ? res.data : (res.data?.list || [])
-  bannerList.value = list
 }
 
 const loadCategories = async () => {
-  const res = await getVideoCategoryList({ page: 1, pageSize: 100, showHome: true })
-  if (res.code !== 0 || !res.data) {
+  try {
+    const res = await getVideoCategoryList({ page: 1, pageSize: 100, showHome: true })
+    if (res.code !== 0 || !res.data) {
+      videoCategories.value = []
+      return
+    }
+    const list = Array.isArray(res.data.list) ? res.data.list : []
+    videoCategories.value = list
+      .map((item) => ({ ...item, id: normalizeId(item) }))
+      .filter((item) => item.id > 0)
+  } catch (error) {
     videoCategories.value = []
-    return
   }
-  const list = Array.isArray(res.data.list) ? res.data.list : []
-  videoCategories.value = list
-    .map((item) => ({ ...item, id: normalizeId(item) }))
-    .filter((item) => item.id > 0)
 }
 
 const loadSeries = async (append = false) => {
@@ -139,20 +149,32 @@ const loadSeries = async (append = false) => {
     params.categoryId = currentCategoryId.value
   }
 
-  const res = await getVideoSeriesList(params)
-  loading.value = false
+  try {
+    const res = await getVideoSeriesList(params)
+    if (res.code !== 0 || !res.data) {
+      if (!append) {
+        videoList.value = []
+      }
+      return
+    }
 
-  if (res.code !== 0 || !res.data) return
+    const list = Array.isArray(res.data.list) ? res.data.list : []
+    const normalized = list
+      .map((item) => ({ ...item, id: normalizeId(item) }))
+      .filter((item) => item.id > 0)
 
-  const list = Array.isArray(res.data.list) ? res.data.list : []
-  const normalized = list
-    .map((item) => ({ ...item, id: normalizeId(item) }))
-    .filter((item) => item.id > 0)
+    videoList.value = append ? [...videoList.value, ...normalized] : normalized
 
-  videoList.value = append ? [...videoList.value, ...normalized] : normalized
-
-  const total = Number(res.data.total || 0)
-  finished.value = videoList.value.length >= total || normalized.length < pageSize
+    const total = Number(res.data.total || 0)
+    finished.value = videoList.value.length >= total || normalized.length < pageSize
+  } catch (error) {
+    if (!append) {
+      videoList.value = []
+      finished.value = false
+    }
+  } finally {
+    loading.value = false
+  }
 }
 
 const switchCategory = async (categoryId) => {
@@ -169,11 +191,20 @@ const goDetail = (seriesId) => {
 }
 
 const reloadHome = async () => {
-  await Promise.all([loadAppInfo(), loadBanner(), loadCategories()])
-  page.value = 1
-  finished.value = false
-  videoList.value = []
-  await loadSeries(false)
+  if (reloading.value) {
+    return
+  }
+  reloading.value = true
+  try {
+    await Promise.allSettled([loadAppInfo(), loadBanner(), loadCategories()])
+    page.value = 1
+    finished.value = false
+    videoList.value = []
+    await loadSeries(false)
+    homeLocaleLoaded.value = locale.value
+  } finally {
+    reloading.value = false
+  }
 }
 
 onLoad(() => {
@@ -182,12 +213,24 @@ onLoad(() => {
 })
 
 onShow(() => {
+  langStore.updateTabBar(locale.value)
   if (!homeInited.value) {
     homeInited.value = true
     return
   }
   if (!homeShownOnce.value) {
     homeShownOnce.value = true
+    if (!videoList.value.length) {
+      reloadHome()
+    }
+    return
+  }
+  if (homeLocaleLoaded.value !== locale.value) {
+    reloadHome()
+    return
+  }
+  if (!videoList.value.length) {
+    reloadHome()
     return
   }
   reloadHome()

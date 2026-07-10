@@ -91,7 +91,9 @@
 			console.log('App Show')
 			const langStore = useLangStore()
 			const appConfigStore = useAppConfigStore()
-			langStore.updateTabBar(langStore.locale || uni.getStorageSync('app-lang') || 'mn')
+			langStore.initLangs().finally(() => {
+				langStore.updateTabBar(langStore.locale || uni.getStorageSync('app-lang') || 'mn')
+			})
 			appConfigStore.loadConfig()
 			this.reportVisitor()
 		},

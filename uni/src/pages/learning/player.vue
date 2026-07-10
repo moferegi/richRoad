@@ -95,7 +95,7 @@
 
       <view class="control-item" @click="openMoreSheet">
         <text class="c-icon" :class="{ 'c-active': controls.loop }">⋯</text>
-        <text class="c-text">{{ t('common.more') }}</text>
+        <text class="c-text">{{ tt('player.more', 'common.more') }}</text>
       </view>
     </view>
 
@@ -114,14 +114,24 @@
 
     <uni-popup ref="morePopup" type="bottom" background-color="#fff">
       <view class="more-sheet">
-        <view class="more-item" @click="toggleLoop">
-          <text>{{ controls.loop ? t('player.loop') + '：ON' : t('player.loop') + '：OFF' }}</text>
+        <view class="more-sheet-head">
+          <text class="more-sheet-title">{{ tt('player.more_settings', 'player.more') }}</text>
+          <text class="more-sheet-subtitle">{{ tt('player.more_settings_desc', 'player.loop_desc') }}</text>
         </view>
-        <view class="more-item" @click="handleBack">
-          <text>{{ t('common.back') }}</text>
+
+        <view class="more-card" @click="toggleLoop">
+          <view class="more-card-main">
+            <text class="more-card-title">{{ t('player.loop') }}</text>
+            <text class="more-card-desc">{{ tt('player.loop_desc', 'player.loop') }}</text>
+          </view>
+          <view class="more-state-pill" :class="{ on: controls.loop }">
+            {{ controls.loop ? tt('player.state_on') : tt('player.state_off') }}
+          </view>
         </view>
-        <view class="more-item cancel" @click="closeMoreSheet">
-          <text>{{ t('common.cancel') }}</text>
+
+        <view class="more-actions">
+          <button class="more-action-btn ghost" @click="handleBack">{{ tt('player.sheet_back', 'common.back') }}</button>
+          <button class="more-action-btn" @click="closeMoreSheet">{{ tt('player.sheet_cancel', 'common.cancel', 'cancel') }}</button>
         </view>
       </view>
     </uni-popup>
@@ -146,6 +156,18 @@ const t = (k) => {
   if (text && text !== k) return text
   return k
 }
+
+const tt = (...keys) => {
+  for (const key of keys) {
+    const text = t(key)
+    if (text && text !== key) {
+      return text
+    }
+  }
+  const last = keys[keys.length - 1]
+  return typeof last === 'string' ? last : ''
+}
+
 const localText = (val) => {
   const locale = langStore.locale || uni.getStorageSync('app-lang') || 'zh'
   return i18nLocalText(val, locale)
@@ -814,7 +836,7 @@ const playWordAudio = (src) => {
 </script>
 
 <style scoped>
-.player-container { display: flex; flex-direction: column; height: 100vh; background: #1a1a1a; color: #fff;}
+.player-container { display: flex; flex-direction: column; height: 100vh; min-height: 100dvh; background: #1a1a1a; color: #fff;}
 
 /* 视频区域 */
 .video-section { width: 100%; height: 420rpx; background: #000; flex-shrink: 0; position: relative; }
@@ -867,7 +889,7 @@ const playWordAudio = (src) => {
 }
 
 /* 外挂字幕区域 */
-.subtitle-section { flex: 1; overflow: hidden; position: relative; }
+.subtitle-section { flex: 1; overflow: hidden; position: relative; padding-bottom: calc(132rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
 .subtitle-padding-top, .subtitle-padding-bottom { height: 40%; }
 .sentence-row { padding: 20rpx 40rpx; margin-bottom: 20rpx; transition: all 0.3s; opacity: 0.6; }
 .sentence-row.is-active { opacity: 1; transform: scale(1.05); background: rgba(255,255,255,0.05); border-radius: 12rpx; border-left: 6rpx solid #409eff; }
@@ -883,7 +905,7 @@ const playWordAudio = (src) => {
 .translated-text { font-size: 28rpx; color: #bbb; line-height: 1.4; }
 
 /* 底部操作区 */
-.bottom-controls { height: 120rpx; background: #000; flex-shrink: 0; display: flex; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid #333; }
+.bottom-controls { height: 120rpx; background: #000; flex-shrink: 0; display: flex; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid #333; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; }
 .control-item { display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .c-icon { font-size: 40rpx; margin-bottom: 6rpx; filter: grayscale(1); }
 .c-active { filter: grayscale(0); text-shadow: 0 0 10rpx rgba(255,255,255,0.8); }
@@ -902,22 +924,102 @@ const playWordAudio = (src) => {
 
 .more-sheet {
   padding: 22rpx 24rpx;
-  padding-bottom: calc(22rpx + env(safe-area-inset-bottom) + 120rpx);
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
   background: #fff;
   color: #111;
   border-top-left-radius: 28rpx;
   border-top-right-radius: 28rpx;
   box-shadow: 0 -12rpx 30rpx rgba(15, 23, 42, 0.12);
 }
-.more-item {
-  padding: 26rpx;
-  border-bottom: 1px solid #eee;
-  font-size: 30rpx;
-  text-align: center;
-  color: #111;
-  border-radius: 14rpx;
+.more-sheet-head {
+  margin-bottom: 16rpx;
 }
-.more-item:last-child { border-bottom: none; }
+
+.more-sheet-title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #7c2d12;
+}
+
+.more-sheet-subtitle {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #64748b;
+}
+
+.more-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx;
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  border-radius: 16rpx;
+  background: rgba(255, 253, 248, 0.9);
+}
+
+.more-card-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.more-card-title {
+  font-size: 30rpx;
+  color: #334155;
+  font-weight: 700;
+}
+
+.more-card-desc {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #64748b;
+}
+
+.more-state-pill {
+  min-width: 120rpx;
+  height: 52rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  color: #64748b;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.more-state-pill.on {
+  color: #0f766e;
+  border-color: rgba(15, 118, 110, 0.4);
+  background: rgba(15, 118, 110, 0.12);
+}
+
+.more-actions {
+  display: flex;
+  gap: 14rpx;
+  margin-top: 18rpx;
+}
+
+.more-action-btn {
+  flex: 1;
+  height: 76rpx;
+  line-height: 76rpx;
+  margin: 0;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(120deg, #0f766e 0%, #14b8a6 100%);
+}
+
+.more-action-btn.ghost {
+  color: #7c2d12;
+  background: #fff;
+  border: 1px solid rgba(146, 64, 14, 0.24);
+}
 
 .player-container {
   background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
@@ -964,15 +1066,7 @@ const playWordAudio = (src) => {
   background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
 }
 
-.more-item {
-  color: #334155;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-}
-
-.more-item.cancel {
-  margin-top: 14rpx;
-  color: #7c2d12;
-  border: 1px solid rgba(146, 64, 14, 0.18);
-  background: rgba(255, 255, 255, 0.9);
+.more-card {
+  border-color: rgba(20, 184, 166, 0.24);
 }
 </style>
