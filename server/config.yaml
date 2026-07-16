@@ -28,12 +28,12 @@ captcha:
     open-captcha: 0
     open-captcha-timeout: 3600
 cloudflare-r2:
-    bucket: xxxx0bucket
-    base-url: https://gin.vue.admin.com
-    path: uploads
-    account-id: xxx_account_id
-    access-key-id: xxx_key_id
-    secret-access-key: xxx_secret_key
+    bucket: moffuu
+    base-url: https://r2.mnmovie.icu
+    path: ""
+    account-id: 839b23f291de0ec2ca2d9c1c6dd35fd1
+    access-key-id: 14fbd8e34be99e88bb8248f030eeddb7
+    secret-access-key: 9616e709a58facfcd2c67a2c4d45a0cf0baceed91501f666d32afd2bd390ea99
 cors:
     mode: strict-whitelist
     whitelist:
@@ -180,12 +180,13 @@ pgsql:
     log-zap: false
 qiniu:
     zone: ZoneHuaDong
-    bucket: ""
-    img-path: ""
-    access-key: ""
-    secret-key: ""
-    use-https: false
-    use-cdn-domains: false
+    bucket: "en-moffuu"
+    base-url: ti7eyi9tb.hn-bkt.clouddn.com
+    # img-path: ""
+    access-key: Fdjz9nIOTSFp9V3uTuNL6Ql1PrqjfGNuqMR--7Te
+    secret-key: GbwVHFZX2RqsvU_TnllQF3VRyAfEpx6Q0AQyGLBA
+    # use-https: false
+    # use-cdn-domains: false
 redis:
     name: ""
     addr: 127.0.0.1:6379
