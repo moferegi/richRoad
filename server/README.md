@@ -179,3 +179,17 @@ go run
 
 
 
+视频防盗链说明
+Fix 2 — 视频 URL 联动 ExternalLinkDomain
+根因：SignLearningVideoURL 原逻辑是 有防盗链 CDN → 签名，没有 → 原样返回。当 hotlink 未配置时，DB 里的相对路径 /file/.../ep1.mp4 或残留的 https://video.mnmovie.icu/... 直接透传给前端，前端无法播放。修复：video_security.go 新增二级回退链：
+SignLearningVideoURL(rawURL)
+  ├── Hotlink.CdnDomain 有值？
+  │     YES → normalizePath → upload.SignURL()    (防盗链签名)
+  │     NO  → resolveWithDefaultDomain(rawURL)     (ExternalLinkDomain回退)
+  │              ├── rawURL 是完整HTTP URL？→ 提取Path
+  │              ├── 确保Path以 / 开头
+  │              ├── getCachedDefaultDomain()        (查DB or 缓存)
+  │              └── domain + filePath → https://默认云域名/file/.../ep1.mp4
+  └── 都没配 → rawURL 原样返回
+getCachedDefaultDomain() 带 sync.RWMutex 缓存，只查一次 DB，后续调用零开销
+查询逻辑与前端 getExternalUrl 一致：优先 is_default=true → 回退第一个 is_enabled → Domain 优先、空则 BaseURL

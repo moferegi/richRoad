@@ -14,7 +14,7 @@
       <image
         v-if="popup.popupType !== 'content' && (popup.image || popup.externalPath)"
         class="nf-popup-img"
-        :src="getUrl(popup.externalPath || popup.image)"
+        :src="getExternalUrl(popup.externalPath || popup.image)"
         mode="widthFix"
         @tap="onImageTap"
       />
@@ -31,7 +31,7 @@ import { ref, computed, nextTick } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getActivePopups } from '@/api/popup.js'
 import { useLangStore } from '@/pinia/modules/lang.js'
-import { getUrl } from '@/utils/url.js'
+import { getExternalUrl } from '@/utils/url.js'
 
 const props = defineProps({
   position: { type: String, default: '' },

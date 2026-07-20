@@ -10,24 +10,28 @@ func holder(routers ...*gin.RouterGroup) {
 	_ = router.RouterGroupApp
 }
 func initBizRouter(routers ...*gin.RouterGroup) {
-	privateGroup := routers[0]
-	publicGroup := routers[1]
+	// Uni 移动端路由组（排除 Casbin RBAC，挂载 UniSignVerify）
+	uniPrivateGroup := routers[0]
+	// Web 管理后台路由组（挂载 Casbin RBAC）
+	privateGroup := routers[1]
+	publicGroup := routers[2]
 	{
 		clientRouter := router.RouterGroupApp.Client
-		clientRouter.InitClientUserRouter(privateGroup, publicGroup)
-		clientRouter.InitAddressRouter(privateGroup, publicGroup)
-		clientRouter.InitCollectRouter(privateGroup, publicGroup)
-		clientRouter.InitPointRecordRouter(privateGroup, publicGroup)
-		clientRouter.InitTryonRechargeOrderRouter(privateGroup, publicGroup)
-		clientRouter.InitTryonTaskRouter(privateGroup, publicGroup)
-		clientRouter.InitTryonModelRouter(privateGroup, publicGroup)
-		clientRouter.InitTryonClothRouter(privateGroup, publicGroup)
-		clientRouter.InitVisitorRouter(privateGroup, publicGroup)
-		clientRouter.InitSysConfigRouter(privateGroup, publicGroup)
-		clientRouter.InitLanguageRouter(privateGroup, publicGroup)
-		clientRouter.InitPhoneAreaCodeRouter(privateGroup, publicGroup)
-		clientRouter.InitSignInRouter(privateGroup, publicGroup)
-		clientRouter.InitExternalLinkDomainRouter(privateGroup, publicGroup)
+		clientRouter.InitClientUserRouter(uniPrivateGroup, publicGroup)
+		clientRouter.InitAddressRouter(uniPrivateGroup, publicGroup)
+		clientRouter.InitCollectRouter(uniPrivateGroup, publicGroup)
+		clientRouter.InitPointRecordRouter(uniPrivateGroup, publicGroup)
+		clientRouter.InitTryonRechargeOrderRouter(uniPrivateGroup, publicGroup)
+		clientRouter.InitTryonTaskRouter(uniPrivateGroup, publicGroup)
+		clientRouter.InitTryonModelRouter(uniPrivateGroup, publicGroup)
+		clientRouter.InitTryonClothRouter(uniPrivateGroup, publicGroup)
+		clientRouter.InitVisitorRouter(uniPrivateGroup, publicGroup)
+		clientRouter.InitSysConfigRouter(uniPrivateGroup, publicGroup)
+		clientRouter.InitLanguageRouter(uniPrivateGroup, publicGroup)
+		clientRouter.InitPhoneAreaCodeRouter(uniPrivateGroup, publicGroup)
+		clientRouter.InitSignInRouter(uniPrivateGroup, publicGroup)
+		clientRouter.InitExternalLinkDomainRouter(uniPrivateGroup, publicGroup)
+		clientRouter.InitVideoTagRouter(privateGroup, publicGroup)
 	}
 	{
 		shopRouter := router.RouterGroupApp.Shop
@@ -51,7 +55,7 @@ func initBizRouter(routers ...*gin.RouterGroup) {
 		shopRouter.InitPresaleRouter(privateGroup, publicGroup)
 		shopRouter.InitSkuSpecRouter(privateGroup, publicGroup)
 	}
-	holder(publicGroup, privateGroup)
+	holder(publicGroup, uniPrivateGroup, privateGroup)
 }
 
 // 占位方法，保证文件可以正确加载，避免go空变量检测报错，请勿删除。

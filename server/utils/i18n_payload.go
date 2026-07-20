@@ -19,10 +19,16 @@ var i18nPayloadFieldKeys = map[string]struct{}{
 	"countryName":         {},
 	"seriesName":          {},
 	"episodeName":         {},
+	"categoryName":        {},
+	"chapterName":         {},
+	"tagName":             {},
 	"description":         {},
 	"explanation":         {},
 	"translate":           {},
 	"announcementContent": {},
+	"popupTitle":          {},
+	"popupContent":        {},
+	"bannerTitle":         {},
 }
 
 func LocalizeI18nPayloadByContext(c *gin.Context, payload interface{}) interface{} {

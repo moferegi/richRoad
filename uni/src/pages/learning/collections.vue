@@ -37,7 +37,7 @@
           <image
             v-if="item.targetType === 3"
             class="video-cover"
-            :src="item.video?.coverUrl || ''"
+            :src="getExternalUrl(item.video?.coverUrl || '')"
             mode="aspectFill"
           />
           <view class="text-wrap">
@@ -68,6 +68,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { localText as i18nLocalText, t as i18nT } from '@/utils/i18n.js'
 import { getCollectionDetailList, uncollect } from '@/api/learning.js'
+import { getExternalUrl } from '@/utils/url.js'
 
 const langStore = useLangStore()
 

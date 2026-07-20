@@ -153,3 +153,75 @@ func (a *ExternalLinkDomainApi) GetDefaultDomain(c *gin.Context) {
 	}
 	response.OkWithDetailed(domain, i18n.T(c, "getSuccess"), c)
 }
+
+// PingCloud 检测云存储连接
+// @Tags ExternalLinkDomain
+// @Summary 检测云存储连接
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data body request.CloudPingReq true "域名ID"
+// @Success 200 {object} response.Response{data=request.CloudPingResp,msg=string} "检测结果"
+// @Router /extDomain/pingCloud [post]
+func (a *ExternalLinkDomainApi) PingCloud(c *gin.Context) {
+	var req request.CloudPingReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		return
+	}
+	result, err := cloudStorageService.PingCloud(req)
+	if err != nil {
+		global.GVA_LOG.Error("检测连接失败!", zap.Error(err))
+		response.FailWithMessage("检测失败: "+err.Error(), c)
+		return
+	}
+	response.OkWithData(result, c)
+}
+
+// ListCloudFiles 列出云存储文件
+// @Tags ExternalLinkDomain
+// @Summary 列出云存储文件
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data query request.CloudListFilesReq true "查询参数"
+// @Success 200 {object} response.Response{data=request.CloudListFilesResp,msg=string} "文件列表"
+// @Router /extDomain/listCloudFiles [get]
+func (a *ExternalLinkDomainApi) ListCloudFiles(c *gin.Context) {
+	var req request.CloudListFilesReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		return
+	}
+	result, err := cloudStorageService.ListCloudFiles(req)
+	if err != nil {
+		global.GVA_LOG.Error("列出文件失败!", zap.Error(err))
+		response.FailWithMessage("列出文件失败: "+err.Error(), c)
+		return
+	}
+	response.OkWithData(result, c)
+}
+
+// CompareDirectories 多云目录比对
+// @Tags ExternalLinkDomain
+// @Summary 多云目录比对
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data query request.CloudCompareReq true "查询参数"
+// @Success 200 {object} response.Response{data=request.CloudCompareResp,msg=string} "比对结果"
+// @Router /extDomain/compareDirectories [get]
+func (a *ExternalLinkDomainApi) CompareDirectories(c *gin.Context) {
+	var req request.CloudCompareReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		return
+	}
+	result, err := cloudStorageService.CompareDirectories(req)
+	if err != nil {
+		global.GVA_LOG.Error("目录比对失败!", zap.Error(err))
+		response.FailWithMessage("比对失败: "+err.Error(), c)
+		return
+	}
+	response.OkWithData(result, c)
+}

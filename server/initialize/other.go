@@ -1107,3 +1107,53 @@ func toString(value interface{}) string {
 	}
 	return strings.TrimSpace(fmt.Sprint(value))
 }
+
+// CleanLegacyVideoURLs 清洗数据库中遗留的 https://video.mnmovie.icu 前缀
+// 将旧B2绝对URL替换为相对路径，配合新的默认云域名动态拼接
+func CleanLegacyVideoURLs() {
+	const legacyPrefix = "https://video.mnmovie.icu"
+
+	if global.GVA_DB == nil {
+		return
+	}
+
+	// 清洗配置：{表名: [字段列表]}
+	cleanTargets := map[string][]string{
+		// 通用文件上传表
+		"exa_file_upload_and_downloads": {"url", "thumbnail_url"},
+		// 英语学习相关
+		"english_categories":     {"logo"},
+		"video_series":           {"cover_url"},
+		"video_episodes":         {"video_url"},
+		"english_words":          {"audio_us", "audio_uk"},
+		"english_word_sentences": {"audio_us", "audio_uk"},
+		// 商城相关
+		"shop_goods":            {"image_url", "upper_image", "lower_image", "external_image_path"},
+		"shop_skus":             {"upper_image", "lower_image"},
+		"shop_banner":           {"src", "external_path"},
+		"shop_popup":            {"image"},
+		"shop_qrcode_payments":  {"image"},
+		"shop_coupons":          {"background_image"},
+		"shop_promotions":       {"promotion_name"},
+		// 系统配置表（app_logo 等）
+		"sys_configs": {"config_value"},
+	}
+
+	for table, fields := range cleanTargets {
+		for _, field := range fields {
+			sqlStr := "UPDATE " + table + " SET " + field + " = REPLACE(" + field + ", ?, '') WHERE " + field + " LIKE ?"
+			result := global.GVA_DB.Exec(sqlStr, legacyPrefix, legacyPrefix+"%")
+			if result.Error != nil {
+				global.GVA_LOG.Warn("清洗旧URL前缀失败",
+					zap.String("table", table),
+					zap.String("field", field),
+					zap.Error(result.Error))
+			} else if result.RowsAffected > 0 {
+				global.GVA_LOG.Info("已清洗旧URL前缀",
+					zap.String("table", table),
+					zap.String("field", field),
+					zap.Int64("rows", result.RowsAffected))
+			}
+		}
+	}
+}

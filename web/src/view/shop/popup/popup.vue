@@ -155,11 +155,11 @@
 
             <!-- 弹窗图片 -->
             <el-form-item label="弹窗图片(上传):" prop="image">
-              <SelectImage
+              <FileUploadWithDir
                 v-model="formData.image"
-                file-type="image"
                 :default-folder="POPUP_UPLOAD_FOLDER"
-                :fixed-upload-folder="true"
+                :fixed-upload-folder="false"
+                accept="image/*"
               />
             </el-form-item>
 
@@ -319,7 +319,7 @@ import {
 import { getUrl } from '@/utils/image'
 import { getEnabledLanguages } from '@/api/client/language'
 import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
-import SelectImage from '@/components/selectImage/selectImage.vue'
+import FileUploadWithDir from '@/components/FileUploadWithDir/index.vue'
 import RichEdit from '@/components/richtext/rich-edit.vue'
 import { formatDate } from '@/utils/format'
 import { ElMessage, ElMessageBox } from 'element-plus'

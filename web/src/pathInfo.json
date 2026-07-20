@@ -18,6 +18,7 @@
   "/src/view/client/tryonTask/tryonTask.vue": "TryonTaskManage",
   "/src/view/client/user/user.vue": "ClientUser",
   "/src/view/client/user/userForm.vue": "ClientUserForm",
+  "/src/view/client/videoTag/videoTag.vue": "VideoTag",
   "/src/view/client/visitor/visitor.vue": "Visitor",
   "/src/view/dashboard/components/banner.vue": "Banner",
   "/src/view/dashboard/components/card.vue": "Card",

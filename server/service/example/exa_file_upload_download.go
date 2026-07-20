@@ -8,7 +8,9 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/example"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/example/request"
+	clientService "github.com/flipped-aurora/gin-vue-admin/server/service/client"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils/upload"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -132,11 +134,28 @@ func (e *FileUploadAndDownloadService) GetFileRecordInfoList(info request.ExaAtt
 //@return: file model.ExaFileUploadAndDownload, err error
 
 func (e *FileUploadAndDownloadService) UploadFile(header *multipart.FileHeader, noSave string, classId int, folder string, uploadType string, uploadPosition string) (file example.ExaFileUploadAndDownload, err error) {
-	oss := upload.NewOss()
-	filePath, key, uploadErr := upload.UploadFileToFolder(oss, header, folder)
+	var filePath, key string
+	var uploadErr error
+
+	// 优先使用默认上传云（ExternalLinkDomain.defaultUpload 或 isDefault）
+	cloudSvc := clientService.CloudStorageService{}
+	defaultDomain, _ := cloudSvc.GetDefaultUploadDomain()
+	if defaultDomain != nil {
+		// 走默认云端上传，返回相对路径（不含域名）
+		filePath, key, uploadErr = cloudSvc.UploadFileToCloud(*defaultDomain, header, folder)
+	} else {
+		// 回退到 config.yaml 的 oss-type
+		oss := upload.NewOss()
+		filePath, key, uploadErr = upload.UploadFileToFolder(oss, header, folder)
+	}
+
 	if uploadErr != nil {
 		return file, uploadErr
 	}
+
+	// 同步上传到其他标记了 sync_upload 的云（异步，不阻塞主流程）
+	go syncUploadToClouds(cloudSvc, header, folder)
+
 	mediaCategory := inferMediaCategory(uploadType, folder, filePath)
 	normalizedPosition := normalizeUploadPosition(uploadPosition)
 	if normalizedPosition == "" {
@@ -246,4 +265,33 @@ func inferUploadPosition(uploadType string, folder string, filePath string) stri
 	}
 
 	return "other"
+}
+
+// syncUploadToClouds 异步同步上传到所有标记了 sync_upload 的云
+func syncUploadToClouds(cloudSvc clientService.CloudStorageService, header *multipart.FileHeader, folder string) {
+	syncDomains, err := cloudSvc.GetSyncUploadDomains()
+	if err != nil {
+		global.GVA_LOG.Error("获取同步上传云列表失败", zap.Error(err))
+		return
+	}
+	if len(syncDomains) == 0 {
+		return
+	}
+
+	for _, domain := range syncDomains {
+		d := domain
+		go func() {
+			_, _, uploadErr := cloudSvc.UploadFileToCloud(d, header, folder)
+			if uploadErr != nil {
+				global.GVA_LOG.Error("同步上传失败",
+					zap.String("cloud_name", d.Name),
+					zap.String("cloud_type", d.CloudType),
+					zap.Error(uploadErr))
+			} else {
+				global.GVA_LOG.Info("同步上传成功",
+					zap.String("cloud_name", d.Name),
+					zap.String("cloud_type", d.CloudType))
+			}
+		}()
+	}
 }

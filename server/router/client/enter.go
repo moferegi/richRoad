@@ -17,6 +17,8 @@ type RouterGroup struct {
 	PhoneAreaCodeRouter
 	SignInRouter
 	ExternalLinkDomainRouter
+	VideoTagRouter
 }
 
 var cprApi = api.ApiGroupApp.ClientApiGroup.PointRecordApi
+var videoTagApi = api.ApiGroupApp.ClientApiGroup.VideoTagApi

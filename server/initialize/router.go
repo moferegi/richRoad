@@ -87,6 +87,14 @@ func Routers() *gin.Engine {
 
 	PrivateGroup.Use(middleware.JWTAuth()).Use(middleware.CasbinHandler())
 
+	// Uni 移动端专用路由组 — 使用 JWTAuth 但排除 Casbin RBAC（Web 后台权限体系）
+	UniPrivateGroup := Router.Group(global.GVA_CONFIG.System.RouterPrefix)
+	UniPrivateGroup.Use(middleware.Locale())
+	UniPrivateGroup.Use(middleware.UniResponseProtect())
+	UniPrivateGroup.Use(middleware.JWTAuth())
+	// UniSignVerify 签名校验中间件（通过 sysConfig 开关控制）
+	UniPrivateGroup.Use(middleware.UniSignVerify())
+
 	{
 		// 健康监测
 		PublicGroup.GET("/health", func(c *gin.Context) {
@@ -130,8 +138,8 @@ func Routers() *gin.Engine {
 	//插件路由安装
 	InstallPlugin(PrivateGroup, PublicGroup, Router)
 
-	// 注册业务路由
-	initBizRouter(PrivateGroup, PublicGroup)
+	// 注册业务路由（Uni 端路由使用 UniPrivateGroup，Web 后台路由使用 PrivateGroup）
+	initBizRouter(UniPrivateGroup, PrivateGroup, PublicGroup)
 
 	global.GVA_ROUTERS = Router.Routes()
 

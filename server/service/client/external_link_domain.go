@@ -2,6 +2,7 @@ package client
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
@@ -51,7 +52,8 @@ func (s *ExternalLinkDomainService) GetExternalLinkDomainList(info clientReq.Ext
 	return
 }
 
-// GetDefaultDomain 获取默认域名
+// GetDefaultDomain 获取默认域名（公开接口）
+// 返回用于拼接文件URL的公网域名：优先 Domain，其次 BaseURL（七牛专用）
 func (s *ExternalLinkDomainService) GetDefaultDomain() (string, error) {
 	var domain client.ExternalLinkDomain
 	err := global.GVA_DB.Where("is_default = ? AND is_enabled = ?", true, true).First(&domain).Error
@@ -66,7 +68,13 @@ func (s *ExternalLinkDomainService) GetDefaultDomain() (string, error) {
 			return "", err
 		}
 	}
-	return domain.Domain, nil
+
+	// 优先 Domain，为空时回退到 BaseURL（Qiniu 等把CDN域名存在 base_url 字段）
+	result := strings.TrimSpace(domain.Domain)
+	if result == "" {
+		result = strings.TrimSpace(domain.BaseURL)
+	}
+	return result, nil
 }
 
 // SetDefaultDomain 设置默认域名

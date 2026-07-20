@@ -233,15 +233,7 @@
           />
         </el-form-item>
         <el-form-item label="Logo地址">
-          <div class="upload-inline">
-            <el-input v-model="categoryForm.logo" placeholder="上传后自动写入 URL" />
-            <el-upload
-              :show-file-list="false"
-              :http-request="(options) => uploadByRequest(options, 'english-learn/pic', (url) => { categoryForm.logo = url }, 'Logo')"
-            >
-              <el-button type="primary" plain>上传Logo</el-button>
-            </el-upload>
-          </div>
+          <FileUploadWithDir v-model="categoryForm.logo" default-folder="english-learn/category/logo" accept="image/*" />
         </el-form-item>
         <el-form-item label="价格">
           <el-input-number v-model="categoryForm.price" :min="0" :precision="2" :step="1" />
@@ -314,26 +306,10 @@
           />
         </el-form-item>
         <el-form-item label="美式发音URL">
-          <div class="upload-inline">
-            <el-input v-model="wordForm.audioUs" placeholder="可上传覆盖，留空则尝试自动生成" />
-            <el-upload
-              :show-file-list="false"
-              :http-request="(options) => uploadByRequest(options, 'english-learn/audio', (url) => { wordForm.audioUs = url }, '美式音频')"
-            >
-              <el-button type="primary" plain>上传美式</el-button>
-            </el-upload>
-          </div>
+          <FileUploadWithDir v-model="wordForm.audioUs" default-folder="english-learn/word/audio/us" accept="audio/*" />
         </el-form-item>
         <el-form-item label="英式发音URL">
-          <div class="upload-inline">
-            <el-input v-model="wordForm.audioUk" placeholder="可上传覆盖，留空则尝试自动生成" />
-            <el-upload
-              :show-file-list="false"
-              :http-request="(options) => uploadByRequest(options, 'english-learn/audio', (url) => { wordForm.audioUk = url }, '英式音频')"
-            >
-              <el-button type="primary" plain>上传英式</el-button>
-            </el-upload>
-          </div>
+          <FileUploadWithDir v-model="wordForm.audioUk" default-folder="english-learn/word/audio/uk" accept="audio/*" />
         </el-form-item>
         <el-form-item label="造句列表">
           <div class="sentence-editor">
@@ -552,7 +528,7 @@
   import { computed, onMounted, ref, watch } from 'vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
-  import { uploadFile } from '@/api/fileUploadAndDownload'
+  import FileUploadWithDir from '@/components/FileUploadWithDir/index.vue'
   import { getLanguageList } from '@/api/client/language'
   import {
     createCategory,
@@ -1084,50 +1060,6 @@
       return JSON.stringify({ zh: '' })
     }
     return JSON.stringify(cleaned)
-  }
-
-  const extractUploadedURL = (res) => {
-    return String(
-      res?.data?.file?.url ||
-      res?.data?.url ||
-      res?.file?.url ||
-      res?.url ||
-      ''
-    ).trim()
-  }
-
-  const uploadSingleFile = async (file, folder) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('folder', folder)
-
-    const res = await uploadFile(formData)
-    if (res.code !== 0) {
-      throw new Error(res.msg || '上传失败')
-    }
-
-    const url = extractUploadedURL(res)
-    if (!url) {
-      throw new Error('上传成功但未返回URL')
-    }
-
-    return url
-  }
-
-  const uploadByRequest = async (options, folder, assignFn, resourceLabel) => {
-    try {
-      const url = await uploadSingleFile(options.file, folder)
-      assignFn(url)
-      ElMessage.success(`${resourceLabel}上传成功`)
-      if (typeof options.onSuccess === 'function') {
-        options.onSuccess({ url })
-      }
-    } catch (error) {
-      ElMessage.error(error?.message || `${resourceLabel}上传失败`)
-      if (typeof options.onError === 'function') {
-        options.onError(error)
-      }
-    }
   }
 
   const loadCategoryList = async () => {

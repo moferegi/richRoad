@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -59,6 +60,63 @@ func (s *VideoSubtitleService) ParseAndHighlightSubtitle(episodeID uint, items [
 	return s.replaceEpisodeSentences(episodeID, sentencesToInsert)
 }
 
+// ScanKeywords 扫描英文字幕文件，提取所有单词，匹配单词库并返回去重统计列表
+func (s *VideoSubtitleService) ScanKeywords(req request.ScanKeywordsReq) ([]request.KeywordItem, error) {
+	englishURL := strings.TrimSpace(req.EnglishSubtitleURL)
+	if englishURL == "" {
+		return nil, errors.New("英文字幕文件不能为空")
+	}
+	if err := validateSubtitleURL(englishURL); err != nil {
+		return nil, fmt.Errorf("英文字幕地址无效: %w", err)
+	}
+
+	englishContent, err := fetchRemoteSubtitleContent(englishURL)
+	if err != nil {
+		return nil, fmt.Errorf("读取英文字幕失败: %w", err)
+	}
+	englishLines := parseSubtitleLines(englishContent)
+	if len(englishLines) == 0 {
+		return nil, errors.New("英文字幕解析失败或内容为空")
+	}
+
+	wordMap, err := s.loadWordMap()
+	if err != nil {
+		return nil, err
+	}
+
+	// 统计所有单词出现次数
+	wordCounter := make(map[string]int)
+	for _, line := range englishLines {
+		for _, match := range subtitleWordRegexp.FindAllString(line.Text, -1) {
+			wordCounter[strings.ToLower(match)]++
+		}
+	}
+
+	// 构建去重结果列表，按出现频率降序
+	type wordEntry struct {
+		word  string
+		count int
+	}
+	entries := make([]wordEntry, 0, len(wordCounter))
+	for w, c := range wordCounter {
+		entries = append(entries, wordEntry{word: w, count: c})
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].count > entries[j].count })
+
+	result := make([]request.KeywordItem, 0, len(entries))
+	for _, e := range entries {
+		id, matched := wordMap[e.word]
+		result = append(result, request.KeywordItem{
+			Word:    e.word,
+			WordID:  id,
+			Matched: matched,
+			Count:   e.count,
+		})
+	}
+
+	return result, nil
+}
+
 func (s *VideoSubtitleService) ParseAndHighlightSubtitleFromFiles(req request.ParseSubtitleFilesReq) error {
 	if req.EpisodeID == 0 {
 		return errors.New("episodeId不能为空")
@@ -81,9 +139,23 @@ func (s *VideoSubtitleService) ParseAndHighlightSubtitleFromFiles(req request.Pa
 		return errors.New("英文字幕解析失败或内容为空")
 	}
 
+	// 构建关键词ID集合（管理员多选后的确认列表）
+	keywordIDSet := make(map[uint]bool, len(req.KeywordIDs))
+	for _, id := range req.KeywordIDs {
+		keywordIDSet[id] = true
+	}
+
 	wordMap, err := s.loadWordMap()
 	if err != nil {
 		return err
+	}
+
+	// 构建筛选后的单词高亮映射（仅高亮管理员选中的单词）
+	filteredWordMap := make(map[string]uint)
+	for word, id := range wordMap {
+		if keywordIDSet[id] {
+			filteredWordMap[word] = id
+		}
 	}
 
 	translationByLang := make(map[string][]string)
@@ -148,7 +220,7 @@ func (s *VideoSubtitleService) ParseAndHighlightSubtitleFromFiles(req request.Pa
 			EpisodeID: req.EpisodeID,
 			StartTime: line.StartTime,
 			EndTime:   line.EndTime,
-			English:   highlightSubtitleSentence(line.Text, wordMap),
+			English:   highlightSubtitleSentence(line.Text, filteredWordMap),
 			Translate: translateJSON,
 		})
 	}
@@ -581,9 +653,113 @@ func alignSubtitleText(base []subtitleLine, target []subtitleLine) []string {
 	return result
 }
 
+// GetEpisodeKeywords 获取某单集已高亮的重点单词列表（从已有字幕句子中提取 <w> 标签）
+func (s *VideoSubtitleService) GetEpisodeKeywords(episodeID uint) ([]request.KeywordItem, error) {
+	var sentences []model.VideoSentence
+	if err := global.GVA_DB.Where("episode_id = ?", episodeID).Select("english").Find(&sentences).Error; err != nil {
+		return nil, err
+	}
+
+	// 从所有句子中提取已高亮的单词
+	wordCounter := make(map[string]int)
+	wordIDMap := make(map[string]uint)
+	wTagRegexp := regexp.MustCompile(`<w id="(\d+)">([^<]+)</w>`)
+
+	for _, sentence := range sentences {
+		matches := wTagRegexp.FindAllStringSubmatch(sentence.English, -1)
+		for _, m := range matches {
+			if len(m) >= 3 {
+				idStr := m[1]
+				word := strings.ToLower(strings.TrimSpace(m[2]))
+				if word == "" {
+					continue
+				}
+				wordCounter[word]++
+				if parsedID, err := strconv.ParseUint(idStr, 10, 64); err == nil {
+					wordIDMap[word] = uint(parsedID)
+				}
+			}
+		}
+	}
+
+	// 按频率降序
+	type entry struct {
+		word  string
+		count int
+	}
+	entries := make([]entry, 0, len(wordCounter))
+	for w, c := range wordCounter {
+		entries = append(entries, entry{word: w, count: c})
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].count > entries[j].count })
+
+	result := make([]request.KeywordItem, 0, len(entries))
+	for _, e := range entries {
+		result = append(result, request.KeywordItem{
+			Word:    e.word,
+			WordID:  wordIDMap[e.word],
+			Matched: wordIDMap[e.word] != 0,
+			Count:   e.count,
+		})
+	}
+
+	return result, nil
+}
+
 func (s *VideoSubtitleService) GetSentenceList(episodeID uint) (list []model.VideoSentence, err error) {
 	err = global.GVA_DB.Where("episode_id = ?", episodeID).Order("start_time ASC, id ASC").Find(&list).Error
 	return
+}
+
+// RehighlightSentences 对已有字幕句子去标签后重新高亮（用于预览弹窗中变更重点单词后即时应用）
+func (s *VideoSubtitleService) RehighlightSentences(req request.RehighlightSentencesReq) error {
+	if req.EpisodeID == 0 {
+		return errors.New("episodeId不能为空")
+	}
+
+	// 构建选中关键词ID集合
+	keywordIDSet := make(map[uint]bool, len(req.KeywordIDs))
+	for _, id := range req.KeywordIDs {
+		keywordIDSet[id] = true
+	}
+
+	wordMap, err := s.loadWordMap()
+	if err != nil {
+		return err
+	}
+
+	// 构建筛选后的映射
+	filteredWordMap := make(map[string]uint)
+	for word, id := range wordMap {
+		if keywordIDSet[id] {
+			filteredWordMap[word] = id
+		}
+	}
+
+	var sentences []model.VideoSentence
+	if err := global.GVA_DB.Where("episode_id = ?", req.EpisodeID).Find(&sentences).Error; err != nil {
+		return err
+	}
+
+	// 去除旧的 <w> 标签后重新高亮
+	stripWTagRegexp := regexp.MustCompile(`<w[^>]*>|</w>`)
+	for i := range sentences {
+		cleanText := stripWTagRegexp.ReplaceAllString(sentences[i].English, "")
+		sentences[i].English = highlightSubtitleSentence(cleanText, filteredWordMap)
+	}
+
+	if len(sentences) == 0 {
+		return nil
+	}
+
+	return global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		for _, s := range sentences {
+			if err := tx.Model(&model.VideoSentence{}).Where("id = ?", s.ID).Update("english", s.English).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (s *VideoSubtitleService) UpdateSentenceList(req request.UpdateVideoSentenceListReq) error {

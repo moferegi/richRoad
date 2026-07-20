@@ -129,11 +129,11 @@
               </el-col>
             </el-row>
             <el-form-item label="图片(上传):"  prop="src" >
-                <SelectImage
+                <FileUploadWithDir
                  v-model="formData.src"
-                 file-type="image"
                :default-folder="BANNER_UPLOAD_FOLDER"
-               :fixed-upload-folder="true"
+               :fixed-upload-folder="false"
+               accept="image/*"
                 />
             </el-form-item>
             <el-form-item label="外部图片路径(优先于上传图片):" prop="externalPath">
@@ -245,8 +245,7 @@ import {
 import { getUrl } from '@/utils/image'
 import { getEnabledLanguages } from '@/api/client/language'
 import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
-// 图片选择组件
-import SelectImage from '@/components/selectImage/selectImage.vue'
+import FileUploadWithDir from '@/components/FileUploadWithDir/index.vue'
 
 // 全量引入格式化工具 请按需保留
 import { getDictFunc, formatDate, formatBoolean, filterDict, ReturnArrImg, onDownloadFile } from '@/utils/format'

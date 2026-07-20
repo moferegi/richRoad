@@ -22,6 +22,9 @@ func (s *ExternalLinkDomainRouter) InitExternalLinkDomainRouter(Router *gin.Rout
 	}
 	{
 		extDomainRouterWithoutRecord.GET("getExternalLinkDomainList", extDomainApi.GetExternalLinkDomainList) // 获取域名列表
+		extDomainRouterWithoutRecord.GET("listCloudFiles", extDomainApi.ListCloudFiles)                       // 列出云存储文件
+		extDomainRouterWithoutRecord.GET("compareDirectories", extDomainApi.CompareDirectories)               // 多云目录比对
+		extDomainRouter.POST("pingCloud", extDomainApi.PingCloud)                                              // 检测云存储连接
 	}
 	{
 		extDomainPublicRouter.GET("getDefaultDomain", extDomainApi.GetDefaultDomain) // 获取默认域名（公开）

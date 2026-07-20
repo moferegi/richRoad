@@ -3,7 +3,7 @@
     <swiper class="swiper" circular autoplay :indicator-dots="true" indicator-color="rgba(255,255,255,0.6)" indicator-active-color="#fff">
       <swiper-item v-for="(item, index) in props.lists" :key="index" @click="handleSwiperClick(item)">
         <view class="swiper-item">
-          <image class="swiper-image" :src="item.externalPath ? getExternalUrl(item.externalPath) : getUrl(item.src)" mode="aspectFill"></image>
+          <image class="swiper-image" :src="item.externalPath ? getExternalUrl(item.externalPath) : getExternalUrl(item.src)" mode="aspectFill"></image>
           <!-- 遮罩文字层 -->
           <view v-if="item.maskEnabled && $lt(item.maskText)" class="swiper-mask"
             :style="{
@@ -26,7 +26,7 @@
 </template>
 
 <script setup>
-import {getUrl, getExternalUrl} from "@/utils/url.js"
+import {getExternalUrl} from "@/utils/url.js"
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { computed } from 'vue'
 

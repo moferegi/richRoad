@@ -7,7 +7,7 @@
     </view>
 
     <view class="series-card">
-      <image class="series-cover" :src="seriesInfo.coverUrl || ''" mode="aspectFit" />
+      <image class="series-cover" :src="getExternalUrl(seriesInfo.coverUrl || '')" mode="aspectFit" />
       <view class="series-main">
         <text class="series-name">{{ localText(seriesInfo.name) || `#${seriesInfo.id || '-'}` }}</text>
         <text class="series-sub">
@@ -59,6 +59,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { localText as i18nLocalText, t as i18nT } from '@/utils/i18n.js'
 import { findVideoEpisode, findVideoSeries, getSeriesWatchProgressList, getVideoEpisodeList } from '@/api/learning.js'
+import { getExternalUrl } from '@/utils/url.js'
 
 const langStore = useLangStore()
 

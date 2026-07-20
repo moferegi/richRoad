@@ -38,7 +38,7 @@
 
       <view class="video-grid">
         <view class="video-card" v-for="item in videoList" :key="item.id" @tap="goDetail(item.id)">
-          <image class="video-cover" :src="item.coverUrl || ''" mode="scaleToFill" />
+          <image class="video-cover" :src="getExternalUrl(item.coverUrl || '')" mode="scaleToFill" />
           <view class="video-content">
             <text class="video-title">{{ localText(item.name) }}</text>
             <view class="video-meta">
@@ -99,6 +99,8 @@ const homeInited = ref(false)
 const homeShownOnce = ref(false)
 const homeLocaleLoaded = ref('')
 const reloading = ref(false)
+const lastLoadTime = ref(0)
+const CACHE_TTL = 5 * 60 * 1000 // 5 分钟缓存窗口
 
 const normalizeId = (item) => Number(item?.id || item?.ID || 0)
 
@@ -202,6 +204,36 @@ const reloadHome = async () => {
     videoList.value = []
     await loadSeries(false)
     homeLocaleLoaded.value = locale.value
+    lastLoadTime.value = Date.now()
+  } finally {
+    reloading.value = false
+  }
+}
+
+// 3.2 静默后台刷新：缓存过期后无感更新数据，不显示 loading
+const silentRefresh = async () => {
+  if (reloading.value) return
+  reloading.value = true
+  try {
+    await Promise.allSettled([loadAppInfo(), loadBanner(), loadCategories()])
+    const params = { page: 1, pageSize, showHome: true }
+    if (currentCategoryId.value > 0) {
+      params.categoryId = currentCategoryId.value
+    }
+    const res = await getVideoSeriesList(params)
+    if (res.code === 0 && res.data) {
+      const list = Array.isArray(res.data.list) ? res.data.list : []
+      const normalized = list
+        .map((item) => ({ ...item, id: normalizeId(item) }))
+        .filter((item) => item.id > 0)
+      if (normalized.length > 0) {
+        videoList.value = normalized
+      }
+    }
+    page.value = 1
+    finished.value = false
+    homeLocaleLoaded.value = locale.value
+    lastLoadTime.value = Date.now()
   } finally {
     reloading.value = false
   }
@@ -225,15 +257,23 @@ onShow(() => {
     }
     return
   }
+  // 语言变更 → 全量重载
   if (homeLocaleLoaded.value !== locale.value) {
     reloadHome()
     return
   }
+  // 无缓存 → 全量重载
   if (!videoList.value.length) {
     reloadHome()
     return
   }
-  reloadHome()
+  // 3.2 缓存命中（TTL 内）→ 直接渲染，跳过请求
+  const now = Date.now()
+  if (lastLoadTime.value > 0 && (now - lastLoadTime.value) < CACHE_TTL) {
+    return
+  }
+  // 缓存过期 → 静默后台更新（保留旧数据不闪烁）
+  silentRefresh()
 })
 
 onReachBottom(async () => {

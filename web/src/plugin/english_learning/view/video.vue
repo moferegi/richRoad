@@ -217,16 +217,7 @@
                 </el-select>
               </el-form-item>
               <el-form-item label="英文字幕文件(必填)">
-                <div class="upload-inline upload-inline-wide">
-                  <el-input v-model="subtitleForm.englishSubtitleUrl" placeholder="SRT/VTT 文件URL" />
-                  <el-upload
-                    :show-file-list="false"
-                    :http-request="(options) => uploadByRequest(options, subtitleUploadFolder, (url) => { subtitleForm.englishSubtitleUrl = url }, '英文字幕')"
-                  >
-                    <el-button type="primary" plain>上传英文字幕</el-button>
-                  </el-upload>
-                </div>
-                <div class="dialog-hint">当前字幕上传目录：{{ subtitleUploadFolder }}</div>
+                <FileUploadWithDir v-model="subtitleForm.englishSubtitleUrl" :default-folder="subtitleUploadFolder" accept=".srt,.vtt,.ass" />
               </el-form-item>
 
               <el-form-item
@@ -234,24 +225,53 @@
                 :key="lang.code"
                 :label="`${lang.name || lang.code} 字幕文件`"
               >
-                <div class="upload-inline upload-inline-wide">
-                  <el-input
-                    v-model="subtitleForm.translationSubtitleMap[lang.code]"
-                    :placeholder="`${lang.code} 字幕URL（可选）`"
-                  />
-                  <el-upload
-                    :show-file-list="false"
-                    :http-request="(options) => uploadByRequest(options, subtitleUploadFolder, (url) => { subtitleForm.translationSubtitleMap[lang.code] = url }, `${lang.code}字幕`)"
-                  >
-                    <el-button type="primary" plain>上传{{ lang.code }}</el-button>
-                  </el-upload>
-                </div>
+                <FileUploadWithDir v-model="subtitleForm.translationSubtitleMap[lang.code]" :default-folder="subtitleUploadFolder" accept=".srt,.vtt,.ass" />
               </el-form-item>
 
               <el-form-item>
-                <el-button type="primary" @click="handleParseSubtitleFiles">提交字幕解析</el-button>
+                <el-button type="warning" :loading="keywordScanning" @click="handleScanKeywords">
+                  {{ keywordScanning ? '正在扫描...' : '步骤1: 扫描关键词' }}
+                </el-button>
+                <el-button
+                  v-if="keywordScanDone"
+                  type="primary"
+                  style="margin-left: 12px"
+                  :disabled="selectedKeywordIds.length === 0"
+                  @click="handleConfirmParse"
+                >
+                  步骤2: 确认解析入库（已选 {{ selectedKeywordIds.length }} 个词）
+                </el-button>
               </el-form-item>
             </el-form>
+
+            <!-- 关键词扫描结果 -->
+            <div v-if="keywordScanDone" class="keyword-scan-result">
+              <el-divider content-position="left">
+                关键词扫描结果（共 {{ keywordScanResults.length }} 个单词，已选 {{ selectedKeywordIds.length }} 个）
+              </el-divider>
+              <div class="keyword-toolbar">
+                <el-button size="small" @click="selectAllKeywords(true)">全选已匹配</el-button>
+                <el-button size="small" @click="selectAllKeywords(false)">取消全选</el-button>
+              </div>
+              <el-table
+                ref="keywordTableRef"
+                :data="keywordScanResults"
+                row-key="word"
+                border
+                max-height="400"
+                @selection-change="handleKeywordSelectionChange"
+              >
+                <el-table-column type="selection" width="50" :selectable="(row) => row.matched" />
+                <el-table-column prop="word" label="单词" width="180" />
+                <el-table-column label="状态" width="120">
+                  <template #default="scope">
+                    <el-tag v-if="scope.row.matched" type="success" size="small">已匹配(ID:{{ scope.row.wordId }})</el-tag>
+                    <el-tag v-else type="info" size="small">未入库</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="count" label="出现次数" width="100" sortable />
+              </el-table>
+            </div>
           </div>
         </el-tab-pane>
 
@@ -364,15 +384,7 @@
           />
         </el-form-item>
         <el-form-item label="封面地址">
-          <div class="upload-inline upload-inline-wide">
-            <el-input v-model="seriesForm.coverUrl" placeholder="上传后自动写入 URL" />
-            <el-upload
-              :show-file-list="false"
-              :http-request="(options) => uploadByRequest(options, 'english-learn/pic', (url) => { seriesForm.coverUrl = url }, '封面')"
-            >
-              <el-button type="primary" plain>上传封面</el-button>
-            </el-upload>
-          </div>
+          <FileUploadWithDir v-model="seriesForm.coverUrl" default-folder="english-learn/video/cover" accept="image/*" />
         </el-form-item>
         <el-form-item label="价格">
           <el-input-number v-model="seriesForm.price" :min="0" :precision="2" :step="1" />
@@ -412,16 +424,7 @@
           />
         </el-form-item>
         <el-form-item label="视频地址">
-          <div class="upload-inline upload-inline-wide">
-            <el-input v-model="episodeForm.videoUrl" placeholder="上传后自动写入 URL" />
-            <el-upload
-              :show-file-list="false"
-              :http-request="(options) => uploadByRequest(options, episodeUploadFolder, (url) => { episodeForm.videoUrl = url }, '视频文件')"
-            >
-              <el-button type="primary" plain>上传视频</el-button>
-            </el-upload>
-          </div>
-          <div class="dialog-hint">当前视频上传目录：{{ episodeUploadFolder }}</div>
+          <FileUploadWithDir v-model="episodeForm.videoUrl" :default-folder="episodeUploadFolder" accept="video/*" />
         </el-form-item>
         <el-form-item label="试看比例(%)">
           <el-input-number v-model="episodeForm.trialPercent" :min="1" :max="100" />
@@ -442,41 +445,85 @@
       width="1100px"
       :before-close="handleSentencePreviewBeforeClose"
     >
-      <div class="subtitle-preview-toolbar">
-        <span>字幕语言：</span>
-        <el-select v-model="sentencePreviewLang" style="width: 140px">
-          <el-option
-            v-for="lang in displayLanguageOptions"
-            :key="lang.value"
-            :label="lang.label"
-            :value="lang.value"
-          />
-        </el-select>
-        <el-tag type="warning" effect="light">已改动 {{ pendingSentenceChanges.length }} 条</el-tag>
-      </div>
-      <el-table :data="sentencePreviewTable" border max-height="560">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column label="开始(s)" width="120">
-          <template #default="scope">
-            <el-input-number v-model="scope.row.startTime" :min="0" :step="0.1" controls-position="right" />
-          </template>
-        </el-table-column>
-        <el-table-column label="结束(s)" width="120">
-          <template #default="scope">
-            <el-input-number v-model="scope.row.endTime" :min="0" :step="0.1" controls-position="right" />
-          </template>
-        </el-table-column>
-        <el-table-column label="英文句子" min-width="320">
-          <template #default="scope">
-            <el-input v-model="scope.row.english" type="textarea" :rows="2" />
-          </template>
-        </el-table-column>
-        <el-table-column label="翻译" min-width="320">
-          <template #default="scope">
-            <el-input v-model="scope.row.translateText" type="textarea" :rows="2" @input="syncSentenceTranslate(scope.row)" />
-          </template>
-        </el-table-column>
-      </el-table>
+      <el-tabs v-model="sentencePreviewTab">
+        <el-tab-pane label="字幕句子" name="sentences">
+          <div class="subtitle-preview-toolbar">
+            <span>字幕语言：</span>
+            <el-select v-model="sentencePreviewLang" style="width: 140px">
+              <el-option
+                v-for="lang in displayLanguageOptions"
+                :key="lang.value"
+                :label="lang.label"
+                :value="lang.value"
+              />
+            </el-select>
+            <el-tag type="warning" effect="light">已改动 {{ pendingSentenceChanges.length }} 条</el-tag>
+          </div>
+          <el-table :data="sentencePreviewTable" border max-height="500">
+            <el-table-column prop="id" label="ID" width="80" />
+            <el-table-column label="开始(s)" width="120">
+              <template #default="scope">
+                <el-input-number v-model="scope.row.startTime" :min="0" :step="0.1" controls-position="right" />
+              </template>
+            </el-table-column>
+            <el-table-column label="结束(s)" width="120">
+              <template #default="scope">
+                <el-input-number v-model="scope.row.endTime" :min="0" :step="0.1" controls-position="right" />
+              </template>
+            </el-table-column>
+            <el-table-column label="英文句子" min-width="320">
+              <template #default="scope">
+                <el-input v-model="scope.row.english" type="textarea" :rows="2" />
+              </template>
+            </el-table-column>
+            <el-table-column label="翻译" min-width="320">
+              <template #default="scope">
+                <el-input v-model="scope.row.translateText" type="textarea" :rows="2" @input="syncSentenceTranslate(scope.row)" />
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
+
+        <el-tab-pane label="重点单词" name="keywords">
+          <div class="subtitle-preview-toolbar">
+            <span>当前高亮的重点单词（共 {{ episodeKeywordList.length }} 个）</span>
+            <el-button size="small" type="primary" @click="loadEpisodeKeywords">刷新列表</el-button>
+          </div>
+          <el-table
+            ref="previewKeywordTableRef"
+            :data="episodeKeywordList"
+            row-key="word"
+            border
+            max-height="420"
+            @selection-change="handlePreviewKeywordSelectionChange"
+          >
+            <el-table-column type="selection" width="50" :selectable="(row) => row.matched" />
+            <el-table-column prop="word" label="单词" width="180" />
+            <el-table-column label="状态" width="140">
+              <template #default="scope">
+                <el-tag v-if="scope.row.matched" type="success" size="small">已匹配(ID:{{ scope.row.wordId }})</el-tag>
+                <el-tag v-else type="info" size="small">未入库</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="count" label="出现次数" width="100" sortable />
+          </el-table>
+          <div style="margin-top: 12px">
+            <el-button size="small" @click="selectAllPreviewKeywords(true)">全选已匹配</el-button>
+            <el-button size="small" @click="selectAllPreviewKeywords(false)">取消全选</el-button>
+            <el-button
+              type="warning"
+              size="small"
+              style="margin-left: 16px"
+              :loading="previewRehighlighting"
+              :disabled="previewSelectedKeywordIds.length === 0"
+              @click="handleRehighlightPreview"
+            >
+              更新高亮（已选 {{ previewSelectedKeywordIds.length }} 个词）
+            </el-button>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
+
       <template #footer>
         <el-button :disabled="pendingSentenceChanges.length === 0" @click="resetSentencePreviewChanges">重置改动</el-button>
         <el-button type="primary" :loading="sentenceSaving" :disabled="pendingSentenceChanges.length === 0" @click="saveSentencePreview">保存修改</el-button>
@@ -539,7 +586,7 @@
   import { computed, onMounted, ref, watch } from 'vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import MultiLangEditor from '@/components/multilingual/multi-lang-editor.vue'
-  import { uploadFile } from '@/api/fileUploadAndDownload'
+  import FileUploadWithDir from '@/components/FileUploadWithDir/index.vue'
   import { getLanguageList } from '@/api/client/language'
   import {
     createVideoCategory,
@@ -549,13 +596,16 @@
     deleteVideoEpisode,
     deleteVideoSeries,
     getEntitlementList,
+    getEpisodeKeywords,
     getVideoCategoryList,
     getVideoEpisodeList,
     getVideoSentenceList,
     getVideoSeriesList,
     grantEntitlement,
     parseSubtitleFiles,
+    rehighlightSentences,
     revokeEntitlement,
+    scanKeywords,
     updateVideoSentenceList,
     updateVideoCategory,
     updateVideoEpisode,
@@ -731,13 +781,27 @@
   })
   const subtitleSectionRef = ref(null)
 
+  // 关键词扫描相关
+  const keywordScanning = ref(false)
+  const keywordScanDone = ref(false)
+  const keywordScanResults = ref([])
+  const selectedKeywordIds = ref([])
+  const keywordTableRef = ref(null)
+
   const sentencePreviewVisible = ref(false)
   const sentencePreviewEpisodeName = ref('')
   const sentencePreviewTable = ref([])
   const sentencePreviewEpisodeId = ref(0)
   const sentencePreviewLang = ref('zh')
+  const sentencePreviewTab = ref('sentences')
   const sentenceSaving = ref(false)
   const sentencePreviewOriginalMap = ref({})
+
+  // 预览弹窗-关键词管理
+  const episodeKeywordList = ref([])
+  const previewSelectedKeywordIds = ref([])
+  const previewRehighlighting = ref(false)
+  const previewKeywordTableRef = ref(null)
 
   const normalizeSentenceSnapshot = (item) => {
     const normalizeTranslateObj = (raw) => {
@@ -843,50 +907,6 @@
     if (type === 'video_series') return '剧集'
     if (type === 'video_episode') return '单集'
     return type || '-'
-  }
-
-  const extractUploadedURL = (res) => {
-    return String(
-      res?.data?.file?.url ||
-      res?.data?.url ||
-      res?.file?.url ||
-      res?.url ||
-      ''
-    ).trim()
-  }
-
-  const uploadSingleFile = async (file, folder) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('folder', folder)
-
-    const res = await uploadFile(formData)
-    if (res.code !== 0) {
-      throw new Error(res.msg || '上传失败')
-    }
-
-    const url = extractUploadedURL(res)
-    if (!url) {
-      throw new Error('上传成功但未返回URL')
-    }
-
-    return url
-  }
-
-  const uploadByRequest = async (options, folder, assignFn, resourceLabel) => {
-    try {
-      const url = await uploadSingleFile(options.file, folder)
-      assignFn(url)
-      ElMessage.success(`${resourceLabel}上传成功`)
-      if (typeof options.onSuccess === 'function') {
-        options.onSuccess({ url })
-      }
-    } catch (error) {
-      ElMessage.error(error?.message || `${resourceLabel}上传失败`)
-      if (typeof options.onError === 'function') {
-        options.onError(error)
-      }
-    }
   }
 
   const loadManagedLanguages = async () => {
@@ -1276,7 +1296,13 @@
       }
     })
     sentencePreviewOriginalMap.value = buildSentencePreviewSnapshotMap(sentencePreviewTable.value)
+    sentencePreviewTab.value = 'sentences'
     sentencePreviewVisible.value = true
+
+    // 预加载关键词列表
+    episodeKeywordList.value = []
+    previewSelectedKeywordIds.value = []
+    loadEpisodeKeywords()
   }
 
   const syncSentenceTranslate = (row) => {
@@ -1377,7 +1403,8 @@
     }
   )
 
-  const handleParseSubtitleFiles = async () => {
+  // 关键词扫描与解析（两步流程）
+  const handleScanKeywords = async () => {
     if (!subtitleForm.value.episodeId) {
       ElMessage.warning('请选择目标单集')
       return
@@ -1386,6 +1413,56 @@
     const englishSubtitleURL = String(subtitleForm.value.englishSubtitleUrl || '').trim()
     if (!englishSubtitleURL) {
       ElMessage.warning('英文字幕文件不能为空')
+      return
+    }
+
+    keywordScanning.value = true
+    keywordScanDone.value = false
+    keywordScanResults.value = []
+    selectedKeywordIds.value = []
+
+    const res = await scanKeywords({
+      episodeId: subtitleForm.value.episodeId,
+      englishSubtitleUrl: englishSubtitleURL
+    })
+
+    keywordScanning.value = false
+    if (res.code !== 0) return
+
+    keywordScanResults.value = res.data || []
+    keywordScanDone.value = true
+
+    // 默认选中所有已匹配的单词
+    const matchedIds = keywordScanResults.value.filter(k => k.matched).map(k => k.wordId)
+    selectedKeywordIds.value = [...matchedIds]
+
+    // 同步勾选表格
+    setTimeout(() => {
+      if (keywordTableRef.value) {
+        const matchedRows = keywordScanResults.value.filter(k => k.matched)
+        matchedRows.forEach(row => {
+          keywordTableRef.value.toggleRowSelection(row, true)
+        })
+      }
+    }, 50)
+
+    ElMessage.success(`扫描完成，共提取 ${keywordScanResults.value.length} 个单词，其中 ${matchedIds.length} 个已匹配词库`)
+  }
+
+  const handleConfirmParse = async () => {
+    if (!subtitleForm.value.episodeId) {
+      ElMessage.warning('请选择目标单集')
+      return
+    }
+
+    const englishSubtitleURL = String(subtitleForm.value.englishSubtitleUrl || '').trim()
+    if (!englishSubtitleURL) {
+      ElMessage.warning('英文字幕文件不能为空')
+      return
+    }
+
+    if (selectedKeywordIds.value.length === 0) {
+      ElMessage.warning('请至少选择一个重点单词')
       return
     }
 
@@ -1399,11 +1476,106 @@
     const res = await parseSubtitleFiles({
       episodeId: subtitleForm.value.episodeId,
       englishSubtitleUrl: englishSubtitleURL,
-      translationSubtitle
+      translationSubtitle,
+      keywordIds: selectedKeywordIds.value
     })
 
     if (res.code !== 0) return
     ElMessage.success('字幕文件解析并入库成功')
+
+    // 清除扫描状态
+    keywordScanDone.value = false
+    keywordScanResults.value = []
+    selectedKeywordIds.value = []
+  }
+
+  const handleKeywordSelectionChange = (rows) => {
+    selectedKeywordIds.value = rows.map(r => r.wordId)
+  }
+
+  const selectAllKeywords = (selectAll) => {
+    if (!keywordTableRef.value) return
+    if (selectAll) {
+      const matchedRows = keywordScanResults.value.filter(k => k.matched)
+      matchedRows.forEach(row => keywordTableRef.value.toggleRowSelection(row, true))
+    } else {
+      keywordTableRef.value.clearSelection()
+    }
+  }
+
+  // 预览弹窗-关键词管理
+  const loadEpisodeKeywords = async () => {
+    if (!sentencePreviewEpisodeId.value) return
+    const res = await getEpisodeKeywords({ episodeId: sentencePreviewEpisodeId.value })
+    if (res.code !== 0) return
+    episodeKeywordList.value = res.data || []
+
+    // 默认选中所有已匹配的
+    const matchedIds = episodeKeywordList.value.filter(k => k.matched).map(k => k.wordId)
+    previewSelectedKeywordIds.value = [...matchedIds]
+
+    setTimeout(() => {
+      if (previewKeywordTableRef.value) {
+        previewKeywordTableRef.value.clearSelection()
+        const matchedRows = episodeKeywordList.value.filter(k => k.matched)
+        matchedRows.forEach(row => {
+          previewKeywordTableRef.value.toggleRowSelection(row, true)
+        })
+      }
+    }, 50)
+  }
+
+  const handlePreviewKeywordSelectionChange = (rows) => {
+    previewSelectedKeywordIds.value = rows.map(r => r.wordId)
+  }
+
+  const selectAllPreviewKeywords = (selectAll) => {
+    if (!previewKeywordTableRef.value) return
+    if (selectAll) {
+      const matchedRows = episodeKeywordList.value.filter(k => k.matched)
+      matchedRows.forEach(row => previewKeywordTableRef.value.toggleRowSelection(row, true))
+    } else {
+      previewKeywordTableRef.value.clearSelection()
+    }
+  }
+
+  const handleRehighlightPreview = async () => {
+    if (!sentencePreviewEpisodeId.value) {
+      ElMessage.warning('单集ID无效')
+      return
+    }
+    if (previewSelectedKeywordIds.value.length === 0) {
+      ElMessage.warning('请至少选择一个重点单词')
+      return
+    }
+
+    previewRehighlighting.value = true
+    const res = await rehighlightSentences({
+      episodeId: sentencePreviewEpisodeId.value,
+      keywordIds: previewSelectedKeywordIds.value
+    })
+    previewRehighlighting.value = false
+
+    if (res.code !== 0) return
+    ElMessage.success('字幕重新高亮成功')
+
+    // 重新加载句子列表以显示新的高亮结果
+    const sentenceRes = await getVideoSentenceList({ episodeId: sentencePreviewEpisodeId.value })
+    if (sentenceRes.code === 0) {
+      const lang = String(sentencePreviewLang.value || 'zh')
+      sentencePreviewTable.value = (Array.isArray(sentenceRes.data) ? sentenceRes.data : []).map((item) => {
+        const translateObj = parseI18nObject(item?.translate)
+        return {
+          ...item,
+          translateObj,
+          translateText: translateObj[lang] || translateObj.zh || translateObj.en || translateObj.mn || ''
+        }
+      })
+      sentencePreviewOriginalMap.value = buildSentencePreviewSnapshotMap(sentencePreviewTable.value)
+    }
+
+    // 刷新关键词列表
+    await loadEpisodeKeywords()
   }
 
   const openEntitlementDialog = () => {
@@ -1535,5 +1707,19 @@
 
   .w-full {
     width: 100%;
+  }
+
+  .keyword-scan-result {
+    margin-top: 16px;
+    padding: 12px 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #fafafa;
+  }
+
+  .keyword-toolbar {
+    margin-bottom: 10px;
+    display: flex;
+    gap: 8px;
   }
 </style>

@@ -26,6 +26,29 @@
         <view v-else class="video-loading-logo-fallback spin">R</view>
         <text class="video-loading-text">{{ t('player.video_loading') }}</text>
       </view>
+      <!-- 手势滑动暂停提示文字 -->
+      <view v-if="showPauseHint" class="pause-hint-overlay" @click="hidePauseHint">
+        <text class="pause-hint-text">{{ t('player.tap_subtitle_to_play') }}</text>
+      </view>
+    </view>
+
+    <!-- 视频进度条 -->
+    <view class="progress-section" v-if="videoInfo.duration > 0">
+      <view class="progress-row">
+        <slider 
+          class="video-progress-slider" 
+          :min="0" 
+          :max="videoInfo.duration || 100" 
+          :value="currentTime"
+          :step="0.5"
+          activeColor="#0f766e"
+          backgroundColor="rgba(148,163,184,0.24)"
+          block-size="20"
+          @change="onProgressChange"
+          @changing="onProgressChanging"
+        />
+        <text class="progress-total">{{ formatSeconds(videoInfo.duration) }}</text>
+      </view>
     </view>
 
     <!-- 中央外挂字幕滚动区 -->
@@ -35,6 +58,8 @@
       scroll-with-animation
       :scroll-into-view="activeSentenceId"
       v-if="controls.showSubtitles"
+      @touchstart="onSubtitleTouchStart"
+      @touchmove="onSubtitleTouchMove"
     >
       <view class="subtitle-padding-top"></view>
       
@@ -57,7 +82,7 @@
             v-for="(seg, sIdx) in parseHighlight(item.english)" 
             :key="sIdx"
             :class="{ 'highlight-word': seg.isHighlight }"
-            @click="seg.isHighlight ? showWordDetail(seg.wordId) : null"
+            @click="handleSegClick(seg, $event)"
           >
             {{ seg.text }}
           </text>
@@ -79,9 +104,9 @@
         <text class="c-text" :class="{ 'c-text-active': controls.showBilingual }">{{ t('player.bilingual') }}</text>
       </view>
       
-      <view class="control-item" @click="changeSpeed">
-        <text class="c-icon">⚡</text>
-        <text class="c-text">{{ controls.speed }}x</text>
+      <view class="control-item" @click="toggleRepeat">
+        <text class="c-icon" :class="{ 'c-active': repeatMode }">🔄</text>
+        <text class="c-text" :class="{ 'c-text-active': repeatMode }">{{ t('player.repeat') }}</text>
       </view>
       
       <view class="control-item play-btn" @click="togglePlay">
@@ -129,8 +154,29 @@
           </view>
         </view>
 
+        <!-- 播放速率选择 -->
+        <view class="more-card speed-card">
+          <view class="more-card-main">
+            <text class="more-card-title">{{ t('player.speed') }}</text>
+            <text class="more-card-desc">{{ tt('player.speed_desc', 'player.speed') }}</text>
+          </view>
+          <view class="speed-trigger" @click="showSpeedPicker = !showSpeedPicker">
+            <text class="speed-current">{{ controls.speed }}x</text>
+            <text class="speed-arrow">{{ showSpeedPicker ? '▲' : '▼' }}</text>
+          </view>
+        </view>
+        <view class="speed-options" v-if="showSpeedPicker">
+          <text 
+            v-for="rate in speedRates" 
+            :key="rate"
+            class="speed-opt"
+            :class="{ 'speed-opt-active': controls.speed === rate }"
+            @click="selectSpeed(rate)"
+          >{{ rate }}x</text>
+        </view>
+
         <view class="more-actions">
-          <button class="more-action-btn ghost" @click="handleBack">{{ tt('player.sheet_back', 'common.back') }}</button>
+          <button class="more-action-btn ghost" @click="handleBack">{{ tt('player.exit_page', 'player.sheet_back', 'common.back') }}</button>
           <button class="more-action-btn" @click="closeMoreSheet">{{ tt('player.sheet_cancel', 'common.cancel', 'cancel') }}</button>
         </view>
       </view>
@@ -223,6 +269,13 @@ const sentenceCollectedMap = ref({})
 let lastSignedRefreshAt = 0
 let focusSentenceTimer = null
 const morePopup = ref(null)
+const currentTime = ref(0)
+const showPauseHint = ref(false)
+const repeatMode = ref(false)
+const speedRates = [0.75, 1.0, 1.25, 1.5, 2.0]
+let isProgressDragging = false
+const showSpeedPicker = ref(false)
+let lastRepeatSeekTime = 0
 
 onMounted(() => {
   videoCtx = uni.createVideoContext('englishVideo')
@@ -319,7 +372,7 @@ const focusSentence = () => {
   }
 
   activeSentenceIndex.value = targetIndex
-  activeSentenceId.value = 'sentence_' + Math.max(0, targetIndex - 1)
+  activeSentenceId.value = 'sentence_' + targetIndex
   focusedSentenceId.value = sentenceId.value
   if (focusSentenceTimer) {
     clearTimeout(focusSentenceTimer)
@@ -530,6 +583,10 @@ const initPage = async () => {
       uni.showToast({ title: t('player.sentence_not_found'), icon: 'none' })
     }
     await loadWatchHistory()
+  } else {
+    // 3.1.1 字幕初始定位：等待 scroll-view DOM 渲染后强制定位
+    await new Promise(resolve => setTimeout(resolve, 350))
+    reAnchorScroll()
   }
 }
 
@@ -582,43 +639,64 @@ const sendHeartbeatQueue = async (progressSecs) => {
 
 // 核心：视频时间推进事件
 const onTimeUpdate = (e) => {
-  const currentTime = e.detail.currentTime
+  const curTime = e.detail.currentTime
   const duration = e.detail.duration || videoInfo.value.duration
-  if (currentTime > lastPlaybackTime.value + 0.05) {
+  // 3.1.8 进度条：同步当前播放时间（拖拽中不更新，避免抖动）
+  if (!isProgressDragging) {
+    currentTime.value = curTime
+  }
+  if (curTime > lastPlaybackTime.value + 0.05) {
     isVideoBuffering.value = false
     isVideoReady.value = true
   }
-  lastPlaybackTime.value = currentTime
+  lastPlaybackTime.value = curTime
   if (duration > 0) {
     videoInfo.value.duration = duration
   }
 
   // 1. 防盗验证：超出试看比例时回弹到阈值，不重复弹窗轰炸。
-  if (ensureTrialLimit(currentTime)) {
+  if (ensureTrialLimit(curTime)) {
     return
   }
 
-  // 2. 匹配外挂字幕轴并滚动
-  const currentIdx = subtitleList.value.findIndex(sub => currentTime >= sub.startTime && currentTime <= sub.endTime)
-  if (currentIdx !== -1 && currentIdx !== activeSentenceIndex.value) {
-    activeSentenceIndex.value = currentIdx
-    activeSentenceId.value = 'sentence_' + Math.max(0, currentIdx - 1) // 滚动锚点上移一行体验更好
-  } else if (currentIdx === -1) {
-    activeSentenceIndex.value = -1 // 空白期
+  // 2. 匹配外挂字幕轴并滚动（复读模式下冻结，避免短句闪烁和相邻句跳跃）
+  if (!repeatMode.value) {
+    const currentIdx = subtitleList.value.findIndex(sub => curTime >= sub.startTime && curTime <= sub.endTime)
+    if (currentIdx !== -1 && currentIdx !== activeSentenceIndex.value) {
+      activeSentenceIndex.value = currentIdx
+      activeSentenceId.value = 'sentence_' + currentIdx
+    } else if (currentIdx === -1) {
+      activeSentenceIndex.value = -1 // 空白期
+    }
+  }
+
+  // 2b. 3.1.6 复读模式：当前句播放完毕后自动 seek 回句首
+  if (repeatMode.value) {
+    const repeatIdx = subtitleList.value.findIndex(sub => curTime >= sub.startTime && curTime <= sub.endTime)
+    if (repeatIdx !== -1) {
+      const curSentence = subtitleList.value[repeatIdx]
+      if (curSentence && curTime >= curSentence.endTime - 0.3) {
+        const now = Date.now()
+        if (now - lastRepeatSeekTime > 600) {
+          lastRepeatSeekTime = now
+          seekVideo(curSentence.startTime)
+        }
+      }
+    }
   }
 
   // 3. 签名链接即将到期时，提前刷新，避免播放中途 403。
-  refreshSignedUrlIfNeeded(currentTime)
+  refreshSignedUrlIfNeeded(curTime)
 
   // 4. 心跳累加与上报逻辑 (Phase 2 的前端呼应)
   // 如果正常播放，累加观看差值，每满 30 秒 Post 给后端一次
-  if (lastHeartbeatTime > 0 && currentTime > lastHeartbeatTime) {
-    accumulatedViewTime += (currentTime - lastHeartbeatTime)
+  if (lastHeartbeatTime > 0 && curTime > lastHeartbeatTime) {
+    accumulatedViewTime += (curTime - lastHeartbeatTime)
     if (accumulatedViewTime >= HEARTBEAT_FLUSH_THRESHOLD) {
-      flushHeartbeat(currentTime)
+      flushHeartbeat(curTime)
     }
   }
-  lastHeartbeatTime = currentTime
+  lastHeartbeatTime = curTime
 }
 
 const flushHeartbeat = (progressSecs, force = false) => {
@@ -698,9 +776,10 @@ const onVideoError = async () => {
 }
 
 const jumpBySubtitle = (item, index) => {
+  showPauseHint.value = false
   const startTime = Number(item?.startTime || 0)
   activeSentenceIndex.value = index
-  activeSentenceId.value = 'sentence_' + Math.max(0, index - 1)
+  activeSentenceId.value = 'sentence_' + index
   seekVideo(startTime)
   heartbeat({
     episodeId: episodeId.value,
@@ -733,11 +812,21 @@ const parseHighlight = (htmlStr) => {
   return parts.length ? parts : [{ text: htmlStr, isHighlight: false }]
 }
 
+// 字幕区文字点击：重点词阻止冒泡弹窗查词，非重点词透传给父级jumpBySubtitle
+const handleSegClick = (seg, event) => {
+  if (seg && seg.isHighlight) {
+    if (event && event.stopPropagation) event.stopPropagation()
+    showWordDetail(seg.wordId)
+  }
+  // 非重点词不做任何处理，事件自然冒泡到父级 .sentence-row 触发 jumpBySubtitle
+}
+
 // 查词查词交互
 const wordPopup = ref(null)
 const currentWord = ref(null)
 const showWordDetail = async (wordId) => {
-  if (videoCtx) {
+  // 暂停时点击重点单词只弹出单词窗，不改变播放状态
+  if (isPlaying.value && videoCtx) {
     videoCtx.pause()
   }
   const res = await findWord(Number(wordId))
@@ -753,6 +842,7 @@ const showWordDetail = async (wordId) => {
 
 // 底部控制
 const togglePlay = () => {
+  showPauseHint.value = false
   if (!videoCtx) {
     return
   }
@@ -766,21 +856,73 @@ const togglePlay = () => {
   }
   isPlaying.value ? videoCtx.pause() : videoCtx.play()
 }
-const toggleBilingual = () => { controls.value.showBilingual = !controls.value.showBilingual }
-const toggleSubtitles = () => { controls.value.showSubtitles = !controls.value.showSubtitles }
+const toggleBilingual = () => { 
+  controls.value.showBilingual = !controls.value.showBilingual
+  reAnchorScroll()
+}
+const toggleSubtitles = () => { 
+  controls.value.showSubtitles = !controls.value.showSubtitles
+  reAnchorScroll()
+}
 const toggleLoop = () => { controls.value.loop = !controls.value.loop }
-const changeSpeed = () => {
-  const rates = [0.75, 1.0, 1.25, 1.5, 2.0]
-  uni.showActionSheet({
-    itemList: rates.map((rate) => `${rate}x`),
-    success: (res) => {
-      const target = rates[res.tapIndex]
-      controls.value.speed = target
-      if (videoCtx) {
-        videoCtx.playbackRate(target)
-      }
-    }
-  })
+
+// 3.1.6 复读按钮：切换单句循环模式
+const toggleRepeat = () => {
+  repeatMode.value = !repeatMode.value
+  if (repeatMode.value) {
+    uni.showToast({ title: t('player.repeat_on'), icon: 'none' })
+  }
+}
+
+// 3.1.6 在更多设置面板中选择播放速率
+const selectSpeed = (rate) => {
+  controls.value.speed = rate
+  if (videoCtx) {
+    videoCtx.playbackRate(rate)
+  }
+}
+
+// 3.1.2 切换双语/字幕时重新锚定滚动位置
+const reAnchorScroll = () => {
+  if (activeSentenceIndex.value < 0) return
+  // 先重置触发 scroll-view 重新计算布局
+  activeSentenceId.value = ''
+  setTimeout(() => {
+    activeSentenceId.value = 'sentence_' + Math.max(0, activeSentenceIndex.value)
+  }, 50)
+}
+
+// 3.1.4 手势滑动 → 暂停视频并显示提示
+const onSubtitleTouchStart = () => {
+  if (videoCtx && isPlaying.value) {
+    videoCtx.pause()
+    showPauseHint.value = true
+  }
+}
+const onSubtitleTouchMove = () => {
+  // touchmove 时保持提示可见
+  if (!showPauseHint.value && videoCtx && isPlaying.value) {
+    videoCtx.pause()
+    showPauseHint.value = true
+  }
+}
+const hidePauseHint = () => {
+  showPauseHint.value = false
+}
+
+// 3.1.8 进度条拖拽跳转
+const onProgressChange = (e) => {
+  isProgressDragging = false
+  const value = Number(e.detail.value || 0)
+  currentTime.value = value
+  seekVideo(value)
+  if (videoCtx && !isTrialLocked.value) {
+    videoCtx.play()
+  }
+}
+const onProgressChanging = (e) => {
+  isProgressDragging = true
+  currentTime.value = Number(e.detail.value || 0)
 }
 
 const openMoreSheet = () => {
@@ -830,7 +972,7 @@ const playWordAudio = (src) => {
   if (!audioCtx) {
     audioCtx = uni.createInnerAudioContext()
   }
-  audioCtx.src = src
+  audioCtx.src = getExternalUrl(src)
   audioCtx.play()
 }
 </script>
@@ -890,7 +1032,7 @@ const playWordAudio = (src) => {
 
 /* 外挂字幕区域 */
 .subtitle-section { flex: 1; overflow: hidden; position: relative; padding-bottom: calc(132rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
-.subtitle-padding-top, .subtitle-padding-bottom { height: 40%; }
+.subtitle-padding-top, .subtitle-padding-bottom { height: 20rpx; }
 .sentence-row { padding: 20rpx 40rpx; margin-bottom: 20rpx; transition: all 0.3s; opacity: 0.6; }
 .sentence-row.is-active { opacity: 1; transform: scale(1.05); background: rgba(255,255,255,0.05); border-radius: 12rpx; border-left: 6rpx solid #409eff; }
 .sentence-row.is-focused { opacity: 1; border-left: 6rpx solid #facc15; box-shadow: 0 0 0 2rpx rgba(250, 204, 21, 0.35) inset; }
@@ -1068,5 +1210,112 @@ const playWordAudio = (src) => {
 
 .more-card {
   border-color: rgba(20, 184, 166, 0.24);
+}
+
+/* 3.1.8 进度条 */
+.progress-section {
+  flex-shrink: 0;
+  padding: 8rpx 32rpx 4rpx 32rpx;
+  background: rgba(2, 6, 23, 0.95);
+}
+
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.video-progress-slider {
+  flex: 1;
+  margin: 0;
+}
+
+.progress-total {
+  font-size: 20rpx;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 72rpx;
+  text-align: right;
+}
+
+/* 3.1.4 手势滑动暂停提示 */
+.pause-hint-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(2, 6, 23, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.pause-hint-text {
+  color: #fff;
+  font-size: 28rpx;
+  background: rgba(15, 118, 110, 0.85);
+  padding: 16rpx 36rpx;
+  border-radius: 999rpx;
+  letter-spacing: 2rpx;
+}
+
+/* 3.1.6 速率选择器 */
+.speed-card {
+  margin-top: 14rpx;
+}
+
+.speed-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 10rpx 22rpx;
+  border-radius: 999rpx;
+  border: 1px solid rgba(15, 118, 110, 0.45);
+  background: rgba(15, 118, 110, 0.08);
+  cursor: pointer;
+}
+
+.speed-current {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #0f766e;
+}
+
+.speed-arrow {
+  font-size: 18rpx;
+  color: #0f766e;
+}
+
+.speed-options {
+  display: flex;
+  gap: 12rpx;
+  align-items: center;
+  margin-top: 12rpx;
+  padding: 12rpx 20rpx;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 14rpx;
+  background: rgba(255, 253, 248, 0.6);
+}
+
+.speed-opt {
+  min-width: 80rpx;
+  height: 48rpx;
+  line-height: 48rpx;
+  text-align: center;
+  border-radius: 999rpx;
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #64748b;
+  background: #fff;
+}
+
+.speed-opt-active {
+  color: #0f766e;
+  border-color: rgba(15, 118, 110, 0.55);
+  background: rgba(15, 118, 110, 0.12);
 }
 </style>

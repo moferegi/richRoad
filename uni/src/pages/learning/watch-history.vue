@@ -12,7 +12,7 @@
       </view>
 
       <view v-for="(item, index) in historyList" :key="`${item.episodeId}-${index}`" class="history-card">
-        <image class="cover" :src="item.coverUrl || ''" mode="aspectFit" />
+        <image class="cover" :src="getExternalUrl(item.coverUrl || '')" mode="aspectFit" />
 
         <view class="content-wrap">
           <text class="series-name">{{ localText(item.seriesName) || t('learningWatchHistoryUnknownSeries') }}</text>
@@ -48,6 +48,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { localText as i18nLocalText, resolveApiMessage, t as i18nT } from '@/utils/i18n.js'
 import { getWatchHistoryList } from '@/api/learning.js'
+import { getExternalUrl } from '@/utils/url.js'
 
 const langStore = useLangStore()
 const page = ref(1)

@@ -18,7 +18,13 @@
     </view>
 
     <!-- 单词主要展示区 -->
-    <view class="word-card" :class="{ 'shake-animation': isWrong }">
+    <!-- 3.3.1 骨架屏：加载中展示占位 -->
+    <view v-if="isPageLoading" class="word-card skeleton-card">
+      <view class="skeleton-word"></view>
+      <view class="skeleton-meta"></view>
+      <view class="skeleton-explanation"></view>
+    </view>
+    <view v-else class="word-card" :class="{ 'shake-animation': isWrong }">
       <view class="word-main">
         <!-- 重点：默写开关开启时，隐藏未打出的字母，改为下划线。关闭时全灰展示 -->
         <text 
@@ -32,8 +38,8 @@
         </text>
         
         <view class="word-actions">
-          <view class="audio-btn" @click.stop="playWordAudio">
-            <text>🔊</text>
+          <view class="audio-btn" :class="{ 'audio-playing': isAudioPlaying }" @click.stop="playWordAudio">
+            <text>{{ isAudioPlaying ? '🔉' : '🔊' }}</text>
           </view>
         </view>
       </view>
@@ -54,6 +60,14 @@
     </view>
 
     <view class="word-tools-wrap" @click.stop>
+      <!-- 3.3.1 骨架屏：工具区加载占位 -->
+      <template v-if="isPageLoading">
+        <view class="word-tools-row">
+          <view class="skeleton-btn"></view>
+          <view class="skeleton-search"></view>
+        </view>
+      </template>
+      <template v-else>
       <view class="word-tools-row">
         <view class="word-list-btn" @click="openWordDrawer">
           <text>{{ t('typing.word_list') }}</text>
@@ -89,10 +103,14 @@
           <text class="word-search-sub">{{ localText(item.explanation) }}</text>
         </view>
       </view>
+      </template>
     </view>
-
-    <!-- 跟打控制与数据行 -->
-    <view class="stats-row">
+    <!-- 3.3.1 骨架屏：控制行加载占位 -->
+    <view v-if="isPageLoading" class="stats-row skeleton-row">
+      <view class="skeleton-stat"></view>
+      <view class="skeleton-btn-action"></view>
+    </view>
+    <view v-else class="stats-row">
       <text class="count-stat">❌ {{ t('typing.error_count') }}: {{ errorCount }}</text>
       <button 
         class="toggle-typing-btn" 
@@ -175,18 +193,18 @@
           <text class="word-drawer-title">{{ t('typing.word_list') }}</text>
           <text class="word-drawer-close" @click="closeWordDrawer">×</text>
         </view>
-        <view class="word-drawer-list">
+        <scroll-view class="word-drawer-list" scroll-y :scroll-into-view="drawerScrollToId">
           <view
             v-for="(item, idx) in wordList"
             :key="item.id || idx"
-            class="word-drawer-item"
+            :id="'drawer-word-' + (item.id || idx)"
             :class="{ active: idx === currentWordIndex }"
             @click="selectWordFromDrawer(idx)"
           >
             <text class="word-drawer-item-main">{{ item.word }}</text>
             <text class="word-drawer-item-sub">{{ localText(item.explanation) }}</text>
           </view>
-        </view>
+        </scroll-view>
       </view>
     </uni-popup>
   </view>
@@ -281,9 +299,19 @@ const isCollected = ref(false)
 const collectedWordIdSet = ref(new Set())
 const collectionsLoadedAt = ref(0)
 const typingInitialized = ref(false)
+// 3.3.1 骨架屏 + 3.3.2 语音动画 + 3.3.3 离线发音 + 3.3.4 抽屉聚焦
+const isPageLoading = ref(true)
+const isAudioPlaying = ref(false)
+let offlineFallbackText = ''
+const drawerScrollToId = ref('')
 const showSettingsSheet = () => settingsPopup.value.open()
 const closeSettingsSheet = () => settingsPopup.value?.close()
-const openWordDrawer = () => wordDrawerPopup.value?.open()
+const openWordDrawer = () => {
+  // 3.3.4 自动聚焦当前单词
+  const targetId = currentWord.value.id || currentWordIndex.value
+  drawerScrollToId.value = 'drawer-word-' + targetId
+  wordDrawerPopup.value?.open()
+}
 const closeWordDrawer = () => wordDrawerPopup.value?.close()
 const closeWordSearchResult = () => {
   showWordSearchResult.value = false
@@ -437,6 +465,8 @@ const jumpToChapter = async (offset, targetWordAtEnd = false) => {
 
   selectedChapterId.value = chapters.value[targetIdx].id
   await loadWords(selectedChapterId.value, selectedCategoryId.value)
+  // 3.3.5 切换章节后重聚焦抽屉
+  reFocusDrawerIfOpen()
   if (wordList.value.length > 0) {
     currentWordIndex.value = targetWordAtEnd ? wordList.value.length - 1 : 0
     syncCurrentWord()
@@ -677,6 +707,8 @@ const playNextAudioCandidate = () => {
 const playAudio = (src, fallbackText = '') => {
   const audioSrc = normalizeAudioSource(src)
   const fallbackAudio = buildFallbackAudioSource(fallbackText)
+  // 3.3.3 存储离线发音降级文本
+  offlineFallbackText = fallbackText || ''
   const isUnreachable = audioSrc && (isLocalAudioSource(audioSrc) || isPrivateNetworkAudioSource(audioSrc))
   const primary = audioSrc && !isUnreachable ? audioSrc : ''
 
@@ -701,15 +733,53 @@ const playAudio = (src, fallbackText = '') => {
   if (!audioCtx) {
     audioCtx = uni.createInnerAudioContext()
     audioCtx.onPlay(() => {
+      // 3.3.2 语音播放动画开始
+      isAudioPlaying.value = true
       if (currentAudioAttempt && !currentAudioLoggedSuccess) {
         currentAudioLoggedSuccess = true
       }
     })
+    audioCtx.onEnded(() => {
+      // 3.3.2 语音播放动画结束
+      isAudioPlaying.value = false
+    })
     audioCtx.onError((err) => {
+      // 3.3.2 语音播放动画结束
+      isAudioPlaying.value = false
+      // 3.3.3 所有在线源失败后尝试离线语音合成
+      if (audioCandidates.length === 0 && offlineFallbackText) {
+        const spoke = speakOffline(offlineFallbackText)
+        if (spoke) {
+          offlineFallbackText = ''
+          return
+        }
+      }
       playNextAudioCandidate()
     })
   }
   playNextAudioCandidate()
+}
+
+// 3.3.3 离线发音降级方案：Web Speech API
+const speakOffline = (text) => {
+  // #ifdef H5
+  try {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel()
+      const utterance = new window.SpeechSynthesisUtterance(String(text || '').trim())
+      utterance.lang = 'en-US'
+      utterance.rate = 0.9
+      utterance.onstart = () => { isAudioPlaying.value = true }
+      utterance.onend = () => { isAudioPlaying.value = false }
+      utterance.onerror = () => { isAudioPlaying.value = false }
+      window.speechSynthesis.speak(utterance)
+      return true
+    }
+  } catch (e) {
+    // SpeechSynthesis 不可用
+  }
+  // #endif
+  return false
 }
 
 const playWordAudio = () => {
@@ -861,6 +931,16 @@ const selectCategory = async (categoryId, preferredChapterId = 0, preferredWordI
   updateHeaderNames()
 }
 
+// 3.3.5 切换章节后若抽屉已打开则重新聚焦
+const reFocusDrawerIfOpen = () => {
+  if (!wordDrawerPopup.value) return
+  const targetId = currentWord.value.id || currentWordIndex.value
+  drawerScrollToId.value = ''
+  setTimeout(() => {
+    drawerScrollToId.value = 'drawer-word-' + targetId
+  }, 50)
+}
+
 const loadTypingData = async () => {
   const progressRes = await getWordProgress()
   const progress = progressRes.code === 0 && progressRes.data ? progressRes.data : {}
@@ -874,6 +954,7 @@ const loadTypingData = async () => {
     syncCurrentWord()
     categoryName.value = ''
     chapterName.value = ''
+    isPageLoading.value = false
     return
   }
 
@@ -886,6 +967,7 @@ const loadTypingData = async () => {
   await selectCategory(categoryId, progressChapterId, progressWordIndex)
   await loadWordCollections(true)
   refreshWordCollectedState()
+  isPageLoading.value = false
 }
 
 const openPickerSheet = (type) => {
@@ -927,6 +1009,8 @@ const selectPickerItem = async (item) => {
     updateHeaderNames()
     persistProgress()
     resetStats()
+    // 3.3.5 切换章节后重聚焦抽屉
+    reFocusDrawerIfOpen()
     closePickerSheet()
     return
   }
@@ -1141,6 +1225,101 @@ const selectPickerItem = async (item) => {
   display: flex;
   align-items: center;
 }
+
+/* 3.3.2 语音播放动画 */
+.audio-btn {
+  transition: transform 0.15s ease;
+}
+
+.audio-playing {
+  pointer-events: none;
+  animation: audio-pulse 0.6s ease-in-out infinite;
+}
+
+@keyframes audio-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.25); opacity: 0.7; }
+}
+
+/* 3.3.1 骨架屏 */
+.skeleton-card {
+  pointer-events: none;
+}
+
+.skeleton-word {
+  width: 280rpx;
+  height: 72rpx;
+  border-radius: 12rpx;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  margin-bottom: 16rpx;
+}
+
+.skeleton-meta {
+  width: 160rpx;
+  height: 28rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  margin-bottom: 14rpx;
+}
+
+.skeleton-explanation {
+  width: 400rpx;
+  height: 24rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-btn {
+  height: 64rpx;
+  width: 164rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-search {
+  flex: 1;
+  height: 64rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-row {
+  pointer-events: none;
+}
+
+.skeleton-stat {
+  width: 180rpx;
+  height: 27rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-btn-action {
+  width: 160rpx;
+  height: 66rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 .word-meta { color: #78716c; margin-bottom: 10rpx; font-size: 28rpx; }
 .word-explanation { color: #334155; text-align: center; font-size: 29rpx; margin-top: 12rpx; line-height: 1.55; }
 

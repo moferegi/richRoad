@@ -16,4 +16,6 @@ type ServiceGroup struct {
 	SignInService
 	SecurityService
 	ExternalLinkDomainService
+	VideoTagService
+	CloudStorageService
 }

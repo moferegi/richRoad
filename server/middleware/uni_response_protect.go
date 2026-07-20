@@ -23,21 +23,9 @@ const (
 	uniProtectSalt           = "uni-api-v1"
 )
 
-var uniProtectPathPrefixes = []string{
-	"/api/banner/getBannerList",
-	"/api/kefu/getKefuPublic",
-	"/api/cs/config/get",
-	"/api/sysConfig/getSysConfigByKey",
-	"/api/sysConfig/getLoginConfig",
-	"/api/phoneAreaCode/getEnabledPhoneAreaCodes",
-	"/api/base/captcha",
-	"/api/clientUser/login",
-	"/api/clientUser/register",
-	"/api/clientUser/phoneLogin",
-	"/api/clientUser/phoneRegister",
-	"/api/clientUser/getUserInfo",
-	"/api/popup/getActivePopups",
-}
+// uniProtectPathPrefixes 已废弃，改为前缀匹配模式：凡 X-Client-Platform=uni 且路径以 /api/ 开头，自动纳入保护
+// 保留此注释以便追溯历史白名单
+var _deprecatedUniProtectPrefixes = []string{}
 
 type uniProtectWriter struct {
 	gin.ResponseWriter
@@ -146,13 +134,9 @@ func shouldProtectForUni(c *gin.Context) bool {
 	if platform != "uni" && platform != "uniapp" && platform != "uni-app" {
 		return false
 	}
+	// 前缀匹配：所有 /api/ 开头的 Uni 请求自动纳入加密保护，无需维护白名单
 	path := strings.ToLower(strings.TrimSpace(c.Request.URL.Path))
-	for _, prefix := range uniProtectPathPrefixes {
-		if strings.HasPrefix(path, strings.ToLower(prefix)) {
-			return true
-		}
-	}
-	return false
+	return strings.HasPrefix(path, "/api/")
 }
 
 func isUniEncryptEnabled() bool {

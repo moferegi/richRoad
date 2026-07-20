@@ -492,7 +492,7 @@ import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { useUserStore } from '@/pinia/modules/user.js'
 import { getTryonConfig, getDefaultDomain, getAnnouncementConfig } from '@/api/sysConfig.js'
 import { getMyTryonModelList, getMyTryonClothList } from '@/api/tryonTask.js'
-import { getUrl } from '@/utils/url.js'
+import { getUrl, getExternalUrl } from '@/utils/url.js'
 import { localText, resolveApiMessage } from '@/utils/i18n.js'
 import LazyImage from '@/components/lazy-image/lazy-image.vue'
 import langSwitch from '@/components/lang-switch/lang-switch.vue'
@@ -577,9 +577,9 @@ const activeCropEdge = ref('all')
 const cropConfirming = ref(false)
 let cropResolve = null
 
-const personPreview = computed(() => personRemote.value ? getUrl(personRemote.value) : personLocal.value)
-const upperPreview = computed(() => upperRemote.value ? getUrl(upperRemote.value) : upperLocal.value)
-const lowerPreview = computed(() => lowerRemote.value ? getUrl(lowerRemote.value) : lowerLocal.value)
+const personPreview = computed(() => personRemote.value ? getExternalUrl(personRemote.value) : personLocal.value)
+const upperPreview = computed(() => upperRemote.value ? getExternalUrl(upperRemote.value) : upperLocal.value)
+const lowerPreview = computed(() => lowerRemote.value ? getExternalUrl(lowerRemote.value) : lowerLocal.value)
 
 const activeSceneType = computed(() => 'clothes')
 
@@ -1346,11 +1346,10 @@ const announcementSpeed = computed(() => {
   return speed
 })
 
-const EXAMPLE_PRIMARY_DOMAIN = 'https://video.mnmovie.icu'
-const EXAMPLE_PRIMARY_PATH = '/cloth-on/uni-set'
+const DEFAULT_EXAMPLE_PATH = '/cloth-on/uni-set'
 const EXAMPLE_LEGACY_PATH = '/file/Moffuu/cloth-on/uni-set'
 const EXAMPLE_FALLBACK_DOMAIN = 'https://f005.backblazeb2.com'
-const b2Image = (name) => `${EXAMPLE_PRIMARY_PATH}/${name}`
+const b2Image = (name) => `${DEFAULT_EXAMPLE_PATH}/${name}`
 
 const buildIndexedExampleItems = (names, prefixKey) => {
   return names.map((name, index) => ({
@@ -1378,15 +1377,15 @@ const joinDomainPath = (domain, path) => {
 const toPrimaryExamplePath = (path) => {
   const value = String(path || '').trim()
   if (value.startsWith(`${EXAMPLE_LEGACY_PATH}/`)) {
-    return value.replace(EXAMPLE_LEGACY_PATH, EXAMPLE_PRIMARY_PATH)
+    return value.replace(EXAMPLE_LEGACY_PATH, DEFAULT_EXAMPLE_PATH)
   }
   return value
 }
 
 const toLegacyExamplePath = (path) => {
   const value = String(path || '').trim()
-  if (value.startsWith(`${EXAMPLE_PRIMARY_PATH}/`)) {
-    return value.replace(EXAMPLE_PRIMARY_PATH, EXAMPLE_LEGACY_PATH)
+  if (value.startsWith(`${DEFAULT_EXAMPLE_PATH}/`)) {
+    return value.replace(DEFAULT_EXAMPLE_PATH, EXAMPLE_LEGACY_PATH)
   }
   return value
 }
@@ -1406,10 +1405,7 @@ const getExampleCandidates = (url) => {
 
   const pathVariants = getExamplePathVariants(value)
 
-  const fromPreferredDomain = pathVariants
-    .map(path => joinDomainPath(EXAMPLE_PRIMARY_DOMAIN, path))
-    .filter(Boolean)
-
+  // 优先用默认云域名
   const fromDefaultDomain = pathVariants
     .map(path => joinDomainPath(defaultExternalDomain.value, path))
     .filter(Boolean)
@@ -1423,7 +1419,6 @@ const getExampleCandidates = (url) => {
     .filter(Boolean)
 
   const candidates = [
-    ...fromPreferredDomain,
     ...fromDefaultDomain,
     ...fromFallbackDomain,
     ...fromGetUrl,

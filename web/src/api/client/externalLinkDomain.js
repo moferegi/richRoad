@@ -75,3 +75,42 @@ export const getDefaultDomain = () => {
     method: 'get'
   })
 }
+
+/**
+ * 检测云存储连接
+ * @param {Object} data { id }
+ * @returns {Promise}
+ */
+export const pingCloud = (data) => {
+  return service({
+    url: '/extDomain/pingCloud',
+    method: 'post',
+    data: data
+  })
+}
+
+/**
+ * 列出云存储文件
+ * @param {Object} params 查询参数
+ * @returns {Promise}
+ */
+export const listCloudFiles = (params) => {
+  return service({
+    url: '/extDomain/listCloudFiles',
+    method: 'get',
+    params: params
+  })
+}
+
+/**
+ * 多云目录比对
+ * @param {Object} params 查询参数
+ * @returns {Promise}
+ */
+export const compareDirectories = (params) => {
+  return service({
+    url: '/extDomain/compareDirectories',
+    method: 'get',
+    params: params
+  })
+}

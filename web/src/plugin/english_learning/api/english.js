@@ -263,12 +263,30 @@ export const parseSubtitle = (data) => {
   })
 }
 
-// 提交英文字幕+多语言字幕文件进行解析并入库
+// 扫描英文字幕提取关键词列表
+export const scanKeywords = (data) => {
+  return service({
+    url: '/englishLearning/video/scanKeywords',
+    method: 'post',
+    data
+  })
+}
+
+// 提交英文字幕+多语言字幕文件进行解析并入库（支持keywordIDs）
 export const parseSubtitleFiles = (data) => {
   return service({
     url: '/englishLearning/video/parseSubtitleFiles',
     method: 'post',
     data
+  })
+}
+
+// 获取单集已高亮重点单词列表
+export const getEpisodeKeywords = (params) => {
+  return service({
+    url: '/englishLearning/video/getEpisodeKeywords',
+    method: 'get',
+    params
   })
 }
 
@@ -278,6 +296,15 @@ export const getVideoSentenceList = (params) => {
     url: '/englishLearning/video/getSentenceList',
     method: 'get',
     params
+  })
+}
+
+// 重新高亮已有字幕句子
+export const rehighlightSentences = (data) => {
+  return service({
+    url: '/englishLearning/video/rehighlightSentences',
+    method: 'put',
+    data
   })
 }
 

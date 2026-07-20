@@ -1,3 +1,302 @@
+# richRoad 全局开发规范
+
+## 项目概述
+
+richRoad 采用前后端分离 + 多端架构：
+- **Server**：Go 1.23 + Gin 1.10 + GORM 1.25（RESTful API）
+- **Web Admin**：Vue 3.5 + Vite 6 + Element Plus 2.10 + Pinia 2.2 + UnoCSS（管理后台）
+- **Uni App**：uni-app (Vue 3) + uView（移动端）
+- **部署**：Docker / Kubernetes / Nginx 反向代理
+
+---
+
+## 一、分层架构硬性红线
+
+### 1.1 后端分层（不可逾越）
+
+```
+Router -> API -> Service -> Model
+```
+
+- **Router 层**：定义路由分组、挂载中间件，**不得**包含业务逻辑
+- **API 层**：参数校验、调用 Service、统一响应（`response.OkWithDetailed` / `response.FailWithMessage`），**不得**直接操作数据库
+- **Service 层**：全部业务逻辑与数据库操作，**不得**引用 `gin.Context`
+- **Model 层**：GORM 数据模型 + Request DTOs，继承 `global.GVA_MODEL`
+
+### 1.2 enter.go 组管理模式
+
+所有 `api/`, `service/`, `router/` 目录**必须**使用 `enter.go` 暴露分组实例：
+
+```go
+// service/enter.go
+type ServiceGroup struct { XxxService }
+var ServiceGroupApp = new(ServiceGroup)
+
+// api/enter.go
+type ApiGroup struct { XxxApi }
+var ApiGroupApp = new(ApiGroup)
+
+// router/enter.go
+type RouterGroup struct { XxxRouter }
+var RouterGroupApp = new(RouterGroup)
+```
+
+全局实例变量是模块间通信的**唯一入口**，避免循环引用。
+
+### 1.3 命名规范
+
+| 层级 | Go 后端 | Vue 前端 | Uni 前端 |
+|------|---------|----------|----------|
+| 文件命名 | `snake_case.go` | `camelCase.js` / `kebab-case.vue` | `camelCase.js` / `kebab-case.vue` |
+| 变量/函数 | `camelCase` | `camelCase` | `camelCase` |
+| 结构体/组件 | `PascalCase` | `PascalCase` | `PascalCase` |
+| 常量 | `UPPER_SNAKE_CASE` 或 `PascalCase` | `UPPER_SNAKE_CASE` | `UPPER_SNAKE_CASE` |
+| 数据库字段 | `snake_case` | — | — |
+| JSON 标签 | `camelCase` | — | — |
+
+### 1.4 代码注释规范
+
+- **Go 后端**：所有导出 API 函数**必须**有 Swagger 注释块（`@Tags`, `@Summary`, `@Router` 等）
+- **Vue 前端**：API 函数**必须**有 JSDoc 注释，复杂组件**必须**有功能说明
+- **Uni 前端**：页面关键逻辑**必须**有行内注释
+- 注释语言：中文（面向团队内部）
+
+### 1.5 安全与高并发设计
+
+- 所有接口**必须**考虑防刷（IP 限流、验证码、业务频率限制）
+- 数据库查询**必须**使用参数化（GORM 自动防注入）
+- 设计时**必须**预留扩展接口（如回调 Hook、插件注册点）
+
+---
+
+## 二、双端鉴权物理隔离
+
+### 2.1 原则
+
+Uni 移动端和 Web 管理后台的鉴权体系**物理隔离**，不可混用：
+
+| 端 | 鉴权方式 | Header 标识 | 中间件 |
+|----|---------|-------------|--------|
+| Web Admin | JWT + Casbin RBAC | `x-token` | `JWTAuth()` + `CasbinHandler()` |
+| Uni App | JWT + 签名验证 | `x-token` + `X-Client-Platform: uni` | `UniJWTAuth()` + `UniSignVerify()` |
+
+### 2.2 路由分组规范
+
+```go
+// Web 管理后台路由 — 挂载 Casbin RBAC
+func InitXxxRouter(Router *gin.RouterGroup) {
+    apiRouter := Router.Use(middleware.JWTAuth(), middleware.CasbinHandler())
+    // ...
+}
+
+// Uni 移动端路由 — 挂载 Uni 鉴权 + 签名
+func InitXxxRouter(Router *gin.RouterGroup) {
+    uniRouter := Router.Use(middleware.UniJWTAuth(), middleware.UniSignVerify())
+    // ...
+}
+```
+
+### 2.3 新增接口模板
+
+**强制要求**：新增任何接口（Uni 或 Web），**必须**复制已有的同端标准接口模板（包括路由分组方式、中间件挂载、API 函数签名、响应格式）。不得自创风格。
+
+---
+
+## 三、Uni 端多语言规范
+
+### 3.1 后端自动拦截（核心红线）
+
+凡后端向 Uni 端输出的接口，其返回数据中若包含多语言字段（如 `name`, `title`, `description`, `explanation`, `translate`, `content`, `announcementContent` 等），后端**必须**在 `UniResponseProtect` 中间件中，根据请求 Header 的 `Accept-Language`（zh/en/mn 等），将多语言对象 `{"zh":"...","en":"..."}` 裁剪为对应的**单语字符串**后再返回。
+
+**Web 管理后台接口**不做此裁剪，保留完整多语言 JSON 结构。
+
+### 3.2 前端多语言强制规范（Uni 端）
+
+- 所有弹窗（Toast/Modal）、JS 脚本提示、静态文本，**必须**使用 `$t('key')` 或 `t('key')` 国际化函数
+- **严禁**硬编码中文/英文/任何语言的静态字符串
+- 新增语言词条时，**必须**在 `uni/src/utils/i18n-locales/messages.js` 中同步补齐 `zh`, `en`, `mn` 三语包（无论该语种当前是否启用）
+- 使用 `localText(value)` 解析后端返回的多语言字段
+
+### 3.3 语言识别流程
+
+```
+Uni 请求 -> Header: Accept-Language=mn
+         -> Server Locale 中间件提取语言并存入 Context
+         -> API 处理完成后，UniResponseProtect 中间件拦截响应
+         -> 遍历 data 中多语言字段，裁剪为单语字符串
+         -> 返回给 Uni 端
+```
+
+支持的语言：`zh`, `en`, `mn`, `zh-TW`, `th`, `hi`, `id`, `vi`, `ar`, `ja`, `ko`, `ms`
+
+---
+
+## 四、Uni 端接口加密与签名
+
+### 4.1 开关配置
+
+- `learning_api_encrypt_enabled`：控制响应数据 AES-CBC 加密（默认开启）
+- `learning_api_sign_enabled`：控制请求签名校验（默认开启）
+
+### 4.2 强制接入
+
+所有新增或修改的 Uni 端接口（路径以 `/api/` 开头且通过 `X-Client-Platform: uni` 标识），**必须无条件**接入此加密与签名体系。Web 端接口不参与。
+
+### 4.3 实现要点
+
+**后端**：
+- 加密中间件：`server/middleware/uni_response_protect.go`
+- 签名校验：`server/middleware/uni_sign_verify.go`（待补齐）
+- 加密算法：AES-256-CBC，Key 由 `SHA256(token + "|uni-api-v1")` 派生
+- 签名算法：HMAC-SHA256，Key 由 `SHA256(token + "|uni-api-sign-v1")` 派生
+
+**前端**：
+- 加密解密：`uni/src/utils/request.js` 中 `tryDecryptPayloadData()`
+- 签名生成：`buildSignHeaders()` 函数
+- 请求头自动携带：`X-Client-Platform: uni`、`X-Resp-Encrypt: 1`
+
+### 4.4 路径覆盖原则
+
+不应使用白名单枚举（`uniProtectPathPrefixes`），应改为前缀匹配模式：凡 `X-Client-Platform` 为 `uni` 且路径以 `/api/` 开头的请求，**自动纳入**保护范围。
+
+---
+
+## 五、全局文件上传"去域名化"与多云存储
+
+### 5.1 去域名化存储（核心红线）
+
+**所有涉及文件上传入库的接口，数据库严禁保存带域名的完整 URL。**
+
+| 正确 | 错误 |
+|------|------|
+| `english-learn/pic/file.jpg` | `https://cdn.example.com/english-learn/pic/file.jpg` |
+| `video/cover/abc.png` | `https://oss.xxx.com/video/cover/abc.png` |
+
+### 5.2 前端拼接解析
+
+- Uni 端：调用 `api/extDomain/getDefaultDomain` 获取当前默认域名，使用 `getExternalUrl()` 拼接
+- Web 端：同样调用该接口获取域名进行展示拼接
+
+### 5.3 上传入库流程
+
+```
+1. 文件上传至云存储（七牛/R2/B2/本地）
+2. 返回完整 URL
+3. 入库前剥离域名 → 仅保存相对路径
+4. 前端展示时调用 getDefaultDomain + 相对路径 拼接
+```
+
+### 5.4 多云存储配置
+
+- 支持：七牛云、Cloudflare R2、Backblaze B2
+- 每个云需配置：域名、AccessKey/SecretKey、Bucket 名称、Region
+- 支持设置"默认上传云"和"同步上传至所有云"
+- 已存在：`server/config/oss_*.go`（七牛/R2/Minio 等配置文件）
+
+---
+
+## 六、后端开发规范（继承 GVA 框架）
+
+### 6.1 Swagger 注释模板
+
+```go
+// CreateXxx 创建XXX
+// @Tags     XxxModule
+// @Summary  创建一个新的XXX
+// @Security ApiKeyAuth
+// @accept   application/json
+// @Produce  application/json
+// @Param    data body request.CreateXxxRequest true "参数"
+// @Success  200  {object} response.Response{msg=string} "创建成功"
+// @Router   /xxx/createXxx [post]
+func (a *XxxApi) CreateXxx(c *gin.Context) { ... }
+```
+
+### 6.2 统一响应格式
+
+```json
+{
+  "code": 0,
+  "data": {},
+  "msg": "操作成功"
+}
+```
+
+- `code = 0` 表示成功，非 0 表示业务错误
+- Service 层返回 `error`，API 层统一转换为上述格式
+
+### 6.3 插件开发规范
+
+插件目录结构：
+```
+server/plugin/[插件名]/
+├── api/enter.go, xxx.go
+├── service/enter.go, xxx.go
+├── model/xxx.go, request/xxx.go
+├── router/enter.go, xxx.go
+├── initialize/gorm.go, router.go, menu.go
+├── config/config.go
+└── plugin.go
+```
+
+### 6.4 数据库迁移
+
+新增模型**必须**在 `initialize/gorm_biz.go` 或插件 `initialize/gorm.go` 中注册 `AutoMigrate`。
+
+---
+
+## 七、前端开发规范
+
+### 7.1 Web Admin (Vue 3 + Element Plus)
+
+- API 封装：`src/api/` 下按模块组织，**必须**使用 `@/utils/request` 发请求
+- 状态管理：全局状态使用 Pinia，**严禁**组件内直接修改 store
+- 样式：优先使用 UnoCSS 原子类，**禁止**内联样式
+- 组件：可复用 UI **必须**封装为独立组件，使用 `<script setup>` + Composition API
+- 页面模板：新增 CRUD 页面复制 `shop/tag` 或已有模板
+
+### 7.2 Uni App (uni-app Vue 3)
+
+- API 封装：`src/api/` 下按模块组织，使用 `@/utils/request.js` 中的 `request` 函数
+- 多语言：`t(key)` 获取 UI 文案，`localText(value)` 解析多语言字段
+- 外部资源：`getExternalUrl(path)` 拼接完整 URL
+- 页面生命周期：使用 `onLoad` / `onShow` / `onUnload` 等 uni-app 钩子
+- 样式：`<style scoped>` + rpx 单位
+
+---
+
+## 八、Git 提交规范
+
+```
+<type>(<scope>): <description>
+
+类型：
+  feat     — 新功能
+  fix      — Bug 修复
+  refactor — 重构
+  docs     — 文档
+  style    — 格式
+  test     — 测试
+  chore    — 构建/工具
+
+示例：
+  feat(player): 视频播放器新增进度条拖拽跳转
+  fix(typing): 修复语音播放重复点击问题
+  refactor(upload): 统一上传组件去域名化
+```
+
+---
+
+## 九、安全红线（不可触碰）
+
+1. **禁止**在代码中硬编码密钥/Token/密码
+2. **禁止**数据库保存明文密码（必须 bcrypt）
+3. **禁止**Uni 接口返回未过滤的多语言全量数据
+4. **禁止**数据库保存带域名的文件 URL
+5. **禁止**Uni 端的任何静态文本不使用 `$t()` 国际化
+6. **禁止**新增 Uni 接口不接入加密/签名体系
+7. **禁止**跨端混用鉴权中间件
+8. **禁止**API 层直接操作数据库、Service 层引用 `gin.Context`
 ### 功能描述以及必要性描述
 
 ---
