@@ -1,35 +1,52 @@
 <template>
   <view class="watch-history-container">
-    <view class="header-row">
-      <view class="back-btn" @click="goBack">‹</view>
-      <text class="header-title">{{ t('learningWatchHistoryTitle') }}</text>
-      <view class="header-gap"></view>
+    <!-- 渐变 Hero 头部 -->
+    <view class="page-hero">
+      <view class="hero-decor-circle decor-1"></view>
+      <view class="hero-decor-circle decor-2"></view>
+      <view class="hero-content">
+        <view class="hero-back-btn" @click="goBack">
+          <text class="hero-back-icon">‹</text>
+        </view>
+        <text class="hero-title">{{ t('learningWatchHistoryTitle') }}</text>
+        <view class="hero-gap"></view>
+      </view>
     </view>
 
     <scroll-view class="list-scroll" scroll-y>
       <view v-if="!loading && historyList.length === 0" class="empty-wrap">
+        <view class="empty-icon">
+          <text class="empty-icon-text">▶</text>
+        </view>
         <text class="empty-text">{{ t('learningWatchHistoryEmpty') }}</text>
       </view>
 
       <view v-for="(item, index) in historyList" :key="`${item.episodeId}-${index}`" class="history-card">
-        <image class="cover" :src="getExternalUrl(item.coverUrl || '')" mode="aspectFit" />
-
-        <view class="content-wrap">
-          <text class="series-name">{{ localText(item.seriesName) || t('learningWatchHistoryUnknownSeries') }}</text>
-          <text class="episode-name">{{ localText(item.episodeName) || t('learningWatchHistoryUnknownEpisode') }}</text>
-
-          <view class="meta-row">
-            <text class="meta-label">{{ t('learningWatchHistoryProgress') }}</text>
-            <text class="meta-value">{{ formatSeconds(item.progressSecs) }}</text>
+        <!-- 顶部：封面 + 标题区 -->
+        <view class="card-top">
+          <view class="cover-wrap">
+            <image class="cover" :src="getExternalUrl(item.coverUrl || '')" mode="aspectFill" />
+            <view class="cover-duration">
+              <text class="duration-text">{{ formatSeconds(item.progressSecs) }}</text>
+            </view>
           </view>
-          <view class="meta-row">
-            <text class="meta-label">{{ t('learningWatchHistoryUpdatedAt') }}</text>
-            <text class="meta-value">{{ formatTime(item.updatedAt) }}</text>
+          <view class="card-info">
+            <text class="series-name">{{ localText(item.seriesName) || t('learningWatchHistoryUnknownSeries') }}</text>
+            <text class="episode-name">{{ localText(item.episodeName) || t('learningWatchHistoryUnknownEpisode') }}</text>
           </view>
+        </view>
 
-          <view class="action-row">
-            <button size="mini" class="continue-btn" @click.stop="continueWatch(item)">{{ t('learningWatchHistoryContinue') }}</button>
+        <!-- 底部：进度信息 + 按钮 -->
+        <view class="card-bottom">
+          <view class="meta-line">
+            <text class="meta-item">{{ t('learningWatchHistoryProgress') }} {{ formatSeconds(item.progressSecs) }}</text>
+            <text class="meta-dot">·</text>
+            <text class="meta-item">{{ formatTime(item.updatedAt) }}</text>
           </view>
+          <button class="continue-btn" @click.stop="continueWatch(item)">
+            <text class="btn-text">{{ t('learningWatchHistoryContinue') }}</text>
+            <text class="btn-arrow">→</text>
+          </button>
         </view>
       </view>
 
@@ -166,167 +183,265 @@ onShow(() => {
 <style scoped>
 .watch-history-container {
   min-height: 100vh;
-  background: #f5f7fb;
-  padding: 20rpx;
-  box-sizing: border-box;
+  background: #F5F3FF;
+  overflow-x: hidden;
 }
 
-.header-row {
+/* === 渐变 Hero 头部 === */
+.page-hero {
+  position: relative;
+  overflow: hidden;
+  padding: calc(var(--status-bar-height, 0px) + 36rpx) 32rpx 48rpx;
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  border-radius: 0 0 36rpx 36rpx;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.hero-decor-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.decor-1 {
+  width: 240rpx;
+  height: 240rpx;
+  top: -80rpx;
+  right: -40rpx;
+}
+
+.decor-2 {
+  width: 160rpx;
+  height: 160rpx;
+  bottom: -60rpx;
+  left: 200rpx;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20rpx;
 }
 
-.back-btn {
+.hero-back-btn {
   width: 64rpx;
   height: 64rpx;
-  border-radius: 32rpx;
-  background: #ffffff;
-  color: #111827;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.hero-back-btn:active {
+  transform: scale(0.92);
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.hero-back-icon {
+  color: #fff;
   font-size: 44rpx;
   line-height: 1;
 }
 
-.header-title {
-  font-size: 34rpx;
-  color: #111827;
-  font-weight: 700;
+.hero-title {
+  font-size: 36rpx;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.5rpx;
 }
 
-.header-gap {
+.hero-gap {
   width: 64rpx;
   height: 64rpx;
 }
 
+/* === 列表 === */
 .list-scroll {
-  height: calc(100vh - 120rpx);
+  height: calc(100vh - 220rpx);
+  padding: 16rpx 24rpx;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .empty-wrap {
   padding: 120rpx 0;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.empty-icon {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: rgba(108, 91, 255, 0.1);
+  border: 1rpx solid rgba(108, 91, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-icon-text {
+  font-size: 36rpx;
+  color: #6D5BFF;
 }
 
 .empty-text {
-  color: #9ca3af;
+  color: #A9AECB;
   font-size: 28rpx;
 }
 
 .history-card {
-  background: #ffffff;
-  border-radius: 16rpx;
-  padding: 16rpx;
-  margin-bottom: 16rpx;
-  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.05);
-  display: flex;
-  gap: 16rpx;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  margin-bottom: 20rpx;
+  border: 1rpx solid rgba(108, 91, 255, 0.16);
+  box-shadow: 0 8rpx 24rpx rgba(108, 91, 255, 0.08);
+  overflow: hidden;
 }
 
-.cover {
-  width: 180rpx;
-  height: 108rpx;
-  border-radius: 10rpx;
-  background: #e5e7eb;
+.history-card:active {
+  transform: scale(0.98);
+}
+
+/* === 卡片顶部：封面 + 标题 === */
+.card-top {
+  display: flex;
+  gap: 20rpx;
+  padding: 20rpx 20rpx 0;
+}
+
+.cover-wrap {
+  position: relative;
   flex-shrink: 0;
 }
 
-.content-wrap {
+.cover {
+  width: 200rpx;
+  height: 120rpx;
+  border-radius: 16rpx;
+  background: #EDE9FE;
+}
+
+.cover-duration {
+  position: absolute;
+  bottom: 8rpx;
+  right: 8rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 999rpx;
+  background: rgba(26, 27, 58, 0.7);
+}
+
+.duration-text {
+  font-size: 20rpx;
+  color: #fff;
+}
+
+.card-info {
   flex: 1;
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  gap: 8rpx;
 }
 
 .series-name {
   font-size: 28rpx;
-  color: #111827;
+  color: #1A1B3A;
   font-weight: 600;
   line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .episode-name {
-  margin-top: 4rpx;
   font-size: 24rpx;
-  color: #4b5563;
+  color: #6B6F8D;
   line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.meta-row {
-  margin-top: 8rpx;
+/* === 卡片底部：进度信息 + 按钮 === */
+.card-bottom {
+  padding: 20rpx;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
 }
 
-.meta-label {
-  font-size: 22rpx;
-  color: #6b7280;
-}
-
-.meta-value {
-  font-size: 22rpx;
-  color: #111827;
-}
-
-.action-row {
-  margin-top: 12rpx;
+.meta-line {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 16rpx;
+  padding-bottom: 16rpx;
+  border-bottom: 1rpx solid rgba(108, 91, 255, 0.08);
+}
+
+.meta-item {
+  font-size: 22rpx;
+  color: #6B6F8D;
+}
+
+.meta-dot {
+  font-size: 22rpx;
+  color: #A9AECB;
 }
 
 .continue-btn {
-  background: #eff6ff;
-  color: #2563eb;
-  border: 1rpx solid #bfdbfe;
-  border-radius: 10rpx;
+  width: auto;
+  align-self: flex-end;
+  height: 76rpx;
+  margin-top: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  padding: 0 36rpx;
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  color: #fff;
+  border: none;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  font-weight: 700;
+  box-shadow: 0 4rpx 16rpx rgba(108, 91, 255, 0.3);
+}
+
+.continue-btn::after {
+  border: none;
+}
+
+.continue-btn:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+.btn-arrow {
   font-size: 24rpx;
 }
 
 .load-more {
   text-align: center;
-  color: #9ca3af;
+  color: #A9AECB;
   font-size: 24rpx;
   padding: 20rpx 0 40rpx;
 }
 
 .load-more-btn {
-  border: 1rpx solid rgba(20, 184, 166, 0.28);
-  color: #0f766e;
-  background: #fffdf8;
+  border: 1rpx solid rgba(108, 91, 255, 0.3);
+  color: #6D5BFF;
+  background: #FFFFFF;
   border-radius: 999rpx;
   padding: 0 28rpx;
+  font-weight: 600;
 }
-
-.watch-history-container {
-  background: linear-gradient(180deg, #f8f4e7 0%, #f4efe1 100%);
-}
-
-.back-btn {
-  border-radius: 18rpx;
-  border: 1rpx solid rgba(20, 184, 166, 0.22);
-  background: #fffdf8;
-  color: #7c2d12;
-}
-
-.header-title { color: #7c2d12; }
-
-.history-card {
-  background: rgba(255, 253, 248, 0.96);
-  border: 1rpx solid rgba(20, 184, 166, 0.18);
-  box-shadow: 0 10rpx 24rpx rgba(120, 53, 15, 0.1);
-}
-
-.series-name { color: #1e293b; }
-.episode-name, .meta-label { color: #64748b; }
-
-.continue-btn {
-  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
-  color: #fff;
-  border: none;
-  border-radius: 999rpx;
-}
-
-.load-more, .empty-text { color: #94a3b8; }
 </style>

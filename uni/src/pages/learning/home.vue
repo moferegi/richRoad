@@ -1,62 +1,78 @@
 <template>
   <view class="learning-home">
-    <view class="home-nav">
-      <view class="nav-brand">
-        <image v-if="appLogo" class="brand-logo" :src="appLogo" mode="aspectFit" />
-        <view v-else class="brand-logo fallback">{{ (appTitle || 'R').slice(0, 1).toUpperCase() }}</view>
-        <text class="brand-title">{{ appTitle || 'RichRoad' }}</text>
+    <!-- 渐变 Hero 头部 -->
+    <view class="home-hero">
+      <view class="hero-decor-circle decor-1"></view>
+      <view class="hero-decor-circle decor-2"></view>
+      <view class="hero-content">
+        <view class="hero-logo-wrap">
+          <image v-if="appLogo" class="hero-logo" :src="appLogo" mode="aspectFit" />
+          <view v-else class="hero-logo fallback">{{ (appTitle || 'R').slice(0, 1).toUpperCase() }}</view>
+        </view>
+        <view class="hero-text">
+          <text class="hero-title">{{ appTitle || 'RichRoad' }}</text>
+          <text class="hero-subtitle">{{ t('home.video_zone') }}</text>
+        </view>
       </view>
     </view>
 
+    <!-- Banner 卡片 -->
     <view class="banner-wrap" v-if="bannerList.length > 0">
       <BannerSwiper :lists="bannerList" />
     </view>
 
-    <view class="video-section">
-      <view class="section-head">
-        <text class="section-title">{{ t('home.video_zone') }}</text>
+    <!-- 视频区 -->
+    <view class="video-zone">
+      <view class="zone-header">
+        <view class="zone-accent"></view>
+        <text class="zone-title">{{ t('home.video_zone') }}</text>
       </view>
 
-      <scroll-view class="category-tabs" scroll-x show-scrollbar="false">
-        <view
-          class="tab-chip"
-          :class="{ active: currentCategoryId === 0 }"
-          @tap="switchCategory(0)"
-        >
-          {{ t('home.all_category') }}
-        </view>
-        <view
-          v-for="cat in videoCategories"
-          :key="cat.id"
-          class="tab-chip"
-          :class="{ active: currentCategoryId === cat.id }"
-          @tap="switchCategory(cat.id)"
-        >
-          {{ localText(cat.name) }}
+      <!-- 胶囊式分类选择器 -->
+      <scroll-view class="cat-scroll" scroll-x show-scrollbar="false">
+        <view class="cat-track">
+          <view
+            class="cat-pill"
+            :class="{ active: currentCategoryId === 0 }"
+            @tap="switchCategory(0)"
+          >
+            <text class="cat-pill-label">{{ t('home.all_category') }}</text>
+          </view>
+          <view
+            v-for="cat in videoCategories"
+            :key="cat.id"
+            class="cat-pill"
+            :class="{ active: currentCategoryId === cat.id }"
+            @tap="switchCategory(cat.id)"
+          >
+            <text class="cat-pill-label">{{ localText(cat.name) }}</text>
+          </view>
         </view>
       </scroll-view>
 
+      <!-- 视频卡片网格 -->
       <view class="video-grid">
         <view class="video-card" v-for="item in videoList" :key="item.id" @tap="goDetail(item.id)">
-          <image class="video-cover" :src="getExternalUrl(item.coverUrl || '')" mode="scaleToFill" />
-          <view class="video-content">
+          <image class="video-cover" :src="getExternalUrl(item.coverUrl || '')" mode="aspectFill" />
+          <view class="video-play-badge">
+            <text class="play-icon">▶</text>
+          </view>
+          <view class="video-overlay">
             <text class="video-title">{{ localText(item.name) }}</text>
-            <view class="video-meta">
-              <text>{{ t('video.views') }} {{ item.viewCount || 0 }}</text>
-              <text>{{ t('video.users') }} {{ item.userCount || 0 }}</text>
+            <view class="video-stats">
+              <text class="stat-item">{{ t('video.views') }} {{ item.viewCount || 0 }}</text>
+              <text class="stat-dot">·</text>
+              <text class="stat-item">{{ t('video.users') }} {{ item.userCount || 0 }}</text>
             </view>
           </view>
         </view>
       </view>
 
-      <view v-if="loading" class="load-text">{{ t('common.loading') }}</view>
-      <view v-else-if="finished && videoList.length > 0" class="load-text">{{ t('common.no_more') }}</view>
-      <view v-else-if="!loading && videoList.length === 0" class="load-text">{{ t('common.empty') }}</view>
+      <view v-if="loading" class="load-status">{{ t('common.loading') }}</view>
+      <view v-else-if="finished && videoList.length > 0" class="load-status">{{ t('common.no_more') }}</view>
+      <view v-else-if="!loading && videoList.length === 0" class="load-status">{{ t('common.empty') }}</view>
     </view>
-
-    <!-- 打卡区域暂时隐藏
-    <view class="checkin-board"></view>
-    -->
+    <custom-tab-bar />
   </view>
 </template>
 
@@ -70,6 +86,7 @@ import { getBannerList } from '@/api/homePage.js'
 import { getVideoCategoryList, getVideoSeriesList } from '@/api/learning.js'
 import { getExternalUrl } from '@/utils/url.js'
 import BannerSwiper from '@/pages/tabBar/components/swiper.vue'
+import CustomTabBar from '@/components/custom-tab-bar/custom-tab-bar.vue'
 
 const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
@@ -245,6 +262,7 @@ onLoad(() => {
 })
 
 onShow(() => {
+  uni.hideTabBar()
   langStore.updateTabBar(locale.value)
   if (!homeInited.value) {
     homeInited.value = true
@@ -286,148 +304,266 @@ onReachBottom(async () => {
 <style scoped>
 .learning-home {
   min-height: 100vh;
-  background: linear-gradient(180deg, #f8f4e7 0%, #f4efe1 100%);
+  background: #F5F3FF;
+  padding-bottom: calc(96rpx + env(safe-area-inset-bottom));
 }
 
-.home-nav {
-  padding: calc(var(--status-bar-height, 0px) + 24rpx) 22rpx 16rpx;
-}
-
-.nav-brand {
-  height: 86rpx;
-  border-radius: 22rpx;
-  background: rgba(255, 253, 248, 0.96);
-  border: 1rpx solid rgba(20, 184, 166, 0.2);
-  box-shadow: 0 12rpx 24rpx rgba(120, 53, 15, 0.1);
-  display: flex;
-  align-items: center;
-  padding: 0 20rpx;
-  gap: 14rpx;
-}
-
-.brand-logo {
-  width: 52rpx;
-  height: 52rpx;
-  border-radius: 14rpx;
-  background: #fff;
-}
-
-.brand-logo.fallback {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 26rpx;
-  font-weight: 700;
-  background: linear-gradient(135deg, #0f766e, #f97316);
-}
-
-.brand-title {
-  color: #7c2d12;
-  font-size: 30rpx;
-  font-weight: 700;
-  letter-spacing: 1rpx;
-}
-
-.banner-wrap {
-  margin-top: 4rpx;
-}
-
-.video-section {
-  margin: 12rpx 20rpx 0;
-  padding: 24rpx 20rpx 30rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 253, 248, 0.96);
-  border: 1rpx solid rgba(20, 184, 166, 0.18);
-  box-shadow: 0 16rpx 32rpx rgba(120, 53, 15, 0.1);
-}
-
-.section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 18rpx;
-}
-
-.section-title {
-  font-size: 32rpx;
-  color: #7c2d12;
-  font-weight: 700;
-}
-
-.category-tabs {
-  white-space: nowrap;
-  margin-bottom: 20rpx;
-}
-
-.tab-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 56rpx;
-  padding: 0 24rpx;
-  border-radius: 999rpx;
-  margin-right: 14rpx;
-  font-size: 24rpx;
-  color: #64748b;
-  background: #fff;
-  border: 1rpx solid rgba(20, 184, 166, 0.22);
-}
-
-.tab-chip.active {
-  color: #ffffff;
-  border-color: #0f766e;
-  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
-}
-
-.video-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16rpx;
-}
-
-.video-card {
-  border-radius: 18rpx;
+/* === 渐变 Hero 头部 === */
+.home-hero {
+  position: relative;
   overflow: hidden;
-  background: #fffdf8;
-  border: 1rpx solid rgba(20, 184, 166, 0.16);
-  display: flex;
-  flex-direction: column;
+  padding: calc(var(--status-bar-height, 0px) + 36rpx) 32rpx 48rpx;
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  border-radius: 0 0 36rpx 36rpx;
 }
 
-.video-cover {
-  width: 100%;
-  height: 220rpx;
-  display: block;
-  background: #e5e7eb;
+.hero-decor-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.decor-1 {
+  width: 240rpx;
+  height: 240rpx;
+  top: -80rpx;
+  right: -40rpx;
+}
+
+.decor-2 {
+  width: 160rpx;
+  height: 160rpx;
+  bottom: -60rpx;
+  left: 200rpx;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.hero-logo-wrap {
   flex-shrink: 0;
 }
 
-.video-content {
-  padding: 14rpx;
+.hero-logo {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 20rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.18);
 }
 
-.video-title {
-  font-size: 24rpx;
-  color: #1e293b;
-  font-weight: 600;
-  line-height: 1.35;
-  min-height: 66rpx;
+.hero-logo.fallback {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6D5BFF;
+  font-size: 36rpx;
+  font-weight: 800;
+  background: #fff;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.18);
 }
 
-.video-meta {
-  margin-top: 8rpx;
+.hero-text {
   display: flex;
   flex-direction: column;
   gap: 4rpx;
-  font-size: 20rpx;
-  color: #64748b;
 }
 
-.load-text {
+.hero-title {
+  font-size: 38rpx;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.5rpx;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.12);
+}
+
+.hero-subtitle {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 500;
+}
+
+/* === Banner === */
+.banner-wrap {
+  margin: -28rpx 24rpx 8rpx;
+  position: relative;
+  z-index: 5;
+}
+
+/* === 视频区 === */
+.video-zone {
+  padding: 20rpx 32rpx calc(40rpx + 96rpx + env(safe-area-inset-bottom));
+}
+
+.zone-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 24rpx;
+}
+
+.zone-accent {
+  width: 8rpx;
+  height: 32rpx;
+  border-radius: 4rpx;
+  background: linear-gradient(180deg, #6D5BFF, #9B8FFF);
+}
+
+.zone-title {
+  font-size: 34rpx;
+  font-weight: 800;
+  color: #1A1B3A;
+}
+
+/* === 胶囊式分类选择器 === */
+.cat-scroll {
+  white-space: nowrap;
+  margin-bottom: 28rpx;
+}
+
+.cat-track {
+  display: inline-flex;
+  gap: 16rpx;
+  padding: 4rpx 0;
+}
+
+.cat-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12rpx 32rpx;
+  border-radius: 999rpx;
+  background: #fff;
+  border: 1rpx solid rgba(108, 91, 255, 0.16);
+  box-shadow: 0 2rpx 8rpx rgba(108, 91, 255, 0.06);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cat-pill-label {
+  font-size: 26rpx;
+  color: #6B6F8D;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.cat-pill.active {
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  border-color: transparent;
+  box-shadow: 0 4rpx 16rpx rgba(108, 91, 255, 0.36);
+}
+
+.cat-pill.active .cat-pill-label {
+  color: #fff;
+  font-weight: 700;
+}
+
+.cat-pill:active {
+  transform: scale(0.96);
+}
+
+/* === 视频卡片 === */
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24rpx;
+}
+
+.video-card {
+  position: relative;
+  border-radius: 24rpx;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  background: #EDE9FE;
+  box-shadow: 0 8rpx 24rpx rgba(108, 91, 255, 0.12);
+}
+
+.video-card:active {
+  opacity: 0.92;
+  transform: scale(0.97);
+}
+
+.video-cover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.video-play-badge {
+  position: absolute;
+  top: 16rpx;
+  right: 16rpx;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: rgba(108, 91, 255, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.2);
+}
+
+.play-icon {
+  font-size: 20rpx;
+  color: #fff;
+  margin-left: 4rpx;
+}
+
+.video-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 56rpx 20rpx 18rpx;
+  background: linear-gradient(to top, rgba(26, 27, 58, 0.82) 0%, rgba(26, 27, 58, 0) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.video-title {
+  font-size: 25rpx;
+  color: #fff;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.video-stats {
+  margin-top: 8rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.stat-item {
+  font-size: 19rpx;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.stat-dot {
+  font-size: 19rpx;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* === 加载状态 === */
+.load-status {
   text-align: center;
-  color: #94a3b8;
+  color: #A9AECB;
   font-size: 22rpx;
-  padding-top: 20rpx;
+  padding: 40rpx 0 16rpx;
+  letter-spacing: 1rpx;
 }
 </style>

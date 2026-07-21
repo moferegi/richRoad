@@ -1,221 +1,228 @@
 <template>
-  <view class="typing-container" @click="closeWordSearchResult">
-    <!-- Navbar / 设置区域 -->
-    <view class="top-nav">
-      <view class="nav-left">
-        <view class="nav-pill" @click="openPickerSheet('category')">
-          <text class="nav-text">{{ categoryName || t('typing.category') }}</text>
-          <text class="arrow">▼</text>
-        </view>
-        <view v-if="chapters.length > 0" class="nav-pill" @click="openPickerSheet('chapter')">
-          <text class="nav-text">{{ chapterName || t('typing.chapter') }}</text>
-          <text class="arrow">▼</text>
-        </view>
-      </view>
-      <view class="nav-right" @click="showSettingsSheet">
-        <text class="icon-settings">⚙️</text>
-      </view>
-    </view>
-
-    <!-- 单词主要展示区 -->
-    <!-- 3.3.1 骨架屏：加载中展示占位 -->
-    <view v-if="isPageLoading" class="word-card skeleton-card">
-      <view class="skeleton-word"></view>
-      <view class="skeleton-meta"></view>
-      <view class="skeleton-explanation"></view>
-    </view>
-    <view v-else class="word-card" :class="{ 'shake-animation': isWrong }">
-      <view class="word-main">
-        <!-- 重点：默写开关开启时，隐藏未打出的字母，改为下划线。关闭时全灰展示 -->
-        <text 
-          v-for="(char, index) in currentWord.word" 
-          :key="index"
-          class="char-item"
-          :class="getCharClass(index)"
-        >
-          <!-- 如果开启默写（关闭显示），且还没打到这个字，显示下划线 -->
-          {{ (!settings.showWord && index >= typedChars.length) ? '_' : char }}
-        </text>
-        
-        <view class="word-actions">
-          <view class="audio-btn" :class="{ 'audio-playing': isAudioPlaying }" @click.stop="playWordAudio">
-            <text>{{ isAudioPlaying ? '🔉' : '🔊' }}</text>
+  <view class="typing-page" @click="closeWordSearchResult">
+    <!-- 渐变顶栏 -->
+    <view class="top-bar">
+      <view class="top-bar-bg"></view>
+      <view class="top-bar-content">
+        <view class="bar-selectors">
+          <view class="selector" @click="openPickerSheet('category')">
+            <text class="selector-text">{{ categoryName || t('typing.category') }}</text>
+            <text class="selector-arrow">›</text>
+          </view>
+          <view v-if="chapters.length > 0" class="selector" @click="openPickerSheet('chapter')">
+            <text class="selector-text">{{ chapterName || t('typing.chapter') }}</text>
+            <text class="selector-arrow">›</text>
           </view>
         </view>
-      </view>
-
-      <view class="word-meta" v-if="settings.showPhonetic">
-        <text>{{ settings.accent === 'US' ? currentWord.phoneticUs : currentWord.phoneticUk }}</text>
-      </view>
-
-      <view class="word-explanation" v-if="settings.showExplanation">
-        <text>{{ localText(currentWord.explanation) }}</text>
-      </view>
-
-      <view class="word-collect-row">
-        <view class="inline-collect-btn" @click.stop="collectWord">
-          <text>{{ isCollected ? t('typing.uncollect') : t('typing.collect') }}</text>
+        <view class="bar-action" @click="showSettingsSheet">
+          <text class="action-icon">⚙</text>
         </view>
       </view>
     </view>
 
-    <view class="word-tools-wrap" @click.stop>
-      <!-- 3.3.1 骨架屏：工具区加载占位 -->
+    <!-- 单词主卡片 -->
+    <view v-if="isPageLoading" class="word-hero-card skeleton-mode">
+      <view class="sk-line sk-w1"></view>
+      <view class="sk-line sk-w2"></view>
+      <view class="sk-line sk-w3"></view>
+    </view>
+    <view v-else class="word-hero-card" :class="{ 'shake-animation': isWrong }">
+      <view class="word-display">
+        <text
+          v-for="(char, index) in currentWord.word"
+          :key="index"
+          class="word-char"
+          :class="getCharClass(index)"
+        >{{ (!settings.showWord && index >= typedChars.length) ? '_' : char }}</text>
+      </view>
+
+      <view class="word-meta">
+        <view class="audio-trigger" :class="{ playing: isAudioPlaying }" @click.stop="playWordAudio">
+          <text class="audio-icon">{{ isAudioPlaying ? '◉' : '♪' }}</text>
+        </view>
+        <text class="word-phonetic" v-if="settings.showPhonetic">{{ settings.accent === 'US' ? currentWord.phoneticUs : currentWord.phoneticUk }}</text>
+      </view>
+
+      <text class="word-meaning" v-if="settings.showExplanation">{{ localText(currentWord.explanation) }}</text>
+
+      <view class="word-footer">
+        <view class="collect-btn" @click.stop="collectWord">
+          <text class="collect-icon">{{ isCollected ? '★' : '☆' }}</text>
+          <text class="collect-text">{{ isCollected ? t('typing.uncollect') : t('typing.collect') }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 工具卡片 -->
+    <view class="tools-card" @click.stop>
       <template v-if="isPageLoading">
-        <view class="word-tools-row">
-          <view class="skeleton-btn"></view>
-          <view class="skeleton-search"></view>
+        <view class="tools-row">
+          <view class="sk-line sk-btn"></view>
+          <view class="sk-line sk-input"></view>
         </view>
       </template>
       <template v-else>
-      <view class="word-tools-row">
-        <view class="word-list-btn" @click="openWordDrawer">
-          <text>{{ t('typing.word_list') }}</text>
-        </view>
-        <view class="word-search-box">
-          <input
-            v-model="wordSearchKeyword"
-            class="word-search-input"
-            :placeholder="t('typing.search_word_placeholder')"
-            confirm-type="search"
-            @confirm="runWordSearch"
-          />
-          <view v-if="wordSearchKeyword" class="word-search-clear" @click="clearWordSearchKeyword">
-            <text>×</text>
+        <view class="tools-row">
+          <view class="tool-btn" @click="openWordDrawer">
+            <text class="tool-icon">☰</text>
+            <text>{{ t('typing.word_list') }}</text>
           </view>
-          <view class="word-search-btn" @click="runWordSearch">
-            <text>{{ t('typing.search_action') }}</text>
+          <view class="search-field">
+            <input
+              v-model="wordSearchKeyword"
+              class="search-input"
+              :placeholder="t('typing.search_word_placeholder')"
+              confirm-type="search"
+              @confirm="runWordSearch"
+            />
+            <view v-if="wordSearchKeyword" class="search-clear" @click="clearWordSearchKeyword">
+              <text>×</text>
+            </view>
+            <view class="search-go" @click="runWordSearch">
+              <text>{{ t('typing.search_action') }}</text>
+            </view>
           </view>
         </view>
-      </view>
 
-      <view v-if="showWordSearchResult" class="word-search-result-wrap">
-        <view v-if="wordSearchResults.length === 0" class="word-search-empty">
-          {{ t('typing.search_empty') }}
+        <view v-if="showWordSearchResult" class="search-results">
+          <view v-if="wordSearchResults.length === 0" class="search-empty">
+            {{ t('typing.search_empty') }}
+          </view>
+          <view
+            v-for="item in wordSearchResults"
+            :key="item.id"
+            class="search-item"
+            @click="selectSearchWord(item)"
+          >
+            <text class="search-item-word">{{ item.word }}</text>
+            <text class="search-item-def">{{ localText(item.explanation) }}</text>
+          </view>
         </view>
-        <view
-          v-for="item in wordSearchResults"
-          :key="item.id"
-          class="word-search-item"
-          @click="selectSearchWord(item)"
-        >
-          <text class="word-search-main">{{ item.word }}</text>
-          <text class="word-search-sub">{{ localText(item.explanation) }}</text>
-        </view>
-      </view>
       </template>
     </view>
-    <!-- 3.3.1 骨架屏：控制行加载占位 -->
-    <view v-if="isPageLoading" class="stats-row skeleton-row">
-      <view class="skeleton-stat"></view>
-      <view class="skeleton-btn-action"></view>
+
+    <!-- 状态栏：错误计数 + 开始/停止 -->
+    <view v-if="isPageLoading" class="control-bar skeleton-mode">
+      <view class="sk-line sk-w2"></view>
+      <view class="sk-line sk-btn"></view>
     </view>
-    <view v-else class="stats-row">
-      <text class="count-stat">❌ {{ t('typing.error_count') }}: {{ errorCount }}</text>
-      <button 
-        class="toggle-typing-btn" 
-        :class="{ active: isTypingMode }" 
+    <view v-else class="control-bar">
+      <view class="error-badge">
+        <text class="error-count">{{ errorCount }}</text>
+        <text class="error-label">{{ t('typing.error_count') }}</text>
+      </view>
+      <button
+        class="mode-btn"
+        :class="{ typing: isTypingMode }"
         @click="toggleTyping"
       >
         {{ isTypingMode ? t('typing.stop') : t('typing.start') }}
       </button>
     </view>
 
-    <!-- 造句列表区 (需要自适应高度并在键盘弹出时滚动) -->
-    <view class="sentence-list" :style="{ paddingBottom: isTypingMode ? '450rpx' : '0' }">
-      <view class="sentence-item" v-for="(sentence, index) in currentWord.sentences" :key="index">
-        <view class="sentence-en">
-          <text>{{ sentence.source }}</text>
-          <text class="sentence-audio" @click="playSentenceAudio(sentence)">🔊</text>
+    <!-- 例句区 -->
+    <view class="sentences" :style="{ paddingBottom: isTypingMode ? '450rpx' : '0' }">
+      <view class="sentence-card" v-for="(sentence, index) in currentWord.sentences" :key="index">
+        <view class="sentence-top">
+          <text class="sentence-en">{{ sentence.source }}</text>
+          <view class="sentence-audio" @click="playSentenceAudio(sentence)">
+            <text class="sentence-audio-icon">♪</text>
+          </view>
         </view>
-        <view class="sentence-zh" v-if="settings.showExplanation">
-          <text>{{ localText(sentence.translate) }}</text>
-        </view>
+        <text class="sentence-zh" v-if="settings.showExplanation">{{ localText(sentence.translate) }}</text>
       </view>
     </view>
 
     <!-- 左右切换悬浮按钮 -->
-    <view class="nav-btn prev-btn" @click="handlePrevNav"> <text>{{ prevNavLabel }}</text> </view>
-    <view class="nav-btn next-btn" @click="handleNextNav"> <text>{{ nextNavLabel }}</text> </view>
+    <view class="float-nav prev" @click="handlePrevNav"><text>{{ prevNavLabel }}</text></view>
+    <view class="float-nav next" @click="handleNextNav"><text>{{ nextNavLabel }}</text></view>
 
-    <!-- 自定义防串扰 26 键英语键盘 (原生键盘容易激活输入法联想和中文，坚决摒弃) -->
-    <view class="custom-keyboard" :class="{ 'keyboard-show': isTypingMode }">
-      <view class="keyboard-row" v-for="(row, rIndex) in keyboardLayout" :key="rIndex">
-        <view 
-          class="key-btn" 
-          v-for="key in row" 
-          :key="key" 
+    <!-- 自定义 26 键键盘 -->
+    <view class="keyboard" :class="{ show: isTypingMode }">
+      <view class="kb-row" v-for="(row, rIndex) in keyboardLayout" :key="rIndex">
+        <view
+          class="kb-key"
+          v-for="key in row"
+          :key="key"
           @click="onKeyPress(key)"
-          hover-class="key-hover"
-        >
-          {{ key }}
-        </view>
+          hover-class="kb-key-hover"
+        >{{ key }}</view>
       </view>
     </view>
 
-    <!-- 功能设置弹窗 (ActionSheet 等价表现) -->
+    <!-- 底部弹窗：分类/章节选择 -->
     <uni-popup ref="pickerPopup" type="bottom">
-      <view class="picker-sheet">
-        <view class="picker-title">{{ pickerType === 'category' ? tt('typing.select_category', 'typing.category') : tt('typing.select_chapter', 'typing.chapter') }}</view>
-        <scroll-view class="picker-list" scroll-y>
+      <view class="sheet">
+        <view class="sheet-handle"></view>
+        <view class="sheet-title">{{ pickerType === 'category' ? tt('typing.select_category', 'typing.category') : tt('typing.select_chapter', 'typing.chapter') }}</view>
+        <scroll-view class="sheet-list" scroll-y :scroll-into-view="pickerScrollTarget" :scroll-with-animation="true">
           <view
             v-for="item in pickerOptions"
             :key="item.id"
-            class="picker-item"
+            :id="'picker-item-' + item.id"
+            class="sheet-item"
             :class="{ active: item.active }"
             @click="selectPickerItem(item)"
           >
-            {{ item.label }}
+            <text class="sheet-item-label">{{ item.label }}</text>
+            <text v-if="item.active" class="sheet-item-check">✓</text>
           </view>
         </scroll-view>
-        <button class="picker-cancel" @click="closePickerSheet">{{ t('cancel') }}</button>
+        <button class="sheet-cancel" @click="closePickerSheet">{{ t('cancel') }}</button>
       </view>
     </uni-popup>
 
+    <!-- 底部弹窗：设置 -->
     <uni-popup ref="settingsPopup" type="bottom">
-      <view class="settings-sheet">
-        <view class="set-item"><text>{{ t('typing.show_word') }}</text><switch :checked="settings.showWord" @change="settings.showWord = $event.detail.value" /></view>
-        <view class="set-item"><text>{{ t('typing.show_phonetic') }}</text><switch :checked="settings.showPhonetic" @change="settings.showPhonetic = $event.detail.value" /></view>
-        <view class="set-item"><text>{{ t('typing.show_explanation') }}</text><switch :checked="settings.showExplanation" @change="settings.showExplanation = $event.detail.value" /></view>
-        <view class="set-item"><text>{{ t('typing.accent') }}</text>
+      <view class="sheet">
+        <view class="sheet-handle"></view>
+        <view class="sheet-title">⚙</view>
+        <view class="set-row"><text>{{ t('typing.show_word') }}</text><switch :checked="settings.showWord" @change="settings.showWord = $event.detail.value" /></view>
+        <view class="set-row"><text>{{ t('typing.show_phonetic') }}</text><switch :checked="settings.showPhonetic" @change="settings.showPhonetic = $event.detail.value" /></view>
+        <view class="set-row"><text>{{ t('typing.show_explanation') }}</text><switch :checked="settings.showExplanation" @change="settings.showExplanation = $event.detail.value" /></view>
+        <view class="set-row"><text>{{ t('typing.accent') }}</text>
           <radio-group @change="settings.accent = $event.detail.value">
-            <label><radio value="US" :checked="settings.accent==='US'"/> US</label>
-            <label><radio value="UK" :checked="settings.accent==='UK'"/> UK</label>
+            <label class="accent-label"><radio value="US" :checked="settings.accent==='US'"/> US</label>
+            <label class="accent-label"><radio value="UK" :checked="settings.accent==='UK'"/> UK</label>
           </radio-group>
         </view>
-        <view class="set-item highlight" @click="closeSettingsSheet">{{ t('cancel') }}</view>
+        <button class="sheet-cancel" @click="closeSettingsSheet">{{ t('cancel') }}</button>
       </view>
     </uni-popup>
 
+    <!-- 左侧抽屉：词表 -->
     <uni-popup ref="wordDrawerPopup" type="left">
-      <view class="word-drawer">
-        <view class="word-drawer-head">
-          <text class="word-drawer-title">{{ t('typing.word_list') }}</text>
-          <text class="word-drawer-close" @click="closeWordDrawer">×</text>
+      <view class="drawer">
+        <view class="drawer-head">
+          <text class="drawer-title">{{ t('typing.word_list') }}</text>
+          <text class="drawer-close" @click="closeWordDrawer">×</text>
         </view>
-        <scroll-view class="word-drawer-list" scroll-y :scroll-into-view="drawerScrollToId">
+        <scroll-view class="drawer-body" scroll-y :scroll-into-view="drawerScrollToId" :scroll-with-animation="true">
           <view
             v-for="(item, idx) in wordList"
             :key="item.id || idx"
             :id="'drawer-word-' + (item.id || idx)"
+            class="drawer-item"
             :class="{ active: idx === currentWordIndex }"
             @click="selectWordFromDrawer(idx)"
           >
-            <text class="word-drawer-item-main">{{ item.word }}</text>
-            <text class="word-drawer-item-sub">{{ localText(item.explanation) }}</text>
+            <text class="drawer-word">{{ item.word }}</text>
+            <text class="drawer-def">{{ localText(item.explanation) }}</text>
           </view>
         </scroll-view>
       </view>
     </uni-popup>
+    <custom-tab-bar />
   </view>
 </template>
 
 <script setup>
 import { computed, ref, onUnmounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShow, onHide } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { t as i18nT, localText as i18nLocalText } from '@/utils/i18n.js'
 import { collect, uncollect, findWord, getCollectionList, getCategoryList, getChapterList, getWordList, getWordProgress, reportWordError, saveWordProgress } from '@/api/learning.js'
+import CustomTabBar from '@/components/custom-tab-bar/custom-tab-bar.vue'
 
 const langStore = useLangStore()
 
@@ -291,6 +298,7 @@ const settingsPopup = ref(null)
 const pickerPopup = ref(null)
 const wordDrawerPopup = ref(null)
 const pickerType = ref('category')
+const pickerScrollTarget = ref('')
 const pickerOptions = ref([])
 const wordSearchKeyword = ref('')
 const showWordSearchResult = ref(false)
@@ -308,9 +316,12 @@ const showSettingsSheet = () => settingsPopup.value.open()
 const closeSettingsSheet = () => settingsPopup.value?.close()
 const openWordDrawer = () => {
   // 3.3.4 自动聚焦当前单词
-  const targetId = currentWord.value.id || currentWordIndex.value
-  drawerScrollToId.value = 'drawer-word-' + targetId
   wordDrawerPopup.value?.open()
+  const targetId = currentWord.value.id || currentWordIndex.value
+  drawerScrollToId.value = ''
+  setTimeout(() => {
+    drawerScrollToId.value = 'drawer-word-' + targetId
+  }, 300)
 }
 const closeWordDrawer = () => wordDrawerPopup.value?.close()
 const closeWordSearchResult = () => {
@@ -646,10 +657,27 @@ let audioCandidates = []
 let currentAudioAttempt = null
 let currentAudioLoggedSuccess = false
 onShow(() => {
+  uni.hideTabBar()
   if (!typingInitialized.value) {
     typingInitialized.value = true
     loadTypingData()
   }
+  // 检测从收藏页跳转过来的待处理 wordId
+  const pendingWordId = uni.getStorageSync('typing-pending-word-id')
+  if (pendingWordId) {
+    uni.removeStorageSync('typing-pending-word-id')
+    setTimeout(() => {
+      jumpToWordBySearchResult({ id: Number(pendingWordId) })
+    }, 400)
+  }
+})
+
+onHide(() => {
+  // 切换页面时关闭所有弹窗，防止遮罩阻塞其他页面滚动
+  pickerPopup.value?.close()
+  settingsPopup.value?.close()
+  wordDrawerPopup.value?.close()
+  isTypingMode.value = false
 })
 onUnmounted(() => {
   persistProgress()
@@ -938,7 +966,7 @@ const reFocusDrawerIfOpen = () => {
   drawerScrollToId.value = ''
   setTimeout(() => {
     drawerScrollToId.value = 'drawer-word-' + targetId
-  }, 50)
+  }, 200)
 }
 
 const loadTypingData = async () => {
@@ -988,6 +1016,14 @@ const openPickerSheet = (type) => {
     active: type === 'category' ? item.id === selectedCategoryId.value : item.id === selectedChapterId.value
   }))
   pickerPopup.value?.open()
+  const activeId = type === 'category' ? selectedCategoryId.value : selectedChapterId.value
+  // 原生 DOM scrollIntoView，不依赖 uni-app 框架层（scroll-into-view/scroll-top 在 popup 内均不可靠）
+  setTimeout(() => {
+    const el = document.getElementById('picker-item-' + activeId)
+    if (el) {
+      el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }
+  }, 500)
 }
 
 const closePickerSheet = () => {
@@ -1028,558 +1064,745 @@ const selectPickerItem = async (item) => {
 </script>
 
 <style scoped>
-.typing-container {
+/* === uni-popup z-index 覆盖：高于custom-tab-bar的9999 === */
+:deep(.uni-popup) {
+  z-index: 10001 !important;
+}
+:deep(.uni-mask) {
+  z-index: 10001 !important;
+}
+:deep(.uni-popup__wrapperbox) {
+  z-index: 10002 !important;
+}
+
+/* === 页面基底 === */
+.typing-page {
   position: relative;
-  height: 100vh;
+  height: calc(100vh - 96rpx - env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, #f8f4e7 0%, #f4efe1 100%);
+  background: #F5F3FF;
 }
 
-.top-nav {
+/* === 渐变顶栏 === */
+.top-bar {
+  position: relative;
+  overflow: hidden;
+}
+
+.top-bar-bg {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 100%;
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+}
+
+.top-bar-content {
+  position: relative;
+  z-index: 2;
   display: flex;
   justify-content: space-between;
-  padding: 24rpx;
-  background: rgba(255, 253, 248, 0.95);
-  border-bottom: 1rpx solid rgba(146, 64, 14, 0.12);
+  align-items: center;
+  padding: calc(var(--status-bar-height, 0px) + 20rpx) 32rpx 20rpx;
 }
 
-.word-tools-wrap {
-  margin: 0 22rpx 16rpx;
+.bar-selectors {
+  display: flex;
+  gap: 16rpx;
+  align-items: center;
+}
+
+.selector {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 10rpx 24rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(8rpx);
+}
+
+.selector:active {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.selector-text {
+  font-size: 27rpx;
+  font-weight: 600;
+  color: #fff;
+}
+
+.selector-arrow {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.8);
+  transform: rotate(90deg);
+}
+
+.bar-action {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.bar-action:active {
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.action-icon {
+  font-size: 32rpx;
+  color: #fff;
+}
+
+/* === 单词主卡片 === */
+.word-hero-card {
+  margin: 20rpx 24rpx 16rpx;
+  padding: 40rpx 32rpx 28rpx;
+  border-radius: 28rpx;
+  background: #FFFFFF;
+  border: 1rpx solid rgba(108, 91, 255, 0.12);
+  box-shadow: 0 8rpx 32rpx rgba(108, 91, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.word-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx;
+}
+
+.word-char {
+  font-size: 76rpx;
+  font-weight: 800;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  letter-spacing: 2rpx;
+}
+
+.char-initial { color: #1A1B3A; }
+.char-pending { color: #C7CBE5; }
+.char-correct { color: #1A1B3A; text-decoration: underline; text-decoration-color: #6D5BFF; text-underline-offset: 8rpx; }
+.char-wrong { color: #EF4444; }
+
+.word-meta {
+  margin-top: 20rpx;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.audio-trigger {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  box-shadow: 0 4rpx 16rpx rgba(108, 91, 255, 0.36);
+  transition: transform 0.15s;
+}
+
+.audio-icon {
+  font-size: 30rpx;
+  color: #fff;
+}
+
+.audio-trigger:active {
+  transform: scale(0.92);
+}
+
+.audio-trigger.playing {
+  pointer-events: none;
+  animation: pulse 0.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.12); opacity: 0.75; }
+}
+
+.word-phonetic {
+  font-size: 28rpx;
+  color: #6B6F8D;
+}
+
+.word-meaning {
+  margin-top: 16rpx;
+  font-size: 30rpx;
+  color: #1A1B3A;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.word-footer {
+  margin-top: 24rpx;
+}
+
+.collect-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 10rpx 28rpx;
+  border: 1rpx solid rgba(108, 91, 255, 0.36);
+  border-radius: 999rpx;
+  background: rgba(108, 91, 255, 0.04);
+}
+
+.collect-icon {
+  font-size: 26rpx;
+  color: #F59E0B;
+}
+
+.collect-text {
+  font-size: 22rpx;
+  color: #6D5BFF;
+  font-weight: 600;
+}
+
+.collect-btn:active {
+  background: rgba(108, 91, 255, 0.12);
+}
+
+/* === 工具卡片 === */
+.tools-card {
+  margin: 0 24rpx 16rpx;
+  padding: 20rpx;
+  border-radius: 24rpx;
+  background: #FFFFFF;
+  border: 1rpx solid rgba(108, 91, 255, 0.1);
+  box-shadow: 0 4rpx 20rpx rgba(108, 91, 255, 0.08);
   position: relative;
   z-index: 20;
 }
 
-.word-tools-row {
+.tools-row {
   display: flex;
   align-items: center;
-  gap: 12rpx;
+  gap: 16rpx;
 }
 
-.word-list-btn {
-  height: 64rpx;
-  min-width: 164rpx;
-  padding: 0 20rpx;
-  border-radius: 999rpx;
-  border: 1rpx solid rgba(15, 118, 110, 0.26);
-  background: rgba(15, 118, 110, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #0f766e;
-  font-size: 24rpx;
-  font-weight: 700;
-}
-
-.word-search-box {
-  flex: 1;
-  height: 64rpx;
-  border-radius: 999rpx;
-  border: 1rpx solid rgba(20, 184, 166, 0.22);
-  background: #fff;
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-}
-
-.word-search-input {
-  flex: 1;
-  height: 64rpx;
-  padding: 0 20rpx;
-  font-size: 24rpx;
-  color: #334155;
-}
-
-.word-search-clear {
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: 50%;
-  margin-right: 8rpx;
-  background: rgba(148, 163, 184, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #475569;
-  font-size: 30rpx;
-  line-height: 1;
-}
-
-.word-search-btn {
-  height: 64rpx;
-  min-width: 120rpx;
-  padding: 0 24rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 24rpx;
-  font-weight: 700;
-  background: linear-gradient(120deg, #0f766e 0%, #14b8a6 100%);
-}
-
-.word-search-result-wrap {
-  margin-top: 10rpx;
-  max-height: 320rpx;
-  overflow-y: auto;
-  border-radius: 16rpx;
-  border: 1rpx solid rgba(20, 184, 166, 0.16);
-  background: #fffdf8;
-  box-shadow: 0 8rpx 20rpx rgba(15, 23, 42, 0.06);
-}
-
-.word-search-empty {
-  min-height: 88rpx;
-  padding: 0 22rpx;
-  color: #64748b;
-  font-size: 24rpx;
-  display: flex;
-  align-items: center;
-}
-
-.word-search-item {
-  padding: 14rpx 20rpx;
-  border-bottom: 1rpx solid rgba(148, 163, 184, 0.14);
-}
-
-.word-search-item:last-child {
-  border-bottom: none;
-}
-
-.word-search-main {
-  color: #0f172a;
-  font-size: 28rpx;
-  font-weight: 700;
-  display: block;
-}
-
-.word-search-sub {
-  margin-top: 4rpx;
-  color: #64748b;
-  font-size: 22rpx;
-  display: block;
-}
-
-.nav-left { display: flex; gap: 12rpx; align-items: center; }
-
-.nav-pill {
+.tool-btn {
   display: flex;
   align-items: center;
   gap: 8rpx;
-  height: 60rpx;
-  padding: 0 20rpx;
-  border-radius: 999rpx;
-  background: #fff;
-  border: 1rpx solid rgba(20, 184, 166, 0.22);
-}
-
-.nav-text { font-size: 26rpx; font-weight: 700; color: #7c2d12; }
-.arrow { color: rgba(124, 45, 18, 0.6); font-size: 20rpx; }
-
-.nav-right {
-  width: 62rpx;
-  height: 62rpx;
-  border-radius: 18rpx;
-  background: #fff;
-  border: 1rpx solid rgba(20, 184, 166, 0.22);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.icon-settings { font-size: 34rpx; }
-
-.word-card {
-  background: rgba(255, 253, 248, 0.96);
-  margin: 22rpx;
-  padding: 50rpx 36rpx;
-  border-radius: 24rpx;
-  border: 1rpx solid rgba(20, 184, 166, 0.22);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  box-shadow: 0 14rpx 32rpx rgba(120, 53, 15, 0.1);
-}
-
-.word-main { display: flex; align-items: center; justify-content: center; margin-bottom: 14rpx; }
-.char-item { font-size: 78rpx; font-weight: 700; font-family: monospace; letter-spacing: 3rpx; }
-.char-initial { color: #0f172a; }
-.char-pending { color: #cbd5e1; }
-.char-correct { color: #0f766e; }
-.char-wrong { color: #dc2626; }
-.word-actions { display: flex; align-items: center; gap: 10rpx; margin-left: 18rpx; }
-.audio-btn { font-size: 40rpx; }
-.word-collect-row {
-  margin-top: 16rpx;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-}
-.inline-collect-btn {
-  height: 56rpx;
-  padding: 0 18rpx;
-  border-radius: 999rpx;
-  background: rgba(15, 118, 110, 0.14);
-  border: 1rpx solid rgba(15, 118, 110, 0.22);
-  color: #0f766e;
-  font-size: 22rpx;
-  display: flex;
-  align-items: center;
-}
-
-/* 3.3.2 语音播放动画 */
-.audio-btn {
-  transition: transform 0.15s ease;
-}
-
-.audio-playing {
-  pointer-events: none;
-  animation: audio-pulse 0.6s ease-in-out infinite;
-}
-
-@keyframes audio-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.25); opacity: 0.7; }
-}
-
-/* 3.3.1 骨架屏 */
-.skeleton-card {
-  pointer-events: none;
-}
-
-.skeleton-word {
-  width: 280rpx;
-  height: 72rpx;
-  border-radius: 12rpx;
-  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s ease-in-out infinite;
-  margin-bottom: 16rpx;
-}
-
-.skeleton-meta {
-  width: 160rpx;
-  height: 28rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s ease-in-out infinite;
-  margin-bottom: 14rpx;
-}
-
-.skeleton-explanation {
-  width: 400rpx;
-  height: 24rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s ease-in-out infinite;
-}
-
-.skeleton-btn {
   height: 64rpx;
-  width: 164rpx;
-  border-radius: 999rpx;
-  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  padding: 0 24rpx;
+  border: 1rpx solid rgba(108, 91, 255, 0.36);
+  border-radius: 16rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #6D5BFF;
+  background: rgba(108, 91, 255, 0.04);
 }
 
-.skeleton-search {
+.tool-icon {
+  font-size: 26rpx;
+}
+
+.tool-btn:active {
+  background: rgba(108, 91, 255, 0.12);
+}
+
+.search-field {
   flex: 1;
   height: 64rpx;
-  border-radius: 999rpx;
-  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  border: 1rpx solid rgba(108, 91, 255, 0.24);
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  background: #fff;
 }
 
-.skeleton-row {
-  pointer-events: none;
+.search-input {
+  flex: 1;
+  height: 64rpx;
+  padding: 0 20rpx;
+  font-size: 24rpx;
+  color: #1A1B3A;
 }
 
-.skeleton-stat {
-  width: 180rpx;
-  height: 27rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+.search-clear {
+  width: 44rpx;
+  height: 44rpx;
+  margin-right: 8rpx;
+  border-radius: 50%;
+  background: rgba(108, 91, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6B6F8D;
+  font-size: 28rpx;
 }
 
-.skeleton-btn-action {
-  width: 160rpx;
-  height: 66rpx;
-  border-radius: 999rpx;
-  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+.search-go {
+  height: 64rpx;
+  padding: 0 24rpx;
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: 600;
 }
 
-@keyframes skeleton-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+.search-go:active {
+  opacity: 0.88;
 }
 
-.word-meta { color: #78716c; margin-bottom: 10rpx; font-size: 28rpx; }
-.word-explanation { color: #334155; text-align: center; font-size: 29rpx; margin-top: 12rpx; line-height: 1.55; }
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-15rpx); }
-  50% { transform: translateX(15rpx); }
-  75% { transform: translateX(-15rpx); }
+.search-results {
+  margin-top: 12rpx;
+  max-height: 320rpx;
+  overflow-y: auto;
+  border: 1rpx solid rgba(108, 91, 255, 0.16);
+  border-radius: 16rpx;
+  background: rgba(108, 91, 255, 0.03);
 }
-.shake-animation { animation: shake 0.4s ease-in-out; }
 
-.stats-row {
+.search-empty {
+  padding: 24rpx;
+  color: #A9AECB;
+  font-size: 24rpx;
+  text-align: center;
+}
+
+.search-item {
+  padding: 18rpx 24rpx;
+  border-bottom: 1rpx solid rgba(108, 91, 255, 0.1);
+}
+
+.search-item:last-child { border-bottom: none; }
+.search-item:active { background: rgba(108, 91, 255, 0.08); }
+
+.search-item-word {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #1A1B3A;
+  display: block;
+}
+
+.search-item-def {
+  margin-top: 4rpx;
+  font-size: 22rpx;
+  color: #6B6F8D;
+  display: block;
+}
+
+/* === 控制栏 === */
+.control-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 24rpx;
-  margin-bottom: 16rpx;
+  padding: 0 24rpx 20rpx;
 }
 
-.count-stat { font-size: 27rpx; color: #78716c; font-family: monospace; }
-
-.toggle-typing-btn {
-  height: 66rpx;
-  line-height: 66rpx;
-  margin: 0;
-  padding: 0 36rpx;
+.error-badge {
+  display: flex;
+  align-items: baseline;
+  gap: 8rpx;
+  padding: 8rpx 20rpx;
   border-radius: 999rpx;
-  font-size: 27rpx;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.error-count {
+  font-size: 32rpx;
+  color: #EF4444;
+  font-family: monospace;
+  font-weight: 800;
+}
+
+.error-label {
+  font-size: 22rpx;
+  color: #6B6F8D;
+}
+
+.mode-btn {
+  height: 72rpx;
+  line-height: 72rpx;
+  margin: 0;
+  padding: 0 48rpx;
+  border-radius: 999rpx;
+  font-size: 28rpx;
   font-weight: 700;
   color: #fff;
-  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  border: none;
+  box-shadow: 0 4rpx 16rpx rgba(108, 91, 255, 0.36);
 }
 
-.toggle-typing-btn.active { background: linear-gradient(120deg, #dc2626 0%, #f97316 100%); }
+.mode-btn:active { opacity: 0.88; transform: scale(0.97); }
 
-.sentence-list {
+.mode-btn.typing {
+  background: linear-gradient(135deg, #EF4444 0%, #F87171 100%);
+  box-shadow: 0 4rpx 16rpx rgba(239, 68, 68, 0.36);
+}
+
+/* === 例句区 === */
+.sentences {
   flex: 1;
-  padding: 0 22rpx;
-  box-sizing: border-box;
+  padding: 0 24rpx;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
-.sentence-item {
-  background: rgba(255, 253, 248, 0.96);
+.sentence-card {
   padding: 24rpx;
-  border-radius: 18rpx;
-  border: 1rpx solid rgba(20, 184, 166, 0.16);
-  margin-bottom: 14rpx;
+  margin-bottom: 16rpx;
+  border-radius: 20rpx;
+  background: #fff;
+  border: 1rpx solid rgba(108, 91, 255, 0.1);
+  box-shadow: 0 4rpx 20rpx rgba(108, 91, 255, 0.08);
+}
+
+.sentence-card:last-child { margin-bottom: 0; }
+
+.sentence-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
 .sentence-en {
-  font-size: 31rpx;
-  font-weight: 700;
-  margin-bottom: 10rpx;
-  color: #1e293b;
-  display: flex;
-  justify-content: space-between;
+  font-size: 29rpx;
+  font-weight: 600;
+  color: #1A1B3A;
+  line-height: 1.45;
+  flex: 1;
 }
 
-.sentence-zh { font-size: 26rpx; color: #64748b; line-height: 1.5; }
-
-.nav-btn {
-  position: fixed;
-  bottom: 340rpx;
-  min-width: 120rpx;
-  height: 72rpx;
-  padding: 0 16rpx;
-  background: rgba(15, 118, 110, 0.66);
-  color: #fff;
+.sentence-audio {
+  margin-left: 16rpx;
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24rpx;
-  z-index: 100;
-  border-radius: 36rpx;
+  background: rgba(108, 91, 255, 0.12);
+  flex-shrink: 0;
 }
 
-.prev-btn { left: 16rpx; }
-.next-btn { right: 16rpx; }
+.sentence-audio-icon {
+  font-size: 26rpx;
+  color: #6D5BFF;
+}
 
-.custom-keyboard {
+.sentence-audio:active {
+  background: rgba(108, 91, 255, 0.22);
+}
+
+.sentence-zh {
+  margin-top: 10rpx;
+  font-size: 25rpx;
+  color: #6B6F8D;
+  line-height: 1.5;
+}
+
+/* === 悬浮切换按钮 === */
+.float-nav {
+  position: fixed;
+  bottom: 340rpx;
+  padding: 16rpx 28rpx;
+  background: linear-gradient(135deg, rgba(108, 91, 255, 0.92) 0%, rgba(155, 143, 255, 0.92) 100%);
+  color: #fff;
+  font-size: 22rpx;
+  font-weight: 600;
+  border-radius: 999rpx;
+  z-index: 100;
+  box-shadow: 0 4rpx 16rpx rgba(108, 91, 255, 0.36);
+}
+
+.float-nav:active { opacity: 0.85; transform: scale(0.95); }
+.float-nav.prev { left: 20rpx; }
+.float-nav.next { right: 20rpx; }
+
+/* === 键盘 === */
+.keyboard {
   position: fixed;
   bottom: -450rpx;
   left: 0;
   width: 100%;
   height: 450rpx;
-  background: #e7ecee;
-  transition: bottom 0.3s;
-  padding: 20rpx 10rpx 40rpx;
+  background: #EDE9FE;
+  transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 16rpx 12rpx calc(20rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  z-index: 999;
+  z-index: 10000;
+  border-top: 1rpx solid rgba(108, 91, 255, 0.16);
+  border-radius: 28rpx 28rpx 0 0;
 }
-.keyboard-show { bottom: 0; }
-.keyboard-row { display: flex; justify-content: center; gap: 10rpx; }
 
-.key-btn {
-  background: #fff;
-  height: 90rpx;
-  min-width: 60rpx;
-  flex: 1;
-  border-radius: 12rpx;
+.keyboard.show { bottom: calc(88rpx + env(safe-area-inset-bottom)); }
+
+.kb-row {
   display: flex;
   justify-content: center;
+  gap: 10rpx;
+}
+
+.kb-key {
+  flex: 1;
+  height: 88rpx;
+  min-width: 58rpx;
+  background: #fff;
+  border-radius: 12rpx;
+  display: flex;
   align-items: center;
-  font-size: 40rpx;
+  justify-content: center;
+  font-size: 38rpx;
   font-family: monospace;
-  font-weight: 700;
-  color: #334155;
-  box-shadow: 0 2rpx 0 #94a3b8;
+  font-weight: 600;
+  color: #1A1B3A;
+  box-shadow: 0 2rpx 8rpx rgba(108, 91, 255, 0.14);
   text-transform: uppercase;
 }
 
-.key-hover { background: #dbe3e6; }
-
-.settings-sheet {
-  background: #fffdf8;
-  border-top-left-radius: 22rpx;
-  border-top-right-radius: 22rpx;
-  padding: 34rpx;
-  padding-bottom: calc(34rpx + env(safe-area-inset-bottom) + 120rpx);
-  max-height: 68vh;
-  overflow-y: auto;
-  box-sizing: border-box;
+.kb-key-hover {
+  background: rgba(108, 91, 255, 0.16);
+  transform: translateY(1rpx);
+  color: #6D5BFF;
 }
 
-.picker-sheet {
-  background: #fffdf8;
-  border-top-left-radius: 22rpx;
-  border-top-right-radius: 22rpx;
-  padding: 28rpx;
-  padding-bottom: calc(28rpx + env(safe-area-inset-bottom) + 120rpx);
-  max-height: 68vh;
-  overflow-y: auto;
-  box-sizing: border-box;
-}
-
-.picker-title {
-  text-align: center;
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #7c2d12;
-  margin-bottom: 14rpx;
-}
-
-.picker-list {
-  max-height: 46vh;
-}
-
-.picker-item {
-  height: 84rpx;
-  border-radius: 14rpx;
-  padding: 0 22rpx;
-  display: flex;
-  align-items: center;
-  margin-bottom: 10rpx;
-  color: #334155;
+/* === 底部弹窗 === */
+.sheet {
   background: #fff;
-  border: 1rpx solid rgba(20, 184, 166, 0.16);
-}
-
-.picker-item.active {
-  color: #0f766e;
-  border-color: rgba(15, 118, 110, 0.34);
-  background: rgba(15, 118, 110, 0.08);
-}
-
-.picker-cancel {
-  margin-top: 10rpx;
-  border-radius: 999rpx;
-  border: 1rpx solid rgba(146, 64, 14, 0.14);
-  background: #fff;
-  color: #7c2d12;
-}
-
-.set-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 28rpx 0;
-  border-bottom: 1px solid rgba(146, 64, 14, 0.12);
-  font-size: 30rpx;
-  color: #334155;
-}
-
-.highlight { color: #0f766e; font-weight: 700; justify-content: center; }
-
-.word-drawer {
-  width: 560rpx;
-  height: 100vh;
-  background: #fffdf8;
-  border-top-right-radius: 18rpx;
-  border-bottom-right-radius: 18rpx;
-  box-shadow: 10rpx 0 26rpx rgba(15, 23, 42, 0.12);
+  border-radius: 32rpx 32rpx 0 0;
+  box-shadow: 0 -12rpx 36rpx rgba(108, 91, 255, 0.14);
+  max-height: 75vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
-.word-drawer-head {
-  height: calc(88rpx + env(safe-area-inset-top));
-  padding: env(safe-area-inset-top) 20rpx 0;
+.sheet-handle {
+  width: 60rpx;
+  height: 6rpx;
+  border-radius: 3rpx;
+  background: linear-gradient(90deg, #6D5BFF, #9B8FFF);
+  margin: 16rpx auto 0;
+  flex-shrink: 0;
+}
+
+.sheet-title {
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #1A1B3A;
+  margin: 20rpx 0;
+  padding: 0 32rpx;
+  flex-shrink: 0;
+}
+
+.sheet-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 32rpx;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.sheet-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1rpx solid rgba(148, 163, 184, 0.18);
+  height: 92rpx;
+  padding: 0 24rpx;
+  border-radius: 16rpx;
+  margin-bottom: 8rpx;
+  font-size: 28rpx;
+  color: #1A1B3A;
+  background: rgba(108, 91, 255, 0.06);
+  box-sizing: border-box;
+  width: 100%;
 }
 
-.word-drawer-title {
-  color: #7c2d12;
+.sheet-item:active { background: rgba(108, 91, 255, 0.14); }
+
+.sheet-item.active {
+  background: rgba(108, 91, 255, 0.16);
+  border: 1rpx solid rgba(108, 91, 255, 0.32);
+}
+
+.sheet-item-label {
+  font-weight: 600;
+}
+
+.sheet-item.active .sheet-item-label {
+  color: #6D5BFF;
+  font-weight: 700;
+}
+
+.sheet-item-check {
+  color: #6D5BFF;
   font-size: 30rpx;
   font-weight: 700;
 }
 
-.word-drawer-close {
+.sheet-cancel {
+  flex-shrink: 0;
+  margin: 16rpx 32rpx;
+  margin-bottom: calc(16rpx + 88rpx + env(safe-area-inset-bottom));
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(108, 91, 255, 0.32);
+  background: #fff;
+  color: #6D5BFF;
+  font-size: 30rpx;
+  font-weight: 600;
+  height: 84rpx;
+  line-height: 84rpx;
+}
+
+.set-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx 32rpx;
+  border-bottom: 1rpx solid rgba(108, 91, 255, 0.1);
+  font-size: 30rpx;
+  color: #1A1B3A;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.set-row:last-of-type {
+  border-bottom: none;
+}
+
+.accent-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  margin-right: 24rpx;
+  font-size: 28rpx;
+  color: #1A1B3A;
+}
+
+/* === 左侧抽屉 === */
+.drawer {
+  width: 560rpx;
+  height: 100vh;
+  background: #F5F3FF;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 8rpx 0 32rpx rgba(108, 91, 255, 0.18);
+}
+
+.drawer-head {
+  height: calc(96rpx + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 24rpx 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1rpx solid rgba(108, 91, 255, 0.12);
+  background: #fff;
+  box-shadow: 0 2rpx 12rpx rgba(108, 91, 255, 0.06);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.drawer-title {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #1A1B3A;
+}
+
+.drawer-close {
   width: 56rpx;
   height: 56rpx;
-  border-radius: 14rpx;
+  border-radius: 50%;
+  background: rgba(108, 91, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #64748b;
-  font-size: 42rpx;
-  line-height: 1;
+  font-size: 40rpx;
+  color: #6D5BFF;
 }
 
-.word-drawer-list {
+.drawer-body {
   flex: 1;
-  padding: 12rpx 14rpx calc(16rpx + env(safe-area-inset-bottom));
-  box-sizing: border-box;
+  padding: 16rpx 20rpx calc(40rpx + env(safe-area-inset-bottom));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+  width: 100%;
 }
 
-.word-drawer-item {
-  border: 1rpx solid rgba(148, 163, 184, 0.2);
-  border-radius: 14rpx;
-  padding: 14rpx 16rpx;
-  background: #fff;
+.drawer-item {
+  padding: 20rpx 24rpx;
+  border-radius: 16rpx;
   margin-bottom: 10rpx;
+  background: #fff;
+  border: 1rpx solid rgba(108, 91, 255, 0.08);
+  box-sizing: border-box;
+  width: 100%;
 }
 
-.word-drawer-item.active {
-  border-color: rgba(15, 118, 110, 0.4);
-  background: rgba(15, 118, 110, 0.08);
+.drawer-item:active { background: rgba(108, 91, 255, 0.08); }
+
+.drawer-item.active {
+  background: rgba(108, 91, 255, 0.14);
+  border-color: rgba(108, 91, 255, 0.32);
 }
 
-.word-drawer-item-main {
-  color: #0f172a;
-  font-size: 26rpx;
+.drawer-word {
+  font-size: 28rpx;
   font-weight: 700;
+  color: #1A1B3A;
   display: block;
 }
 
-.word-drawer-item-sub {
-  margin-top: 4rpx;
-  color: #64748b;
-  font-size: 21rpx;
-  line-height: 1.45;
+.drawer-item.active .drawer-word {
+  color: #6D5BFF;
+}
+
+.drawer-def {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #6B6F8D;
   display: block;
 }
+
+/* === 骨架屏 === */
+.skeleton-mode { pointer-events: none; }
+
+.sk-line {
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #EDE9FE 25%, #F5F3FF 50%, #EDE9FE 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.sk-w1 { width: 300rpx; height: 72rpx; margin-bottom: 16rpx; }
+.sk-w2 { width: 180rpx; height: 28rpx; margin-bottom: 12rpx; }
+.sk-w3 { width: 400rpx; height: 24rpx; }
+.sk-btn { width: 160rpx; height: 64rpx; border-radius: 16rpx; }
+.sk-input { flex: 1; height: 64rpx; border-radius: 16rpx; }
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* === 抖动动画 === */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-12rpx); }
+  50% { transform: translateX(12rpx); }
+  75% { transform: translateX(-12rpx); }
+}
+
+.shake-animation { animation: shake 0.35s ease-in-out; }
 </style>

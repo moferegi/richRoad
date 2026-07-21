@@ -7,7 +7,7 @@
       <view class="nf-navbar-status"></view>
       <view class="nf-navbar-content">
         <view class="nf-navbar-back" @tap="goBack">
-          <uni-icons type="left" size="20" color="#0f172a"></uni-icons>
+          <uni-icons type="left" size="20" color="#6D5BFF"></uni-icons>
         </view>
         <text class="nf-navbar-title">{{ $t('kefuTitle') }}</text>
         <view class="nf-nav-space"></view>
@@ -82,7 +82,7 @@
         <view v-if="showExternalList" class="nf-section-title">{{ $t('kefuPlatformSection') }}</view>
         <view class="nf-plat-cs-card" @tap="enterPlatChat">
           <view class="nf-plat-cs-avatar">
-            <uni-icons type="chat-filled" size="40" color="#2563eb" />
+            <uni-icons type="chat-filled" size="40" color="#6D5BFF" />
           </view>
           <view class="nf-plat-cs-info">
             <text class="nf-plat-cs-name">{{ $t('kefuPlatformName') }}</text>
@@ -97,7 +97,7 @@
       <!-- 空状态 -->
       <view class="nf-kefu-empty" v-if="showNothing || showExternalEmpty">
         <view class="nf-kefu-empty-icon">
-          <uni-icons type="chat" size="48" color="rgba(229,9,20,0.4)" />
+          <uni-icons type="chat" size="48" color="rgba(108,91,255,0.4)" />
         </view>
         <text class="nf-kefu-empty-text">{{ $t('kefuEmpty') }}</text>
       </view>
@@ -532,7 +532,7 @@ const goBack = () => {
 
 <style lang="scss">
 page {
-  background-color: #f4f7fb;
+  background-color: #F5F3FF;
 }
 
 .nf-kefu {
@@ -540,7 +540,7 @@ page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #f4f7fb;
+  background: #F5F3FF;
   position: relative;
 }
 
@@ -551,16 +551,16 @@ page {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 30% -10%, rgba(37, 99, 235, 0.2) 0%, transparent 58%),
-    radial-gradient(ellipse at 75% 10%, rgba(14, 165, 233, 0.15) 0%, transparent 52%);
+    radial-gradient(ellipse at 30% -10%, rgba(108, 91, 255, 0.18) 0%, transparent 58%),
+    radial-gradient(ellipse at 75% 10%, rgba(155, 143, 255, 0.12) 0%, transparent 52%);
 }
 
 /* ===== 导航栏 ===== */
 .nf-navbar {
-  background: rgba(244, 247, 251, 0.92);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border-bottom: 1rpx solid rgba(148, 163, 184, 0.2);
+  border-bottom: 1rpx solid rgba(108, 91, 255, 0.16);
   padding: 0 28rpx 16rpx;
   position: sticky;
   top: 0;
@@ -590,14 +590,14 @@ page {
   height: 64rpx;
   border-radius: 50%;
   background: #ffffff;
-  border: 1rpx solid rgba(148, 163, 184, 0.2);
-  box-shadow: 0 8rpx 22rpx rgba(15, 23, 42, 0.08);
+  border: 1rpx solid rgba(108, 91, 255, 0.3);
+  box-shadow: 0 8rpx 22rpx rgba(108, 91, 255, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
 
   &:active {
-    background: rgba(241, 245, 249, 0.98);
+    background: rgba(245, 243, 255, 0.98);
     transform: scale(0.93);
   }
 }
@@ -609,8 +609,8 @@ page {
 
 .nf-navbar-title {
   font-size: 34rpx;
-  font-weight: 700;
-  color: #0f172a;
+  font-weight: 800;
+  color: #1A1B3A;
   letter-spacing: 2rpx;
 }
 
@@ -638,10 +638,10 @@ page {
 }
 
 .nf-payment-hint-card {
-  background: rgba(219, 234, 254, 0.75);
-  border: 1rpx solid rgba(37, 99, 235, 0.2);
-  border-radius: 20rpx;
-  padding: 20rpx;
+  background: rgba(108, 91, 255, 0.08);
+  border: 1rpx solid rgba(108, 91, 255, 0.2);
+  border-radius: 24rpx;
+  padding: 24rpx;
 }
 
 .nf-payment-hint-head {
@@ -653,18 +653,19 @@ page {
 
 .nf-payment-hint-title {
   font-size: 26rpx;
-  color: #0f172a;
-  font-weight: 600;
+  color: #1A1B3A;
+  font-weight: 700;
 }
 
 .nf-payment-copy-btn {
   padding: 8rpx 16rpx;
   border-radius: 999rpx;
-  background: rgba(37, 99, 235, 0.14);
+  background: rgba(108, 91, 255, 0.12);
+  border: 1rpx solid rgba(108, 91, 255, 0.3);
 }
 
 .nf-payment-copy-btn-text {
-  color: #1d4ed8;
+  color: #6D5BFF;
   font-size: 22rpx;
 }
 
@@ -677,29 +678,29 @@ page {
 
 .nf-payment-meta-label {
   font-size: 22rpx;
-  color: rgba(15, 23, 42, 0.56);
+  color: #6B6F8D;
 }
 
 .nf-payment-meta-value {
   font-size: 22rpx;
-  color: #0f172a;
+  color: #1A1B3A;
 }
 
 .nf-payment-draft-wrap {
   margin-top: 10rpx;
   padding-top: 10rpx;
-  border-top: 1rpx solid rgba(15, 23, 42, 0.08);
+  border-top: 1rpx solid rgba(108, 91, 255, 0.12);
 }
 
 .nf-payment-draft-text {
   margin-top: 8rpx;
   font-size: 22rpx;
-  color: rgba(15, 23, 42, 0.72);
+  color: #6B6F8D;
   line-height: 1.45;
 }
 
 .nf-section-title {
-  color: rgba(15, 23, 42, 0.6);
+  color: #6B6F8D;
   font-size: 24rpx;
   letter-spacing: 2rpx;
   margin-bottom: 16rpx;
@@ -717,16 +718,16 @@ page {
 .nf-plat-cs-card {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.98);
-  border: 1rpx solid rgba(37, 99, 235, 0.16);
+  background: #FFFFFF;
+  border: 1rpx solid rgba(108, 91, 255, 0.16);
   border-radius: 24rpx;
   padding: 40rpx 32rpx;
-  box-shadow: 0 14rpx 28rpx rgba(37, 99, 235, 0.1);
+  box-shadow: 0 8rpx 24rpx rgba(108, 91, 255, 0.12);
   transition: transform 0.3s, background 0.3s;
 
   &:active {
     transform: scale(0.985);
-    background: rgba(239, 246, 255, 0.98);
+    background: rgba(245, 243, 255, 0.98);
   }
 }
 
@@ -734,7 +735,7 @@ page {
   width: 100rpx;
   height: 100rpx;
   border-radius: 50%;
-  background: rgba(37, 99, 235, 0.12);
+  background: rgba(108, 91, 255, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -751,29 +752,29 @@ page {
 
 .nf-plat-cs-name {
   font-size: 34rpx;
-  font-weight: 600;
-  color: #0f172a;
+  font-weight: 700;
+  color: #1A1B3A;
 }
 
 .nf-plat-cs-desc {
   font-size: 26rpx;
-  color: rgba(15, 23, 42, 0.58);
+  color: #6B6F8D;
 }
 
 .nf-kefu-card {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.98);
-  border: 1rpx solid rgba(148, 163, 184, 0.2);
+  background: #FFFFFF;
+  border: 1rpx solid rgba(108, 91, 255, 0.16);
   border-radius: 24rpx;
   padding: 32rpx 28rpx;
   margin-bottom: 20rpx;
-  box-shadow: 0 12rpx 24rpx rgba(15, 23, 42, 0.07);
+  box-shadow: 0 8rpx 24rpx rgba(108, 91, 255, 0.1);
   transition: transform 0.3s, background 0.3s;
 
   &:active {
     transform: scale(0.985);
-    background: #f8fbff;
+    background: rgba(245, 243, 255, 0.98);
   }
 }
 
@@ -788,8 +789,8 @@ page {
   width: 108rpx;
   height: 108rpx;
   border-radius: 50%;
-  border: 3rpx solid rgba(37, 99, 235, 0.28);
-  box-shadow: 0 10rpx 18rpx rgba(37, 99, 235, 0.12);
+  border: 3rpx solid rgba(108, 91, 255, 0.28);
+  box-shadow: 0 10rpx 18rpx rgba(108, 91, 255, 0.12);
 }
 
 .nf-kefu-avatar-fallback {
@@ -837,7 +838,7 @@ page {
 .nf-kefu-name {
   font-size: 32rpx;
   font-weight: 700;
-  color: #0f172a;
+  color: #1A1B3A;
   letter-spacing: 1rpx;
   margin-bottom: 8rpx;
   overflow: hidden;
@@ -872,14 +873,14 @@ page {
   flex-shrink: 0;
   margin-left: 16rpx;
   padding: 14rpx 32rpx;
-  background: linear-gradient(135deg, #2563eb, #0ea5e9);
-  border-radius: 40rpx;
-  box-shadow: 0 8rpx 18rpx rgba(37, 99, 235, 0.3);
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  border-radius: 999rpx;
+  box-shadow: 0 8rpx 18rpx rgba(108, 91, 255, 0.3);
   transition: all 0.3s;
 
   &:active {
     transform: scale(0.95);
-    box-shadow: 0 2rpx 8rpx rgba(37, 99, 235, 0.45);
+    box-shadow: 0 2rpx 8rpx rgba(108, 91, 255, 0.45);
   }
 }
 
@@ -894,7 +895,7 @@ page {
 
 .nf-kefu-action-text {
   font-size: 26rpx;
-  font-weight: 600;
+  font-weight: 700;
   color: #fff;
   letter-spacing: 1rpx;
 }
@@ -912,8 +913,8 @@ page {
   width: 120rpx;
   height: 120rpx;
   border-radius: 50%;
-  background: rgba(37, 99, 235, 0.1);
-  border: 1rpx solid rgba(37, 99, 235, 0.2);
+  background: rgba(108, 91, 255, 0.12);
+  border: 1rpx solid rgba(108, 91, 255, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -922,60 +923,7 @@ page {
 
 .nf-kefu-empty-text {
   font-size: 28rpx;
-  color: rgba(15, 23, 42, 0.48);
+  color: #A9AECB;
   letter-spacing: 2rpx;
-}
-
-.nf-kefu {
-  background: linear-gradient(180deg, #f8f4e7 0%, #f4efe1 100%);
-}
-
-.nf-navbar {
-  background: rgba(255, 253, 248, 0.88);
-  border-bottom: 1rpx solid rgba(146, 64, 14, 0.12);
-}
-
-.nf-navbar-back {
-  border-radius: 18rpx;
-  border: 1rpx solid rgba(20, 184, 166, 0.22);
-  background: #fffdf8;
-}
-
-.nf-navbar-title {
-  color: #7c2d12;
-  font-weight: 800;
-}
-
-.nf-payment-hint-card,
-.nf-plat-cs-card,
-.nf-kefu-card {
-  background: rgba(255, 253, 248, 0.96);
-  border: 1rpx solid rgba(20, 184, 166, 0.18);
-  box-shadow: 0 12rpx 24rpx rgba(120, 53, 15, 0.1);
-}
-
-.nf-payment-copy-btn,
-.nf-plat-cs-avatar {
-  background: rgba(15, 118, 110, 0.14);
-}
-
-.nf-payment-copy-btn-text {
-  color: #0f766e;
-}
-
-.nf-kefu-name,
-.nf-plat-cs-name,
-.nf-payment-hint-title {
-  color: #1e293b;
-}
-
-.nf-kefu-action {
-  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
-  box-shadow: 0 8rpx 18rpx rgba(15, 118, 110, 0.28);
-}
-
-.nf-kefu-empty-icon {
-  background: rgba(15, 118, 110, 0.1);
-  border: 1rpx solid rgba(15, 118, 110, 0.24);
 }
 </style>

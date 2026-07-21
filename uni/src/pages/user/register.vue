@@ -1,115 +1,145 @@
 <template>
   <view class="nf-page">
-    <view class="nf-bg"></view>
-
-    <!-- 自定义导航栏 -->
-    <view class="nf-navbar">
-      <view class="nf-navbar-status"></view>
-      <view class="nf-navbar-content">
-        <view class="nf-navbar-back" @tap="goBack">
-          <uni-icons type="left" size="20" color="#0f172a"></uni-icons>
+    <!-- 紫色渐变 Hero 区 -->
+    <view class="login-hero">
+      <view class="hero-decor-circle decor-1"></view>
+      <view class="hero-decor-circle decor-2"></view>
+      <view class="hero-top-row">
+        <view class="hero-spacer"></view>
+        <view class="hero-lang-btn" @tap="showLangPicker = true">
+          <text class="hero-lang-text">{{ langLabel }}</text>
         </view>
-        <text class="nf-navbar-title">{{ $t('navRegister') }}</text>
-        <view class="nf-lang-btn" @tap="showLangPicker = true">
-          <text class="nf-lang-label">{{ langLabel }}</text>
+      </view>
+      <view class="hero-brand">
+        <view class="hero-logo-wrap">
+          <image v-if="appLogoUrl" class="hero-logo" :src="appLogoUrl" mode="aspectFit" />
+          <view v-else class="hero-logo hero-logo-fallback">{{ (appName || 'R').slice(0, 1).toUpperCase() }}</view>
         </view>
+        <text class="hero-brand-name">{{ appName || 'RichRoad' }}</text>
+        <text class="hero-brand-subtitle">{{ $t('wardrobeSlogan') }}</text>
+      </view>
+      <view class="hero-title-section">
+        <text class="hero-title">{{ $t('registerBtn') }}</text>
+        <view class="hero-title-line"></view>
       </view>
     </view>
 
-    <view class="nf-container">
-      <!-- 标题 -->
-      <view class="nf-header">
-        <view class="nf-brand-row">
-          <image v-if="appLogoUrl" class="nf-logo" :src="appLogoUrl" mode="aspectFill"></image>
-          <view v-else class="nf-logo nf-logo-fallback">{{ (appName || 'R').slice(0, 1).toUpperCase() }}</view>
-          <view class="nf-brand-meta">
-            <text class="nf-brand-name">{{ appName || 'RichRoad' }}</text>
-            <text class="nf-brand-subtitle">{{ $t('wardrobeSlogan') }}</text>
-          </view>
+    <!-- 内容区 -->
+    <view class="login-body">
+      <!-- 模式切换胶囊 -->
+      <view class="mode-pills" v-if="phoneLoginEnabled && usernameLoginEnabled">
+        <view class="mode-pill" :class="{active: registerMode === 'username'}" @tap="registerMode = 'username'">
+          <text class="mode-pill-text">{{ $t('usernameRegisterBtn') }}</text>
         </view>
-        <text class="nf-title">{{ $t('registerBtn') }}</text>
-        <view class="nf-title-line"></view>
-      </view>
-
-      <!-- 模式切换（仅在两种注册方式都启用时显示） -->
-      <view class="nf-mode-switch" v-if="phoneLoginEnabled && usernameLoginEnabled">
-        <view class="nf-mode-tab" :class="{active: registerMode === 'username'}" @tap="registerMode = 'username'">
-          <text>{{ $t('usernameRegisterBtn') }}</text>
-        </view>
-        <view class="nf-mode-tab" :class="{active: registerMode === 'phone'}" @tap="registerMode = 'phone'">
-          <text>{{ $t('phoneRegisterBtn') }}</text>
+        <view class="mode-pill" :class="{active: registerMode === 'phone'}" @tap="registerMode = 'phone'">
+          <text class="mode-pill-text">{{ $t('phoneRegisterBtn') }}</text>
         </view>
       </view>
 
       <!-- 表单卡片 -->
-      <view class="nf-card">
+      <view class="form-card">
         <!-- 用户名模式 -->
-        <view class="nf-field" v-if="registerMode === 'username'">
-          <text class="nf-label">{{ $t('account') }}</text>
-          <input class="nf-input" :placeholder="usernamePlaceholder" maxlength="12" v-model="form.username" />
+        <view class="form-field" v-if="registerMode === 'username'">
+          <view class="field-icon-wrap">
+            <text class="field-icon">👤</text>
+          </view>
+          <view class="field-content">
+            <text class="field-label">{{ $t('account') }}</text>
+            <input class="field-input" :placeholder="usernamePlaceholder" maxlength="12" v-model="form.username" />
+          </view>
         </view>
 
         <!-- 手机号模式 -->
-        <view class="nf-field" v-if="registerMode === 'phone'">
-          <text class="nf-label">{{ $t('phoneNumber') }}</text>
-          <view class="nf-phone-row">
-            <view class="nf-area-code-btn" @tap="showAreaCodePicker = true">
-              <text class="nf-area-code-text">{{ selectedAreaCode || '+86' }}</text>
-              <text class="nf-area-code-arrow">▼</text>
+        <view class="form-field" v-if="registerMode === 'phone'">
+          <view class="field-icon-wrap">
+            <text class="field-icon">📱</text>
+          </view>
+          <view class="field-content">
+            <text class="field-label">{{ $t('phoneNumber') }}</text>
+            <view class="phone-row">
+              <view class="area-code-btn" @tap="showAreaCodePicker = true">
+                <text class="area-code-text">{{ selectedAreaCode || '+86' }}</text>
+                <text class="area-code-arrow">▼</text>
+              </view>
+              <input class="field-input phone-input" :placeholder="$t('phonePlaceholder')" maxlength="15" v-model="form.phone" type="number" />
             </view>
-            <input class="nf-input nf-phone-input" :placeholder="$t('phonePlaceholder')" maxlength="15" v-model="form.phone" type="number" />
           </view>
         </view>
 
-        <view class="nf-field">
-          <text class="nf-label">{{ $t('password') }}</text>
-          <input class="nf-input" type="password" maxlength="18" :placeholder="passwordPlaceholder" v-model="form.password" />
-        </view>
-        <view class="nf-field">
-          <text class="nf-label">{{ $t('repeatPassword') }}</text>
-          <input class="nf-input" type="password" maxlength="18" :placeholder="passwordPlaceholder" v-model="form.rePassword" />
-        </view>
-
-        <!-- 验证码（所有模式都显示） -->
-        <view class="nf-field nf-captcha-field">
-          <text class="nf-label">{{ $t('captcha') }}</text>
-          <view class="nf-captcha-row">
-            <input class="nf-input nf-captcha-input" :placeholder="$t('captchaPlaceholder')" v-model="form.captcha" />
-            <image class="nf-captcha-img" @tap="getCaptchaFunc()" :src="captchaImg" mode="aspectFit"></image>
+        <view class="form-field">
+          <view class="field-icon-wrap">
+            <text class="field-icon">🔒</text>
+          </view>
+          <view class="field-content">
+            <text class="field-label">{{ $t('password') }}</text>
+            <input class="field-input" type="password" maxlength="18" :placeholder="passwordPlaceholder" v-model="form.password" />
           </view>
         </view>
 
-        <!-- 邀请码 -->
-        <view class="nf-field">
-          <text class="nf-label">{{ $t('inviteCodeLabel') }}</text>
-          <input class="nf-input" :placeholder="$t('inviteCodePlaceholder')" maxlength="20" v-model="form.inviteCode" />
+        <view class="form-field">
+          <view class="field-icon-wrap">
+            <text class="field-icon">🔑</text>
+          </view>
+          <view class="field-content">
+            <text class="field-label">{{ $t('repeatPassword') }}</text>
+            <input class="field-input" type="password" maxlength="18" :placeholder="passwordPlaceholder" v-model="form.rePassword" />
+          </view>
+        </view>
+
+        <view class="form-field">
+          <view class="field-icon-wrap">
+            <text class="field-icon">🛡</text>
+          </view>
+          <view class="field-content">
+            <text class="field-label">{{ $t('captcha') }}</text>
+            <view class="captcha-row">
+              <input class="field-input captcha-input" :placeholder="$t('captchaPlaceholder')" v-model="form.captcha" />
+              <image class="captcha-img" @tap="getCaptchaFunc()" :src="captchaImg" mode="aspectFit"></image>
+            </view>
+          </view>
+        </view>
+
+        <view class="form-field">
+          <view class="field-icon-wrap">
+            <text class="field-icon">🎁</text>
+          </view>
+          <view class="field-content">
+            <text class="field-label">{{ $t('inviteCodeLabel') }}</text>
+            <input class="field-input" :placeholder="$t('inviteCodePlaceholder')" maxlength="20" v-model="form.inviteCode" />
+          </view>
         </view>
       </view>
 
       <!-- 按钮 -->
-      <view class="nf-actions" :key="`actions-${langStore.locale}`">
-        <button :key="`register-btn-${langStore.locale}`" class="nf-btn nf-btn-primary" @tap="registerFunc()">
-          <text>{{ $t('registerBtn') }}</text>
+      <view class="action-area" :key="`actions-${langStore.locale}`">
+        <button :key="`register-btn-${langStore.locale}`" class="action-btn action-btn-primary" @tap="registerFunc()">
+          <text class="btn-text">{{ $t('registerBtn') }}</text>
+          <text class="btn-arrow">→</text>
         </button>
-        <button :key="`login-btn-${langStore.locale}`" class="nf-btn nf-btn-ghost" @tap="toLogin()">
+        <button :key="`login-btn-${langStore.locale}`" class="action-btn action-btn-ghost" @tap="toLogin()">
           <text>{{ $t('goToLogin') }}</text>
         </button>
       </view>
+
     </view>
 
     <!-- 语言弹窗 -->
     <lang-switch v-model="showLangPicker" />
 
     <!-- 区号选择弹窗 -->
-    <view class="nf-popup-mask" v-if="showAreaCodePicker" @tap="showAreaCodePicker = false">
-      <view class="nf-popup-content" @tap.stop>
-        <view class="nf-popup-title">{{ $t('selectAreaCode') }}</view>
-        <scroll-view scroll-y class="nf-popup-scroll">
-          <view class="nf-area-item" v-for="item in areaCodeViews" :key="item._areaKey" @tap="selectArea(item._raw)">
-            <text class="nf-area-name">{{ item._countryNameText }}</text>
-            <text class="nf-area-code-val">{{ item.areaCode }}</text>
+    <view class="popup-mask" v-if="showAreaCodePicker" @touchmove.prevent @tap="showAreaCodePicker = false">
+      <view class="popup-content" @tap.stop>
+        <view class="popup-handle"></view>
+        <text class="popup-title">{{ $t('selectAreaCode') }}</text>
+        <scroll-view scroll-y class="popup-scroll">
+          <view class="area-item" v-for="item in areaCodeViews" :key="item._areaKey" @tap="selectArea(item._raw)">
+            <text class="area-name">{{ item._countryNameText }}</text>
+            <text class="area-code-val">{{ item.areaCode }}</text>
           </view>
         </scroll-view>
+        <view class="popup-cancel" @tap.stop="showAreaCodePicker = false">
+          <text>{{ $t('cancel') }}</text>
+        </view>
       </view>
     </view>
   </view>
@@ -118,6 +148,7 @@
 	import {
 		onLoad,
     onShow,
+    onHide,
 	} from '@dcloudio/uni-app';
 
 	import {
@@ -345,6 +376,11 @@
     lastLoadedLocale.value = locale.value
   })
 
+  onHide(() => {
+    showLangPicker.value = false
+    showAreaCodePicker.value = false
+  })
+
   watch(() => locale.value, (newLocale, oldLocale) => {
     if (localeRefreshing.value) return
     if (!oldLocale || newLocale === oldLocale) return
@@ -530,309 +566,406 @@
 	}
 </script>
 <style lang="scss" scoped>
-page { background-color: #f8f4e7; }
+page { background-color: #F5F3FF; }
 
 .nf-page {
   min-height: 100vh;
-  background: #f8f4e7;
+  background: #F5F3FF;
+}
+
+/* === Hero 区 === */
+.login-hero {
   position: relative;
+  overflow: hidden;
+  padding: calc(var(--status-bar-height, 0px) + 36rpx) 32rpx 48rpx;
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  border-radius: 0 0 36rpx 36rpx;
 }
 
-.nf-bg {
+.hero-decor-circle {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 0;
-  background:
-    radial-gradient(circle at 8% 15%, rgba(20, 184, 166, 0.26) 0%, transparent 46%),
-    radial-gradient(circle at 92% 22%, rgba(249, 115, 22, 0.24) 0%, transparent 48%),
-    radial-gradient(circle at 54% 96%, rgba(245, 158, 11, 0.22) 0%, transparent 40%),
-    linear-gradient(180deg, #fbf7ee 0%, #f8f4e7 100%);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
 }
 
-.nf-navbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  background: rgba(255, 251, 242, 0.88);
-  backdrop-filter: blur(16px);
-  border-bottom: 1rpx solid rgba(146, 64, 14, 0.16);
-}
+.decor-1 { width: 240rpx; height: 240rpx; top: -80rpx; right: -40rpx; }
+.decor-2 { width: 160rpx; height: 160rpx; bottom: -60rpx; left: 200rpx; }
 
-.nf-navbar-status {
-  height: var(--status-bar-height, 44px);
-}
-
-.nf-navbar-content {
-  height: 88rpx;
+.hero-top-row {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24rpx;
+  margin-bottom: 32rpx;
 }
 
-.nf-navbar-back,
-.nf-lang-btn {
+.hero-back-btn,
+.hero-lang-btn {
   width: 64rpx;
   height: 64rpx;
-  border-radius: 20rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2rpx solid rgba(146, 64, 14, 0.14);
-  background: rgba(255, 255, 255, 0.76);
-  transition: transform 0.2s ease;
 
   &:active {
-    transform: scale(0.93);
+    transform: scale(0.92);
+    background: rgba(255, 255, 255, 0.35);
   }
 }
 
-.nf-navbar-title {
-  font-size: 34rpx;
+.hero-back-icon {
+  color: #fff;
+  font-size: 44rpx;
+  line-height: 1;
+}
+
+.hero-lang-btn {
+  width: auto;
+  height: auto;
+  border-radius: 999rpx;
+  padding: 10rpx 24rpx;
+}
+
+.hero-lang-text {
+  color: #fff;
+  font-size: 26rpx;
+  font-weight: 700;
+  letter-spacing: 1rpx;
+}
+
+.hero-spacer { width: 64rpx; height: 64rpx; }
+
+.hero-brand {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10rpx;
+  margin-bottom: 32rpx;
+}
+
+.hero-logo-wrap {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 28rpx;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2rpx solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-logo { width: 100%; height: 100%; }
+
+.hero-logo-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 40rpx;
   font-weight: 800;
-  color: #7c2d12;
+}
+
+.hero-brand-name {
+  font-size: 36rpx;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 1rpx;
+}
+
+.hero-brand-subtitle {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.hero-title-section {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14rpx;
+}
+
+.hero-title {
+  font-size: 52rpx;
+  font-weight: 800;
+  color: #fff;
   letter-spacing: 2rpx;
 }
 
-.nf-lang-label {
-  font-size: 22rpx;
-  font-weight: 800;
-  color: #7c2d12;
-}
-
-.nf-container {
-  position: relative;
-  z-index: 1;
-  padding: 0 34rpx 52rpx;
-  padding-top: calc(var(--status-bar-height, 44px) + 88rpx + 34rpx);
-}
-
-.nf-header {
-  margin-bottom: 30rpx;
-  padding: 24rpx;
-  border-radius: 30rpx;
-  border: 2rpx solid rgba(20, 184, 166, 0.16);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 248, 236, 0.92) 100%);
-}
-
-.nf-brand-row {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  margin-bottom: 18rpx;
-}
-
-.nf-logo {
-  width: 86rpx;
-  height: 86rpx;
-  border-radius: 26rpx;
-  background: #fff;
-  border: 2rpx solid rgba(20, 184, 166, 0.3);
-  box-shadow: 0 10rpx 24rpx rgba(146, 64, 14, 0.12);
-}
-
-.nf-logo-fallback {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-size: 36rpx;
-  font-weight: 700;
-  background: linear-gradient(135deg, #0f766e 0%, #f97316 100%);
-}
-
-.nf-brand-meta {
-  display: flex;
-  flex-direction: column;
-}
-
-.nf-brand-name {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #7c2d12;
-}
-
-.nf-brand-subtitle {
-  font-size: 22rpx;
-  color: rgba(120, 53, 15, 0.64);
-}
-
-.nf-title {
-  font-size: 62rpx;
-  font-weight: 800;
-  color: #0f766e;
-  letter-spacing: 3rpx;
-}
-
-.nf-title-line {
-  width: 112rpx;
-  height: 8rpx;
+.hero-title-line {
+  width: 80rpx;
+  height: 6rpx;
   border-radius: 999rpx;
-  background: linear-gradient(90deg, #0f766e 0%, #f97316 100%);
-  margin-top: 16rpx;
+  background: rgba(255, 255, 255, 0.6);
 }
 
-.nf-mode-switch,
-.nf-card {
-  border-radius: 28rpx;
-  border: 2rpx solid rgba(20, 184, 166, 0.2);
-  background: rgba(255, 253, 248, 0.94);
-  box-shadow: 0 18rpx 38rpx rgba(120, 53, 15, 0.12);
+/* === 内容区 === */
+.login-body {
+  position: relative;
+  z-index: 5;
+  padding: 24rpx 32rpx 60rpx;
 }
 
-.nf-mode-switch {
+/* === 模式切换胶囊 === */
+.mode-pills {
   display: flex;
-  margin-bottom: 18rpx;
-  padding: 8rpx;
+  gap: 8rpx;
+  margin-bottom: 24rpx;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 6rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(108, 91, 255, 0.16);
 }
 
-.nf-mode-tab {
+.mode-pill {
   flex: 1;
   text-align: center;
   padding: 16rpx 0;
-  border-radius: 16rpx;
+  border-radius: 999rpx;
   font-size: 26rpx;
-  color: rgba(120, 53, 15, 0.68);
-  font-weight: 600;
+  color: #6B6F8D;
+  font-weight: 500;
+  transition: all 0.25s ease;
 
   &.active {
-    background: rgba(15, 118, 110, 0.16);
-    color: #0f766e;
+    background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 4rpx 16rpx rgba(108, 91, 255, 0.3);
   }
 }
 
-.nf-card {
-  padding: 30rpx;
-  border-radius: 30rpx;
+.mode-pill-text { font-size: inherit; color: inherit; }
+
+/* === 表单卡片 === */
+.form-card {
+  background: #FFFFFF;
+  border-radius: 28rpx;
+  padding: 32rpx 28rpx;
+  border: 1rpx solid rgba(108, 91, 255, 0.16);
+  box-shadow: 0 8rpx 24rpx rgba(108, 91, 255, 0.12);
 }
 
-.nf-field {
-  margin-bottom: 28rpx;
+.form-field {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+
   &:last-child { margin-bottom: 0; }
 }
 
-.nf-label {
-  display: block;
-  font-size: 23rpx;
-  color: rgba(120, 53, 15, 0.68);
-  font-weight: 700;
-  margin-bottom: 10rpx;
+.field-icon-wrap {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: rgba(108, 91, 255, 0.08);
+  border: 1rpx solid rgba(108, 91, 255, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 30rpx;
 }
 
-.nf-input,
-.nf-area-code-btn,
-.nf-captcha-img {
-  height: 88rpx;
+.field-icon { font-size: 28rpx; }
+
+.field-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.field-label {
+  display: block;
+  font-size: 22rpx;
+  color: #6B6F8D;
+  font-weight: 600;
+  margin-bottom: 8rpx;
+}
+
+.field-input {
+  width: 100%;
+  height: 80rpx;
   border-radius: 16rpx;
-  border: 2rpx solid rgba(146, 64, 14, 0.14);
-  background: #fff;
+  border: 1rpx solid rgba(108, 91, 255, 0.2);
+  background: rgba(245, 243, 255, 0.5);
+  padding: 0 20rpx;
+  color: #1A1B3A;
+  font-size: 28rpx;
   box-sizing: border-box;
 }
 
-.nf-input {
-  width: 100%;
-  padding: 0 22rpx;
-  color: #334155;
-  font-size: 30rpx;
-}
-
-.nf-phone-row,
-.nf-captcha-row {
+.phone-row,
+.captcha-row {
   display: flex;
   align-items: center;
   gap: 12rpx;
 }
 
-.nf-area-code-btn {
+.area-code-btn {
+  height: 80rpx;
   padding: 0 18rpx;
+  border-radius: 16rpx;
+  border: 1rpx solid rgba(108, 91, 255, 0.2);
+  background: rgba(245, 243, 255, 0.5);
   display: flex;
   align-items: center;
   gap: 8rpx;
+  flex-shrink: 0;
 }
 
-.nf-area-code-text { color: #7c2d12; font-size: 27rpx; font-weight: 700; }
-.nf-area-code-arrow { color: rgba(120, 53, 15, 0.56); font-size: 20rpx; }
-.nf-phone-input, .nf-captcha-input { flex: 1; }
-.nf-captcha-img { width: 204rpx; flex-shrink: 0; }
+.area-code-text { color: #1A1B3A; font-size: 26rpx; font-weight: 700; }
+.area-code-arrow { color: #6B6F8D; font-size: 18rpx; }
+.phone-input, .captcha-input { flex: 1; }
 
-.nf-actions {
-  margin-top: 26rpx;
+.captcha-img {
+  width: 180rpx;
+  height: 80rpx;
+  border-radius: 16rpx;
+  border: 1rpx solid rgba(108, 91, 255, 0.2);
+  background: rgba(245, 243, 255, 0.5);
+  flex-shrink: 0;
+}
+
+/* === 按钮 === */
+.action-area {
+  margin-top: 28rpx;
   display: flex;
   flex-direction: column;
-  gap: 18rpx;
+  gap: 16rpx;
 }
 
-.nf-btn {
+.action-btn {
   width: 100%;
-  height: 96rpx;
-  border-radius: 20rpx;
-  font-size: 30rpx;
+  height: 92rpx;
+  border-radius: 999rpx;
+  font-size: 28rpx;
   font-weight: 700;
   border: none;
   margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8rpx;
 
-  &:active { transform: translateY(2rpx); }
+  &:active { transform: translateY(2rpx); opacity: 0.9; }
   &::after { border: none; }
 }
 
-.nf-btn-primary {
+.action-btn-primary {
   color: #fff;
-  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
-  box-shadow: 0 12rpx 24rpx rgba(15, 118, 110, 0.28);
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  box-shadow: 0 8rpx 24rpx rgba(108, 91, 255, 0.28);
 }
 
-.nf-btn-ghost {
-  color: #7c2d12;
+.btn-arrow { font-size: 28rpx; }
+
+.action-btn-ghost {
+  color: #6D5BFF;
   background: rgba(255, 255, 255, 0.8);
-  border: 2rpx solid rgba(146, 64, 14, 0.14);
+  border: 1rpx solid rgba(108, 91, 255, 0.3);
 }
 
-.nf-popup-mask {
+/* === 底部语言切换 === */
+.bottom-lang {
+  margin-top: 32rpx;
+  text-align: center;
+}
+
+.bottom-lang-label {
+  font-size: 24rpx;
+  color: #6D5BFF;
+  font-weight: 700;
+  padding: 10rpx 28rpx;
+  border: 1rpx solid rgba(108, 91, 255, 0.3);
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+/* === 弹窗 === */
+.popup-mask {
   position: fixed;
   inset: 0;
-  z-index: 200;
-  background: rgba(15, 23, 42, 0.42);
+  z-index: 10001;
+  background: rgba(26, 27, 58, 0.5);
   display: flex;
   align-items: flex-end;
+  touch-action: none;
 }
 
-.nf-popup-content {
+.popup-content {
   width: 100%;
-  max-height: 60vh;
-  background: #fffdf8;
-  border-radius: 30rpx 30rpx 0 0;
-  padding: 30rpx 0;
+  max-height: 70vh;
+  background: #FFFFFF;
+  border-radius: 28rpx 28rpx 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  touch-action: auto;
 }
 
-.nf-popup-title {
+.popup-handle {
+  width: 64rpx;
+  height: 8rpx;
+  border-radius: 999rpx;
+  background: rgba(108, 91, 255, 0.2);
+  margin: 16rpx auto 20rpx;
+}
+
+.popup-title {
+  display: block;
   text-align: center;
-  font-size: 31rpx;
-  font-weight: 700;
-  color: #7c2d12;
+  font-size: 30rpx;
+  font-weight: 800;
+  color: #1A1B3A;
   padding-bottom: 20rpx;
-  border-bottom: 1rpx solid rgba(146, 64, 14, 0.12);
+  border-bottom: 1rpx solid rgba(108, 91, 255, 0.12);
+  margin: 0 30rpx;
+  flex-shrink: 0;
 }
 
-.nf-popup-scroll { max-height: 50vh; }
+.popup-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
 
-.nf-area-item {
+.popup-cancel {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 84rpx;
+  margin: 16rpx 32rpx;
+  margin-bottom: calc(16rpx + env(safe-area-inset-bottom));
+  border-radius: 999rpx;
+  border: 1rpx solid rgba(108, 91, 255, 0.32);
+  background: #fff;
+  color: #6D5BFF;
+  font-size: 30rpx;
+  font-weight: 600;
+
+  &:active {
+    background: rgba(108, 91, 255, 0.08);
+  }
+}
+
+.area-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 26rpx 40rpx;
-  border-bottom: 1rpx solid rgba(146, 64, 14, 0.08);
+  border-bottom: 1rpx solid rgba(108, 91, 255, 0.08);
 
-  &:active { background: rgba(15, 118, 110, 0.1); }
+  &:active { background: rgba(108, 91, 255, 0.06); }
 }
 
-.nf-area-name { color: #334155; font-size: 28rpx; }
-.nf-area-code-val { color: #0f766e; font-size: 28rpx; font-weight: 700; }
+.area-name { color: #1A1B3A; font-size: 28rpx; }
+.area-code-val { color: #6D5BFF; font-size: 28rpx; font-weight: 700; }
 </style>

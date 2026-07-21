@@ -34,6 +34,10 @@
 
     <!-- 视频进度条 -->
     <view class="progress-section" v-if="videoInfo.duration > 0">
+      <view class="progress-time-row">
+        <text class="progress-current-time">{{ formatSeconds(currentTime) }}</text>
+        <text class="progress-total-time">{{ formatSeconds(videoInfo.duration) }}</text>
+      </view>
       <view class="progress-row">
         <slider 
           class="video-progress-slider" 
@@ -41,13 +45,12 @@
           :max="videoInfo.duration || 100" 
           :value="currentTime"
           :step="0.5"
-          activeColor="#0f766e"
+          activeColor="#6D5BFF"
           backgroundColor="rgba(148,163,184,0.24)"
           block-size="20"
           @change="onProgressChange"
           @changing="onProgressChanging"
         />
-        <text class="progress-total">{{ formatSeconds(videoInfo.duration) }}</text>
       </view>
     </view>
 
@@ -100,26 +103,36 @@
     <!-- 底部控制栏 -->
     <view class="bottom-controls">
       <view class="control-item" @click="toggleBilingual">
-        <text class="c-icon" :class="{ 'c-active': controls.showBilingual }">{{ controls.showBilingual ? '🇺🇳' : '🇬🇧' }}</text>
+        <view class="c-icon-circle" :class="{ 'c-circle-on': controls.showBilingual }">
+          <text class="c-icon">🌐</text>
+        </view>
         <text class="c-text" :class="{ 'c-text-active': controls.showBilingual }">{{ t('player.bilingual') }}</text>
       </view>
       
       <view class="control-item" @click="toggleRepeat">
-        <text class="c-icon" :class="{ 'c-active': repeatMode }">🔄</text>
+        <view class="c-icon-circle" :class="{ 'c-circle-on': repeatMode }">
+          <text class="c-icon">🔄</text>
+        </view>
         <text class="c-text" :class="{ 'c-text-active': repeatMode }">{{ t('player.repeat') }}</text>
       </view>
       
       <view class="control-item play-btn" @click="togglePlay">
-        <text class="c-icon">{{ showVideoLoading ? '⏳' : (isPlaying ? '⏸' : '▶') }}</text>
+        <view class="c-play-circle">
+          <text class="c-icon c-play-icon">{{ showVideoLoading ? '⏳' : (isPlaying ? '⏸' : '▶') }}</text>
+        </view>
       </view>
       
       <view class="control-item" @click="toggleSubtitles">
-        <text class="c-icon" :class="{ 'c-active': controls.showSubtitles }">💬</text>
+        <view class="c-icon-circle" :class="{ 'c-circle-on': controls.showSubtitles }">
+          <text class="c-icon">💬</text>
+        </view>
         <text class="c-text" :class="{ 'c-text-active': controls.showSubtitles }">{{ t('player.subtitle') }}</text>
       </view>
 
       <view class="control-item" @click="openMoreSheet">
-        <text class="c-icon" :class="{ 'c-active': controls.loop }">⋯</text>
+        <view class="c-icon-circle" :class="{ 'c-circle-on': controls.loop }">
+          <text class="c-icon">⚙</text>
+        </view>
         <text class="c-text">{{ tt('player.more', 'common.more') }}</text>
       </view>
     </view>
@@ -127,11 +140,15 @@
     <!-- 重点词汇查词弹窗 -->
     <uni-popup ref="wordPopup" type="bottom" background-color="#fff">
       <view class="word-detail-box" v-if="currentWord">
+        <view class="popup-handle"></view>
         <view class="w-header">
           <text class="w-title">{{ currentWord.word }}</text>
-          <text class="w-audio" @click="playWordAudio(currentWord.audioUs)">🔊</text>
+          <view class="w-audio-circle" @click="playWordAudio(currentWord.audioUs)">
+            <text class="w-audio-icon">🔊</text>
+          </view>
         </view>
         <text class="w-phonetic">{{ currentWord.phoneticUs }}</text>
+        <view class="w-divider"></view>
         <view class="w-exp">{{ localText(currentWord.explanation) }}</view>
         <button class="w-collect" @click="collectWord(currentWord.id)">⭐ {{ t('typing.collect') }}</button>
       </view>
@@ -139,6 +156,7 @@
 
     <uni-popup ref="morePopup" type="bottom" background-color="#fff">
       <view class="more-sheet">
+        <view class="popup-handle"></view>
         <view class="more-sheet-head">
           <text class="more-sheet-title">{{ tt('player.more_settings', 'player.more') }}</text>
           <text class="more-sheet-subtitle">{{ tt('player.more_settings_desc', 'player.loop_desc') }}</text>
@@ -160,17 +178,13 @@
             <text class="more-card-title">{{ t('player.speed') }}</text>
             <text class="more-card-desc">{{ tt('player.speed_desc', 'player.speed') }}</text>
           </view>
-          <view class="speed-trigger" @click="showSpeedPicker = !showSpeedPicker">
-            <text class="speed-current">{{ controls.speed }}x</text>
-            <text class="speed-arrow">{{ showSpeedPicker ? '▲' : '▼' }}</text>
-          </view>
         </view>
-        <view class="speed-options" v-if="showSpeedPicker">
+        <view class="speed-pills">
           <text 
             v-for="rate in speedRates" 
             :key="rate"
-            class="speed-opt"
-            :class="{ 'speed-opt-active': controls.speed === rate }"
+            class="speed-pill"
+            :class="{ 'speed-pill-active': controls.speed === rate }"
             @click="selectSpeed(rate)"
           >{{ rate }}x</text>
         </view>
@@ -978,7 +992,7 @@ const playWordAudio = (src) => {
 </script>
 
 <style scoped>
-.player-container { display: flex; flex-direction: column; height: 100vh; min-height: 100dvh; background: #1a1a1a; color: #fff;}
+.player-container { display: flex; flex-direction: column; height: 100vh; min-height: 100dvh; background: linear-gradient(180deg, #1A1B3A 0%, #2D2E5C 100%); color: #fff;}
 
 /* 视频区域 */
 .video-section { width: 100%; height: 420rpx; background: #000; flex-shrink: 0; position: relative; }
@@ -990,7 +1004,7 @@ const playWordAudio = (src) => {
   left: 0;
   width: 100%;
   height: 420rpx;
-  background: rgba(2, 6, 23, 0.66);
+  background: rgba(26, 27, 58, 0.66);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1007,7 +1021,7 @@ const playWordAudio = (src) => {
 }
 
 .video-loading-logo-fallback {
-  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
   color: #fff;
   display: flex;
   align-items: center;
@@ -1033,45 +1047,145 @@ const playWordAudio = (src) => {
 /* 外挂字幕区域 */
 .subtitle-section { flex: 1; overflow: hidden; position: relative; padding-bottom: calc(132rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
 .subtitle-padding-top, .subtitle-padding-bottom { height: 20rpx; }
-.sentence-row { padding: 20rpx 40rpx; margin-bottom: 20rpx; transition: all 0.3s; opacity: 0.6; }
-.sentence-row.is-active { opacity: 1; transform: scale(1.05); background: rgba(255,255,255,0.05); border-radius: 12rpx; border-left: 6rpx solid #409eff; }
-.sentence-row.is-focused { opacity: 1; border-left: 6rpx solid #facc15; box-shadow: 0 0 0 2rpx rgba(250, 204, 21, 0.35) inset; }
+.sentence-row { padding: 20rpx 40rpx; margin-bottom: 20rpx; transition: all 0.3s; opacity: 0.6; border-radius: 14rpx; background: rgba(108, 91, 255, 0.06); }
+.sentence-row.is-active { opacity: 1; transform: scale(1.05); background: rgba(108, 91, 255, 0.12); border-left: 6rpx solid #6D5BFF; box-shadow: 0 0 0 2rpx rgba(108, 91, 255, 0.28) inset; }
+.sentence-row.is-focused { opacity: 1; border-left: 6rpx solid #9B8FFF; box-shadow: 0 0 0 2rpx rgba(155, 143, 255, 0.35) inset; }
 
-.sentence-meta { display: flex; justify-content: space-between; margin-bottom: 10rpx; }
-.time-badge { font-size: 22rpx; color: #999; background: rgba(0,0,0,0.5); padding: 4rpx 10rpx; border-radius: 6rpx; }
-.collect-btn { font-size: 22rpx; color: #ff9800; cursor: pointer; }
+.sentence-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12rpx; }
+.time-badge { font-size: 20rpx; color: #9B8FFF; background: rgba(108, 91, 255, 0.14); padding: 4rpx 14rpx; border-radius: 999rpx; font-variant-numeric: tabular-nums; }
+.collect-btn { font-size: 20rpx; color: #9B8FFF; padding: 4rpx 16rpx; border-radius: 999rpx; border: 1rpx solid rgba(155, 143, 255, 0.3); background: rgba(155, 143, 255, 0.06); }
 
 /* 自主控制高亮词汇，绕过 rich-text 不能点击内部标签的缺陷 */
-.english-text { font-size: 34rpx; font-weight: 500; margin-bottom: 15rpx; line-height: 1.5; color: #ececec; }
-.highlight-word { color: #fed700; font-weight: bold; border-bottom: 1px dashed #fed700; display: inline-block; padding: 0 4rpx; margin: 0 4rpx; }
-.translated-text { font-size: 28rpx; color: #bbb; line-height: 1.4; }
+.english-text { font-size: 34rpx; font-weight: 500; margin-bottom: 0; line-height: 1.5; color: #ececec; }
+.highlight-word { color: #9B8FFF; font-weight: bold; border-bottom: 1px dashed #9B8FFF; display: inline-block; padding: 0 4rpx; margin: 0 4rpx; }
+.translated-text { font-size: 28rpx; color: #bbb; line-height: 1.5; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid rgba(108, 91, 255, 0.1); }
 
 /* 底部操作区 */
-.bottom-controls { height: 120rpx; background: #000; flex-shrink: 0; display: flex; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid #333; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; }
-.control-item { display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.c-icon { font-size: 40rpx; margin-bottom: 6rpx; filter: grayscale(1); }
-.c-active { filter: grayscale(0); text-shadow: 0 0 10rpx rgba(255,255,255,0.8); }
+.bottom-controls {
+  height: 132rpx;
+  background: rgba(26, 27, 58, 0.96);
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid rgba(108, 91, 255, 0.24);
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+}
+.control-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+}
+.c-icon-circle {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(108, 91, 255, 0.08);
+  border: 1rpx solid rgba(108, 91, 255, 0.16);
+  transition: all 0.2s;
+}
+.c-circle-on {
+  background: rgba(108, 91, 255, 0.24);
+  border-color: rgba(108, 91, 255, 0.5);
+  box-shadow: 0 0 12rpx rgba(155, 143, 255, 0.4);
+}
+.c-icon {
+  font-size: 32rpx;
+  filter: grayscale(0.6);
+  opacity: 0.7;
+}
+.c-circle-on .c-icon {
+  filter: grayscale(0);
+  opacity: 1;
+}
 .c-text { font-size: 20rpx; color: #888; }
-.c-text-active { color: #4ea2ff; }
-.play-btn .c-icon { font-size: 60rpx; filter: grayscale(0); color: #fff;}
+.c-text-active { color: #9B8FFF; font-weight: 600; }
+.play-btn { gap: 0; }
+.c-play-circle {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  box-shadow: 0 4rpx 20rpx rgba(108, 91, 255, 0.5);
+}
+.c-play-icon {
+  font-size: 44rpx;
+  filter: grayscale(0);
+  opacity: 1;
+  color: #fff;
+}
+
+/* 弹窗拖动条 */
+.popup-handle {
+  width: 64rpx;
+  height: 8rpx;
+  border-radius: 999rpx;
+  background: rgba(108, 91, 255, 0.2);
+  margin: 0 auto 28rpx auto;
+}
 
 /* 弹窗内容 */
-.word-detail-box { padding: 40rpx; display: flex; flex-direction: column; }
-.w-header { display: flex; align-items: center; justify-content: space-between; }
-.w-title { font-size: 48rpx; font-weight: bold; color: #333; }
-.w-audio { font-size: 40rpx; }
-.w-phonetic { font-size: 28rpx; color: #888; margin: 10rpx 0 30rpx 0; }
-.w-exp { font-size: 32rpx; color: #444; line-height: 1.6; margin-bottom: 40rpx; }
-.w-collect { background: #409eff; color: #fff; border-radius: 40rpx; }
-
-.more-sheet {
-  padding: 22rpx 24rpx;
-  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
-  background: #fff;
-  color: #111;
+.word-detail-box {
+  padding: 24rpx 40rpx 40rpx 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  background: #FFFFFF;
   border-top-left-radius: 28rpx;
   border-top-right-radius: 28rpx;
-  box-shadow: 0 -12rpx 30rpx rgba(15, 23, 42, 0.12);
+}
+.w-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8rpx; }
+.w-title { font-size: 48rpx; font-weight: 800; color: #1A1B3A; }
+.w-audio-circle {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(108, 91, 255, 0.12);
+  border: 1rpx solid rgba(108, 91, 255, 0.2);
+}
+.w-audio-icon { font-size: 36rpx; }
+.w-phonetic { font-size: 28rpx; color: #6B6F8D; margin: 4rpx 0 20rpx 0; }
+.w-divider { height: 1rpx; background: rgba(108, 91, 255, 0.16); margin-bottom: 24rpx; }
+.w-exp { font-size: 32rpx; color: #1A1B3A; line-height: 1.6; margin-bottom: 36rpx; }
+.w-collect {
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  margin: 0;
+  border: none;
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  color: #fff;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  box-shadow: 0 8rpx 24rpx rgba(108, 91, 255, 0.3);
+}
+
+.more-sheet {
+  padding: 24rpx 24rpx;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  background: #FFFFFF;
+  color: #1A1B3A;
+  border-top-left-radius: 28rpx;
+  border-top-right-radius: 28rpx;
+  box-shadow: 0 -12rpx 30rpx rgba(26, 27, 58, 0.12);
 }
 .more-sheet-head {
   margin-bottom: 16rpx;
@@ -1080,25 +1194,26 @@ const playWordAudio = (src) => {
 .more-sheet-title {
   display: block;
   font-size: 32rpx;
-  font-weight: 700;
-  color: #7c2d12;
+  font-weight: 800;
+  color: #1A1B3A;
 }
 
 .more-sheet-subtitle {
   display: block;
   margin-top: 6rpx;
   font-size: 22rpx;
-  color: #64748b;
+  color: #6B6F8D;
 }
 
 .more-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20rpx;
-  border: 1px solid rgba(15, 118, 110, 0.2);
-  border-radius: 16rpx;
-  background: rgba(255, 253, 248, 0.9);
+  padding: 24rpx;
+  border: 1rpx solid rgba(108, 91, 255, 0.16);
+  border-radius: 24rpx;
+  background: #FFFFFF;
+  box-shadow: 0 4rpx 16rpx rgba(108, 91, 255, 0.06);
 }
 
 .more-card-main {
@@ -1108,14 +1223,14 @@ const playWordAudio = (src) => {
 
 .more-card-title {
   font-size: 30rpx;
-  color: #334155;
+  color: #1A1B3A;
   font-weight: 700;
 }
 
 .more-card-desc {
   margin-top: 6rpx;
   font-size: 22rpx;
-  color: #64748b;
+  color: #6B6F8D;
 }
 
 .more-state-pill {
@@ -1123,8 +1238,8 @@ const playWordAudio = (src) => {
   height: 52rpx;
   padding: 0 18rpx;
   border-radius: 999rpx;
-  border: 1px solid rgba(148, 163, 184, 0.36);
-  color: #64748b;
+  border: 1rpx solid rgba(108, 91, 255, 0.16);
+  color: #6B6F8D;
   background: #fff;
   display: flex;
   align-items: center;
@@ -1134,89 +1249,62 @@ const playWordAudio = (src) => {
 }
 
 .more-state-pill.on {
-  color: #0f766e;
-  border-color: rgba(15, 118, 110, 0.4);
-  background: rgba(15, 118, 110, 0.12);
+  color: #6D5BFF;
+  border-color: rgba(108, 91, 255, 0.4);
+  background: rgba(108, 91, 255, 0.12);
 }
 
 .more-actions {
   display: flex;
+  flex-direction: column;
   gap: 14rpx;
-  margin-top: 18rpx;
+  margin-top: 24rpx;
 }
 
 .more-action-btn {
-  flex: 1;
-  height: 76rpx;
-  line-height: 76rpx;
+  width: 100%;
+  height: 84rpx;
+  line-height: 84rpx;
   margin: 0;
   border-radius: 999rpx;
-  font-size: 26rpx;
+  font-size: 28rpx;
   font-weight: 700;
   color: #fff;
-  background: linear-gradient(120deg, #0f766e 0%, #14b8a6 100%);
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  box-shadow: 0 6rpx 20rpx rgba(108, 91, 255, 0.25);
 }
 
 .more-action-btn.ghost {
-  color: #7c2d12;
+  color: #6D5BFF;
   background: #fff;
-  border: 1px solid rgba(146, 64, 14, 0.24);
-}
-
-.player-container {
-  background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
-}
-
-.sentence-row {
-  border-radius: 14rpx;
-  background: rgba(148, 163, 184, 0.08);
-}
-
-.sentence-row.is-active {
-  border-left: 6rpx solid #0f766e;
-  box-shadow: 0 0 0 2rpx rgba(15, 118, 110, 0.28) inset;
-}
-
-.time-badge {
-  background: rgba(15, 23, 42, 0.72);
-}
-
-.collect-btn { color: #fb923c; }
-
-.highlight-word {
-  color: #f59e0b;
-  border-bottom: 1px dashed #f59e0b;
-}
-
-.bottom-controls {
-  border-top: 1px solid rgba(148, 163, 184, 0.24);
-  background: rgba(2, 6, 23, 0.95);
-}
-
-.c-text-active { color: #2dd4bf; }
-
-.word-detail-box,
-.more-sheet {
-  background: #fffdf8;
-}
-
-.w-title { color: #7c2d12; }
-.w-exp { color: #334155; }
-
-.w-collect {
-  border-radius: 999rpx;
-  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
-}
-
-.more-card {
-  border-color: rgba(20, 184, 166, 0.24);
+  border: 1rpx solid rgba(108, 91, 255, 0.3);
 }
 
 /* 3.1.8 进度条 */
 .progress-section {
   flex-shrink: 0;
-  padding: 8rpx 32rpx 4rpx 32rpx;
-  background: rgba(2, 6, 23, 0.95);
+  padding: 8rpx 32rpx 8rpx 32rpx;
+  background: rgba(26, 27, 58, 0.95);
+}
+
+.progress-time-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rpx;
+}
+
+.progress-current-time {
+  font-size: 22rpx;
+  color: #9B8FFF;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-total-time {
+  font-size: 22rpx;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
 }
 
 .progress-row {
@@ -1230,15 +1318,6 @@ const playWordAudio = (src) => {
   margin: 0;
 }
 
-.progress-total {
-  font-size: 20rpx;
-  color: #94a3b8;
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
-  min-width: 72rpx;
-  text-align: right;
-}
-
 /* 3.1.4 手势滑动暂停提示 */
 .pause-hint-overlay {
   position: absolute;
@@ -1246,7 +1325,7 @@ const playWordAudio = (src) => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(2, 6, 23, 0.55);
+  background: rgba(26, 27, 58, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1256,7 +1335,7 @@ const playWordAudio = (src) => {
 .pause-hint-text {
   color: #fff;
   font-size: 28rpx;
-  background: rgba(15, 118, 110, 0.85);
+  background: rgba(108, 91, 255, 0.85);
   padding: 16rpx 36rpx;
   border-radius: 999rpx;
   letter-spacing: 2rpx;
@@ -1267,55 +1346,31 @@ const playWordAudio = (src) => {
   margin-top: 14rpx;
 }
 
-.speed-trigger {
+.speed-pills {
   display: flex;
-  align-items: center;
-  gap: 8rpx;
-  padding: 10rpx 22rpx;
-  border-radius: 999rpx;
-  border: 1px solid rgba(15, 118, 110, 0.45);
-  background: rgba(15, 118, 110, 0.08);
-  cursor: pointer;
-}
-
-.speed-current {
-  font-size: 26rpx;
-  font-weight: 700;
-  color: #0f766e;
-}
-
-.speed-arrow {
-  font-size: 18rpx;
-  color: #0f766e;
-}
-
-.speed-options {
-  display: flex;
+  flex-wrap: wrap;
   gap: 12rpx;
-  align-items: center;
-  margin-top: 12rpx;
-  padding: 12rpx 20rpx;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 14rpx;
-  background: rgba(255, 253, 248, 0.6);
+  margin-top: 14rpx;
 }
 
-.speed-opt {
+.speed-pill {
+  flex: 1;
   min-width: 80rpx;
-  height: 48rpx;
-  line-height: 48rpx;
+  height: 60rpx;
+  line-height: 60rpx;
   text-align: center;
   border-radius: 999rpx;
-  border: 1px solid rgba(148, 163, 184, 0.36);
+  border: 1rpx solid rgba(108, 91, 255, 0.16);
   font-size: 24rpx;
   font-weight: 600;
-  color: #64748b;
+  color: #6B6F8D;
   background: #fff;
 }
 
-.speed-opt-active {
-  color: #0f766e;
-  border-color: rgba(15, 118, 110, 0.55);
-  background: rgba(15, 118, 110, 0.12);
+.speed-pill-active {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  box-shadow: 0 4rpx 12rpx rgba(108, 91, 255, 0.3);
 }
 </style>

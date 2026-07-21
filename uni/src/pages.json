@@ -467,9 +467,9 @@
 		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "",
 		"navigationBarBackgroundColor": "#fff",
-		"backgroundColor": "#F8F8F8",
+		"backgroundColor": "#FFFFFF",
 		"app-plus": {
-			"background": "#efeff4"
+			"background": "#ffffff"
 		}
 	},
 	"easycom": {
@@ -479,8 +479,9 @@
 		}
 	},
 	"tabBar": {
-		"color": "#7E8796",
-		"selectedColor": "#2563EB",
+		"custom": true,
+		"color": "#A9AECB",
+		"selectedColor": "#6D5BFF",
 		"backgroundColor": "#ffffff",
 		"borderStyle": "black",
 		"list": [{

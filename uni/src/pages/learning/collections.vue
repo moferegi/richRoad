@@ -1,25 +1,38 @@
 <template>
   <view class="collection-container">
-    <view class="header-row">
-      <view class="back-btn" @click="goBack">‹</view>
-      <text class="header-title">{{ t('collection.title') }}</text>
-      <view class="header-gap"></view>
-    </view>
-
-    <view class="tab-row">
-      <view
-        v-for="tab in tabs"
-        :key="tab.type"
-        class="tab-item"
-        :class="{ active: targetType === tab.type }"
-        @click="switchType(tab.type)"
-      >
-        {{ t(tab.key) }}
+    <!-- 渐变 Hero 头部 -->
+    <view class="page-hero">
+      <view class="hero-decor-circle decor-1"></view>
+      <view class="hero-decor-circle decor-2"></view>
+      <view class="hero-content">
+        <view class="hero-back-btn" @click="goBack">
+          <text class="hero-back-icon">‹</text>
+        </view>
+        <text class="hero-title">{{ t('collection.title') }}</text>
+        <view class="hero-gap"></view>
       </view>
     </view>
 
+    <!-- Tab 胶囊选择器 -->
+    <scroll-view class="tab-scroll" scroll-x show-scrollbar="false">
+      <view class="tab-track">
+        <view
+          v-for="tab in tabs"
+          :key="tab.type"
+          class="tab-pill"
+          :class="{ active: targetType === tab.type }"
+          @click="switchType(tab.type)"
+        >
+          <text class="tab-pill-label">{{ t(tab.key) }}</text>
+        </view>
+      </view>
+    </scroll-view>
+
     <scroll-view class="list-scroll" scroll-y>
       <view v-if="!loading && collectionList.length === 0" class="empty-wrap">
+        <view class="empty-icon">
+          <text class="empty-icon-text">★</text>
+        </view>
         <text class="empty-text">{{ t('collection.empty') }}</text>
       </view>
 
@@ -40,6 +53,9 @@
             :src="getExternalUrl(item.video?.coverUrl || '')"
             mode="aspectFill"
           />
+          <view v-else class="type-icon-circle">
+            <text class="type-icon-char">{{ item.targetType === 1 ? 'W' : 'S' }}</text>
+          </view>
           <view class="text-wrap">
             <text class="title-text">{{ getTitle(item) }}</text>
             <text class="desc-text">{{ getDesc(item) }}</text>
@@ -224,6 +240,8 @@ const goBack = () => {
 
 const openDetail = (item) => {
   if (item.targetType === 1) {
+    // switchTab 不支持传参，通过 storage 传递 wordId 给 typing 页
+    uni.setStorageSync('typing-pending-word-id', Number(item.targetId || 0))
     uni.switchTab({ url: '/pages/learning/typing' })
     return
   }
@@ -277,105 +295,193 @@ onShow(() => {
 <style scoped>
 .collection-container {
   min-height: 100vh;
-  background: #f5f7fb;
-  padding: 20rpx;
-  box-sizing: border-box;
+  background: #F5F3FF;
+  overflow-x: hidden;
 }
 
-.header-row {
+/* === 渐变 Hero 头部 === */
+.page-hero {
+  position: relative;
+  overflow: hidden;
+  padding: calc(var(--status-bar-height, 0px) + 36rpx) 32rpx 48rpx;
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  border-radius: 0 0 36rpx 36rpx;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.hero-decor-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.decor-1 {
+  width: 240rpx;
+  height: 240rpx;
+  top: -80rpx;
+  right: -40rpx;
+}
+
+.decor-2 {
+  width: 160rpx;
+  height: 160rpx;
+  bottom: -60rpx;
+  left: 200rpx;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20rpx;
 }
 
-.back-btn {
+.hero-back-btn {
   width: 64rpx;
   height: 64rpx;
-  border-radius: 32rpx;
-  background: #ffffff;
-  color: #111827;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.hero-back-btn:active {
+  transform: scale(0.92);
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.hero-back-icon {
+  color: #fff;
   font-size: 44rpx;
   line-height: 1;
 }
 
-.header-title {
-  font-size: 34rpx;
-  color: #111827;
-  font-weight: 700;
+.hero-title {
+  font-size: 36rpx;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.5rpx;
 }
 
-.header-gap {
+.hero-gap {
   width: 64rpx;
   height: 64rpx;
 }
 
-.tab-row {
-  display: flex;
+/* === Tab 胶囊选择器 === */
+.tab-scroll {
+  white-space: nowrap;
+  padding: 16rpx 24rpx;
+}
+
+.tab-track {
+  display: inline-flex;
+  gap: 16rpx;
+  padding: 4rpx 0;
+}
+
+.tab-pill {
+  display: inline-flex;
   align-items: center;
-  background: #ffffff;
-  border-radius: 16rpx;
-  padding: 10rpx;
-  margin-bottom: 20rpx;
+  justify-content: center;
+  padding: 12rpx 32rpx;
+  border-radius: 999rpx;
+  background: #fff;
+  border: 1rpx solid rgba(108, 91, 255, 0.16);
+  box-shadow: 0 2rpx 8rpx rgba(108, 91, 255, 0.06);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.tab-item {
-  flex: 1;
-  text-align: center;
-  padding: 14rpx 8rpx;
-  color: #6b7280;
+.tab-pill-label {
   font-size: 26rpx;
-  border-radius: 12rpx;
+  color: #6B6F8D;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
-.tab-item.active {
-  background: #2563eb;
-  color: #ffffff;
-  font-weight: 600;
+.tab-pill.active {
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  border-color: transparent;
+  box-shadow: 0 4rpx 16rpx rgba(108, 91, 255, 0.36);
 }
 
+.tab-pill.active .tab-pill-label {
+  color: #fff;
+  font-weight: 700;
+}
+
+.tab-pill:active {
+  transform: scale(0.96);
+}
+
+/* === 列表 === */
 .list-scroll {
-  height: calc(100vh - 160rpx);
+  height: calc(100vh - 280rpx);
+  padding: 0 24rpx;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .empty-wrap {
   padding: 120rpx 0;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.empty-icon {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: rgba(108, 91, 255, 0.1);
+  border: 1rpx solid rgba(108, 91, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-icon-text {
+  font-size: 40rpx;
+  color: #6D5BFF;
 }
 
 .empty-text {
-  color: #9ca3af;
+  color: #A9AECB;
   font-size: 28rpx;
 }
 
 .collection-card {
-  background: #ffffff;
-  border-radius: 16rpx;
-  padding: 20rpx;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 24rpx;
   margin-bottom: 16rpx;
-  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.05);
+  border: 1rpx solid rgba(108, 91, 255, 0.16);
+  box-shadow: 0 8rpx 24rpx rgba(108, 91, 255, 0.08);
 }
 
 .card-head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
   margin-bottom: 14rpx;
 }
 
 .type-tag {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: rgba(108, 91, 255, 0.12);
+  color: #6D5BFF;
   font-size: 22rpx;
-  padding: 6rpx 12rpx;
-  border-radius: 10rpx;
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  font-weight: 600;
 }
 
 .time-text {
-  color: #9ca3af;
+  color: #A9AECB;
   font-size: 22rpx;
 }
 
@@ -388,9 +494,27 @@ onShow(() => {
 .video-cover {
   width: 160rpx;
   height: 96rpx;
-  border-radius: 12rpx;
-  background: #e5e7eb;
+  border-radius: 16rpx;
+  background: #EDE9FE;
   flex-shrink: 0;
+}
+
+.type-icon-circle {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: rgba(108, 91, 255, 0.1);
+  border: 1rpx solid rgba(108, 91, 255, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.type-icon-char {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #6D5BFF;
 }
 
 .text-wrap {
@@ -401,7 +525,7 @@ onShow(() => {
 
 .title-text {
   font-size: 30rpx;
-  color: #111827;
+  color: #1A1B3A;
   font-weight: 600;
   line-height: 1.4;
 }
@@ -409,7 +533,7 @@ onShow(() => {
 .desc-text {
   margin-top: 8rpx;
   font-size: 24rpx;
-  color: #6b7280;
+  color: #6B6F8D;
   line-height: 1.5;
 }
 
@@ -420,63 +544,31 @@ onShow(() => {
 }
 
 .remove-btn {
-  background: #fef2f2;
-  color: #dc2626;
-  border: 1rpx solid #fecaca;
+  background: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+  border: 1rpx solid rgba(239, 68, 68, 0.22);
   font-size: 24rpx;
-  border-radius: 10rpx;
+  border-radius: 999rpx;
+  font-weight: 600;
+}
+
+.remove-btn:active {
+  transform: scale(0.95);
 }
 
 .load-more {
   text-align: center;
-  color: #9ca3af;
+  color: #A9AECB;
   font-size: 24rpx;
   padding: 20rpx 0 40rpx;
 }
 
 .load-more-btn {
-  border: 1rpx solid rgba(20, 184, 166, 0.28);
-  color: #0f766e;
-  background: #fffdf8;
+  border: 1rpx solid rgba(108, 91, 255, 0.3);
+  color: #6D5BFF;
+  background: #FFFFFF;
   border-radius: 999rpx;
   padding: 0 28rpx;
+  font-weight: 600;
 }
-
-.collection-container {
-  background: linear-gradient(180deg, #f8f4e7 0%, #f4efe1 100%);
-}
-
-.back-btn {
-  border-radius: 18rpx;
-  border: 1rpx solid rgba(20, 184, 166, 0.22);
-  background: #fffdf8;
-  color: #7c2d12;
-}
-
-.header-title { color: #7c2d12; }
-
-.tab-row,
-.collection-card {
-  background: rgba(255, 253, 248, 0.96);
-  border: 1rpx solid rgba(20, 184, 166, 0.18);
-}
-
-.tab-item.active {
-  background: linear-gradient(120deg, #0f766e 0%, #f97316 100%);
-}
-
-.type-tag {
-  background: rgba(15, 118, 110, 0.14);
-  color: #0f766e;
-}
-
-.title-text { color: #1e293b; }
-.desc-text, .time-text { color: #64748b; }
-
-.remove-btn {
-  background: rgba(220, 38, 38, 0.1);
-  border: 1rpx solid rgba(220, 38, 38, 0.22);
-}
-
-.load-more, .empty-text { color: #94a3b8; }
 </style>
