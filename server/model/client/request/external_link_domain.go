@@ -37,6 +37,8 @@ type CloudFileItem struct {
 	Size         int64  `json:"size"`
 	LastModified string `json:"lastModified"`
 	IsDir        bool   `json:"isDir"`
+	DirFileCount int64  `json:"dirFileCount,omitempty"` // 仅 IsDir=true 时有效：目录下文件数（近似）
+	DirSize      int64  `json:"dirSize,omitempty"`      // 仅 IsDir=true 时有效：目录下文件总大小（近似）
 }
 
 // CloudListFilesResp 云存储文件列表响应
@@ -75,4 +77,41 @@ type CloudCompareFile struct {
 type CloudCompareResp struct {
 	ReferenceName string              `json:"referenceName"`
 	Targets       []CloudCompareTarget `json:"targets"`
+}
+
+// CloudDeleteFilesReq 批量删除云存储文件请求
+type CloudDeleteFilesReq struct {
+	ID       uint     `json:"id" binding:"required"`
+	Keys     []string `json:"keys" binding:"required"`
+	Password string   `json:"password" binding:"required"` // 日期密码，格式：YYYYMMDD
+}
+
+// CloudDeleteFilesResp 批量删除云存储文件响应
+type CloudDeleteFilesResp struct {
+	DeletedCount int      `json:"deletedCount"`
+	FailedKeys   []string `json:"failedKeys,omitempty"`
+}
+
+// SearchCloudFilesReq 全局搜索云存储文件请求
+type SearchCloudFilesReq struct {
+	ID      uint   `json:"id" form:"id" binding:"required"`
+	Keyword string `json:"keyword" form:"keyword" binding:"required"`
+	MaxKeys int    `json:"maxKeys" form:"maxKeys"`
+}
+
+// SearchCloudFilesResp 全局搜索云存储文件响应
+type SearchCloudFilesResp struct {
+	Files       []CloudFileItem `json:"files"`
+	IsTruncated bool            `json:"isTruncated"`
+}
+
+// DownloadCloudFileReq 获取文件下载链接请求
+type DownloadCloudFileReq struct {
+	ID  uint   `json:"id" form:"id" binding:"required"`
+	Key string `json:"key" form:"key" binding:"required"`
+}
+
+// DownloadCloudFileResp 获取文件下载链接响应
+type DownloadCloudFileResp struct {
+	DownloadURL string `json:"downloadUrl"`
 }

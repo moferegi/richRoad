@@ -5,6 +5,7 @@ import (
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	systemMiddleware "github.com/flipped-aurora/gin-vue-admin/server/middleware"
+	"github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/api"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/initialize"
 	learningMiddleware "github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/middleware"
 	englishRouter "github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/router"
@@ -25,6 +26,9 @@ func init() {
 func (p *plugin) Register(engine *gin.Engine) {
 	ctx := context.Background()
 	initialize.Gorm(ctx)
+
+	// 公开路由：HLS密钥端点（无需JWT认证，token自带认证）
+	engine.GET(global.GVA_CONFIG.System.RouterPrefix+"/hlsKey", api.ServeHlsKey)
 
 	group := engine.Group(global.GVA_CONFIG.System.RouterPrefix).Group("englishLearning")
 	group.Use(systemMiddleware.Locale(), systemMiddleware.JWTAuth(), learningMiddleware.LearningAuth())

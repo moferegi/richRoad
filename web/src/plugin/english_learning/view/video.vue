@@ -423,8 +423,53 @@
             :use-tabs="true"
           />
         </el-form-item>
-        <el-form-item label="视频地址">
+        <el-form-item label="切片模式">
+          <el-switch
+            v-model="hlsMode"
+            active-text="HLS切片"
+            inactive-text="普通上传"
+            @change="onHlsModeChange"
+          />
+          <span v-if="hlsMode && ffmpegChecking" style="margin-left:12px;color:#409eff;">
+            ⏳ 正在检测 FFmpeg...
+          </span>
+          <el-tag v-else-if="hlsMode && ffmpegReady" type="success" style="margin-left:12px;">FFmpeg 就绪</el-tag>
+          <el-tag v-else-if="hlsMode && !ffmpegReady" type="danger" style="margin-left:12px;">FFmpeg 不可用</el-tag>
+        </el-form-item>
+        <el-form-item v-if="!hlsMode" label="视频地址">
           <FileUploadWithDir v-model="episodeForm.videoUrl" :default-folder="episodeUploadFolder" accept="video/*" />
+        </el-form-item>
+        <el-form-item v-else label="HLS切片">
+          <div class="hls-folder-bar">
+            <span class="hls-folder-label">切片目录：</span>
+            <el-input
+              v-model="hlsFolder"
+              size="small"
+              class="hls-folder-input"
+              placeholder="如 didi，留空自动生成"
+              clearable
+            />
+          </div>
+          <div class="hls-folder-bar" style="margin-top: 8px;">
+            <span class="hls-folder-label">视频文件：</span>
+            <input
+              ref="hlsFileInput"
+              type="file"
+              accept="video/*"
+              style="flex:1;"
+              @change="onHlsFileChange"
+            />
+            <el-button
+              type="primary"
+              style="margin-left: 8px;"
+              :loading="hlsSlicing"
+              :disabled="!ffmpegReady || !hlsFile"
+              @click="onHlsSliceClick"
+            >
+              {{ hlsSlicing ? '正在切片上传...' : '开始切片' }}
+            </el-button>
+          </div>
+          <div v-if="hlsProgress" style="margin-top:8px;color:#409eff;">{{ hlsProgress }}</div>
         </el-form-item>
         <el-form-item label="试看比例(%)">
           <el-input-number v-model="episodeForm.trialPercent" :min="1" :max="100" />
@@ -435,7 +480,7 @@
       </el-form>
       <template #footer>
         <el-button @click="episodeDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitEpisode">确定</el-button>
+        <el-button type="primary" @click="submitEpisode" :loading="hlsSlicing">确定</el-button>
       </template>
     </el-dialog>
 
@@ -609,7 +654,9 @@
     updateVideoSentenceList,
     updateVideoCategory,
     updateVideoEpisode,
-    updateVideoSeries
+    updateVideoSeries,
+    checkFfmpeg,
+    sliceVideoEpisode
   } from '../api/english'
 
   defineOptions({
@@ -773,6 +820,16 @@
     trialPercent: 8,
     sort: 0
   })
+
+  // HLS 切片相关
+  const hlsMode = ref(false)
+  const ffmpegReady = ref(false)
+  const ffmpegChecking = ref(false)
+  const hlsSlicing = ref(false)
+  const hlsProgress = ref('')
+  const hlsFolder = ref('')
+  const hlsFile = ref(null)
+  const hlsFileInput = ref(null)
 
   const subtitleForm = ref({
     episodeId: undefined,
@@ -1209,12 +1266,112 @@
       trialPercent: Number(row?.trialPercent || 8),
       sort: Number(row?.sort || 0)
     }
+    // Reset HLS state
+    hlsMode.value = false
+    ffmpegReady.value = false
+    ffmpegChecking.value = false
+    hlsSlicing.value = false
+    hlsProgress.value = ''
+    hlsFolder.value = episodeUploadFolder.value
+    hlsFile.value = null
+    if (hlsFileInput.value) {
+      hlsFileInput.value.value = ''
+    }
+    // If editing an m3u8 episode, auto-enable HLS mode
+    if (row?.videoType === 'm3u8') {
+      hlsMode.value = true
+      onHlsModeChange(true)
+    }
     episodeDialogVisible.value = true
+  }
+
+  const onHlsModeChange = async (value) => {
+    if (!value) {
+      ffmpegReady.value = false
+      ffmpegChecking.value = false
+      hlsProgress.value = ''
+      return
+    }
+    ffmpegChecking.value = true
+    ffmpegReady.value = false
+    try {
+      const res = await checkFfmpeg()
+      if (res.code === 0 && res.data?.available) {
+        ffmpegReady.value = true
+      } else {
+        ffmpegReady.value = false
+        ElMessage.warning('FFmpeg 不可用，无法使用 HLS 切片功能')
+      }
+    } catch (e) {
+      ffmpegReady.value = false
+      ElMessage.warning('FFmpeg 检测失败，请确认服务端已安装 FFmpeg')
+    } finally {
+      ffmpegChecking.value = false
+    }
+  }
+
+  const onHlsFileChange = (e) => {
+    hlsFile.value = e.target.files[0] || null
+  }
+
+  const onHlsSliceClick = async () => {
+    if (!hlsFile.value) {
+      ElMessage.warning('请选择视频文件')
+      return
+    }
+    if (!episodeForm.value.seriesId) {
+      ElMessage.warning('请先选择所属剧集')
+      return
+    }
+    if (!formatI18nText(stringifyI18nObject(episodeForm.value.nameI18n))) {
+      ElMessage.warning('单集名称不能为空')
+      return
+    }
+
+    hlsSlicing.value = true
+    hlsProgress.value = '正在切片上传中，请稍候（大视频可能需要几分钟）...'
+
+    const formData = new FormData()
+    formData.append('file', hlsFile.value)
+    formData.append('seriesId', episodeForm.value.seriesId)
+    formData.append('name', stringifyI18nObject(episodeForm.value.nameI18n))
+    formData.append('trialPercent', episodeForm.value.trialPercent)
+    formData.append('sort', episodeForm.value.sort)
+    if (hlsFolder.value) {
+      formData.append('folder', hlsFolder.value)
+    }
+    if (episodeForm.value.ID > 0) {
+      formData.append('episodeId', episodeForm.value.ID)
+    }
+
+    try {
+      const res = await sliceVideoEpisode(formData)
+      if (res.code !== 0) {
+        ElMessage.error('HLS 切片失败: ' + (res.msg || '未知错误'))
+        return
+      }
+      ElMessage.success(res.msg || 'HLS 切片上传成功')
+      if (res.data?.videoUrl) {
+        episodeForm.value.videoUrl = res.data.videoUrl
+      }
+      episodeDialogVisible.value = false
+      await Promise.all([loadEpisodeList(), loadEpisodeOptions()])
+    } catch (e) {
+      ElMessage.error('HLS 切片请求失败，请检查网络或服务端状态')
+    } finally {
+      hlsSlicing.value = false
+      hlsProgress.value = ''
+    }
   }
 
   const submitEpisode = async () => {
     if (!episodeForm.value.seriesId) {
       ElMessage.warning('请选择所属剧集')
+      return
+    }
+    // In HLS mode, require video to be sliced first
+    if (hlsMode.value && !String(episodeForm.value.videoUrl || '').trim()) {
+      ElMessage.warning('请先选择视频文件进行切片上传')
       return
     }
     if (!String(episodeForm.value.videoUrl || '').trim()) {
@@ -1721,5 +1878,22 @@
     margin-bottom: 10px;
     display: flex;
     gap: 8px;
+  }
+
+  .hls-folder-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 13px;
+  }
+
+  .hls-folder-label {
+    white-space: nowrap;
+    color: #909399;
+  }
+
+  .hls-folder-input {
+    width: 280px;
   }
 </style>

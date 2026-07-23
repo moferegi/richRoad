@@ -40,5 +40,8 @@ func (s *ContentRouter) InitContentRouter(Router *gin.RouterGroup) {
 		contentRouter.DELETE("deleteVideoEpisode", contentApi.DeleteVideoEpisode)
 		contentRouter.GET("findVideoEpisode", contentApi.FindVideoEpisode)
 		contentRouter.GET("getVideoEpisodeList", contentApi.GetVideoEpisodeList)
+
+		contentRouter.GET("checkFfmpeg", contentApi.CheckFfmpeg)
+		contentRouter.POST("sliceVideoEpisode", contentApi.SliceVideoEpisode)
 	}
 }

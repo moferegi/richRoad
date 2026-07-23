@@ -245,6 +245,9 @@ hotlink:
     cdn-domain: https://video.mnmovie.icu
     sign-key: a7K2xP9mL4vQ8nR5sT6uV7wX8yZ9aB0c1D2eF3gH4iJ5kL6mN7oP8qR9sT0uV1wX
     expire-seconds: 300
+# HLS 切片配置
+hls:
+    global-key: "afd8bb7a938245a4b975a92841e7fc7c"  # AES-128加密密钥(16字节hex)，留空则不加密；生成方式: openssl rand -hex 16
 tencent-cos:
     bucket: xxxxx-10005608
     region: ap-shanghai

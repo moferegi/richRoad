@@ -25,6 +25,11 @@ func (s *ExternalLinkDomainRouter) InitExternalLinkDomainRouter(Router *gin.Rout
 		extDomainRouterWithoutRecord.GET("listCloudFiles", extDomainApi.ListCloudFiles)                       // 列出云存储文件
 		extDomainRouterWithoutRecord.GET("compareDirectories", extDomainApi.CompareDirectories)               // 多云目录比对
 		extDomainRouter.POST("pingCloud", extDomainApi.PingCloud)                                              // 检测云存储连接
+		extDomainRouter.POST("deleteCloudFiles", extDomainApi.DeleteCloudFiles)                               // 批量删除云存储文件
+		extDomainRouter.POST("uploadCloudFile", extDomainApi.UploadCloudFile)                                 // 上传文件到云存储
+		extDomainRouterWithoutRecord.GET("searchCloudFiles", extDomainApi.SearchCloudFiles)                     // 全局搜索云存储文件
+		extDomainRouterWithoutRecord.GET("getFileDownloadURL", extDomainApi.GetFileDownloadURL)                 // 获取文件下载链接
+		extDomainRouterWithoutRecord.GET("downloadCloudFolder", extDomainApi.DownloadCloudFolder)               // 打包下载目录
 	}
 	{
 		extDomainPublicRouter.GET("getDefaultDomain", extDomainApi.GetDefaultDomain) // 获取默认域名（公开）

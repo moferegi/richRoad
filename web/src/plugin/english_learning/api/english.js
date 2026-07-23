@@ -254,6 +254,23 @@ export const getVideoEpisodeList = (params) => {
   })
 }
 
+// HLS 切片相关
+export const checkFfmpeg = () => {
+  return service({
+    url: '/englishLearning/content/checkFfmpeg',
+    method: 'get'
+  })
+}
+
+export const sliceVideoEpisode = (formData) => {
+  return service({
+    url: '/englishLearning/content/sliceVideoEpisode',
+    method: 'post',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
 // 提交字幕进行高亮解析并入库
 export const parseSubtitle = (data) => {
   return service({

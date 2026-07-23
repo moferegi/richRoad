@@ -1,12 +1,14 @@
 package client
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net/http"
 	"strings"
 	"time"
 
@@ -178,10 +180,13 @@ func (s *CloudStorageService) listQiniuFiles(domain client.ExternalLinkDomain, r
 		}
 
 		for _, cp := range result.commonPrefixes {
+			count, size := s.getDirStatsQiniu(bucketManager, bucket, cp)
 			resp.Files = append(resp.Files, clientReq.CloudFileItem{
-				Key:   cp,
-				Size:  0,
-				IsDir: true,
+				Key:          cp,
+				Size:         0,
+				IsDir:        true,
+				DirFileCount: count,
+				DirSize:      size,
 			})
 		}
 
@@ -336,12 +341,16 @@ func (s *CloudStorageService) ListCloudFiles(req clientReq.CloudListFilesReq) (*
 	}
 
 	// 公共前缀（目录）
-	for _, prefix := range result.CommonPrefixes {
+	for _, cp := range result.CommonPrefixes {
+		dirPrefix := aws.StringValue(cp.Prefix)
+		count, size := s.getDirStatsS3(s3Client, bucket, dirPrefix)
 		resp.Files = append(resp.Files, clientReq.CloudFileItem{
-			Key:          aws.StringValue(prefix.Prefix),
+			Key:          dirPrefix,
 			Size:         0,
 			LastModified: "",
 			IsDir:        true,
+			DirFileCount: count,
+			DirSize:      size,
 		})
 	}
 
@@ -699,4 +708,564 @@ func (s *CloudStorageService) uploadToQiniu(domain client.ExternalLinkDomain, fi
 
 	// 返回相对路径
 	return ret.Key, ret.Key, nil
+}
+
+// UploadBytesToCloud 将字节数据直接上传到指定云存储
+// key 为完整的对象键（含文件夹前缀），如 "hls/123/index.m3u8"
+// 返回 uploadedKey（与 key 一致）和可能的错误
+func (s *CloudStorageService) UploadBytesToCloud(domain client.ExternalLinkDomain, data []byte, key string, contentType string) (string, error) {
+	cloudType := strings.TrimSpace(domain.CloudType)
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	if cloudType == "qiniu" {
+		return s.uploadBytesToQiniu(domain, data, key, contentType)
+	}
+
+	return s.uploadBytesToS3(domain, data, key, contentType)
+}
+
+func (s *CloudStorageService) uploadBytesToS3(domain client.ExternalLinkDomain, data []byte, key string, contentType string) (string, error) {
+	s3Client, err := s.buildS3Client(domain)
+	if err != nil {
+		return "", err
+	}
+
+	bodyReader := bytes.NewReader(data)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	_, uploadErr := s3Client.PutObjectWithContext(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(strings.TrimSpace(domain.Bucket)),
+		Key:         aws.String(key),
+		Body:        bodyReader,
+		ContentType: aws.String(contentType),
+	})
+
+	if uploadErr != nil {
+		global.GVA_LOG.Error("上传字节到S3云存储失败",
+			zap.String("key", key),
+			zap.Error(uploadErr))
+		return "", fmt.Errorf("上传S3失败: %w", uploadErr)
+	}
+
+	return key, nil
+}
+
+func (s *CloudStorageService) uploadBytesToQiniu(domain client.ExternalLinkDomain, data []byte, key string, contentType string) (string, error) {
+	accessKey := strings.TrimSpace(domain.AccessKey)
+	secretKey := strings.TrimSpace(domain.SecretKey)
+	bucket := strings.TrimSpace(domain.Bucket)
+
+	if accessKey == "" || secretKey == "" {
+		return "", errors.New("七牛云密钥未配置")
+	}
+	if bucket == "" {
+		return "", errors.New("七牛云Bucket未配置")
+	}
+
+	putPolicy := qiniuStorage.PutPolicy{Scope: bucket}
+	mac := qbox.NewMac(accessKey, secretKey)
+	upToken := putPolicy.UploadToken(mac)
+	cfg := qiniuConfigForDomain(domain)
+	formUploader := qiniuStorage.NewFormUploader(cfg)
+	ret := qiniuStorage.PutRet{}
+
+	bodyReader := bytes.NewReader(data)
+	putErr := formUploader.Put(context.Background(), &ret, upToken, key, bodyReader, int64(len(data)), &qiniuStorage.PutExtra{})
+	if putErr != nil {
+		global.GVA_LOG.Error("上传字节到七牛云失败", zap.Error(putErr))
+		return "", errors.New("上传七牛云失败: " + putErr.Error())
+	}
+
+	return ret.Key, nil
+}
+
+// DeleteCloudFiles 批量删除云存储文件
+func (s *CloudStorageService) DeleteCloudFiles(req clientReq.CloudDeleteFilesReq) (*clientReq.CloudDeleteFilesResp, error) {
+	// 校验日期密码
+	today := time.Now().Format("20060102")
+	if req.Password != today {
+		return nil, errors.New("密码错误：请输入当天日期（YYYYMMDD格式，如" + today + "）")
+	}
+
+	if len(req.Keys) == 0 {
+		return nil, errors.New("未指定要删除的文件")
+	}
+
+	domain, err := s.getCloudConfigByID(req.ID)
+	if err != nil {
+		return nil, fmt.Errorf("域名不存在: %w", err)
+	}
+
+	cloudType := strings.TrimSpace(domain.CloudType)
+
+	if cloudType == "qiniu" {
+		return s.deleteQiniuFiles(domain, req.Keys)
+	}
+
+	return s.deleteS3Files(domain, req.Keys)
+}
+
+func (s *CloudStorageService) deleteS3Files(domain client.ExternalLinkDomain, keys []string) (*clientReq.CloudDeleteFilesResp, error) {
+	s3Client, err := s.buildS3Client(domain)
+	if err != nil {
+		return nil, err
+	}
+
+	bucket := strings.TrimSpace(domain.Bucket)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	resp := &clientReq.CloudDeleteFilesResp{}
+	var failedKeys []string
+
+	for _, key := range keys {
+		_, delErr := s3Client.DeleteObjectWithContext(ctx, &s3.DeleteObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(key),
+		})
+		if delErr != nil {
+			global.GVA_LOG.Warn("删除S3文件失败",
+				zap.String("key", key),
+				zap.Error(delErr))
+			failedKeys = append(failedKeys, key)
+		} else {
+			resp.DeletedCount++
+		}
+	}
+
+	resp.FailedKeys = failedKeys
+	return resp, nil
+}
+
+func (s *CloudStorageService) deleteQiniuFiles(domain client.ExternalLinkDomain, keys []string) (*clientReq.CloudDeleteFilesResp, error) {
+	accessKey := strings.TrimSpace(domain.AccessKey)
+	secretKey := strings.TrimSpace(domain.SecretKey)
+	bucket := strings.TrimSpace(domain.Bucket)
+
+	mac := qbox.NewMac(accessKey, secretKey)
+	cfg := qiniuConfigForDomain(domain)
+	bucketManager := qiniuStorage.NewBucketManager(mac, cfg)
+
+	resp := &clientReq.CloudDeleteFilesResp{}
+	var failedKeys []string
+
+	for _, key := range keys {
+		delErr := bucketManager.Delete(bucket, key)
+		if delErr != nil {
+			global.GVA_LOG.Warn("删除七牛云文件失败",
+				zap.String("key", key),
+				zap.Error(delErr))
+			failedKeys = append(failedKeys, key)
+		} else {
+			resp.DeletedCount++
+		}
+	}
+
+	resp.FailedKeys = failedKeys
+	return resp, nil
+}
+
+// UploadFileToCloudByID 根据域名ID上传文件到云存储
+func (s *CloudStorageService) UploadFileToCloudByID(id uint, file *multipart.FileHeader, folder string) (string, string, error) {
+	domain, err := s.getCloudConfigByID(id)
+	if err != nil {
+		return "", "", fmt.Errorf("域名不存在: %w", err)
+	}
+	return s.UploadFileToCloud(domain, file, folder)
+}
+
+// ==================== 目录大小统计 ====================
+
+// getDirStatsS3 统计 S3 兼容云某目录下的文件数和总大小（近似，最多取1000个）
+func (s *CloudStorageService) getDirStatsS3(s3Client *s3.S3, bucket, dirPrefix string) (fileCount, totalSize int64) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	input := &s3.ListObjectsV2Input{
+		Bucket:  aws.String(bucket),
+		Prefix:  aws.String(dirPrefix),
+		MaxKeys: aws.Int64(1000),
+	}
+
+	result, err := s3Client.ListObjectsV2WithContext(ctx, input)
+	if err != nil {
+		global.GVA_LOG.Warn("获取目录统计失败", zap.String("prefix", dirPrefix), zap.Error(err))
+		return 0, 0
+	}
+
+	for _, obj := range result.Contents {
+		key := aws.StringValue(obj.Key)
+		if key == dirPrefix {
+			continue
+		}
+		fileCount++
+		totalSize += aws.Int64Value(obj.Size)
+	}
+	return
+}
+
+// getDirStatsQiniu 统计七牛云某目录下的文件数和总大小
+func (s *CloudStorageService) getDirStatsQiniu(bucketManager *qiniuStorage.BucketManager, bucket, dirPrefix string) (fileCount, totalSize int64) {
+	entries, _, _, _, err := bucketManager.ListFiles(bucket, dirPrefix, "", "", 1000)
+	if err != nil {
+		global.GVA_LOG.Warn("获取七牛目录统计失败", zap.String("prefix", dirPrefix), zap.Error(err))
+		return 0, 0
+	}
+
+	for _, entry := range entries {
+		if entry.Key == dirPrefix {
+			continue
+		}
+		fileCount++
+		totalSize += entry.Fsize
+	}
+	return
+}
+
+// ==================== 全局搜索 ====================
+
+// SearchCloudFiles 全局搜索云存储文件（按文件名关键词）
+func (s *CloudStorageService) SearchCloudFiles(req clientReq.SearchCloudFilesReq) (*clientReq.SearchCloudFilesResp, error) {
+	domain, err := s.getCloudConfigByID(req.ID)
+	if err != nil {
+		return nil, fmt.Errorf("域名不存在: %w", err)
+	}
+
+	cloudType := strings.TrimSpace(domain.CloudType)
+	if cloudType == "qiniu" {
+		return s.searchQiniuFiles(domain, req)
+	}
+	return s.searchS3Files(domain, req)
+}
+
+func (s *CloudStorageService) searchS3Files(domain client.ExternalLinkDomain, req clientReq.SearchCloudFilesReq) (*clientReq.SearchCloudFilesResp, error) {
+	s3Client, err := s.buildS3Client(domain)
+	if err != nil {
+		return nil, err
+	}
+
+	bucket := strings.TrimSpace(domain.Bucket)
+	keyword := strings.ToLower(strings.TrimSpace(req.Keyword))
+	maxKeys := int64(req.MaxKeys)
+	if maxKeys <= 0 || maxKeys > 500 {
+		maxKeys = 100
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	resp := &clientReq.SearchCloudFilesResp{}
+	var matched []clientReq.CloudFileItem
+
+	input := &s3.ListObjectsV2Input{
+		Bucket:  aws.String(bucket),
+		MaxKeys: aws.Int64(1000),
+	}
+
+	err = s3Client.ListObjectsV2PagesWithContext(ctx, input,
+		func(page *s3.ListObjectsV2Output, lastPage bool) bool {
+			for _, obj := range page.Contents {
+				key := aws.StringValue(obj.Key)
+				if strings.HasSuffix(key, "/") {
+					continue
+				}
+				if !strings.Contains(strings.ToLower(key), keyword) {
+					continue
+				}
+				lastMod := ""
+				if obj.LastModified != nil {
+					lastMod = obj.LastModified.Format("2006-01-02 15:04:05")
+				}
+				matched = append(matched, clientReq.CloudFileItem{
+					Key:          key,
+					Size:         aws.Int64Value(obj.Size),
+					LastModified: lastMod,
+					IsDir:        false,
+				})
+				if int64(len(matched)) >= maxKeys {
+					return false
+				}
+			}
+			return int64(len(matched)) < maxKeys
+		})
+
+	resp.Files = matched
+	if int64(len(matched)) >= maxKeys {
+		resp.IsTruncated = true
+	}
+
+	return resp, err
+}
+
+func (s *CloudStorageService) searchQiniuFiles(domain client.ExternalLinkDomain, req clientReq.SearchCloudFilesReq) (*clientReq.SearchCloudFilesResp, error) {
+	accessKey := strings.TrimSpace(domain.AccessKey)
+	secretKey := strings.TrimSpace(domain.SecretKey)
+	bucket := strings.TrimSpace(domain.Bucket)
+
+	mac := qbox.NewMac(accessKey, secretKey)
+	cfg := qiniuConfigForDomain(domain)
+	bucketManager := qiniuStorage.NewBucketManager(mac, cfg)
+
+	keyword := strings.ToLower(strings.TrimSpace(req.Keyword))
+	maxKeys := req.MaxKeys
+	if maxKeys <= 0 || maxKeys > 500 {
+		maxKeys = 100
+	}
+
+	resp := &clientReq.SearchCloudFilesResp{}
+	var matched []clientReq.CloudFileItem
+	marker := ""
+
+	for len(matched) < maxKeys {
+		entries, _, nextMarker, hasNext, err := bucketManager.ListFiles(bucket, "", "", marker, 1000)
+		if err != nil {
+			return nil, fmt.Errorf("搜索七牛文件失败: %w", err)
+		}
+
+		for _, entry := range entries {
+			if strings.HasSuffix(entry.Key, "/") {
+				continue
+			}
+			if !strings.Contains(strings.ToLower(entry.Key), keyword) {
+				continue
+			}
+			lastMod := time.Unix(entry.PutTime/10000000, 0).Format("2006-01-02 15:04:05")
+			matched = append(matched, clientReq.CloudFileItem{
+				Key:          entry.Key,
+				Size:         entry.Fsize,
+				LastModified: lastMod,
+				IsDir:        false,
+			})
+			if len(matched) >= maxKeys {
+				break
+			}
+		}
+
+		if !hasNext || len(matched) >= maxKeys {
+			break
+		}
+		marker = nextMarker
+	}
+
+	resp.Files = matched
+	if len(matched) >= maxKeys {
+		resp.IsTruncated = true
+	}
+
+	return resp, nil
+}
+
+// ==================== 下载功能 ====================
+
+// GetFileDownloadURL 获取文件签名下载链接
+func (s *CloudStorageService) GetFileDownloadURL(req clientReq.DownloadCloudFileReq) (*clientReq.DownloadCloudFileResp, error) {
+	domain, err := s.getCloudConfigByID(req.ID)
+	if err != nil {
+		return nil, fmt.Errorf("域名不存在: %w", err)
+	}
+
+	cloudType := strings.TrimSpace(domain.CloudType)
+	key := req.Key
+
+	if cloudType == "qiniu" {
+		return s.getQiniuDownloadURL(domain, key)
+	}
+	return s.getS3DownloadURL(domain, key)
+}
+
+func (s *CloudStorageService) getS3DownloadURL(domain client.ExternalLinkDomain, key string) (*clientReq.DownloadCloudFileResp, error) {
+	s3Client, err := s.buildS3Client(domain)
+	if err != nil {
+		return nil, err
+	}
+
+	bucket := strings.TrimSpace(domain.Bucket)
+
+	req, _ := s3Client.GetObjectRequest(&s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+
+	// 签名有效期 10 分钟
+	url, err := req.Presign(10 * time.Minute)
+	if err != nil {
+		return nil, fmt.Errorf("生成签名URL失败: %w", err)
+	}
+
+	return &clientReq.DownloadCloudFileResp{DownloadURL: url}, nil
+}
+
+func (s *CloudStorageService) getQiniuDownloadURL(domain client.ExternalLinkDomain, key string) (*clientReq.DownloadCloudFileResp, error) {
+	accessKey := strings.TrimSpace(domain.AccessKey)
+	secretKey := strings.TrimSpace(domain.SecretKey)
+
+	mac := qbox.NewMac(accessKey, secretKey)
+
+	// 七牛：拼接域名 + key，如配置了域名则用域名，否则用默认
+	baseURL := strings.TrimSpace(domain.Domain)
+	if baseURL == "" {
+		baseURL = strings.TrimSpace(domain.BaseURL)
+	}
+	if baseURL == "" {
+		return nil, fmt.Errorf("七牛云未配置可访问域名")
+	}
+	baseURL = strings.TrimRight(baseURL, "/")
+
+	deadline := time.Now().Add(10 * time.Minute).Unix()
+	url := qiniuStorage.MakePrivateURL(mac, baseURL, key, deadline)
+
+	return &clientReq.DownloadCloudFileResp{DownloadURL: url}, nil
+}
+
+// ZipCloudFolder 将云存储目录打包为 zip 流
+// 返回 zip 读取器、建议文件名、错误
+func (s *CloudStorageService) ZipCloudFolder(domain client.ExternalLinkDomain, prefix string) (io.ReadCloser, string, error) {
+	cloudType := strings.TrimSpace(domain.CloudType)
+
+	// 获取目录下所有文件的 key 和内容读取方法
+	type fileRef struct {
+		key  string
+		size int64
+	}
+
+	var files []fileRef
+
+	if cloudType == "qiniu" {
+		list, err := s.listAllQiniuFiles(domain, prefix)
+		if err != nil {
+			return nil, "", err
+		}
+		for k, sz := range list {
+			files = append(files, fileRef{key: k, size: sz})
+		}
+	} else {
+		s3Client, err := s.buildS3Client(domain)
+		if err != nil {
+			return nil, "", err
+		}
+		bucket := strings.TrimSpace(domain.Bucket)
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+
+		input := &s3.ListObjectsV2Input{
+			Bucket:  aws.String(bucket),
+			Prefix:  aws.String(prefix),
+			MaxKeys: aws.Int64(1000),
+		}
+
+		err = s3Client.ListObjectsV2PagesWithContext(ctx, input,
+			func(page *s3.ListObjectsV2Output, lastPage bool) bool {
+				for _, obj := range page.Contents {
+					key := aws.StringValue(obj.Key)
+					if strings.HasSuffix(key, "/") || key == prefix {
+						continue
+					}
+					files = append(files, fileRef{key: key, size: aws.Int64Value(obj.Size)})
+					if len(files) >= 1000 {
+						return false
+					}
+				}
+				return len(files) < 1000
+			})
+		if err != nil {
+			return nil, "", fmt.Errorf("列出目录文件失败: %w", err)
+		}
+	}
+
+	if len(files) == 0 {
+		return nil, "", errors.New("目录为空")
+	}
+
+	// 确定 zip 文件名
+	folderName := strings.TrimRight(prefix, "/")
+	if idx := strings.LastIndex(folderName, "/"); idx >= 0 {
+		folderName = folderName[idx+1:]
+	}
+	if folderName == "" {
+		folderName = "root"
+	}
+	zipFileName := folderName + ".zip"
+
+	// 创建管道
+	pr, pw := io.Pipe()
+
+	go func() {
+		defer pw.Close()
+		zw := zip.NewWriter(pw)
+		defer zw.Close()
+
+		for _, f := range files {
+			var content io.Reader
+
+			if cloudType == "qiniu" {
+				// 七牛云需要通过公开URL或签名URL下载
+				accessKey := strings.TrimSpace(domain.AccessKey)
+				secretKey := strings.TrimSpace(domain.SecretKey)
+				mac := qbox.NewMac(accessKey, secretKey)
+				baseURL := strings.TrimSpace(domain.Domain)
+				if baseURL == "" {
+					baseURL = strings.TrimSpace(domain.BaseURL)
+				}
+				baseURL = strings.TrimRight(baseURL, "/")
+				deadline := time.Now().Add(10 * time.Minute).Unix()
+				url := qiniuStorage.MakePrivateURL(mac, baseURL, f.key, deadline)
+				
+				httpClient := &http.Client{Timeout: 30 * time.Second}
+				resp, httpErr := httpClient.Get(url)
+				if httpErr != nil {
+					global.GVA_LOG.Warn("zip下载七牛文件失败", zap.String("key", f.key), zap.Error(httpErr))
+					continue
+				}
+				defer resp.Body.Close()
+				content = resp.Body
+			} else {
+				s3Client, err := s.buildS3Client(domain)
+				if err != nil {
+					global.GVA_LOG.Warn("zip连接S3失败", zap.Error(err))
+					continue
+				}
+				bucket := strings.TrimSpace(domain.Bucket)
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				out, err := s3Client.GetObjectWithContext(ctx, &s3.GetObjectInput{
+					Bucket: aws.String(bucket),
+					Key:    aws.String(f.key),
+				})
+				cancel()
+				if err != nil {
+					global.GVA_LOG.Warn("zip下载S3文件失败", zap.String("key", f.key), zap.Error(err))
+					continue
+				}
+				content = out.Body
+				defer out.Body.Close()
+			}
+
+			// zip 内的相对路径（去掉前缀目录）
+			innerPath := strings.TrimPrefix(f.key, prefix)
+
+			w, err := zw.Create(innerPath)
+			if err != nil {
+				global.GVA_LOG.Warn("zip创建条目失败", zap.String("key", f.key), zap.Error(err))
+				continue
+			}
+
+			_, copyErr := io.Copy(w, content)
+			if copyErr != nil {
+				global.GVA_LOG.Warn("zip写入文件失败", zap.String("key", f.key), zap.Error(copyErr))
+			}
+		}
+	}()
+
+	return pr, zipFileName, nil
+}
+
+// ZipCloudFolderByID 根据域名ID打包目录为 zip
+func (s *CloudStorageService) ZipCloudFolderByID(id uint, prefix string) (io.ReadCloser, string, error) {
+	domain, err := s.getCloudConfigByID(id)
+	if err != nil {
+		return nil, "", fmt.Errorf("域名不存在: %w", err)
+	}
+	return s.ZipCloudFolder(domain, prefix)
 }

@@ -226,7 +226,13 @@
     </el-dialog>
 
     <!-- 文件浏览器弹窗 -->
-    <el-dialog v-model="fileBrowserVisible" :title="`文件浏览器 - ${fileBrowserName}`" width="900px" @opened="loadFileBrowserData">
+    <el-dialog v-model="fileBrowserVisible" :title="`文件浏览器 - ${fileBrowserName}`" width="90%" top="3vh" @opened="loadFileBrowserData" @closed="closeFileBrowser">
+      <!-- 当前路径 -->
+      <div class="file-browser-path">
+        <span class="path-label">当前路径：</span>
+        <span class="path-value">{{ fileBrowserCurrentPrefix || '/' }}</span>
+      </div>
+
       <div class="file-browser-toolbar">
         <el-breadcrumb separator="/" class="file-breadcrumb">
           <el-breadcrumb-item>
@@ -240,10 +246,33 @@
             </el-button>
           </el-breadcrumb-item>
         </el-breadcrumb>
-        <el-button type="primary" size="small" @click="loadFileBrowserData" style="margin-left:auto">刷新</el-button>
+        <div class="file-browser-actions">
+          <el-input v-model="searchKeyword" placeholder="全局搜索文件名..." size="small" clearable style="width:220px" @keyup.enter="handleSearch" />
+          <el-button type="primary" size="small" :loading="searchLoading" @click="handleSearch">
+            <el-icon><Search /></el-icon> 搜索
+          </el-button>
+          <el-button v-if="isSearchResult" size="small" @click="clearSearch">返回目录</el-button>
+          <el-upload
+            :show-file-list="false"
+            :http-request="handleFileUpload"
+            accept="*"
+          >
+            <el-button type="success" size="small">上传文件</el-button>
+          </el-upload>
+          <el-button type="danger" size="small" :disabled="selectedFileKeys.length === 0" @click="handleBatchDelete">
+            删除选中 ({{ selectedFileKeys.length }})
+          </el-button>
+          <el-button type="primary" size="small" @click="loadFileBrowserData">刷新</el-button>
+        </div>
       </div>
-      <el-table :data="fileBrowserList" border max-height="460">
-        <el-table-column label="文件名/目录" min-width="420">
+      <el-table
+        :data="filteredFileList"
+        border
+        max-height="460"
+        @selection-change="handleFileSelectionChange"
+      >
+        <el-table-column type="selection" width="45" :selectable="onlyFileSelectable" />
+        <el-table-column label="文件名/目录" min-width="320">
           <template #default="scope">
             <template v-if="scope.row.isDir">
               <el-button type="primary" link @click="navigateDir(scope.row.key)">
@@ -253,14 +282,28 @@
             <span v-else>{{ scope.row.displayName }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="大小" width="120" align="right">
+        <el-table-column label="大小" width="160" align="right">
           <template #default="scope">
-            {{ scope.row.isDir ? '-' : formatFileSize(scope.row.size) }}
+            <template v-if="scope.row.isDir">
+              <span v-if="scope.row.dirFileCount">{{ scope.row.dirFileCount }} 文件 / {{ formatFileSize(scope.row.dirSize) }}</span>
+              <span v-else>-</span>
+            </template>
+            <span v-else>{{ formatFileSize(scope.row.size) }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="lastModified" label="修改时间" width="180" />
+        <el-table-column label="操作" width="80" align="center" fixed="right">
+          <template #default="scope">
+            <el-button type="primary" link size="small" @click="handleDownloadItem(scope.row)">
+              <el-icon><Download /></el-icon>
+            </el-button>
+          </template>
+        </el-table-column>
       </el-table>
-      <div v-if="fileBrowserTruncated" style="margin-top:8px;color:#999">文件较多，仅展示部分。进入子目录以获得更精确结果。</div>
+      <div v-if="isSearchResult" style="margin-top:8px;color:#909399">
+        搜索结果，共 {{ searchResultList.length }} 个匹配文件
+      </div>
+      <div v-else-if="fileBrowserTruncated" style="margin-top:8px;color:#999">文件较多，仅展示部分。进入子目录以获得更精确结果。</div>
     </el-dialog>
 
     <!-- 目录比对弹窗 -->
@@ -355,10 +398,15 @@ import {
   setDefaultDomain,
   pingCloud,
   listCloudFiles,
-  compareDirectories
+  compareDirectories,
+  deleteCloudFiles,
+  uploadCloudFile,
+  searchCloudFiles,
+  getFileDownloadURL,
+  getCloudFolderDownloadURL
 } from '@/api/client/externalLinkDomain'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Folder } from '@element-plus/icons-vue'
+import { Folder, Search, Download } from '@element-plus/icons-vue'
 
 const searchInfo = ref({
   page: 1,
@@ -411,6 +459,11 @@ const fileBrowserPrefix = ref('')
 const fileBrowserList = ref([])
 const fileBrowserTruncated = ref(false)
 const fileBrowserCurrentPrefix = ref('')
+const searchKeyword = ref('')
+const searchLoading = ref(false)
+const isSearchResult = ref(false)
+const searchResultList = ref([])
+const selectedFileKeys = ref([])
 
 // 面包屑
 const breadcrumbParts = computed(() => {
@@ -424,6 +477,13 @@ const breadcrumbParts = computed(() => {
   }
   return result
 })
+
+const filteredFileList = computed(() => {
+  if (isSearchResult.value) return searchResultList.value
+  return fileBrowserList.value
+})
+
+const onlyFileSelectable = (row) => !row.isDir
 
 // 目录比对
 const compareVisible = ref(false)
@@ -529,7 +589,18 @@ const openFileBrowser = (row) => {
   fileBrowserName.value = row.name
   fileBrowserPrefix.value = ''
   fileBrowserList.value = []
+  searchKeyword.value = ''
+  searchLoading.value = false
+  isSearchResult.value = false
+  searchResultList.value = []
+  selectedFileKeys.value = []
   fileBrowserVisible.value = true
+}
+
+const closeFileBrowser = () => {
+  searchKeyword.value = ''
+  isSearchResult.value = false
+  searchResultList.value = []
 }
 
 const loadFileBrowserData = async () => {
@@ -554,7 +625,162 @@ const loadFileBrowserData = async () => {
 
 const navigateDir = (prefix) => {
   fileBrowserPrefix.value = prefix
+  searchKeyword.value = ''
+  isSearchResult.value = false
+  searchResultList.value = []
+  selectedFileKeys.value = []
   loadFileBrowserData()
+}
+
+const handleFileSelectionChange = (selection) => {
+  selectedFileKeys.value = selection.map(item => item.key)
+}
+
+const filterFileList = () => {
+  // 已被 handleSearch 替代
+}
+
+const handleSearch = async () => {
+  const kw = searchKeyword.value.trim()
+  if (!kw) {
+    ElMessage.warning('请输入搜索关键词')
+    return
+  }
+  searchLoading.value = true
+  try {
+    const res = await searchCloudFiles({
+      id: fileBrowserId.value,
+      keyword: kw,
+      maxKeys: 300
+    })
+    if (res.code === 0) {
+      const prefix = fileBrowserCurrentPrefix.value || ''
+      searchResultList.value = (res.data?.files || []).map(item => ({
+        ...item,
+        displayName: item.key.replace(prefix, '')
+      }))
+      isSearchResult.value = true
+      if (res.data?.isTruncated) {
+        ElMessage.info('搜索结果过多，仅展示前 ' + searchResultList.value.length + ' 条')
+      } else {
+        ElMessage.success(`找到 ${searchResultList.value.length} 个文件`)
+      }
+    }
+  } catch (e) {
+    ElMessage.error('搜索失败: ' + (e.message || '未知错误'))
+  } finally {
+    searchLoading.value = false
+  }
+}
+
+const clearSearch = () => {
+  searchKeyword.value = ''
+  isSearchResult.value = false
+  searchResultList.value = []
+  selectedFileKeys.value = []
+  loadFileBrowserData()
+}
+
+const handleDownloadItem = async (row) => {
+  if (row.isDir) {
+    // 目录：直接拼接下载URL打开
+    const url = getCloudFolderDownloadURL({
+      id: fileBrowserId.value,
+      prefix: row.key
+    })
+    window.open(url, '_blank')
+    return
+  }
+
+  // 单个文件：获取签名URL后打开
+  try {
+    const res = await getFileDownloadURL({
+      id: fileBrowserId.value,
+      key: row.key
+    })
+    if (res.code === 0 && res.data?.downloadUrl) {
+      window.open(res.data.downloadUrl, '_blank')
+    }
+  } catch (e) {
+    ElMessage.error('获取下载链接失败: ' + (e.message || '未知错误'))
+  }
+}
+
+const handleFileUpload = async (uploadFile) => {
+  const formData = new FormData()
+  formData.append('file', uploadFile.file)
+  formData.append('id', String(fileBrowserId.value))
+  formData.append('folder', fileBrowserCurrentPrefix.value || '')
+
+  try {
+    const res = await uploadCloudFile(formData)
+    if (res.code === 0) {
+      ElMessage.success('上传成功')
+      loadFileBrowserData()
+    }
+  } catch (e) {
+    ElMessage.error('上传失败: ' + (e.message || '未知错误'))
+  }
+}
+
+const handleBatchDelete = async () => {
+  if (selectedFileKeys.value.length === 0) {
+    ElMessage.warning('请先选择要删除的文件')
+    return
+  }
+
+  const today = getTodayStr()
+  let password = ''
+  try {
+    const result = await ElMessageBox.prompt(
+      `确定要删除选中的 ${selectedFileKeys.value.length} 个文件吗？请输入当天日期密码`,
+      '确认删除',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        inputPlaceholder: '例如：' + today,
+        inputValidator: (val) => {
+          if (!val || !/^\d{8}$/.test(val)) {
+            return '密码格式不正确，请输入8位日期数字'
+          }
+          return true
+        }
+      }
+    )
+    password = result?.value || ''
+  } catch {
+    return // 用户取消
+  }
+
+  try {
+    const res = await deleteCloudFiles({
+      id: fileBrowserId.value,
+      keys: selectedFileKeys.value,
+      password
+    })
+    if (res.code === 0) {
+      const data = res.data
+      const msg = `成功删除 ${data.deletedCount} 个文件`
+      if (data.failedKeys && data.failedKeys.length > 0) {
+        ElMessage.warning(msg + `，${data.failedKeys.length} 个失败`)
+      } else {
+        ElMessage.success(msg)
+      }
+      selectedFileKeys.value = []
+      loadFileBrowserData()
+    }
+  } catch (e) {
+    ElMessage.error('删除失败: ' + (e.message || '未知错误'))
+  }
+}
+
+const getTodayStr = () => {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}${m}${day}`
 }
 
 const formatFileSize = (bytes) => {
@@ -617,6 +843,25 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.file-browser-path {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: #f5f7fa;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.file-browser-path .path-label {
+  color: #909399;
+  margin-right: 6px;
+  white-space: nowrap;
+}
+.file-browser-path .path-value {
+  color: #303133;
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+}
 .file-browser-toolbar {
   display: flex;
   align-items: center;
@@ -627,5 +872,11 @@ onMounted(() => {
 .file-breadcrumb {
   flex: 1;
   min-width: 0;
+}
+.file-browser-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 </style>

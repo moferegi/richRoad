@@ -30,12 +30,14 @@ type VideoSeries struct {
 // VideoEpisode 视频具体单集 (播放实体)
 type VideoEpisode struct {
 	global.GVA_MODEL
-	SeriesID     uint   `json:"seriesId" gorm:"index;comment:所属剧集ID"`
-	Name         string `json:"name" gorm:"type:json;comment:单集名称(支持多语言)"`
-	VideoUrl     string `json:"videoUrl" gorm:"type:text;comment:外部视频链接"`
-	TrialPercent int    `json:"trialPercent" gorm:"default:8;comment:无权限时最大可试看百分比(默认8%)"`
-	HasFullAuth  bool   `json:"hasFullAuth" gorm:"-"`
-	Sort         int    `json:"sort" gorm:"default:0;comment:集数排序(第几集)"`
+	SeriesID     uint    `json:"seriesId" gorm:"index;comment:所属剧集ID"`
+	Name         string  `json:"name" gorm:"type:json;comment:单集名称(支持多语言)"`
+	VideoUrl     string  `json:"videoUrl" gorm:"type:text;comment:外部视频链接"`
+	Duration     float64 `json:"duration" gorm:"default:0;comment:视频时长(秒)"`
+	VideoType    string  `json:"videoType" gorm:"size:16;default:mp4;comment:视频类型(mp4/m3u8)"`
+	TrialPercent int     `json:"trialPercent" gorm:"default:8;comment:无权限时最大可试看百分比(默认8%)"`
+	HasFullAuth  bool    `json:"hasFullAuth" gorm:"-"`
+	Sort         int     `json:"sort" gorm:"default:0;comment:集数排序(第几集)"`
 }
 
 // VideoSubtitle 视频外部字幕挂载配置

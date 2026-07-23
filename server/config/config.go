@@ -31,6 +31,9 @@ type Server struct {
 	// 防盗链
 	Hotlink Hotlink `mapstructure:"hotlink" json:"hotlink" yaml:"hotlink"`
 
+	// HLS 切片配置
+	Hls Hls `mapstructure:"hls" json:"hls" yaml:"hls"`
+
 	Excel Excel `mapstructure:"excel" json:"excel" yaml:"excel"`
 
 	DiskList []DiskList `mapstructure:"disk-list" json:"disk-list" yaml:"disk-list"`

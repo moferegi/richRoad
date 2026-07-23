@@ -1,6 +1,11 @@
 package client
 
 import (
+	"fmt"
+	"io"
+	"strconv"
+	"strings"
+
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
@@ -224,4 +229,151 @@ func (a *ExternalLinkDomainApi) CompareDirectories(c *gin.Context) {
 		return
 	}
 	response.OkWithData(result, c)
+}
+
+// DeleteCloudFiles 批量删除云存储文件
+// @Tags ExternalLinkDomain
+// @Summary 批量删除云存储文件
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data body request.CloudDeleteFilesReq true "删除参数（含日期密码）"
+// @Success 200 {object} response.Response{data=request.CloudDeleteFilesResp,msg=string} "删除结果"
+// @Router /extDomain/deleteCloudFiles [post]
+func (a *ExternalLinkDomainApi) DeleteCloudFiles(c *gin.Context) {
+	var req request.CloudDeleteFilesReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		return
+	}
+	result, err := cloudStorageService.DeleteCloudFiles(req)
+	if err != nil {
+		global.GVA_LOG.Error("删除文件失败!", zap.Error(err))
+		response.FailWithMessage("删除失败: "+err.Error(), c)
+		return
+	}
+	response.OkWithData(result, c)
+}
+
+// UploadCloudFile 上传文件到指定云存储
+// @Tags ExternalLinkDomain
+// @Summary 上传文件到指定云存储
+// @Security ApiKeyAuth
+// @accept multipart/form-data
+// @Produce application/json
+// @Param id formData int true "域名ID"
+// @Param file formData file true "文件"
+// @Param folder formData string false "上传目录"
+// @Success 200 {object} response.Response{data=object,msg=string} "上传成功"
+// @Router /extDomain/uploadCloudFile [post]
+func (a *ExternalLinkDomainApi) UploadCloudFile(c *gin.Context) {
+	idStr := c.DefaultPostForm("id", "0")
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id <= 0 {
+		response.FailWithMessage("无效的域名ID", c)
+		return
+	}
+
+	folder := strings.TrimSpace(c.DefaultPostForm("folder", ""))
+
+	_, header, err := c.Request.FormFile("file")
+	if err != nil {
+		global.GVA_LOG.Error("接收文件失败!", zap.Error(err))
+		response.FailWithMessage("接收文件失败", c)
+		return
+	}
+
+	filePath, _, err := cloudStorageService.UploadFileToCloudByID(uint(id), header, folder)
+	if err != nil {
+		global.GVA_LOG.Error("上传文件失败!", zap.Error(err))
+		response.FailWithMessage("上传失败: "+err.Error(), c)
+		return
+	}
+
+	response.OkWithData(map[string]string{"url": filePath, "key": filePath}, c)
+}
+
+// SearchCloudFiles 全局搜索云存储文件
+// @Tags ExternalLinkDomain
+// @Summary 全局搜索云存储文件
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data query request.SearchCloudFilesReq true "搜索参数"
+// @Success 200 {object} response.Response{data=request.SearchCloudFilesResp,msg=string} "搜索结果"
+// @Router /extDomain/searchCloudFiles [get]
+func (a *ExternalLinkDomainApi) SearchCloudFiles(c *gin.Context) {
+	var req request.SearchCloudFilesReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		return
+	}
+	result, err := cloudStorageService.SearchCloudFiles(req)
+	if err != nil {
+		global.GVA_LOG.Error("搜索文件失败!", zap.Error(err))
+		response.FailWithMessage("搜索失败: "+err.Error(), c)
+		return
+	}
+	response.OkWithData(result, c)
+}
+
+// GetFileDownloadURL 获取文件下载链接
+// @Tags ExternalLinkDomain
+// @Summary 获取文件下载链接
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data query request.DownloadCloudFileReq true "下载参数"
+// @Success 200 {object} response.Response{data=request.DownloadCloudFileResp,msg=string} "下载链接"
+// @Router /extDomain/getFileDownloadURL [get]
+func (a *ExternalLinkDomainApi) GetFileDownloadURL(c *gin.Context) {
+	var req request.DownloadCloudFileReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		return
+	}
+	result, err := cloudStorageService.GetFileDownloadURL(req)
+	if err != nil {
+		global.GVA_LOG.Error("获取下载链接失败!", zap.Error(err))
+		response.FailWithMessage("获取下载链接失败: "+err.Error(), c)
+		return
+	}
+	response.OkWithData(result, c)
+}
+
+// DownloadCloudFolder 下载目录为 zip
+// @Tags ExternalLinkDomain
+// @Summary 下载目录为 zip
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/octet-stream
+// @Param id query int true "域名ID"
+// @Param prefix query string true "目录前缀"
+// @Success 200 {file} binary "zip文件"
+// @Router /extDomain/downloadCloudFolder [get]
+func (a *ExternalLinkDomainApi) DownloadCloudFolder(c *gin.Context) {
+	idStr := c.Query("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id <= 0 {
+		response.FailWithMessage("无效的域名ID", c)
+		return
+	}
+	prefix := strings.TrimSpace(c.Query("prefix"))
+
+	reader, filename, err := cloudStorageService.ZipCloudFolderByID(uint(id), prefix)
+	if err != nil {
+		global.GVA_LOG.Error("打包目录失败!", zap.Error(err))
+		response.FailWithMessage("打包失败: "+err.Error(), c)
+		return
+	}
+	defer reader.Close()
+
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	c.Header("Content-Type", "application/zip")
+	c.Status(200)
+
+	_, copyErr := io.Copy(c.Writer, reader)
+	if copyErr != nil {
+		global.GVA_LOG.Error("传输zip文件失败", zap.Error(copyErr))
+	}
 }

@@ -5,7 +5,7 @@
       <video 
         id="englishVideo" 
         class="main-video" 
-        :src="videoInfo.videoUrl" 
+        :src="videoSrc" 
         :autoplay="true"
         :show-center-play-btn="!showVideoLoading"
         :loop="controls.loop"
@@ -199,13 +199,16 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { t as i18nT, localText as i18nLocalText } from '@/utils/i18n.js'
 import { getExternalUrl } from '@/utils/url.js'
 import { collect, findVideoEpisode, findWord, getCollectionList, getSentenceList, getWatchProgress, heartbeat, uncollect } from '@/api/learning.js'
+// #ifdef H5
+import Hls from 'hls.js'
+// #endif
 
 const langStore = useLangStore()
 const appConfigStore = useAppConfigStore()
@@ -239,6 +242,20 @@ const formatSeconds = (secs) => {
 }
 
 let videoCtx = null
+
+// hls.js 实例（仅 H5 端，用于 .m3u8 播放；mp4 走原生 video）
+// #ifdef H5
+let hlsInstance = null
+let nativeVideoEl = null
+// #endif
+
+const isHlsUrl = (url) => /\.m3u8(\?|$)/i.test(url || '')
+
+const videoSrc = computed(() => {
+  const url = videoInfo.value.videoUrl || ''
+  // m3u8 也设 src：Safari（iOS/macOS）原生 HLS 需要它；Chrome 端 hls.js 会通过 MediaSource 接管
+  return url
+})
 let audioCtx = null
 const isPlaying = ref(false)
 const isVideoReady = ref(false)
@@ -290,20 +307,48 @@ const speedRates = [0.75, 1.0, 1.25, 1.5, 2.0]
 let isProgressDragging = false
 const showSpeedPicker = ref(false)
 let lastRepeatSeekTime = 0
+let loadingTimeoutTimer = null
+
+const clearLoadingTimeout = () => {
+  if (loadingTimeoutTimer) {
+    clearTimeout(loadingTimeoutTimer)
+    loadingTimeoutTimer = null
+  }
+}
+
+const startLoadingTimeout = () => {
+  clearLoadingTimeout()
+  loadingTimeoutTimer = setTimeout(() => {
+    if (isVideoBuffering.value && !isVideoReady.value) {
+      console.warn('[player] 加载超时（8秒），清除等待状态')
+      isVideoBuffering.value = false
+    }
+  }, 8000)
+}
 
 onMounted(() => {
   videoCtx = uni.createVideoContext('englishVideo')
+  // #ifdef H5
+  nativeVideoEl = document.getElementById('englishVideo')
+  // #endif
   appConfigStore.loadConfig({ force: true, localeOnly: true })
-  isVideoBuffering.value = true
+  // isVideoBuffering 由 initPage() 设置，此处不重复置 true（避免覆盖 canplay 事件的结果）
   isVideoReady.value = false
   if (pendingSeekTime.value > 0) {
     videoCtx.seek(pendingSeekTime.value)
     pendingSeekTime.value = 0
   }
+  // #ifdef H5
+  initHlsIfNeeded()
+  // #endif
 })
 
 onUnmounted(() => {
   flushHeartbeat(lastHeartbeatTime, true)
+  clearLoadingTimeout()
+  // #ifdef H5
+  destroyHls()
+  // #endif
   if (focusSentenceTimer) {
     clearTimeout(focusSentenceTimer)
     focusSentenceTimer = null
@@ -318,6 +363,15 @@ onUnload(() => {
   flushHeartbeat(lastHeartbeatTime, true)
 })
 
+// #ifdef H5
+// 监听 videoUrl 变化：m3u8 → hls.js 接管；mp4 → 原生播放
+watch(() => videoInfo.value.videoUrl, (newUrl) => {
+  nextTick(() => {
+    initHlsIfNeeded()
+  })
+})
+// #endif
+
 const getEntityId = (item) => Number(item?.id || item?.ID || 0)
 
 const seekVideo = (secs) => {
@@ -328,6 +382,152 @@ const seekVideo = (secs) => {
     pendingSeekTime.value = target
   }
 }
+
+// H5 浏览器自动播放策略限制：play() 需要在用户手势内调用，否则抛出 NotAllowedError
+// 包装 safePlay 静默吞掉该异常，避免未捕获的 Promise rejection
+const safePlay = () => {
+  if (!videoCtx) return
+  try {
+    const p = videoCtx.play()
+    if (p && typeof p.catch === 'function') {
+      p.catch(() => {})
+    }
+  } catch (_) {}
+}
+
+// ========== hls.js 集成（H5 端 .m3u8 播放，mp4 不受影响） ==========
+// #ifdef H5
+let currentBlobUrl = null
+
+// 从当前页面地址自动检测后端 API 基地址
+// 开发环境：Vite(5173) → Go(8888)；生产环境：前后端同域（nginx 代理）
+const getBackendBaseUrl = () => {
+  const { protocol, hostname, port } = window.location
+  if (port === '5173' || port === '5174') {
+    return `${protocol}//${hostname}:8888`
+  }
+  return `${protocol}//${hostname}${port ? ':' + port : ''}`
+}
+
+// 拉取 m3u8 并重写 URI：密钥 → 后端地址，.ts 分段 → 绝对路径
+const rewriteM3u8 = async (m3u8Url) => {
+  const resp = await fetch(m3u8Url)
+  if (!resp.ok) throw new Error(`Fetch m3u8 failed: ${resp.status}`)
+  const content = await resp.text()
+
+  const backendBase = getBackendBaseUrl()
+  const m3u8Base = m3u8Url.substring(0, m3u8Url.lastIndexOf('/') + 1)
+
+  const lines = content.split('\n')
+  const rewritten = lines.map(line => {
+    // 替换密钥 URI：相对路径 → 后端绝对地址
+    if (line.startsWith('#EXT-X-KEY')) {
+      return line.replace(/URI="([^"]*)"/, (_m, uri) => {
+        if (uri.startsWith('http://') || uri.startsWith('https://')) return _m
+        return `URI="${backendBase}${uri.startsWith('/') ? uri : '/' + uri}"`
+      })
+    }
+    // .ts 分段改用绝对路径，确保 blob URL 场景下也能正确加载
+    if (line && !line.startsWith('#') && /\.ts(\?|$)/i.test(line)) {
+      if (!line.startsWith('http://') && !line.startsWith('https://')) {
+        return m3u8Base + line
+      }
+    }
+    return line
+  })
+
+  const blob = new Blob([rewritten.join('\n')], { type: 'application/vnd.apple.mpegurl' })
+  return URL.createObjectURL(blob)
+}
+
+const initHls = async (url) => {
+  destroyHls()
+  const wrapper = document.getElementById('englishVideo')
+  const realVideo = wrapper ? (wrapper.querySelector('video') || wrapper.getElementsByTagName('video')[0]) : null
+  nativeVideoEl = realVideo
+
+  if (!nativeVideoEl || !url) {
+    if (!realVideo && wrapper) {
+      console.warn('[hls.js] 未找到 <uni-video> 内部的 <video> 元素，稍后重试')
+      setTimeout(() => initHls(url), 200)
+    }
+    return
+  }
+
+  // 开始加载流程，启动超时保护
+  isVideoBuffering.value = true
+  isVideoReady.value = false
+  startLoadingTimeout()
+
+  // 拉取并重写 m3u8，动态替换密钥 URI 为当前环境后端地址
+  let blobUrl = url
+  try {
+    blobUrl = await rewriteM3u8(url)
+    currentBlobUrl = blobUrl
+  } catch (e) {
+    console.error('[hls.js] 重写 m3u8 失败，回退原始 URL', e)
+  }
+
+  if (Hls.isSupported()) {
+    // Chrome / Edge / Firefox / Android：用 hls.js 软解
+    nativeVideoEl.removeAttribute('src')
+    hlsInstance = new Hls()
+    hlsInstance.attachMedia(nativeVideoEl)
+    hlsInstance.on(Hls.Events.MEDIA_ATTACHED, () => {
+      hlsInstance.loadSource(blobUrl)
+    })
+    // m3u8 解析完成即说明视频源可达，提前结束加载状态
+    hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+      clearLoadingTimeout()
+      isVideoBuffering.value = false
+      isVideoReady.value = true
+    })
+    hlsInstance.on(Hls.Events.ERROR, (_event, data) => {
+      console.error('[hls.js] 播放错误', data.type, data.details, data.fatal)
+      if (data.fatal) {
+        switch (data.type) {
+          case Hls.ErrorTypes.NETWORK_ERROR:
+            console.error('[hls.js] 网络错误（可能 CORS 未配或 m3u8 不可达），尝试恢复...')
+            hlsInstance.startLoad()
+            break
+          case Hls.ErrorTypes.MEDIA_ERROR:
+            console.error('[hls.js] 媒体错误，尝试恢复...')
+            hlsInstance.recoverMediaError()
+            break
+          default:
+            destroyHls()
+            break
+        }
+      }
+    })
+  } else if (nativeVideoEl.canPlayType('application/vnd.apple.mpegurl')) {
+    // Safari：原生支持 HLS，直接设 src
+    nativeVideoEl.src = blobUrl
+  }
+}
+
+const destroyHls = () => {
+  clearLoadingTimeout()
+  if (hlsInstance) {
+    hlsInstance.destroy()
+    hlsInstance = null
+  }
+  if (currentBlobUrl) {
+    URL.revokeObjectURL(currentBlobUrl)
+    currentBlobUrl = null
+  }
+}
+
+const initHlsIfNeeded = () => {
+  const url = videoInfo.value.videoUrl || ''
+  if (isHlsUrl(url)) {
+    initHls(url)
+  } else {
+    destroyHls()
+  }
+}
+// #endif
+// ========== hls.js 集成结束 ==========
 
 const maxTrialAllowedTime = () => {
   const duration = Number(videoInfo.value.duration || 0)
@@ -443,6 +643,8 @@ const refreshSignedEpisodeUrl = async (resumeSecs = 0) => {
   isVideoBuffering.value = true
   isVideoReady.value = false
   const wasPlayingBeforeRefresh = isPlaying.value
+  // 刷新过程中重置播放状态，等新源就绪后再恢复
+  isPlaying.value = false
   const previousUrl = videoInfo.value.videoUrl
   const resumeTarget = Math.max(0, Number(resumeSecs || 0))
   const shouldResumeAfterRefresh = wasPlayingBeforeRefresh || autoPlayPending.value || resumeTarget <= 0
@@ -472,7 +674,7 @@ const refreshSignedEpisodeUrl = async (resumeSecs = 0) => {
       }
       if (shouldResumeAfterRefresh && videoCtx && !isTrialLocked.value) {
         isPlaying.value = true
-        videoCtx.play()
+        safePlay()
       }
     }, 350)
 
@@ -587,6 +789,7 @@ const initPage = async () => {
   autoPlayPending.value = true
   isVideoBuffering.value = true
   isVideoReady.value = false
+  startLoadingTimeout()
   lastPlaybackTime.value = 0
   await loadEpisode()
   await loadSubtitleList()
@@ -605,6 +808,15 @@ const initPage = async () => {
 }
 
 onLoad((options) => {
+  // H5 浏览器自动播放限制：:autoplay 属性触发原生 video.play() 可能被浏览器拒绝，
+  // 该异常不在 safePlay 管辖范围，需全局捕获静默处理。
+  // #ifdef H5
+  window.addEventListener('unhandledrejection', (e) => {
+    if (e.reason && e.reason.name === 'NotAllowedError') {
+      e.preventDefault()
+    }
+  })
+  // #endif
   episodeId.value = Number(options?.id || 0)
   sentenceId.value = Number(options?.sentenceId || 0)
   initPage()
@@ -734,34 +946,42 @@ const onVideoLoadedMeta = (e) => {
   if (duration > 0) {
     videoInfo.value.duration = duration
   }
+  // 新视频源加载中，重置播放状态避免僵死
+  isPlaying.value = false
   isVideoBuffering.value = true
   isVideoReady.value = false
+  startLoadingTimeout()
 }
 
 const onVideoCanPlay = () => {
+  clearLoadingTimeout()
   isVideoBuffering.value = false
   isVideoReady.value = true
   if (autoPlayPending.value && videoCtx && !isTrialLocked.value) {
-    videoCtx.play()
+    safePlay()
   }
 }
 
 const onVideoSeeking = () => {
   isVideoBuffering.value = true
+  startLoadingTimeout()
 }
 
 const onVideoSeeked = () => {
+  clearLoadingTimeout()
   if (videoCtx && !isTrialLocked.value) {
-    videoCtx.play()
+    safePlay()
   }
 }
 
 const onVideoWaiting = () => {
   isVideoBuffering.value = true
   isVideoReady.value = false
+  startLoadingTimeout()
 }
 
 const onVideoPlaying = () => {
+  clearLoadingTimeout()
   isVideoBuffering.value = false
   isVideoReady.value = true
   isPlaying.value = true
@@ -769,6 +989,7 @@ const onVideoPlaying = () => {
 }
 
 const onVideoPlay = () => {
+  clearLoadingTimeout()
   isVideoBuffering.value = false
   isPlaying.value = true
   isVideoReady.value = true
@@ -780,9 +1001,12 @@ const onVideoPause = () => {
 }
 
 const onVideoError = async () => {
+  // 出错时重置播放状态，避免按钮显示 ⏸ 但实际已停止
+  isPlaying.value = false
   isVideoBuffering.value = true
   isVideoReady.value = false
   autoPlayPending.value = true
+  clearLoadingTimeout()
   const recovered = await refreshSignedEpisodeUrl(lastHeartbeatTime)
   if (!recovered) {
     uni.showToast({ title: t('player.load_failed'), icon: 'none' })
@@ -801,7 +1025,7 @@ const jumpBySubtitle = (item, index) => {
     usingTimeSecs: 0
   }).catch(() => {})
   if (videoCtx) {
-    videoCtx.play()
+    safePlay()
   }
 }
 
@@ -865,10 +1089,16 @@ const togglePlay = () => {
   }
   if (showVideoLoading.value) {
     autoPlayPending.value = true
-    videoCtx.play()
+    safePlay()
     return
   }
-  isPlaying.value ? videoCtx.pause() : videoCtx.play()
+  // H5 端：用原生 video.paused 纠正可能僵死的播放状态
+  // #ifdef H5
+  if (nativeVideoEl && nativeVideoEl.paused !== !isPlaying.value) {
+    isPlaying.value = !nativeVideoEl.paused
+  }
+  // #endif
+  isPlaying.value ? videoCtx.pause() : safePlay()
 }
 const toggleBilingual = () => { 
   controls.value.showBilingual = !controls.value.showBilingual
@@ -931,7 +1161,7 @@ const onProgressChange = (e) => {
   currentTime.value = value
   seekVideo(value)
   if (videoCtx && !isTrialLocked.value) {
-    videoCtx.play()
+    safePlay()
   }
 }
 const onProgressChanging = (e) => {

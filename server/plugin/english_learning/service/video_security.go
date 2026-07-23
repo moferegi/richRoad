@@ -23,6 +23,14 @@ func SignLearningVideoURL(rawVideoURL string) string {
 		return ""
 	}
 
+	// HLS (m3u8) 视频跳过 CDN 防盗链签名。
+	// m3u8 内部的 .ts 分片路径是相对路径，播放器加载时会自动拼接为
+	// m3u8 同域名的绝对路径。如果对 m3u8 做了 CDN 签名，.ts 请求
+	// 不会携带签名 token，会导致分片加载失败（403）。
+	if isHlsVideoURL(rawVideoURL) {
+		return resolveWithDefaultDomain(rawVideoURL)
+	}
+
 	// 有防盗链CDN：走签名逻辑
 	if strings.TrimSpace(global.GVA_CONFIG.Hotlink.CdnDomain) != "" {
 		normalizedPath, ok := normalizeLearningVideoSignPath(rawVideoURL)
@@ -133,6 +141,11 @@ func normalizeLearningVideoSignPath(raw string) (string, bool) {
 	}
 
 	return cleanPath, true
+}
+
+// isHlsVideoURL 判断是否为 HLS 流媒体地址（.m3u8）
+func isHlsVideoURL(rawURL string) bool {
+	return strings.Contains(strings.ToLower(rawURL), ".m3u8")
 }
 
 func getCloudflareR2BucketName() string {

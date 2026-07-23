@@ -332,6 +332,17 @@ func resolveSubtitleFetchURL(raw string) string {
 
 	parsed, err := url.Parse(text)
 	if err != nil || strings.TrimSpace(parsed.Host) == "" {
+		// 相对路径（无 scheme），自动补全域名
+		if parsed.Scheme == "" && text != "" {
+			baseURL := resolveSubtitleBaseURL()
+			if baseURL != "" {
+				pathValue := text
+				if !strings.HasPrefix(pathValue, "/") {
+					pathValue = "/" + pathValue
+				}
+				return strings.TrimRight(baseURL, "/") + pathValue
+			}
+		}
 		return text
 	}
 
@@ -369,6 +380,31 @@ func resolveSubtitleFetchURL(raw string) string {
 	}
 
 	return strings.TrimRight(originBase, "/") + pathValue
+}
+
+// resolveSubtitleBaseURL 为相对路径补全域名，优先使用 B2 源站（直连），其次 CDN 域名
+func resolveSubtitleBaseURL() string {
+	// 优先：B2/S3 源站直连（服务端 fetch 效率最高）
+	originBase, _ := buildB2OriginBaseURL()
+	if originBase != "" {
+		return originBase
+	}
+
+	// 其次：防盗链 CDN 域名
+	cdnDomain := strings.TrimSpace(global.GVA_CONFIG.Hotlink.CdnDomain)
+	if cdnDomain != "" {
+		return cdnDomain
+	}
+
+	// 再次：S3 BaseURL
+	if strings.EqualFold(strings.TrimSpace(global.GVA_CONFIG.System.OssType), "aws-s3") {
+		baseURL := strings.TrimSpace(global.GVA_CONFIG.AwsS3.BaseURL)
+		if baseURL != "" {
+			return baseURL
+		}
+	}
+
+	return ""
 }
 
 func buildB2OriginBaseURL() (string, string) {

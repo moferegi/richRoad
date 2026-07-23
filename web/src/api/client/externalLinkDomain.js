@@ -114,3 +114,67 @@ export const compareDirectories = (params) => {
     params: params
   })
 }
+
+/**
+ * 批量删除云存储文件
+ * @param {Object} data { id, keys: string[], password: string }
+ * @returns {Promise}
+ */
+export const deleteCloudFiles = (data) => {
+  return service({
+    url: '/extDomain/deleteCloudFiles',
+    method: 'post',
+    data: data
+  })
+}
+
+/**
+ * 上传文件到云存储
+ * @param {FormData} formData 含 file、folder、id
+ * @returns {Promise}
+ */
+export const uploadCloudFile = (formData) => {
+  return service({
+    url: '/extDomain/uploadCloudFile',
+    method: 'post',
+    headers: { 'Content-Type': 'multipart/form-data' },
+    data: formData
+  })
+}
+
+/**
+ * 全局搜索云存储文件
+ * @param {Object} params { id, keyword, maxKeys }
+ * @returns {Promise}
+ */
+export const searchCloudFiles = (params) => {
+  return service({
+    url: '/extDomain/searchCloudFiles',
+    method: 'get',
+    params: params
+  })
+}
+
+/**
+ * 获取文件下载链接
+ * @param {Object} params { id, key }
+ * @returns {Promise}
+ */
+export const getFileDownloadURL = (params) => {
+  return service({
+    url: '/extDomain/getFileDownloadURL',
+    method: 'get',
+    params: params
+  })
+}
+
+/**
+ * 获取打包下载目录的 URL（直接打开下载）
+ * @param {Object} params { id, prefix }
+ * @returns {string} 下载链接
+ */
+export const getCloudFolderDownloadURL = (params) => {
+  const baseURL = service.defaults?.baseURL || ''
+  const query = new URLSearchParams(params).toString()
+  return `${baseURL}/extDomain/downloadCloudFolder?${query}`
+}

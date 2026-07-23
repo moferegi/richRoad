@@ -8,6 +8,7 @@ type ServiceGroup struct {
 	CheckinService
 	ContentService
 	UserDataService
+	VideoSliceService
 }
 
 var ServiceGroupApp = new(ServiceGroup)

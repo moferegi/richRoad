@@ -37,10 +37,10 @@
       </view>
 
       <view class="word-meta">
+        <text class="word-phonetic" v-if="settings.showPhonetic">{{ settings.accent === 'US' ? currentWord.phoneticUs : currentWord.phoneticUk }}</text>
         <view class="audio-trigger" :class="{ playing: isAudioPlaying }" @click.stop="playWordAudio">
           <text class="audio-icon">{{ isAudioPlaying ? '◉' : '♪' }}</text>
         </view>
-        <text class="word-phonetic" v-if="settings.showPhonetic">{{ settings.accent === 'US' ? currentWord.phoneticUs : currentWord.phoneticUk }}</text>
       </view>
 
       <text class="word-meaning" v-if="settings.showExplanation">{{ localText(currentWord.explanation) }}</text>
@@ -125,8 +125,8 @@
       <view class="sentence-card" v-for="(sentence, index) in currentWord.sentences" :key="index">
         <view class="sentence-top">
           <text class="sentence-en">{{ sentence.source }}</text>
-          <view class="sentence-audio" @click="playSentenceAudio(sentence)">
-            <text class="sentence-audio-icon">♪</text>
+          <view class="sentence-audio" :class="{ playing: isSentenceAudioPlaying && playingSentenceIndex === index }" @click="playSentenceAudio(sentence, index)">
+            <text class="sentence-audio-icon">{{ isSentenceAudioPlaying && playingSentenceIndex === index ? '◉' : '♪' }}</text>
           </view>
         </view>
         <text class="sentence-zh" v-if="settings.showExplanation">{{ localText(sentence.translate) }}</text>
@@ -184,6 +184,12 @@
           <radio-group @change="settings.accent = $event.detail.value">
             <label class="accent-label"><radio value="US" :checked="settings.accent==='US'"/> US</label>
             <label class="accent-label"><radio value="UK" :checked="settings.accent==='UK'"/> UK</label>
+          </radio-group>
+        </view>
+        <view class="set-row"><text>{{ t('typing.tts_voice') }}</text>
+          <radio-group @change="settings.ttsVoice = $event.detail.value">
+            <label class="accent-label"><radio value="female" :checked="settings.ttsVoice==='female'"/> {{ t('typing.tts_female') }}</label>
+            <label class="accent-label"><radio value="male" :checked="settings.ttsVoice==='male'"/> {{ t('typing.tts_male') }}</label>
           </radio-group>
         </view>
         <button class="sheet-cancel" @click="closeSettingsSheet">{{ t('cancel') }}</button>
@@ -292,6 +298,7 @@ const settings = ref({
   showPhonetic: true,    // 显示音标
   showExplanation: true, // 显示释义
   accent: 'US',          // 美音/英音
+  ttsVoice: 'female',    // 本地TTS音色：female/male
 })
 
 const settingsPopup = ref(null)
@@ -310,6 +317,8 @@ const typingInitialized = ref(false)
 // 3.3.1 骨架屏 + 3.3.2 语音动画 + 3.3.3 离线发音 + 3.3.4 抽屉聚焦
 const isPageLoading = ref(true)
 const isAudioPlaying = ref(false)
+const isSentenceAudioPlaying = ref(false)
+const playingSentenceIndex = ref(-1)
 let offlineFallbackText = ''
 const drawerScrollToId = ref('')
 const showSettingsSheet = () => settingsPopup.value.open()
@@ -678,9 +687,12 @@ onHide(() => {
   settingsPopup.value?.close()
   wordDrawerPopup.value?.close()
   isTypingMode.value = false
+  // 停止本地 TTS 播放
+  stopLocalTTS()
 })
 onUnmounted(() => {
   persistProgress()
+  stopLocalTTS()
   if (audioCtx) {
     audioCtx.destroy()
     audioCtx = null
@@ -715,6 +727,129 @@ const isPrivateNetworkAudioSource = (src) => {
   return /^https?:\/\/(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/i.test(src)
 }
 
+// 停止所有本地 TTS 播放
+const stopLocalTTS = () => {
+  // #ifdef H5
+  try {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel()
+    }
+  } catch (e) { /* ignore */ }
+  // #endif
+  // #ifdef APP-PLUS
+  try {
+    if (typeof plus !== 'undefined' && plus.speech) {
+      plus.speech.stop()
+    }
+  } catch (e) { /* ignore */ }
+  // #endif
+  isAudioPlaying.value = false
+  isSentenceAudioPlaying.value = false
+  playingSentenceIndex.value = -1
+}
+
+// 本地离线 TTS（优先级最高，默认使用）
+const tryLocalTTS = (text, options = {}) => {
+  const content = String(text || '').trim()
+  if (!content) return false
+
+  const { onStart, onEnd, onError } = options
+
+  // #ifdef APP-PLUS
+  try {
+    if (typeof plus !== 'undefined' && plus.speech) {
+      plus.speech.stop()
+      const lang = settings.value.accent === 'UK' ? 'en-GB' : 'en-US'
+      plus.speech.start({
+        text: content,
+        lang: lang,
+        rate: 90,
+        onstart: () => { if (onStart) onStart() },
+        onend: () => { if (onEnd) onEnd() },
+        onerror: () => { if (onError) onError() }
+      })
+      return true
+    }
+  } catch (e) { /* plus.speech 不可用 */ }
+  // #endif
+
+  // #ifdef H5
+  try {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel()
+      const utterance = new window.SpeechSynthesisUtterance(content)
+
+      // 根据用户选择匹配口音和音色
+      const accent = settings.value.accent
+      const voiceType = settings.value.ttsVoice || 'female'
+      const langPrefix = accent === 'UK' ? 'en-GB' : 'en-US'
+
+      // 尝试匹配对应音色的语音
+      const voices = window.speechSynthesis.getVoices()
+      let bestVoice = null
+
+      if (voices.length > 0) {
+        // 优先级逐级匹配：语言+性别 → 语言 → 性别兜底
+        for (const v of voices) {
+          const vLang = (v.lang || '').toLowerCase()
+          const vName = (v.name || '').toLowerCase()
+          const targetLang = langPrefix.toLowerCase()
+
+          if (voiceType === 'female') {
+            if (vLang.startsWith(targetLang) &&
+                (vName.includes('female') || vName.includes('samantha') || vName.includes('zira') ||
+                 vName.includes('susan') || vName.includes('karen') || vName.includes('monica'))) {
+              bestVoice = v
+              break
+            }
+          } else {
+            if (vLang.startsWith(targetLang) &&
+                (vName.includes('male') || vName.includes('david') || vName.includes('mark') ||
+                 vName.includes('daniel') || vName.includes('tom'))) {
+              bestVoice = v
+              break
+            }
+          }
+        }
+        // 降级：匹配对应语言即可
+        if (!bestVoice) {
+          for (const v of voices) {
+            if (v.lang.toLowerCase().startsWith(langPrefix.toLowerCase())) {
+              bestVoice = v
+              break
+            }
+          }
+        }
+        // 最终降级：任意英文语音
+        if (!bestVoice) {
+          for (const v of voices) {
+            if (v.lang.toLowerCase().startsWith('en-')) {
+              bestVoice = v
+              break
+            }
+          }
+        }
+      }
+
+      if (bestVoice) {
+        utterance.voice = bestVoice
+      }
+      utterance.lang = langPrefix
+      utterance.rate = 0.9
+      utterance.onstart = () => { if (onStart) onStart() }
+      utterance.onend = () => { if (onEnd) onEnd() }
+      utterance.onerror = () => { if (onError) onError() }
+      window.speechSynthesis.speak(utterance)
+      return true
+    }
+  } catch (e) {
+    // SpeechSynthesis 不可用
+  }
+  // #endif
+
+  return false
+}
+
 const playNextAudioCandidate = () => {
   while (audioCandidates.length > 0) {
     const next = audioCandidates.shift()
@@ -732,17 +867,15 @@ const playNextAudioCandidate = () => {
   uni.showToast({ title: t('typing.audio_play_failed'), icon: 'none' })
 }
 
-const playAudio = (src, fallbackText = '') => {
+// 在线音频播放（兜底流程）
+const playOnlineAudio = (src, fallbackText = '', playbackCallbacks = {}) => {
   const audioSrc = normalizeAudioSource(src)
   const fallbackAudio = buildFallbackAudioSource(fallbackText)
-  // 3.3.3 存储离线发音降级文本
   offlineFallbackText = fallbackText || ''
   const isUnreachable = audioSrc && (isLocalAudioSource(audioSrc) || isPrivateNetworkAudioSource(audioSrc))
   const primary = audioSrc && !isUnreachable ? audioSrc : ''
 
   audioCandidates = []
-  if (audioSrc && isUnreachable) {
-  }
   if (primary) {
     audioCandidates.push({ url: primary, source: 'db-primary' })
     if (primary.startsWith('http://')) {
@@ -761,22 +894,19 @@ const playAudio = (src, fallbackText = '') => {
   if (!audioCtx) {
     audioCtx = uni.createInnerAudioContext()
     audioCtx.onPlay(() => {
-      // 3.3.2 语音播放动画开始
       isAudioPlaying.value = true
       if (currentAudioAttempt && !currentAudioLoggedSuccess) {
         currentAudioLoggedSuccess = true
       }
     })
     audioCtx.onEnded(() => {
-      // 3.3.2 语音播放动画结束
       isAudioPlaying.value = false
     })
     audioCtx.onError((err) => {
-      // 3.3.2 语音播放动画结束
       isAudioPlaying.value = false
-      // 3.3.3 所有在线源失败后尝试离线语音合成
+      // 所有在线源失败后尝试本地TTS作为最后兜底
       if (audioCandidates.length === 0 && offlineFallbackText) {
-        const spoke = speakOffline(offlineFallbackText)
+        const spoke = tryLocalTTS(offlineFallbackText, playbackCallbacks)
         if (spoke) {
           offlineFallbackText = ''
           return
@@ -788,42 +918,42 @@ const playAudio = (src, fallbackText = '') => {
   playNextAudioCandidate()
 }
 
-// 3.3.3 离线发音降级方案：Web Speech API
-const speakOffline = (text) => {
-  // #ifdef H5
-  try {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel()
-      const utterance = new window.SpeechSynthesisUtterance(String(text || '').trim())
-      utterance.lang = 'en-US'
-      utterance.rate = 0.9
-      utterance.onstart = () => { isAudioPlaying.value = true }
-      utterance.onend = () => { isAudioPlaying.value = false }
-      utterance.onerror = () => { isAudioPlaying.value = false }
-      window.speechSynthesis.speak(utterance)
-      return true
-    }
-  } catch (e) {
-    // SpeechSynthesis 不可用
-  }
-  // #endif
-  return false
-}
-
 const playWordAudio = () => {
+  const wordText = currentWord.value.word
   const primary = settings.value.accent === 'US' ? currentWord.value.audioUs : currentWord.value.audioUk
   const fallback = settings.value.accent === 'US' ? currentWord.value.audioUk : currentWord.value.audioUs
-  playAudio(primary || fallback, currentWord.value.word)
+
+  const onStart = () => { isAudioPlaying.value = true; isSentenceAudioPlaying.value = false; playingSentenceIndex.value = -1 }
+  const onEnd = () => { isAudioPlaying.value = false }
+  const onError = () => { isAudioPlaying.value = false }
+
+  // 默认使用本地离线TTS
+  const localOk = tryLocalTTS(wordText, { onStart, onEnd, onError })
+  if (localOk) return
+
+  // 兜底：在线音频
+  playOnlineAudio(primary || fallback, wordText, { onStart, onEnd, onError })
 }
 
-const playSentenceAudio = (sentence) => {
+const playSentenceAudio = (sentence, index) => {
+  const sentenceText = sentence?.source || currentWord.value.word
   const primary = settings.value.accent === 'US'
     ? (sentence.audioUs || currentWord.value.audioUs)
     : (sentence.audioUk || currentWord.value.audioUk)
   const fallback = settings.value.accent === 'US'
     ? (sentence.audioUk || currentWord.value.audioUk)
     : (sentence.audioUs || currentWord.value.audioUs)
-  playAudio(primary || fallback, sentence?.source || currentWord.value.word)
+
+  const onStart = () => { isSentenceAudioPlaying.value = true; playingSentenceIndex.value = index; isAudioPlaying.value = false }
+  const onEnd = () => { isSentenceAudioPlaying.value = false; playingSentenceIndex.value = -1 }
+  const onError = () => { isSentenceAudioPlaying.value = false; playingSentenceIndex.value = -1 }
+
+  // 默认使用本地离线TTS
+  const localOk = tryLocalTTS(sentenceText, { onStart, onEnd, onError })
+  if (localOk) return
+
+  // 兜底：在线音频
+  playOnlineAudio(primary || fallback, sentenceText, { onStart, onEnd, onError })
 }
 
 const getEntityId = (item) => Number(item?.id || item?.ID || 0)
@@ -1497,6 +1627,16 @@ const selectPickerItem = async (item) => {
 
 .sentence-audio:active {
   background: rgba(108, 91, 255, 0.22);
+}
+
+.sentence-audio.playing {
+  pointer-events: none;
+  animation: pulse 0.6s ease-in-out infinite;
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+}
+
+.sentence-audio.playing .sentence-audio-icon {
+  color: #fff;
 }
 
 .sentence-zh {
