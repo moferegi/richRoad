@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	systemMiddleware "github.com/flipped-aurora/gin-vue-admin/server/middleware"
@@ -61,7 +62,7 @@ func LearningReadRateLimit() gin.HandlerFunc {
 			}
 		}
 		key := fmt.Sprintf("EL_READ_LIMIT:%s:%s:%s", uid, c.ClientIP(), path)
-		if err := systemMiddleware.SetLimitWithTime(key, readRateLimitPerWindow, readRateLimitWindowSeconds); err != nil {
+		if err := systemMiddleware.SetLimitWithTime(key, readRateLimitPerWindow, readRateLimitWindowSeconds*time.Second); err != nil {
 			c.JSON(200, gin.H{"code": 7, "data": nil, "msg": err.Error()})
 			c.Abort()
 			return
@@ -80,4 +81,23 @@ func isAntiScrapeTargetPath(path string) bool {
 		}
 	}
 	return false
+}
+
+// HlsKeyRateLimit /hlsKey 接口按 IP 限流（公开接口，无 JWT）
+// 限流次数由 config.yaml 中 hls.hls-key-rate-per-minute 控制，0=不限
+func HlsKeyRateLimit() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ratePerMinute := global.GVA_CONFIG.Hls.HlsKeyRatePerMinute
+		if ratePerMinute <= 0 || global.GVA_REDIS == nil {
+			c.Next()
+			return
+		}
+		key := fmt.Sprintf("HLS_KEY_LIMIT:%s", c.ClientIP())
+		if err := systemMiddleware.SetLimitWithTime(key, ratePerMinute, 60*time.Second); err != nil {
+			c.JSON(200, gin.H{"code": 7, "data": nil, "msg": "请求过于频繁，请稍后重试"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
 }

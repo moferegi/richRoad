@@ -206,6 +206,7 @@ import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
 import { t as i18nT, localText as i18nLocalText } from '@/utils/i18n.js'
 import { getExternalUrl } from '@/utils/url.js'
 import { collect, findVideoEpisode, findWord, getCollectionList, getSentenceList, getWatchProgress, heartbeat, uncollect } from '@/api/learning.js'
+import { baseUrl } from '@/utils/request.js'
 // #ifdef H5
 import Hls from 'hls.js'
 // #endif
@@ -247,6 +248,8 @@ let videoCtx = null
 // #ifdef H5
 let hlsInstance = null
 let nativeVideoEl = null
+let hlsFatalErrorCount = 0
+const HLS_MAX_FATAL_ERRORS = 5
 // #endif
 
 const isHlsUrl = (url) => /\.m3u8(\?|$)/i.test(url || '')
@@ -399,23 +402,18 @@ const safePlay = () => {
 // #ifdef H5
 let currentBlobUrl = null
 
-// 从当前页面地址自动检测后端 API 基地址
-// 开发环境：Vite(5173) → Go(8888)；生产环境：前后端同域（nginx 代理）
-const getBackendBaseUrl = () => {
-  const { protocol, hostname, port } = window.location
-  if (port === '5173' || port === '5174') {
-    return `${protocol}//${hostname}:8888`
-  }
-  return `${protocol}//${hostname}${port ? ':' + port : ''}`
-}
-
 // 拉取 m3u8 并重写 URI：密钥 → 后端地址，.ts 分段 → 绝对路径
 const rewriteM3u8 = async (m3u8Url) => {
   const resp = await fetch(m3u8Url)
   if (!resp.ok) throw new Error(`Fetch m3u8 failed: ${resp.status}`)
   const content = await resp.text()
 
-  const backendBase = getBackendBaseUrl()
+  // baseUrl 可能是相对路径（如 /api）或绝对 URL（如 https://enapi.235235.vip）
+  // blob m3u8 中不能有相对 URI，必须转为绝对地址，否则 hls.js 解析出错
+  let backendBase = baseUrl
+  if (backendBase.startsWith('/')) {
+    backendBase = window.location.origin + backendBase
+  }
   const m3u8Base = m3u8Url.substring(0, m3u8Url.lastIndexOf('/') + 1)
 
   const lines = content.split('\n')
@@ -442,6 +440,7 @@ const rewriteM3u8 = async (m3u8Url) => {
 
 const initHls = async (url) => {
   destroyHls()
+  hlsFatalErrorCount = 0
   const wrapper = document.getElementById('englishVideo')
   const realVideo = wrapper ? (wrapper.querySelector('video') || wrapper.getElementsByTagName('video')[0]) : null
   nativeVideoEl = realVideo
@@ -471,7 +470,12 @@ const initHls = async (url) => {
   if (Hls.isSupported()) {
     // Chrome / Edge / Firefox / Android：用 hls.js 软解
     nativeVideoEl.removeAttribute('src')
-    hlsInstance = new Hls()
+    hlsInstance = new Hls({
+      // 禁用 hls.js 内部重试，由外部统一控制（避免非 fatal 错误绕开我们的计数器）
+      fragLoadingMaxRetry: 0,
+      manifestLoadingMaxRetry: 0,
+      levelLoadingMaxRetry: 0
+    })
     hlsInstance.attachMedia(nativeVideoEl)
     hlsInstance.on(Hls.Events.MEDIA_ATTACHED, () => {
       hlsInstance.loadSource(blobUrl)
@@ -481,17 +485,46 @@ const initHls = async (url) => {
       clearLoadingTimeout()
       isVideoBuffering.value = false
       isVideoReady.value = true
+      // 注意：不在此处重置 hlsFatalErrorCount
+      // MANIFEST_PARSED 会在 startLoad() 恢复时再次触发，重置会导致死循环
     })
     hlsInstance.on(Hls.Events.ERROR, (_event, data) => {
       console.error('[hls.js] 播放错误', data.type, data.details, data.fatal)
+
+      // keyLoadError / fragDecryptError：密钥或解密问题，不管 fatal 与否都立即停止
+      if (data.details === 'keyLoadError' || data.details === 'fragDecryptError') {
+        console.error('[hls.js] 密钥/解密失败，停止播放')
+        hlsInstance.stopLoad()
+        destroyHls()
+        isVideoBuffering.value = false
+        uni.showToast({ title: '视频解密失败，请刷新重试', icon: 'none' })
+        return
+      }
+
       if (data.fatal) {
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
-            console.error('[hls.js] 网络错误（可能 CORS 未配或 m3u8 不可达），尝试恢复...')
+            hlsFatalErrorCount++
+            if (hlsFatalErrorCount > HLS_MAX_FATAL_ERRORS) {
+              console.error('[hls.js] 致命错误次数超限，停止播放')
+              hlsInstance.stopLoad()
+              destroyHls()
+              isVideoBuffering.value = false
+              return
+            }
+            console.error(`[hls.js] 网络错误，尝试恢复（${hlsFatalErrorCount}/${HLS_MAX_FATAL_ERRORS}）...`)
             hlsInstance.startLoad()
             break
           case Hls.ErrorTypes.MEDIA_ERROR:
-            console.error('[hls.js] 媒体错误，尝试恢复...')
+            hlsFatalErrorCount++
+            if (hlsFatalErrorCount > HLS_MAX_FATAL_ERRORS) {
+              console.error('[hls.js] 致命错误次数超限，停止播放')
+              hlsInstance.stopLoad()
+              destroyHls()
+              isVideoBuffering.value = false
+              return
+            }
+            console.error(`[hls.js] 媒体错误，尝试恢复（${hlsFatalErrorCount}/${HLS_MAX_FATAL_ERRORS}）...`)
             hlsInstance.recoverMediaError()
             break
           default:
@@ -508,6 +541,7 @@ const initHls = async (url) => {
 
 const destroyHls = () => {
   clearLoadingTimeout()
+  hlsFatalErrorCount = 0
   if (hlsInstance) {
     hlsInstance.destroy()
     hlsInstance = null

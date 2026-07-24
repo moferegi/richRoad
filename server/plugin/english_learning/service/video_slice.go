@@ -1,6 +1,9 @@
 package service
 
 import (
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -14,7 +17,6 @@ import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	clientModel "github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	clientService "github.com/flipped-aurora/gin-vue-admin/server/service/client"
-	jwt "github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
 )
 
@@ -93,18 +95,25 @@ func (s *VideoSliceService) SliceAndUpload(videoPath string, cloudPrefix string,
 		if hexErr != nil {
 			global.GVA_LOG.Warn("HLS global-key hex解码失败，跳过加密", zap.Error(hexErr))
 		} else if len(keyBytes) == 16 {
-			// 写入 global.key 文件
-			keyFilePath := filepath.Join(sliceDir, "global.key")
-			if writeErr := os.WriteFile(keyFilePath, keyBytes, 0644); writeErr != nil {
-				global.GVA_LOG.Warn("写入global.key失败，跳过加密", zap.Error(writeErr))
+			// 生成随机 nonce（16字节 → 32字符hex），每集唯一，不可预测
+			nonceBytes := make([]byte, 16)
+			if _, randErr := rand.Read(nonceBytes); randErr != nil {
+				global.GVA_LOG.Warn("生成随机nonce失败，跳过加密", zap.Error(randErr))
 			} else {
-				// 生成 JWT token，嵌入密钥URI
-				token, tokenErr := s.GenerateHlsKeyToken(episodeID)
-				if tokenErr != nil {
-					global.GVA_LOG.Warn("生成HLS密钥token失败，跳过加密", zap.Error(tokenErr))
+				nonceHex := hex.EncodeToString(nonceBytes)
+
+				// 每集独立密钥：HMAC-SHA256(global-key, nonce)，取前16字节
+				mac := hmac.New(sha256.New, keyBytes)
+				mac.Write([]byte(nonceHex))
+				perVideoKey := mac.Sum(nil)[:16]
+
+				// 写入 global.key 文件（FFmpeg 用此加密 .ts 片段）
+				keyFilePath := filepath.Join(sliceDir, "global.key")
+				if writeErr := os.WriteFile(keyFilePath, perVideoKey, 0644); writeErr != nil {
+					global.GVA_LOG.Warn("写入global.key失败，跳过加密", zap.Error(writeErr))
 				} else {
-					// 构造密钥URI：使用相对路径，前端会根据当前环境动态拼接后端地址
-					keyURI := global.GVA_CONFIG.System.RouterPrefix + "/hlsKey?token=" + token
+					// 构造密钥URI：相对路径，包含 nonce（前端 rewriteM3u8 拼接 baseUrl）
+					keyURI := fmt.Sprintf("%s/hlsKey?nonce=%s", global.GVA_CONFIG.System.RouterPrefix, nonceHex)
 					// key_info 文件格式:
 					// 第1行: 密钥URI (播放器通过此URL获取密钥)
 					// 第2行: 本地密钥文件路径 (ffmpeg用此加密)
@@ -139,12 +148,7 @@ func (s *VideoSliceService) SliceAndUpload(videoPath string, cloudPrefix string,
 		return nil, fmt.Errorf("未找到默认上传云配置，请在 ExternalLinkDomain 中设置一个默认云存储")
 	}
 
-	// 7. 获取云存储的公开访问域名
-	baseURL := s.resolveCloudBaseURL(*defaultDomain)
-	if baseURL == "" {
-		// 无法获取云域名时回退到本地方式，由 SignLearningVideoURL 处理
-		global.GVA_LOG.Warn("无法获取云存储域名，使用相对路径")
-	}
+	// 7. 域名由 SignLearningVideoURL 运行时通过 ExternalLinkDomain 拼接，数据库仅存相对路径
 
 	// 8. 收集并上传所有文件（.ts + .m3u8）
 	files, err := os.ReadDir(sliceDir)
@@ -209,12 +213,8 @@ func (s *VideoSliceService) SliceAndUpload(videoPath string, cloudPrefix string,
 		return nil, fmt.Errorf("部分文件上传失败: %s", strings.Join(uploadErrors, "; "))
 	}
 
-	// 9. 构造 m3u8 完整 URL
-	m3u8CloudKey := cloudPrefix + "/" + timestamp + "/index.m3u8"
-	m3u8URL := m3u8CloudKey // 默认返回相对路径
-	if baseURL != "" {
-		m3u8URL = strings.TrimRight(baseURL, "/") + "/" + m3u8CloudKey
-	}
+	// 9. 构造 m3u8 相对路径（完整 URL 由 SignLearningVideoURL 运行时拼接 ExternalLinkDomain）
+	m3u8URL := cloudPrefix + "/" + timestamp + "/index.m3u8"
 
 	global.GVA_LOG.Info("HLS 切片上传完成",
 		zap.String("m3u8", m3u8URL),
@@ -226,44 +226,6 @@ func (s *VideoSliceService) SliceAndUpload(videoPath string, cloudPrefix string,
 		Duration:     duration,
 		SegmentCount: segmentCount,
 	}, nil
-}
-
-// HlsKeyClaims HLS密钥token的JWT声明
-type HlsKeyClaims struct {
-	EpisodeID uint   `json:"episodeId"`
-	Purpose   string `json:"purpose"`
-	jwt.RegisteredClaims
-}
-
-// GenerateHlsKeyToken 生成HLS密钥访问token（嵌入m3u8的#EXT-X-KEY URI中）
-func (s *VideoSliceService) GenerateHlsKeyToken(episodeID uint) (string, error) {
-	claims := HlsKeyClaims{
-		EpisodeID: episodeID,
-		Purpose:   "hls_key",
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(30 * 24 * time.Hour)), // 30天
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(global.GVA_CONFIG.JWT.SigningKey))
-}
-
-// ValidateHlsKeyToken 验证HLS密钥token
-func (s *VideoSliceService) ValidateHlsKeyToken(tokenStr string) (*HlsKeyClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenStr, &HlsKeyClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(global.GVA_CONFIG.JWT.SigningKey), nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("token解析失败: %w", err)
-	}
-	if claims, ok := token.Claims.(*HlsKeyClaims); ok && token.Valid {
-		if claims.Purpose != "hls_key" {
-			return nil, fmt.Errorf("非法token用途")
-		}
-		return claims, nil
-	}
-	return nil, fmt.Errorf("无效token")
 }
 
 // probeDuration 通过 ffprobe 获取视频时长（秒）
@@ -326,11 +288,8 @@ func (s *VideoSliceService) runSlice(inputPath, outputM3u8, segmentPattern, keyI
 	return nil
 }
 
-// resolveCloudBaseURL 获取云存储的公开访问基础 URL
+// resolveCloudBaseURL 已废弃，域名由 SignLearningVideoURL 运行时拼接
+// 保留定义避免旧代码引用报错
 func (s *VideoSliceService) resolveCloudBaseURL(domain clientModel.ExternalLinkDomain) string {
-	result := strings.TrimSpace(domain.Domain)
-	if result == "" {
-		result = strings.TrimSpace(domain.BaseURL)
-	}
-	return strings.TrimRight(result, "/")
+	return ""
 }

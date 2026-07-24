@@ -27,8 +27,8 @@ func (p *plugin) Register(engine *gin.Engine) {
 	ctx := context.Background()
 	initialize.Gorm(ctx)
 
-	// 公开路由：HLS密钥端点（无需JWT认证，token自带认证）
-	engine.GET(global.GVA_CONFIG.System.RouterPrefix+"/hlsKey", api.ServeHlsKey)
+	// 公开路由：HLS密钥端点（无需JWT认证，token自带认证，按IP限流）
+	engine.GET(global.GVA_CONFIG.System.RouterPrefix+"/hlsKey", learningMiddleware.HlsKeyRateLimit(), api.ServeHlsKey)
 
 	group := engine.Group(global.GVA_CONFIG.System.RouterPrefix).Group("englishLearning")
 	group.Use(systemMiddleware.Locale(), systemMiddleware.JWTAuth(), learningMiddleware.LearningAuth())
