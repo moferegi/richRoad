@@ -3,8 +3,9 @@ package client
 import (
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/client"
-	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	clientReq "github.com/flipped-aurora/gin-vue-admin/server/model/client/request"
+	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
+	serverUtils "github.com/flipped-aurora/gin-vue-admin/server/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -184,5 +185,5 @@ func (api *VideoTagApi) GetVideoTagPublic(c *gin.Context) {
 		response.FailWithMessage("获取失败:"+err.Error(), c)
 		return
 	}
-	response.OkWithData(list, c)
+	response.OkWithData(serverUtils.LocalizeI18nPayloadByContext(c, list), c)
 }

@@ -8,27 +8,51 @@
         @tap="switchTab(index)"
       >
         <text class="tab-icon" :class="{ on: currentIndex === index }">{{ tab.icon }}</text>
-        <text class="tab-label" :class="{ on: currentIndex === index }">{{ tab.text }}</text>
+        <text class="tab-label" :class="{ on: currentIndex === index }">{{ tabTexts[index] }}</text>
       </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import { useLangStore } from '@/pinia/modules/lang.js'
+import { t as i18nT } from '@/utils/i18n.js'
+
+const langStore = useLangStore()
+const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
+
+const t = (key, fallback) => {
+  const text = i18nT(key, locale.value)
+  if (text && text !== key) return text
+  return fallback || key
+}
 
 const tabs = [
-  { pagePath: '/pages/learning/home', text: '首页', icon: '🏠' },
-  { pagePath: '/pages/learning/typing', text: '跟打', icon: '⌨' },
-  { pagePath: '/pages/learning/profile', text: '我的', icon: '👤' }
+  { pagePath: '/pages/learning/home', i18nKey: 'englishTabHome', fallback: '首页', icon: '🏠' },
+  { pagePath: '/pages/learning/typing', i18nKey: 'englishTabTyping', fallback: '跟打', icon: '⌨' },
+  { pagePath: '/pages/learning/profile', i18nKey: 'englishTabMy', fallback: '我的', icon: '👤' }
 ]
+
+const tabTexts = computed(() => tabs.map(tab => t(tab.i18nKey, tab.fallback)))
 
 const currentIndex = ref(0)
 
 const updateIndex = () => {
   const pages = getCurrentPages()
-  if (!pages || pages.length === 0) return
+  if (!pages || pages.length === 0) {
+    // 页面栈为空时延迟重试
+    setTimeout(() => {
+      const retryPages = getCurrentPages()
+      if (retryPages && retryPages.length > 0) {
+        const route = '/' + retryPages[retryPages.length - 1].route
+        const idx = tabs.findIndex(t => t.pagePath === route)
+        if (idx >= 0) currentIndex.value = idx
+      }
+    }, 100)
+    return
+  }
   const route = '/' + pages[pages.length - 1].route
   const idx = tabs.findIndex(t => t.pagePath === route)
   if (idx >= 0) currentIndex.value = idx
@@ -39,11 +63,15 @@ const switchTab = (index) => {
   const currentPage = pages[pages.length - 1]
   const route = '/' + (currentPage ? currentPage.route : '')
   if (tabs[index].pagePath === route) return
+  currentIndex.value = index
   uni.switchTab({ url: tabs[index].pagePath })
 }
 
 onShow(() => {
-  updateIndex()
+  // 延迟确保页面栈已更新（从非tab页返回时尤其重要）
+  nextTick(() => {
+    updateIndex()
+  })
 })
 
 updateIndex()

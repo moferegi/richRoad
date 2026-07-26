@@ -151,6 +151,44 @@ func initNewModulesMenus(db *gorm.DB) {
 	var systemToolsParent sysModel.SysBaseMenu
 	systemToolsParentFound := db.Where("name = ?", "systemTools").First(&systemToolsParent).Error == nil
 
+	// 查找或创建"英语端"父菜单
+	var englishAppParent sysModel.SysBaseMenu
+	if err := db.Where("name = ?", "englishApp").First(&englishAppParent).Error; err != nil {
+		englishAppParent = sysModel.SysBaseMenu{
+			MenuLevel: 0,
+			Hidden:    false,
+			ParentId:  0,
+			Path:      "englishApp",
+			Name:      "englishApp",
+			Component: "view/index.vue",
+			Sort:      2,
+			Meta: sysModel.Meta{
+				Title: "英语端",
+				Icon:  "english",
+			},
+		}
+		if err := db.Create(&englishAppParent).Error; err != nil {
+			global.GVA_LOG.Error("创建英语端父菜单失败", zap.Error(err))
+		} else {
+			// 为新父菜单关联所有角色
+			var authorities []sysModel.SysAuthority
+			db.Find(&authorities)
+			for _, auth := range authorities {
+				db.Exec("INSERT IGNORE INTO sys_authority_menus (sys_authority_authority_id, sys_base_menu_id) VALUES (?, ?)",
+					fmt.Sprintf("%d", auth.AuthorityId), englishAppParent.ID)
+			}
+			global.GVA_LOG.Info("英语端父菜单初始化成功")
+		}
+		// 重新查询获取 ID
+		db.Where("name = ?", "englishApp").First(&englishAppParent)
+	}
+
+	// 迁移旧子菜单：将 englishLearningWord / englishLearningVideo 从 client 移到 englishApp
+	if clientParentFound && englishAppParent.ID > 0 {
+		db.Model(&sysModel.SysBaseMenu{}).Where("name = ? AND parent_id = ?", "englishLearningWord", clientParent.ID).Update("parent_id", englishAppParent.ID)
+		db.Model(&sysModel.SysBaseMenu{}).Where("name = ? AND parent_id = ?", "englishLearningVideo", clientParent.ID).Update("parent_id", englishAppParent.ID)
+	}
+
 	type menuDef struct {
 		name      string
 		path      string
@@ -187,8 +225,21 @@ func initNewModulesMenus(db *gorm.DB) {
 			menuDef{"tryonClothManage", "tryonClothManage", "view/client/tryonCloth/tryonCloth.vue", "我的衣橱管理", "goods", clientParent.ID, 19},
 			menuDef{"tryonPointRecord", "tryonPointRecord", "view/client/tryonPointRecord/tryonPointRecord.vue", "试衣币记录", "coin", clientParent.ID, 20},
 			menuDef{"tryonRechargeOrder", "tryonRechargeOrder", "view/client/tryonRechargeOrder/tryonRechargeOrder.vue", "试衣币充值订单", "wallet", clientParent.ID, 21},
-			menuDef{"englishLearningWord", "englishLearningWord", "plugin/english_learning/view/word.vue", "英语单词管理", "reading", clientParent.ID, 22},
-			menuDef{"englishLearningVideo", "englishLearningVideo", "plugin/english_learning/view/video.vue", "英语视频字幕", "video-play", clientParent.ID, 23},
+		)
+		// 英语学习相关菜单已移至 englishApp 父菜单下，此处移除不再重复创建
+	}
+
+	if englishAppParent.ID > 0 {
+		menus = append(menus,
+			menuDef{"englishLearningWord", "englishLearningWord", "plugin/english_learning/view/word.vue", "英语单词管理", "reading", englishAppParent.ID, 1},
+			menuDef{"englishLearningVideo", "englishLearningVideo", "plugin/english_learning/view/video.vue", "英语视频字幕", "video-play", englishAppParent.ID, 2},
+			menuDef{"englishCheckinRecord", "englishCheckinRecord", "view/client/englishCheckinRecord/englishCheckinRecord.vue", "签到记录", "calendar", englishAppParent.ID, 3},
+			menuDef{"englishCollections", "englishCollections", "view/client/englishCollections/englishCollections.vue", "英语收藏", "star-on", englishAppParent.ID, 4},
+			menuDef{"englishErrorLog", "englishErrorLog", "view/client/englishErrorLog/englishErrorLog.vue", "错词本", "document-copy", englishAppParent.ID, 5},
+			menuDef{"englishWatchHistory", "englishWatchHistory", "view/client/englishWatchHistory/englishWatchHistory.vue", "观看历史", "time", englishAppParent.ID, 6},
+			menuDef{"englishPointHistory", "englishPointHistory", "view/client/englishPointHistory/englishPointHistory.vue", "英语积分", "coin", englishAppParent.ID, 7},
+			menuDef{"englishFreeTimeHistory", "englishFreeTimeHistory", "view/client/englishFreeTimeHistory/englishFreeTimeHistory.vue", "时长明细", "timer", englishAppParent.ID, 8},
+			menuDef{"englishVideoTags", "englishVideoTags", "view/client/videoTag/videoTag.vue", "视频标签", "price-tag", englishAppParent.ID, 9},
 		)
 	}
 
@@ -389,6 +440,22 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/dbInspector/getOverview", "GET"},
 		{"/dbInspector/autoFix", "POST"},
 		{"/dbInspector/deleteRecordsByRange", "POST"},
+		// 视频标签管理（englishVideoTags / englishLearningVideo 共用）
+		{"/videoTag/getVideoTagList", "GET"},
+		{"/videoTag/findVideoTag", "GET"},
+		{"/videoTag/createVideoTag", "POST"},
+		{"/videoTag/deleteVideoTag", "DELETE"},
+		{"/videoTag/deleteVideoTagByIds", "DELETE"},
+		{"/videoTag/updateVideoTag", "PUT"},
+		// 英语学习管理端
+		{"/englishLearning/admin/getCheckinRecordList", "GET"},
+		{"/englishLearning/admin/getPointRecordList", "GET"},
+		{"/englishLearning/admin/getFreeTimeRecordList", "GET"},
+		{"/englishLearning/admin/getWatchHistoryList", "GET"},
+		{"/englishLearning/admin/getCollectionList", "GET"},
+		{"/englishLearning/admin/getWordErrorLogList", "GET"},
+		{"/englishLearning/admin/getUserList", "GET"},
+		{"/englishLearning/content/getVideoEpisodeListByTag", "GET"},
 	}
 
 	for _, auth := range seedAuthorities {
@@ -561,7 +628,7 @@ func grantEnglishLearningOpsCasbin(db *gorm.DB) {
 		Table("sys_authority_menus sam").
 		Select("DISTINCT sam.sys_authority_authority_id AS authority_id").
 		Joins("JOIN sys_base_menus sbm ON sbm.id = sam.sys_base_menu_id").
-		Where("sbm.name IN ?", []string{"englishLearningWord", "englishLearningVideo"}).
+		Where("sbm.name IN ?", []string{"englishLearningWord", "englishLearningVideo", "englishVideoTags"}).
 		Scan(&authorityRows).Error; err != nil {
 		global.GVA_LOG.Warn("查询英语学习菜单角色失败", zap.Error(err))
 		return
@@ -578,6 +645,13 @@ func grantEnglishLearningOpsCasbin(db *gorm.DB) {
 		{Path: "/language/getLanguageList", Method: "GET"},
 		{Path: "/language/translateI18n", Method: "POST"},
 		{Path: "/fileUploadAndDownload/upload", Method: "POST"},
+		// 视频标签（englishVideoTags 管理页 / englishLearningVideo 剧集编辑共用）
+		{Path: "/videoTag/getVideoTagList", Method: "GET"},
+		{Path: "/videoTag/findVideoTag", Method: "GET"},
+		{Path: "/videoTag/createVideoTag", Method: "POST"},
+		{Path: "/videoTag/deleteVideoTag", Method: "DELETE"},
+		{Path: "/videoTag/deleteVideoTagByIds", Method: "DELETE"},
+		{Path: "/videoTag/updateVideoTag", Method: "PUT"},
 	}
 
 	for _, row := range authorityRows {

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
+	clientModel "github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/model"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/model/request"
 	"gorm.io/gorm"
@@ -313,8 +314,58 @@ func (s *ContentService) CreateVideoEpisode(episode *model.VideoEpisode) error {
 	return global.GVA_DB.Create(episode).Error
 }
 
+// CreateVideoEpisodeWithTags 创建视频单集并关联标签
+func (s *ContentService) CreateVideoEpisodeWithTags(episode *model.VideoEpisode, tagIds []uint) error {
+	return global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(episode).Error; err != nil {
+			return err
+		}
+		return syncEpisodeTags(tx, episode.ID, tagIds)
+	})
+}
+
 func (s *ContentService) UpdateVideoEpisode(episode model.VideoEpisode) error {
 	return global.GVA_DB.Model(&model.VideoEpisode{}).Where("id = ?", episode.ID).Updates(&episode).Error
+}
+
+// UpdateVideoEpisodeWithTags 更新视频单集并同步标签
+func (s *ContentService) UpdateVideoEpisodeWithTags(episode model.VideoEpisode, tagIds []uint) error {
+	return global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.VideoEpisode{}).Where("id = ?", episode.ID).Updates(&episode).Error; err != nil {
+			return err
+		}
+		return syncEpisodeTags(tx, episode.ID, tagIds)
+	})
+}
+
+// syncEpisodeTags 同步单集标签关联（先删后插）
+func syncEpisodeTags(tx *gorm.DB, episodeID uint, tagIds []uint) error {
+	if err := tx.Where("episode_id = ?", episodeID).Delete(&clientModel.VideoEpisodeTag{}).Error; err != nil {
+		return err
+	}
+	if len(tagIds) == 0 {
+		return nil
+	}
+	tags := make([]clientModel.VideoEpisodeTag, 0, len(tagIds))
+	for _, tagID := range tagIds {
+		if tagID > 0 {
+			tags = append(tags, clientModel.VideoEpisodeTag{EpisodeID: episodeID, TagID: tagID})
+		}
+	}
+	if len(tags) > 0 {
+		return tx.Create(&tags).Error
+	}
+	return nil
+}
+
+// GetVideoEpisodeTags 获取单集关联的标签列表
+func (s *ContentService) GetVideoEpisodeTags(episodeID uint) ([]clientModel.VideoTag, error) {
+	var tags []clientModel.VideoTag
+	err := global.GVA_DB.Table("video_tags").
+		Joins("JOIN video_episode_tags ON video_episode_tags.tag_id = video_tags.id").
+		Where("video_episode_tags.episode_id = ?", episodeID).
+		Find(&tags).Error
+	return tags, err
 }
 
 func (s *ContentService) DeleteVideoEpisode(id uint) error {
@@ -351,4 +402,72 @@ func (s *ContentService) GetVideoEpisodeList(info request.VideoEpisodeSearch) (l
 	}
 	err = db.Order("sort ASC, id DESC").Limit(pageSize).Offset((page - 1) * pageSize).Find(&list).Error
 	return
+}
+
+// GetVideoEpisodeListByTag 按分类+标签筛选视频单集（只返回有标签的单集，支持分页）
+func (s *ContentService) GetVideoEpisodeListByTag(info request.VideoEpisodeTagSearch) (list []model.VideoEpisode, total int64, err error) {
+	page, pageSize := normalizePage(info.Page, info.PageSize)
+
+	episodeTable := resolveContentTableName("video_episode", "video_episodes")
+	seriesTable := resolveContentTableName("video_series", "video_series")
+	tagTable := "video_episode_tags"
+
+	// 始终 JOIN video_episode_tags，确保只返回至少有一个标签的单集
+	base := global.GVA_DB.Table(episodeTable + " AS ve").
+		Joins("JOIN " + seriesTable + " AS vs ON vs.id = ve.series_id").
+		Joins("JOIN " + tagTable + " AS vet ON vet.episode_id = ve.id")
+
+	if info.CategoryID > 0 {
+		base = base.Where("vs.category_id = ?", info.CategoryID)
+	}
+
+	if len(info.TagIds) > 0 {
+		base = base.Where("vet.tag_id IN ?", info.TagIds)
+	}
+
+	// 去重计数（独立 session 避免污染后续查询）
+	countDB := base.Session(&gorm.Session{})
+	err = countDB.Select("COUNT(DISTINCT ve.id)").Scan(&total).Error
+	if err != nil {
+		return
+	}
+
+	// 安全排序：检查 sort 列是否存在
+	orderClause := "ve.id DESC"
+	if global.GVA_DB != nil && global.GVA_DB.Migrator().HasColumn(&model.VideoEpisode{}, "sort") {
+		orderClause = "ve.sort ASC, ve.id DESC"
+	}
+
+	dataDB := base.Session(&gorm.Session{})
+	err = dataDB.Select("DISTINCT ve.*").
+		Order(orderClause).
+		Limit(pageSize).
+		Offset((page - 1) * pageSize).
+		Find(&list).Error
+	return
+}
+
+// GetVideoEpisodeTagsBatch 批量获取单集关联的标签列表
+func (s *ContentService) GetVideoEpisodeTagsBatch(episodeIDs []uint) (map[uint][]clientModel.VideoTag, error) {
+	if len(episodeIDs) == 0 {
+		return map[uint][]clientModel.VideoTag{}, nil
+	}
+	type tagRow struct {
+		EpisodeID uint `gorm:"column:episode_id"`
+		clientModel.VideoTag
+	}
+	var rows []tagRow
+	err := global.GVA_DB.Table("video_tags").
+		Select("video_tags.*, video_episode_tags.episode_id").
+		Joins("JOIN video_episode_tags ON video_episode_tags.tag_id = video_tags.id").
+		Where("video_episode_tags.episode_id IN ?", episodeIDs).
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[uint][]clientModel.VideoTag, len(rows))
+	for _, row := range rows {
+		result[row.EpisodeID] = append(result[row.EpisodeID], row.VideoTag)
+	}
+	return result, nil
 }

@@ -26,12 +26,19 @@
       <view class="zone-header">
         <view class="zone-accent"></view>
         <text class="zone-title">{{ t('home.video_zone') }}</text>
+        <view class="zone-header-right">
+          <view class="tag-entry-btn" @tap="goTagFilter">
+            <text class="tag-entry-label">{{ t('home.more_tags') }}</text>
+            <text class="tag-entry-arrow">›</text>
+          </view>
+        </view>
       </view>
 
       <!-- 胶囊式分类选择器 -->
-      <scroll-view class="cat-scroll" scroll-x show-scrollbar="false">
+      <scroll-view class="cat-scroll" scroll-x show-scrollbar="false" :scroll-into-view="catScrollIntoView">
         <view class="cat-track">
           <view
+            id="cat-pill-0"
             class="cat-pill"
             :class="{ active: currentCategoryId === 0 }"
             @tap="switchCategory(0)"
@@ -41,6 +48,7 @@
           <view
             v-for="cat in videoCategories"
             :key="cat.id"
+            :id="'cat-pill-' + cat.id"
             class="cat-pill"
             :class="{ active: currentCategoryId === cat.id }"
             @tap="switchCategory(cat.id)"
@@ -117,6 +125,7 @@ const homeShownOnce = ref(false)
 const homeLocaleLoaded = ref('')
 const reloading = ref(false)
 const lastLoadTime = ref(0)
+const catScrollIntoView = ref('')
 const CACHE_TTL = 5 * 60 * 1000 // 5 分钟缓存窗口
 
 const normalizeId = (item) => Number(item?.id || item?.ID || 0)
@@ -199,10 +208,15 @@ const loadSeries = async (append = false) => {
 const switchCategory = async (categoryId) => {
   if (currentCategoryId.value === categoryId && videoList.value.length > 0) return
   currentCategoryId.value = categoryId
+  catScrollIntoView.value = 'cat-pill-' + categoryId
   page.value = 1
   finished.value = false
   videoList.value = []
   await loadSeries(false)
+}
+
+const goTagFilter = () => {
+  uni.navigateTo({ url: '/pages/learning/tag-filter' })
 }
 
 const goDetail = (seriesId) => {
@@ -420,6 +434,35 @@ onReachBottom(async () => {
   font-size: 34rpx;
   font-weight: 800;
   color: #1A1B3A;
+}
+
+.zone-header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.tag-entry-btn {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  padding: 8rpx 16rpx 8rpx 20rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  box-shadow: 0 2rpx 12rpx rgba(108, 91, 255, 0.28);
+}
+
+.tag-entry-label {
+  font-size: 22rpx;
+  color: #fff;
+  font-weight: 600;
+}
+
+.tag-entry-arrow {
+  font-size: 28rpx;
+  color: #fff;
+  font-weight: 700;
+  line-height: 1;
 }
 
 /* === 胶囊式分类选择器 === */

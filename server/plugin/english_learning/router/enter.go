@@ -7,6 +7,7 @@ type RouterGroup struct {
 	CheckinRouter
 	ContentRouter
 	UserDataRouter
+	AdminRouter
 }
 
 var RouterGroupApp = new(RouterGroup)

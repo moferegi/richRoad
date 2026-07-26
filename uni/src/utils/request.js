@@ -250,6 +250,7 @@ const i18nNormalizeEndpoints = [
     '/englishLearning/content/findVideoSeries',
     '/englishLearning/content/findVideoEpisode',
     '/englishLearning/content/getVideoEpisodeList',
+    '/englishLearning/content/getVideoEpisodeListByTag',
     '/englishLearning/word/getWordList',
     '/englishLearning/word/findWord',
     '/englishLearning/word/getErrorLogList',
@@ -414,9 +415,19 @@ export const request = ({url, data, header, method, params}) => {
     // 处理 params 参数拼接到 url
     let finalUrl = baseUrl + url;
     if (params && Object.keys(params).length > 0) {
-        const queryString = Object.keys(params)
-            .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
-            .join('&');
+        const queryParts = []
+        Object.keys(params).forEach(key => {
+            const val = params[key]
+            if (Array.isArray(val)) {
+                // Golang Gin form 绑定数组需要重复 key 形式：tagIds=1&tagIds=2
+                val.forEach(v => {
+                    queryParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(v)}`)
+                })
+            } else {
+                queryParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+            }
+        })
+        const queryString = queryParts.join('&')
         finalUrl += (url.includes('?') ? '&' : '?') + queryString;
     }
 

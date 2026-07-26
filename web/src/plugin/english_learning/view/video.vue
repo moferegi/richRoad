@@ -477,6 +477,23 @@
         <el-form-item label="排序">
           <el-input-number v-model="episodeForm.sort" :min="0" />
         </el-form-item>
+        <el-form-item label="视频标签">
+          <el-select
+            v-model="episodeForm.tagIds"
+            multiple
+            filterable
+            clearable
+            placeholder="请选择视频标签"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="item in videoTagOptions"
+              :key="item.ID"
+              :label="item.name"
+              :value="item.ID"
+            />
+          </el-select>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="episodeDialogVisible = false">取消</el-button>
@@ -637,6 +654,7 @@
     createVideoCategory,
     createVideoEpisode,
     createVideoSeries,
+    findVideoEpisode,
     deleteVideoCategory,
     deleteVideoEpisode,
     deleteVideoSeries,
@@ -658,6 +676,7 @@
     checkFfmpeg,
     sliceVideoEpisode
   } from '../api/english'
+  import { getVideoTagList } from '@/api/client/videoTag'
 
   defineOptions({
     name: 'EnglishLearningVideo'
@@ -818,8 +837,11 @@
     nameI18n: { zh: '' },
     videoUrl: '',
     trialPercent: 8,
-    sort: 0
+    sort: 0,
+    tagIds: []
   })
+
+  const videoTagOptions = ref([])
 
   // HLS 切片相关
   const hlsMode = ref(false)
@@ -1070,6 +1092,17 @@
     episodeOptions.value = res.data?.list || []
   }
 
+  const loadVideoTagOptions = async () => {
+    try {
+      const res = await getVideoTagList({ page: 1, pageSize: 1000 })
+      if (res.code === 0) {
+        videoTagOptions.value = res.data?.list || []
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
   const handleVideoCategoryPageChange = (page) => {
     videoCategoryQuery.value.page = page
     loadVideoCategoryList()
@@ -1256,7 +1289,7 @@
     })
   }
 
-  const openEpisodeDialog = (row) => {
+  const openEpisodeDialog = async (row) => {
     episodeDialogMode.value = row?.ID ? 'edit' : 'create'
     episodeForm.value = {
       ID: row?.ID || 0,
@@ -1264,7 +1297,8 @@
       nameI18n: normalizeI18nObject(row?.name || ''),
       videoUrl: row?.videoUrl || '',
       trialPercent: Number(row?.trialPercent || 8),
-      sort: Number(row?.sort || 0)
+      sort: Number(row?.sort || 0),
+      tagIds: []
     }
     // Reset HLS state
     hlsMode.value = false
@@ -1281,6 +1315,17 @@
     if (row?.videoType === 'm3u8') {
       hlsMode.value = true
       onHlsModeChange(true)
+    }
+    // Load existing tags when editing
+    if (row?.ID) {
+      try {
+        const detailRes = await findVideoEpisode({ ID: row.ID })
+        if (detailRes.code === 0 && detailRes.data?.tags) {
+          episodeForm.value.tagIds = detailRes.data.tags.map(t => t.ID)
+        }
+      } catch (e) {
+        // ignore tag load failure
+      }
     }
     episodeDialogVisible.value = true
   }
@@ -1385,7 +1430,8 @@
       name: stringifyI18nObject(episodeForm.value.nameI18n),
       videoUrl: String(episodeForm.value.videoUrl || '').trim(),
       trialPercent: Number(episodeForm.value.trialPercent || 8),
-      sort: Number(episodeForm.value.sort || 0)
+      sort: Number(episodeForm.value.sort || 0),
+      tagIds: episodeForm.value.tagIds || []
     }
 
     if (!formatI18nText(payload.name)) {
@@ -1801,7 +1847,8 @@
       loadVideoCategoryOptions(),
       loadSeriesOptions(),
       loadEpisodeOptions(),
-      loadManagedLanguages()
+      loadManagedLanguages(),
+      loadVideoTagOptions()
     ])
   })
 </script>

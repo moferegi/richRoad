@@ -56,3 +56,36 @@ type RehighlightSentencesReq struct {
 	EpisodeID  uint   `json:"episodeId" binding:"required"`
 	KeywordIDs []uint `json:"keywordIds"` // 重新选定的重点单词ID列表
 }
+
+// CreateVideoEpisodeReq 创建视频单集请求（含标签）
+type CreateVideoEpisodeReq struct {
+	SeriesID     uint    `json:"seriesId"`
+	Name         string  `json:"name"`
+	VideoUrl     string  `json:"videoUrl"`
+	Duration     float64 `json:"duration"`
+	VideoType    string  `json:"videoType"`
+	TrialPercent int     `json:"trialPercent"`
+	Sort         int     `json:"sort"`
+	TagIds       []uint  `json:"tagIds"`
+}
+
+// UpdateVideoEpisodeReq 更新视频单集请求（含标签）
+type UpdateVideoEpisodeReq struct {
+	ID           uint    `json:"ID" binding:"required"`
+	SeriesID     uint    `json:"seriesId"`
+	Name         string  `json:"name"`
+	VideoUrl     string  `json:"videoUrl"`
+	Duration     float64 `json:"duration"`
+	VideoType    string  `json:"videoType"`
+	TrialPercent int     `json:"trialPercent"`
+	Sort         int     `json:"sort"`
+	TagIds       []uint  `json:"tagIds"`
+}
+
+// VideoEpisodeTagSearch 按分类+标签筛选单集请求
+type VideoEpisodeTagSearch struct {
+	CategoryID uint   `json:"categoryId" form:"categoryId"`
+	TagIds     []uint `json:"tagIds" form:"tagIds"`
+	Page       int    `json:"page" form:"page"`
+	PageSize   int    `json:"pageSize" form:"pageSize"`
+}

@@ -497,7 +497,7 @@ const initHls = async (url) => {
         hlsInstance.stopLoad()
         destroyHls()
         isVideoBuffering.value = false
-        uni.showToast({ title: '视频解密失败，请刷新重试', icon: 'none' })
+        uni.showToast({ title: t('player.decrypt_failed'), icon: 'none' })
         return
       }
 

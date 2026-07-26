@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
+	clientModel "github.com/flipped-aurora/gin-vue-admin/server/model/client"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
 	learningMiddleware "github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/middleware"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/model"
@@ -501,22 +502,31 @@ func (a *ContentApi) GetVideoSeriesList(c *gin.Context) {
 	response.OkWithDetailed(response.PageResult{List: serverUtils.LocalizeI18nPayloadByContext(c, list), Total: total, Page: pageInfo.Page, PageSize: pageInfo.PageSize}, "获取成功", c)
 }
 
-// CreateVideoEpisode 创建视频单集
+// CreateVideoEpisode 创建视频单集（含标签）
 // @Tags     EnglishContent
 // @Summary  创建视频单集
 // @Security ApiKeyAuth
 // @accept   application/json
 // @Produce  application/json
-// @Param    data body model.VideoEpisode true "视频单集信息"
+// @Param    data body request.CreateVideoEpisodeReq true "视频单集信息"
 // @Success  200  {object} response.Response{msg=string} "创建成功"
 // @Router   /englishLearning/content/createVideoEpisode [post]
 func (a *ContentApi) CreateVideoEpisode(c *gin.Context) {
-	var body model.VideoEpisode
+	var body request.CreateVideoEpisodeReq
 	if err := c.ShouldBindJSON(&body); err != nil {
 		response.FailWithMessage("参数错误", c)
 		return
 	}
-	if err := contentService.CreateVideoEpisode(&body); err != nil {
+	episode := &model.VideoEpisode{
+		SeriesID:     body.SeriesID,
+		Name:         body.Name,
+		VideoUrl:     body.VideoUrl,
+		Duration:     body.Duration,
+		VideoType:    body.VideoType,
+		TrialPercent: body.TrialPercent,
+		Sort:         body.Sort,
+	}
+	if err := contentService.CreateVideoEpisodeWithTags(episode, body.TagIds); err != nil {
 		global.GVA_LOG.Error("创建视频单集失败", zap.Error(err))
 		response.FailWithMessage("创建失败", c)
 		return
@@ -524,17 +534,17 @@ func (a *ContentApi) CreateVideoEpisode(c *gin.Context) {
 	response.OkWithMessage("创建成功", c)
 }
 
-// UpdateVideoEpisode 更新视频单集
+// UpdateVideoEpisode 更新视频单集（含标签）
 // @Tags     EnglishContent
 // @Summary  更新视频单集
 // @Security ApiKeyAuth
 // @accept   application/json
 // @Produce  application/json
-// @Param    data body model.VideoEpisode true "视频单集信息"
+// @Param    data body request.UpdateVideoEpisodeReq true "视频单集信息"
 // @Success  200  {object} response.Response{msg=string} "更新成功"
 // @Router   /englishLearning/content/updateVideoEpisode [put]
 func (a *ContentApi) UpdateVideoEpisode(c *gin.Context) {
-	var body model.VideoEpisode
+	var body request.UpdateVideoEpisodeReq
 	if err := c.ShouldBindJSON(&body); err != nil {
 		response.FailWithMessage("参数错误", c)
 		return
@@ -543,7 +553,17 @@ func (a *ContentApi) UpdateVideoEpisode(c *gin.Context) {
 		response.FailWithMessage("ID不能为空", c)
 		return
 	}
-	if err := contentService.UpdateVideoEpisode(body); err != nil {
+	episode := model.VideoEpisode{
+		GVA_MODEL:    global.GVA_MODEL{ID: body.ID},
+		SeriesID:     body.SeriesID,
+		Name:         body.Name,
+		VideoUrl:     body.VideoUrl,
+		Duration:     body.Duration,
+		VideoType:    body.VideoType,
+		TrialPercent: body.TrialPercent,
+		Sort:         body.Sort,
+	}
+	if err := contentService.UpdateVideoEpisodeWithTags(episode, body.TagIds); err != nil {
 		global.GVA_LOG.Error("更新视频单集失败", zap.Error(err))
 		response.FailWithMessage("更新失败", c)
 		return
@@ -613,7 +633,18 @@ func (a *ContentApi) FindVideoEpisode(c *gin.Context) {
 	}
 
 	data.HasFullAuth = hasFullAuth
-	response.OkWithData(serverUtils.LocalizeI18nPayloadByContext(c, data), c)
+
+	// 加载关联标签
+	tags, tagErr := contentService.GetVideoEpisodeTags(data.ID)
+	if tagErr != nil {
+		global.GVA_LOG.Warn("获取视频单集标签失败", zap.Error(tagErr), zap.Uint("episodeID", data.ID))
+	}
+
+	type episodeWithTags struct {
+		model.VideoEpisode
+		Tags []clientModel.VideoTag `json:"tags"`
+	}
+	response.OkWithData(serverUtils.LocalizeI18nPayloadByContext(c, episodeWithTags{VideoEpisode: data, Tags: tags}), c)
 }
 
 // GetVideoEpisodeList 分页获取视频单集
@@ -641,4 +672,52 @@ func (a *ContentApi) GetVideoEpisodeList(c *gin.Context) {
 		list[i].VideoUrl = service.SignLearningVideoURL(list[i].VideoUrl)
 	}
 	response.OkWithDetailed(response.PageResult{List: serverUtils.LocalizeI18nPayloadByContext(c, list), Total: total, Page: pageInfo.Page, PageSize: pageInfo.PageSize}, "获取成功", c)
+}
+
+// episodeTagItem 单集+标签响应结构
+type episodeTagItem struct {
+	model.VideoEpisode
+	Tags []clientModel.VideoTag `json:"tags"`
+}
+
+// GetVideoEpisodeListByTag 按分类+标签筛选视频单集
+// @Tags     EnglishContent
+// @Summary  按分类+标签筛选视频单集
+// @Security ApiKeyAuth
+// @accept   application/json
+// @Produce  application/json
+// @Param    data query request.VideoEpisodeTagSearch true "筛选参数"
+// @Success  200  {object} response.Response{data=response.PageResult,msg=string} "获取成功"
+// @Router   /englishLearning/content/getVideoEpisodeListByTag [get]
+func (a *ContentApi) GetVideoEpisodeListByTag(c *gin.Context) {
+	var pageInfo request.VideoEpisodeTagSearch
+	if err := c.ShouldBindQuery(&pageInfo); err != nil {
+		response.FailWithMessage("参数错误", c)
+		return
+	}
+	list, total, err := contentService.GetVideoEpisodeListByTag(pageInfo)
+	if err != nil {
+		global.GVA_LOG.Error("按标签获取视频单集列表失败", zap.Error(err))
+		response.FailWithMessage("获取失败", c)
+		return
+	}
+
+	// 批量获取每个单集的标签
+	episodeIDs := make([]uint, len(list))
+	for i, ep := range list {
+		episodeIDs[i] = ep.ID
+	}
+	tagMap, _ := contentService.GetVideoEpisodeTagsBatch(episodeIDs)
+
+	// 构建响应
+	result := make([]episodeTagItem, len(list))
+	for i, ep := range list {
+		ep.VideoUrl = service.SignLearningVideoURL(ep.VideoUrl)
+		tags := tagMap[ep.ID]
+		if tags == nil {
+			tags = []clientModel.VideoTag{}
+		}
+		result[i] = episodeTagItem{VideoEpisode: ep, Tags: tags}
+	}
+	response.OkWithDetailed(response.PageResult{List: serverUtils.LocalizeI18nPayloadByContext(c, result), Total: total, Page: pageInfo.Page, PageSize: pageInfo.PageSize}, "获取成功", c)
 }

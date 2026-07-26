@@ -42,4 +42,5 @@ func (p *plugin) Register(engine *gin.Engine) {
 	englishRouter.RouterGroupApp.InitCheckinRouter(group)
 	englishRouter.RouterGroupApp.InitContentRouter(group)
 	englishRouter.RouterGroupApp.InitUserDataRouter(group)
+	englishRouter.RouterGroupApp.InitAdminRouter(group)
 }

@@ -107,6 +107,22 @@ export const getVideoEpisodeList = (params = {}) => {
   })
 }
 
+export const getVideoEpisodeListByTag = (params = {}) => {
+  return request({
+    url: '/englishLearning/content/getVideoEpisodeListByTag',
+    method: 'get',
+    params: withIncludeI18n(params)
+  })
+}
+
+export const getVideoTagList = (params = {}) => {
+  return request({
+    url: '/videoTag/getVideoTagPublic',
+    method: 'get',
+    params
+  })
+}
+
 export const getWordList = (params = {}) => {
   return request({
     url: '/englishLearning/word/getWordList',

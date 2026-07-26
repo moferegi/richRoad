@@ -7,6 +7,7 @@ type ApiGroup struct {
 	CheckinApi
 	ContentApi
 	UserDataApi
+	AdminApi
 }
 
 var ApiGroupApp = new(ApiGroup)

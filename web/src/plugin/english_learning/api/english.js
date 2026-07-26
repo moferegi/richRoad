@@ -222,6 +222,14 @@ export const getVideoSeriesList = (params) => {
 }
 
 // 视频单集管理
+export const findVideoEpisode = (params) => {
+  return service({
+    url: '/englishLearning/content/findVideoEpisode',
+    method: 'get',
+    params
+  })
+}
+
 export const createVideoEpisode = (data) => {
   return service({
     url: '/englishLearning/content/createVideoEpisode',
