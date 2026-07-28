@@ -32,6 +32,7 @@ func initBizRouter(routers ...*gin.RouterGroup) {
 		clientRouter.InitSignInRouter(uniPrivateGroup, publicGroup)
 		clientRouter.InitExternalLinkDomainRouter(uniPrivateGroup, publicGroup)
 		clientRouter.InitVideoTagRouter(privateGroup, publicGroup)
+		clientRouter.InitDiaryTagRouter(privateGroup, publicGroup)
 	}
 	{
 		shopRouter := router.RouterGroupApp.Shop

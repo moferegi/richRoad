@@ -106,3 +106,15 @@ type BatchFillWordFromDictionaryReq struct {
 	TranslateURL         string   `json:"translateUrl"`
 	Limit                int      `json:"limit"`
 }
+
+// BatchCreateWordsReq 批量创建单词（仅入库单词本体，不生成TTS，用于字幕全部单词一键入库）
+type BatchCreateWordsReq struct {
+	Words []string `json:"words" binding:"required"`
+}
+
+// BatchCreateWordsItem 批量创建单词的返回项
+type BatchCreateWordsItem struct {
+	Word   string `json:"word"`
+	WordID uint   `json:"wordId"`
+	Newly  bool   `json:"newly"` // 是否本次新创建
+}

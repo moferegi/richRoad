@@ -15,7 +15,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { t as i18nT } from '@/utils/i18n.js'
@@ -31,7 +31,8 @@ const t = (key, fallback) => {
 
 const tabs = [
   { pagePath: '/pages/learning/home', i18nKey: 'englishTabHome', fallback: '首页', icon: '🏠' },
-  { pagePath: '/pages/learning/typing', i18nKey: 'englishTabTyping', fallback: '跟打', icon: '⌨' },
+  { pagePath: '/pages/learning/diary', i18nKey: 'englishTabDiary', fallback: '日记', icon: '📖' },
+  { pagePath: '/pages/learning/typing', i18nKey: 'englishTabTyping', fallback: '单词', icon: '⌨' },
   { pagePath: '/pages/learning/profile', i18nKey: 'englishTabMy', fallback: '我的', icon: '👤' }
 ]
 
@@ -50,7 +51,7 @@ const updateIndex = () => {
         const idx = tabs.findIndex(t => t.pagePath === route)
         if (idx >= 0) currentIndex.value = idx
       }
-    }, 100)
+    }, 300)
     return
   }
   const route = '/' + pages[pages.length - 1].route
@@ -68,13 +69,20 @@ const switchTab = (index) => {
 }
 
 onShow(() => {
-  // 延迟确保页面栈已更新（从非tab页返回时尤其重要）
-  nextTick(() => {
+  // 首次延迟确保页面栈已更新
+  setTimeout(() => {
     updateIndex()
-  })
+  }, 200)
+  // 二次确认，防止页面栈更新延迟
+  setTimeout(() => {
+    updateIndex()
+  }, 500)
 })
 
-updateIndex()
+// 初始加载时延迟执行
+setTimeout(() => {
+  updateIndex()
+}, 300)
 </script>
 
 <style>

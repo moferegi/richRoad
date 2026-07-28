@@ -46,13 +46,16 @@
           <text class="time-text">{{ formatTime(item.createdAt) }}</text>
         </view>
 
-        <view class="card-body" @click="openDetail(item)">
+        <view class="card-body">
           <image
             v-if="item.targetType === 3"
             class="video-cover"
             :src="getExternalUrl(item.video?.coverUrl || '')"
             mode="aspectFill"
           />
+          <view v-else-if="item.targetType === 4 || item.targetType === 5" class="type-icon-circle">
+            <text class="type-icon-char">D</text>
+          </view>
           <view v-else class="type-icon-circle">
             <text class="type-icon-char">{{ item.targetType === 1 ? 'W' : 'S' }}</text>
           </view>
@@ -65,6 +68,19 @@
         <view class="card-footer">
           <button size="mini" class="remove-btn" @click.stop="removeCollection(item)">
             {{ t('collection.remove') }}
+          </button>
+          <button v-if="item.targetType !== 5 && item.targetType !== 2" size="mini" class="view-btn" @click.stop="openDetail(item)">查看</button>
+          <!-- For type 2 (sentence), the view button IS the play button -->
+          <button v-if="item.targetType === 2" size="mini" class="play-btn"
+            :class="{ 'playing-active': playingSentenceId === item.targetId }"
+            @click.stop="playSentenceAudio(item)">
+            {{ playingSentenceId === item.targetId ? '◉' : '▶' }}
+          </button>
+          <!-- For type 5 (diary sentence), the view button IS the play button -->
+          <button v-if="item.targetType === 5" size="mini" class="play-btn"
+            :class="{ 'playing-active': playingDiarySentenceId === item.targetId }"
+            @click.stop="playDiarySentenceAudio(item)">
+            {{ playingDiarySentenceId === item.targetId ? '◉' : '▶' }}
           </button>
         </view>
       </view>
@@ -80,11 +96,12 @@
 
 <script setup>
 import { ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShow, onUnload } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { localText as i18nLocalText, t as i18nT } from '@/utils/i18n.js'
 import { getCollectionDetailList, uncollect } from '@/api/learning.js'
 import { getExternalUrl } from '@/utils/url.js'
+import { playWordAudio, stopLocalTTS, destroyTTS } from '@/utils/learning-tts'
 
 const langStore = useLangStore()
 
@@ -104,7 +121,8 @@ const tabs = [
   { type: 0, key: 'collection.tab_all' },
   { type: 1, key: 'collection.tab_word' },
   { type: 2, key: 'collection.tab_sentence' },
-  { type: 3, key: 'collection.tab_video' }
+  { type: 3, key: 'collection.tab_video' },
+  { type: 4, key: 'collection.tab_diary' }
 ]
 
 const targetType = ref(0)
@@ -132,13 +150,16 @@ const normalizeCollectionItem = (item) => ({
   createdAt: item?.createdAt || '',
   word: item?.word || null,
   sentence: item?.sentence || null,
-  video: item?.video || null
+  video: item?.video || null,
+  diary: item?.diary || null,
+  diarySentence: item?.diarySentence || null
 })
 
 const getTypeLabel = (type) => {
   if (type === 1) return t('collection.word')
   if (type === 2) return t('collection.sentence')
   if (type === 3) return t('collection.video')
+  if (type === 4 || type === 5) return t('collection.tab_diary') || '日记'
   return '-'
 }
 
@@ -153,6 +174,16 @@ const getTitle = (item) => {
     const episodeName = localText(item.video?.episodeName || '')
     const seriesName = localText(item.video?.seriesName || '')
     return episodeName || seriesName || `#${item.targetId}`
+  }
+  if (item.targetType === 4) {
+    return localText(item.diary?.name || '') || `#${item.targetId}`
+  }
+  if (item.targetType === 5) {
+    const ds = item.diarySentence
+    if (ds) {
+      return (ds.english || '').replace(/<\/?w[^>]*>/g, '').slice(0, 50)
+    }
+    return ''
   }
   return `#${item.targetId}`
 }
@@ -171,6 +202,15 @@ const getDesc = (item) => {
       return `${seriesName} · ${episodeName}`
     }
     return seriesName || episodeName || ''
+  }
+  if (item.targetType === 4) {
+    return localText(item.diary?.name || '') || ''
+  }
+  if (item.targetType === 5) {
+    if (item.diary) {
+      return localText(item.diary.name)
+    }
+    return ''
   }
   return ''
 }
@@ -196,7 +236,9 @@ const fetchCollectionList = async (isLoadMore = false) => {
     page: nextPage,
     pageSize
   }
-  if (targetType.value > 0) {
+  if (targetType.value === 4) {
+    params.targetTypes = [4, 5]
+  } else if (targetType.value > 0) {
     params.targetType = targetType.value
   }
 
@@ -270,7 +312,120 @@ const openDetail = (item) => {
     }
   }
 
+  if (item.targetType === 4) {
+    const diaryId = Number(item.targetId || 0)
+    if (diaryId > 0) {
+      uni.navigateTo({ url: `/pages/learning/diary-detail?id=${diaryId}` })
+      return
+    }
+  }
+
   uni.showToast({ title: t('collection.open_failed'), icon: 'none' })
+}
+
+const playingDiaryId = ref(0)
+let diaryAudioCtx = null
+
+const playDiaryAudio = (item) => {
+  const diaryId = Number(item.targetId || 0)
+  if (diaryAudioCtx && playingDiaryId.value === diaryId) {
+    diaryAudioCtx.stop()
+    diaryAudioCtx.destroy()
+    diaryAudioCtx = null
+    playingDiaryId.value = 0
+    return
+  }
+
+  const audioUrl = item.diary?.audioUs || item.diary?.audioUk || ''
+  if (!audioUrl) {
+    uni.showToast({ title: t('collection.no_audio'), icon: 'none' })
+    return
+  }
+
+  if (diaryAudioCtx) {
+    diaryAudioCtx.stop()
+    diaryAudioCtx.destroy()
+  }
+
+  diaryAudioCtx = uni.createInnerAudioContext()
+  diaryAudioCtx.src = audioUrl
+  diaryAudioCtx.onPlay(() => {
+    playingDiaryId.value = diaryId
+  })
+  diaryAudioCtx.onEnded(() => {
+    playingDiaryId.value = 0
+  })
+  diaryAudioCtx.onStop(() => {
+    playingDiaryId.value = 0
+  })
+  diaryAudioCtx.onError(() => {
+    playingDiaryId.value = 0
+    uni.showToast({ title: t('collection.audio_play_failed'), icon: 'none' })
+  })
+  diaryAudioCtx.play()
+}
+
+const playingDiarySentenceId = ref(0)
+
+const playingSentenceId = ref(0)
+
+const playSentenceAudio = (item) => {
+  const sentenceId = Number(item.targetId || 0)
+  // If currently playing this sentence, stop it
+  if (playingSentenceId.value === sentenceId) {
+    stopLocalTTS()
+    playingSentenceId.value = 0
+    return
+  }
+
+  const sentence = item.sentence
+  if (!sentence) {
+    uni.showToast({ title: '无法获取句子信息', icon: 'none' })
+    return
+  }
+
+  // Extract plain text from the sentence (remove <w> tags)
+  const sentenceText = stripWordTags(sentence.english) || ''
+
+  const callbacks = {
+    onStart: () => { playingSentenceId.value = sentenceId },
+    onEnd: () => { playingSentenceId.value = 0 },
+    onError: () => { playingSentenceId.value = 0 }
+  }
+
+  playWordAudio(sentenceText, sentence.audioUs || '', sentence.audioUk || '', 'US', callbacks)
+}
+
+const playDiarySentenceAudio = (item) => {
+  const sentenceId = Number(item.targetId || 0)
+  // If currently playing this sentence, stop it
+  if (playingDiarySentenceId.value === sentenceId) {
+    stopLocalTTS()
+    playingDiarySentenceId.value = 0
+    return
+  }
+
+  const ds = item.diarySentence
+  const diary = item.diary
+  if (!ds || !diary) {
+    uni.showToast({ title: '无法获取句子信息', icon: 'none' })
+    return
+  }
+
+  // Extract plain text from the sentence (remove <w> tags)
+  const stripTags = (text) => {
+    if (!text) return ''
+    return text.replace(/<\/?w[^>]*>/g, '')
+  }
+  const sentenceText = stripTags(ds.english) || ''
+
+  const callbacks = {
+    onStart: () => { playingDiarySentenceId.value = sentenceId },
+    onEnd: () => { playingDiarySentenceId.value = 0 },
+    onError: () => { playingDiarySentenceId.value = 0 }
+  }
+
+  playWordAudio(sentenceText, diary.audioUs, diary.audioUk, 'US', callbacks)
 }
 
 const removeCollection = async (item) => {
@@ -289,6 +444,15 @@ const removeCollection = async (item) => {
 
 onShow(() => {
   fetchCollectionList(false)
+})
+
+onUnload(() => {
+  if (diaryAudioCtx) {
+    diaryAudioCtx.stop()
+    diaryAudioCtx.destroy()
+    diaryAudioCtx = null
+  }
+  destroyTTS()
 })
 </script>
 
@@ -540,7 +704,8 @@ onShow(() => {
 .card-footer {
   margin-top: 16rpx;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .remove-btn {
@@ -550,6 +715,38 @@ onShow(() => {
   font-size: 24rpx;
   border-radius: 999rpx;
   font-weight: 600;
+}
+
+.view-btn {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  border-radius: 999rpx;
+  padding: 0 24rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  border: none;
+}
+
+.play-btn {
+  background: rgba(108, 91, 255, 0.1);
+  color: #6D5BFF;
+  border: 1rpx solid rgba(108, 91, 255, 0.22);
+  font-size: 24rpx;
+  border-radius: 999rpx;
+  font-weight: 600;
+  margin-right: 12rpx;
+}
+
+.play-btn:active {
+  transform: scale(0.95);
+}
+
+.play-btn.playing-active {
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  color: #fff;
+  border-color: transparent;
 }
 
 .remove-btn:active {

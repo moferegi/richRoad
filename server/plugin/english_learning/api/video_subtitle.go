@@ -5,6 +5,7 @@ import (
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
 	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
+	learningMiddleware "github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/middleware"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/model/request"
 	"github.com/flipped-aurora/gin-vue-admin/server/plugin/english_learning/service"
 	"github.com/flipped-aurora/gin-vue-admin/server/utils"
@@ -136,7 +137,35 @@ func (a *VideoSubtitleApi) GetSentenceList(c *gin.Context) {
 		return
 	}
 
-	list, err := videoSubtitleService.GetSentenceList(uint(episodeID))
+	// 获取单集信息以评估权限
+	episode, err := contentService.GetVideoEpisode(uint(episodeID))
+	if err != nil {
+		global.GVA_LOG.Error("获取视频单集信息失败", zap.Error(err))
+		response.FailWithMessage("获取失败", c)
+		return
+	}
+
+	// 评估用户权限
+	hasFullAuth := false
+	if userIDValue, exists := c.Get(learningMiddleware.CtxEnglishUserID); exists {
+		if userID, castOK := userIDValue.(uint); castOK && userID > 0 {
+			decision, decisionErr := contentAuthzService.EvaluateVideoEpisodeAccess(userID, episode)
+			if decisionErr != nil {
+				global.GVA_LOG.Warn("评估视频单集权限失败", zap.Error(decisionErr), zap.Uint("episodeID", episode.ID), zap.Uint("userID", userID))
+			} else {
+				hasFullAuth = decision.HasFullAuth
+			}
+		}
+	}
+	if !hasFullAuth {
+		if value, exists := c.Get(learningMiddleware.CtxEnglishHasFullAuth); exists {
+			if allowed, castOK := value.(bool); castOK {
+				hasFullAuth = allowed
+			}
+		}
+	}
+
+	list, err := videoSubtitleService.GetSentenceListWithAuth(uint(episodeID), hasFullAuth, episode.TrialPercent)
 	if err != nil {
 		global.GVA_LOG.Error("获取字幕句子失败", zap.Error(err))
 		response.FailWithMessage("获取失败", c)
@@ -194,4 +223,31 @@ func (a *VideoSubtitleApi) UpdateSentenceList(c *gin.Context) {
 	}
 
 	response.OkWithMessage("字幕更新成功", c)
+}
+
+// GetEpisodeSubtitles
+// @Tags     VideoSubtitle
+// @Summary  获取某单集已上传的字幕文件记录（用于自动回填字幕解析表单）
+// @Security ApiKeyAuth
+// @accept   application/json
+// @Produce  application/json
+// @Param   episodeId query uint true "单集ID"
+// @Success 200  {object} response.Response{data=[]model.VideoSubtitle,msg=string} "获取成功"
+// @Router   /englishLearning/video/getEpisodeSubtitles [get]
+func (a *VideoSubtitleApi) GetEpisodeSubtitles(c *gin.Context) {
+	episodeIDStr := c.Query("episodeId")
+	episodeID, err := strconv.ParseUint(episodeIDStr, 10, 64)
+	if err != nil || episodeID == 0 {
+		response.FailWithMessage("episodeId参数错误", c)
+		return
+	}
+
+	list, err := videoSubtitleService.GetEpisodeSubtitles(uint(episodeID))
+	if err != nil {
+		global.GVA_LOG.Error("获取字幕文件记录失败", zap.Error(err))
+		response.FailWithMessage("获取失败: "+err.Error(), c)
+		return
+	}
+
+	response.OkWithData(list, c)
 }

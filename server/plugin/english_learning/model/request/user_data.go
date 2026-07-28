@@ -9,12 +9,13 @@ type SaveWordProgressReq struct {
 }
 
 type CollectionReq struct {
-	TargetType int  `json:"targetType" binding:"required"` // 1单词 2句子 3视频
+	TargetType int  `json:"targetType" binding:"required"` // 1单词 2视频句子 3视频 4日记 5日记句子
 	TargetID   uint `json:"targetId" binding:"required"`
 }
 
 type CollectionSearch struct {
-	TargetType int `json:"targetType" form:"targetType"`
+	TargetType  int   `json:"targetType" form:"targetType"`
+	TargetTypes []int `json:"targetTypes" form:"targetTypes"`
 	commonReq.PageInfo
 }
 

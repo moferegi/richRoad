@@ -28,6 +28,7 @@
             <el-option label="单词" :value="1" />
             <el-option label="句子" :value="2" />
             <el-option label="视频" :value="3" />
+            <el-option label="日记" :value="4" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -99,7 +100,7 @@ const elSearchFormRef = ref()
 const userOptions = ref([])
 const userLoading = ref(false)
 
-const targetTypeMap = { 1: '单词', 2: '句子', 3: '视频' }
+const targetTypeMap = { 1: '单词', 2: '句子', 3: '视频', 4: '日记' }
 
 const targetTypeTagType = (type) => {
   const map = { 1: 'success', 2: 'warning', 3: '' }

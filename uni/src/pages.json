@@ -381,6 +381,14 @@
 			}
 		},
 		{
+			"path": "pages/learning/diary",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
 			"path": "pages/learning/typing",
 			"style": {
 				"navigationStyle": "custom",
@@ -415,6 +423,14 @@
 		},
 		{
 			"path": "pages/learning/checkin-record",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/learning/diary-detail",
 			"style": {
 				"navigationStyle": "custom",
 				"navigationBarTitleText": "",
@@ -500,8 +516,14 @@
 				"selectedIconPath": "static/images/tabBar/homes.png"
 			},
 			{
+				"pagePath": "pages/learning/diary",
+				"text": "日记",
+				"iconPath": "static/images/tabBar/find.png",
+				"selectedIconPath": "static/images/tabBar/finds.png"
+			},
+			{
 				"pagePath": "pages/learning/typing",
-				"text": "跟打",
+				"text": "单词",
 				"iconPath": "static/images/tabBar/find.png",
 				"selectedIconPath": "static/images/tabBar/finds.png"
 			},

@@ -1808,7 +1808,58 @@ func (s *EnglishWordService) BatchFillWordFromDictionary(req request.BatchFillWo
 			result.Success++
 		}
 		result.Items = append(result.Items, item)
-	}
+        }
 
-	return result, nil
+        return result, nil
+}
+
+// BatchCreateWords 批量创建单词（仅入库单词本体，不生成TTS/关联等，用于字幕全部单词一键入库）
+// 已存在的单词跳过，返回所有单词的 ID 列表
+func (s *EnglishWordService) BatchCreateWords(req request.BatchCreateWordsReq) ([]request.BatchCreateWordsItem, error) {
+    if len(req.Words) == 0 {
+        return nil, errors.New("单词列表不能为空")
+    }
+
+    result := make([]request.BatchCreateWordsItem, 0, len(req.Words))
+
+    err := global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+        for _, rawWord := range req.Words {
+            word := strings.TrimSpace(strings.ToLower(rawWord))
+            if word == "" {
+                continue
+            }
+
+            var existing model.EnglishWord
+            findErr := tx.Where("LOWER(TRIM(word)) = ?", word).First(&existing).Error
+            if findErr == nil {
+                // 已存在
+                result = append(result, request.BatchCreateWordsItem{
+                    Word:   word,
+                    WordID: existing.ID,
+                    Newly:  false,
+                })
+                continue
+            }
+            if !errors.Is(findErr, gorm.ErrRecordNotFound) {
+                return findErr
+            }
+
+            // 不存在，创建
+            newWord := model.EnglishWord{
+                Word:        word,
+                Explanation: "{}",
+            }
+            if createErr := tx.Create(&newWord).Error; createErr != nil {
+                return createErr
+            }
+            result = append(result, request.BatchCreateWordsItem{
+                Word:   word,
+                WordID: newWord.ID,
+                Newly:  true,
+            })
+        }
+        return nil
+    })
+
+    return result, err
 }

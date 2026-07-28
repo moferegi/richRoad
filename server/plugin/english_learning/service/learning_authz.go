@@ -240,6 +240,43 @@ func (s *LearningAuthzService) EvaluateVideoEpisodeAccess(userID uint, episode m
 	return decision, nil
 }
 
+// EvaluateDiaryAccess 评估日记访问权限
+func (s *LearningAuthzService) EvaluateDiaryAccess(userID uint, diary model.Diary) (VideoEpisodeAccessDecision, error) {
+	decision := VideoEpisodeAccessDecision{}
+	if userID == 0 {
+		decision.TrialOnly = true
+		decision.Reason = "anonymous"
+		return decision, nil
+	}
+
+	globalFull, _, err := s.ResolveGlobalFullAuth(userID)
+	if err != nil {
+		return decision, err
+	}
+	decision.HasGlobalFullAuth = globalFull
+	if globalFull {
+		decision.HasFullAuth = true
+		decision.Reason = "global_full_auth"
+		return decision, nil
+	}
+
+	// 日记直接基于授权表判断
+	entitled, err := s.HasActiveEntitlement(userID, model.ResourceTypeDiary, diary.ID, time.Now())
+	if err != nil {
+		return decision, err
+	}
+	decision.HasResourceEntitlement = entitled
+	if entitled {
+		decision.HasFullAuth = true
+		decision.Reason = "resource_entitlement"
+		return decision, nil
+	}
+
+	decision.TrialOnly = true
+	decision.Reason = "trial_only"
+	return decision, nil
+}
+
 func (s *LearningAuthzService) resourceExists(resourceType string, resourceID uint) (bool, error) {
 	if resourceID == 0 {
 		return false, nil

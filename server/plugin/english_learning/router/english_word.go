@@ -23,5 +23,6 @@ func (s *EnglishWordRouter) InitEnglishWordRouter(Router *gin.RouterGroup) {
 		wordRouter.DELETE("deleteErrorLog", wordApi.DeleteWordErrorLog)
 		wordRouter.POST("upsertSqlWord", wordApi.UpsertWordFromSQL)
 		wordRouter.POST("batchFillFromDictionary", wordApi.BatchFillWordFromDictionary)
+		wordRouter.POST("batchCreate", wordApi.BatchCreateWords) // 批量创建单词（字幕全部单词一键入库）
 	}
 }

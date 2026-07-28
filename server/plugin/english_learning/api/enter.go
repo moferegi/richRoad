@@ -8,6 +8,7 @@ type ApiGroup struct {
 	ContentApi
 	UserDataApi
 	AdminApi
+	DiaryApi
 }
 
 var ApiGroupApp = new(ApiGroup)

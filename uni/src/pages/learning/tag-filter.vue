@@ -63,20 +63,40 @@
             <text class="reset-text">{{ t('common.reset') }}</text>
           </view>
         </view>
+
+        <!-- Selected tags area (chips at top) -->
+        <view class="selected-tags-area" v-if="pendingTagIds.length > 0">
+          <scroll-view scroll-x class="selected-tags-scroll" :show-scrollbar="false">
+            <view class="selected-tags-list">
+              <view
+                v-for="tagId in pendingTagIds"
+                :key="'selected-' + tagId"
+                class="selected-chip"
+                @click="togglePendingTag(tagId)"
+              >
+                <text class="selected-chip-text">{{ getTagName(tagId) }}</text>
+                <text class="selected-chip-close">✕</text>
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <!-- Unselected tags list -->
         <scroll-view class="tag-panel-list" scroll-y>
           <view
-            v-for="tag in tags"
+            v-for="tag in unselectedTags"
             :key="tag.id"
-            class="tag-panel-item"
-            :class="{ checked: pendingTagIds.includes(tag.id) }"
+            class="tag-option"
             @click="togglePendingTag(tag.id)"
           >
-            <view class="tag-checkbox" :class="{ on: pendingTagIds.includes(tag.id) }">
-              <text v-if="pendingTagIds.includes(tag.id)" class="checkbox-icon">✓</text>
-            </view>
-            <text class="tag-panel-label">{{ localText(tag.nameI18n || tag.name_i18n || tag.name) }}</text>
+            <text class="tag-option-text">{{ localText(tag.nameI18n || tag.name_i18n || tag.name) }}</text>
+            <text class="tag-option-add">+</text>
+          </view>
+          <view v-if="unselectedTags.length === 0" class="tag-empty">
+            <text class="tag-empty-text">{{ t('common.all_selected') || '已全部选择' }}</text>
           </view>
         </scroll-view>
+
         <view class="tag-panel-actions">
           <button class="tag-btn-cancel" @click="cancelTagPicker">{{ t('common.cancel') }}</button>
           <button class="tag-btn-confirm" @click="confirmTagPicker">{{ t('common.confirm') }}</button>
@@ -167,6 +187,16 @@ const tagTriggerLabel = computed(() => {
   }
   return `${t('tag.selected_count', { count: selectedTagIds.value.length })}`
 })
+
+const unselectedTags = computed(() => {
+  return tags.value.filter(tag => !pendingTagIds.value.includes(tag.id))
+})
+
+const getTagName = (tagId) => {
+  const tag = tags.value.find(t => t.id === tagId)
+  if (!tag) return ''
+  return localText(tag.nameI18n || tag.name_i18n || tag.name)
+}
 
 // 列表
 const episodeList = ref([])
@@ -506,43 +536,84 @@ onLoad(() => {
   padding: 8rpx 0;
 }
 
-.tag-panel-item {
-  display: flex;
-  align-items: center;
-  padding: 24rpx 32rpx;
-  gap: 20rpx;
-}
-
-.tag-panel-item:active {
-  background: rgba(108, 91, 255, 0.04);
-}
-
-.tag-checkbox {
-  width: 40rpx;
-  height: 40rpx;
-  border-radius: 10rpx;
-  border: 2rpx solid rgba(108, 91, 255, 0.24);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* Selected tags area */
+.selected-tags-area {
+  padding: 16rpx 32rpx;
+  border-bottom: 1rpx solid rgba(108, 91, 255, 0.08);
   flex-shrink: 0;
 }
 
-.tag-checkbox.on {
-  background: #6D5BFF;
-  border-color: #6D5BFF;
+.selected-tags-scroll {
+  white-space: nowrap;
 }
 
-.checkbox-icon {
+.selected-tags-list {
+  display: inline-flex;
+  gap: 12rpx;
+  padding: 4rpx 0;
+}
+
+.selected-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 10rpx 20rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  box-shadow: 0 4rpx 12rpx rgba(108, 91, 255, 0.3);
+  flex-shrink: 0;
+}
+
+.selected-chip-text {
+  font-size: 26rpx;
+  font-weight: 600;
   color: #fff;
-  font-size: 24rpx;
+}
+
+.selected-chip-close {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.8);
+  width: 32rpx;
+  height: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Unselected tags list */
+.tag-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 32rpx;
+  border-bottom: 1rpx solid rgba(108, 91, 255, 0.06);
+}
+
+.tag-option:active {
+  background: rgba(108, 91, 255, 0.04);
+}
+
+.tag-option-text {
+  font-size: 28rpx;
+  color: #1A1B3A;
+}
+
+.tag-option-add {
+  font-size: 32rpx;
+  color: #6D5BFF;
   font-weight: 700;
 }
 
-.tag-panel-label {
-  font-size: 28rpx;
-  color: #1A1B3A;
-  flex: 1;
+.tag-empty {
+  padding: 48rpx 32rpx;
+  text-align: center;
+}
+
+.tag-empty-text {
+  font-size: 26rpx;
+  color: #A9AECB;
 }
 
 .tag-panel-actions {

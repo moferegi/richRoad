@@ -43,4 +43,5 @@ func (p *plugin) Register(engine *gin.Engine) {
 	englishRouter.RouterGroupApp.InitContentRouter(group)
 	englishRouter.RouterGroupApp.InitUserDataRouter(group)
 	englishRouter.RouterGroupApp.InitAdminRouter(group)
+	englishRouter.RouterGroupApp.InitDiaryRouter(group)
 }

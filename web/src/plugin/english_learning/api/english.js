@@ -72,6 +72,15 @@ export const upsertSqlWord = (data) => {
   })
 }
 
+// 批量创建单词（仅入库单词本体，用于字幕全部单词一键入库）
+export const batchCreateWords = (data) => {
+  return service({
+    url: '/englishLearning/word/batchCreate',
+    method: 'post',
+    data
+  })
+}
+
 // 按分类批量词典补全
 export const batchFillWordFromDictionary = (data) => {
   return service({
@@ -315,6 +324,15 @@ export const getEpisodeKeywords = (params) => {
   })
 }
 
+// 获取单集已上传的字幕文件记录（用于自动回填字幕解析表单）
+export const getEpisodeSubtitles = (params) => {
+  return service({
+    url: '/englishLearning/video/getEpisodeSubtitles',
+    method: 'get',
+    params
+  })
+}
+
 // 查询单集字幕解析后的句表
 export const getVideoSentenceList = (params) => {
   return service({
@@ -362,6 +380,148 @@ export const revokeEntitlement = (data) => {
 export const getEntitlementList = (params) => {
   return service({
     url: '/englishLearning/asset/getEntitlementList',
+    method: 'get',
+    params
+  })
+}
+
+// ===== 日记分类管理 =====
+export const createDiaryCategory = (data) => {
+  return service({
+    url: '/englishLearning/diary/createDiaryCategory',
+    method: 'post',
+    data
+  })
+}
+
+export const updateDiaryCategory = (data) => {
+  return service({
+    url: '/englishLearning/diary/updateDiaryCategory',
+    method: 'put',
+    data
+  })
+}
+
+export const deleteDiaryCategory = (params) => {
+  return service({
+    url: '/englishLearning/diary/deleteDiaryCategory',
+    method: 'delete',
+    params
+  })
+}
+
+export const getDiaryCategoryList = (params) => {
+  return service({
+    url: '/englishLearning/diary/getDiaryCategoryList',
+    method: 'get',
+    params
+  })
+}
+
+// ===== 日记管理 =====
+export const createDiary = (data) => {
+  return service({
+    url: '/englishLearning/diary/createDiary',
+    method: 'post',
+    data
+  })
+}
+
+export const updateDiary = (data) => {
+  return service({
+    url: '/englishLearning/diary/updateDiary',
+    method: 'put',
+    data
+  })
+}
+
+export const deleteDiary = (params) => {
+  return service({
+    url: '/englishLearning/diary/deleteDiary',
+    method: 'delete',
+    params
+  })
+}
+
+export const findDiary = (params) => {
+  return service({
+    url: '/englishLearning/diary/findDiary',
+    method: 'get',
+    params
+  })
+}
+
+export const getDiaryList = (params) => {
+  return service({
+    url: '/englishLearning/diary/getDiaryList',
+    method: 'get',
+    params
+  })
+}
+
+export const getDiarySentenceList = (params) => {
+  return service({
+    url: '/englishLearning/diary/getSentenceList',
+    method: 'get',
+    params
+  })
+}
+
+// Web后台获取日记字幕句子列表（不过滤试看）
+export const getDiarySentenceListAll = (params) => {
+  return service({
+    url: '/englishLearning/diary/getSentenceListAll',
+    method: 'get',
+    params
+  })
+}
+
+export const parseDiarySubtitle = (data) => {
+  return service({
+    url: '/englishLearning/diary/parseDiarySubtitle',
+    method: 'post',
+    data
+  })
+}
+
+export const scanDiaryKeywords = (data) => {
+  return service({
+    url: '/englishLearning/diary/scanKeywords',
+    method: 'post',
+    data
+  })
+}
+
+export const parseDiarySubtitleFiles = (data) => {
+  return service({
+    url: '/englishLearning/diary/parseDiarySubtitleFiles',
+    method: 'post',
+    data
+  })
+}
+
+// 重新高亮日记字幕句子
+export const rehighlightDiarySentences = (data) => {
+  return service({
+    url: '/englishLearning/diary/rehighlightSentences',
+    method: 'put',
+    data
+  })
+}
+
+// 批量更新日记字幕句子
+export const updateDiarySentenceList = (data) => {
+  return service({
+    url: '/englishLearning/diary/updateSentenceList',
+    method: 'put',
+    data
+  })
+}
+
+// 获取日记已高亮重点单词列表
+export const getDiaryKeywords = (params) => {
+  return service({
+    url: '/englishLearning/diary/getKeywords',
     method: 'get',
     params
   })

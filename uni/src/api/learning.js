@@ -256,3 +256,52 @@ export const heartbeat = (data) => {
     data
   })
 }
+
+// ========== 日记相关 ==========
+export const getDiaryCategoryList = (params = {}) => {
+  return request({
+    url: '/englishLearning/diary/getDiaryCategoryList',
+    method: 'get',
+    params: withIncludeI18n(params)
+  })
+}
+
+export const getDiaryTagPublic = (params = {}) => {
+  return request({
+    url: '/diaryTag/getDiaryTagPublic',
+    method: 'get',
+    params
+  })
+}
+
+export const getDiaryList = (params = {}) => {
+  return request({
+    url: '/englishLearning/diary/getDiaryList',
+    method: 'get',
+    params: withIncludeI18n(params)
+  })
+}
+
+export const getDiaryListByTag = (params = {}) => {
+  return request({
+    url: '/englishLearning/diary/getDiaryListByTag',
+    method: 'get',
+    params: withIncludeI18n(params)
+  })
+}
+
+export const findDiary = (id) => {
+  return request({
+    url: '/englishLearning/diary/findDiary',
+    method: 'get',
+    params: withIncludeI18n({ ID: id })
+  })
+}
+
+export const getDiarySentenceList = (diaryId) => {
+  return request({
+    url: '/englishLearning/diary/getSentenceList',
+    method: 'get',
+    params: withIncludeI18n({ diaryId })
+  })
+}

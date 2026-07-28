@@ -295,8 +295,22 @@ func fetchRemoteSubtitleContent(rawURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("User-Agent", "richroad-subtitle-fetch/1.0")
-	req.Header.Set("Accept", "text/plain, text/vtt, application/octet-stream;q=0.9, */*;q=0.8")
+	// 使用浏览器级 User-Agent 和完整请求头，避免被 CDN/WAF 拦截（如 Cloudflare 的 "Just a moment..."）
+	// 注意：切勿手动设置 Accept-Encoding，Go 的 http.Transport 默认自动处理 gzip 解压，
+	// 手动设置会导致 Go 关闭自动解压，响应体将是压缩后的乱码。
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("Pragma", "no-cache")
+	req.Header.Set("Sec-Ch-Ua", `"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"`)
+	req.Header.Set("Sec-Ch-Ua-Mobile", "?0")
+	req.Header.Set("Sec-Ch-Ua-Platform", `"Windows"`)
+	req.Header.Set("Sec-Fetch-Dest", "document")
+	req.Header.Set("Sec-Fetch-Mode", "navigate")
+	req.Header.Set("Sec-Fetch-Site", "none")
+	req.Header.Set("Sec-Fetch-User", "?1")
+	req.Header.Set("Upgrade-Insecure-Requests", "1")
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -382,21 +396,17 @@ func resolveSubtitleFetchURL(raw string) string {
 	return strings.TrimRight(originBase, "/") + pathValue
 }
 
-// resolveSubtitleBaseURL 为相对路径补全域名，优先使用 B2 源站（直连），其次 CDN 域名
+// resolveSubtitleBaseURL 为相对路径补全域名。
+// 服务端 fetch 优先使用 B2/S3 源站直连（绕过 CDN/WAF，避免 Cloudflare "Just a moment..." 拦截），
+// 其次 externalLinkDomain，最后 CDN 域名。
 func resolveSubtitleBaseURL() string {
-	// 优先：B2/S3 源站直连（服务端 fetch 效率最高）
+	// 优先：B2/S3 源站直连（服务端 fetch 效率最高，且绕过 CDN 的 WAF 拦截）
 	originBase, _ := buildB2OriginBaseURL()
 	if originBase != "" {
 		return originBase
 	}
 
-	// 其次：防盗链 CDN 域名
-	cdnDomain := strings.TrimSpace(global.GVA_CONFIG.Hotlink.CdnDomain)
-	if cdnDomain != "" {
-		return cdnDomain
-	}
-
-	// 再次：S3 BaseURL
+	// 其次：S3 BaseURL
 	if strings.EqualFold(strings.TrimSpace(global.GVA_CONFIG.System.OssType), "aws-s3") {
 		baseURL := strings.TrimSpace(global.GVA_CONFIG.AwsS3.BaseURL)
 		if baseURL != "" {
@@ -404,7 +414,36 @@ func resolveSubtitleBaseURL() string {
 		}
 	}
 
+	// 再次：externalLinkDomain 默认域名（数据库配置，用户可控）
+	if domain := resolveExternalLinkDomain(); domain != "" {
+		return domain
+	}
+
+	// 再次：防盗链 CDN 域名
+	cdnDomain := strings.TrimSpace(global.GVA_CONFIG.Hotlink.CdnDomain)
+	if cdnDomain != "" {
+		return cdnDomain
+	}
+
 	return ""
+}
+
+// resolveExternalLinkDomain 从数据库 external_link_domain 表获取默认域名
+func resolveExternalLinkDomain() string {
+	var domain string
+	err := global.GVA_DB.Table("client_external_link_domain").
+		Where("is_default = ? AND is_enabled = ?", true, true).
+		Select("COALESCE(NULLIF(domain, ''), NULLIF(base_url, ''))").
+		Scan(&domain).Error
+	if err != nil || domain == "" {
+		// 回退：取第一个启用的
+		_ = global.GVA_DB.Table("client_external_link_domain").
+			Where("is_enabled = ?", true).
+			Order("sort DESC, id ASC").
+			Select("COALESCE(NULLIF(domain, ''), NULLIF(base_url, ''))").
+			Scan(&domain).Error
+	}
+	return strings.TrimRight(strings.TrimSpace(domain), "/")
 }
 
 func buildB2OriginBaseURL() (string, string) {
@@ -747,6 +786,42 @@ func (s *VideoSubtitleService) GetSentenceList(episodeID uint) (list []model.Vid
 	return
 }
 
+// GetSentenceListWithAuth 获取视频字幕句子列表（含试看过滤）
+// hasFullAuth 为 true 时返回全部内容；为 false 时超出试看比例的句子内容清空并标记 locked
+func (s *VideoSubtitleService) GetSentenceListWithAuth(episodeID uint, hasFullAuth bool, trialPercent int) (list []model.VideoSentence, err error) {
+	err = global.GVA_DB.Where("episode_id = ?", episodeID).Order("start_time ASC, id ASC").Find(&list).Error
+	if err != nil {
+		return
+	}
+	if hasFullAuth {
+		return
+	}
+	// 计算最大试看时间
+	var episode model.VideoEpisode
+	if dbErr := global.GVA_DB.Where("id = ?", episodeID).Select("duration").First(&episode).Error; dbErr != nil {
+		return list, nil // 查不到单集信息时不做过滤
+	}
+	duration := episode.Duration
+	if duration <= 0 {
+		return
+	}
+	safePercent := trialPercent
+	if safePercent < 1 {
+		safePercent = 8
+	}
+	maxTrialTime := duration * float64(safePercent) / 100.0
+	for i := range list {
+		// startTime >= maxTrialTime 的句子完全锁定（内容清空，时间区间保留）
+		// startTime < maxTrialTime 的句子即使 endTime 超出试看范围也显示（跨边界情况）
+		if list[i].StartTime >= maxTrialTime {
+			list[i].Locked = true
+			list[i].English = ""
+			list[i].Translate = ""
+		}
+	}
+	return
+}
+
 // RehighlightSentences 对已有字幕句子去标签后重新高亮（用于预览弹窗中变更重点单词后即时应用）
 func (s *VideoSubtitleService) RehighlightSentences(req request.RehighlightSentencesReq) error {
 	if req.EpisodeID == 0 {
@@ -828,4 +903,11 @@ func (s *VideoSubtitleService) UpdateSentenceList(req request.UpdateVideoSentenc
 		}
 		return nil
 	})
+}
+
+// GetEpisodeSubtitles 获取某单集已上传的字幕文件记录（用于自动回填字幕解析表单）
+func (s *VideoSubtitleService) GetEpisodeSubtitles(episodeID uint) ([]model.VideoSubtitle, error) {
+	var list []model.VideoSubtitle
+	err := global.GVA_DB.Where("episode_id = ?", episodeID).Order("id ASC").Find(&list).Error
+	return list, err
 }

@@ -18,7 +18,9 @@ type RouterGroup struct {
 	SignInRouter
 	ExternalLinkDomainRouter
 	VideoTagRouter
+	DiaryTagRouter
 }
 
 var cprApi = api.ApiGroupApp.ClientApiGroup.PointRecordApi
 var videoTagApi = api.ApiGroupApp.ClientApiGroup.VideoTagApi
+var diaryTagApi = api.ApiGroupApp.ClientApiGroup.DiaryTagApi

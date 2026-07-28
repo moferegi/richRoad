@@ -57,4 +57,5 @@ type VideoSentence struct {
 	EndTime   float64 `json:"endTime" gorm:"comment:字幕结束秒数"`
 	English   string  `json:"english" gorm:"type:text;comment:原文字幕(包含<w>变色等预先匹配标记)"`
 	Translate string  `json:"translate" gorm:"type:json;comment:对应系统拥有的全语种翻译JSON存储"`
+	Locked    bool    `json:"locked" gorm:"-"` // 仅传输用：试看限制下该句是否锁定
 }

@@ -75,10 +75,10 @@ type UserWordHistory struct {
 	WordIndex  int  `json:"wordIndex" gorm:"comment:最后访问的该章节内的词汇序列"`
 }
 
-// UserCollection 统一收藏表 (关联单词/句子/视频)
+// UserCollection 统一收藏表 (关联单词/句子/视频/日记/日记句子)
 type UserCollection struct {
 	global.GVA_MODEL
 	UserID     uint `json:"userId" gorm:"index;comment:用户ID"`
-	TargetType int  `json:"targetType" gorm:"comment:收藏类型 1单词 2句子 3视频"`
+	TargetType int  `json:"targetType" gorm:"comment:收藏类型 1单词 2视频句子 3视频 4日记 5日记句子"`
 	TargetID   uint `json:"targetId" gorm:"comment:关联对应的模型主键ID"`
 }

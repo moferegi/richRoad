@@ -584,6 +584,44 @@
             </el-button>
           </div>
         </el-tab-pane>
+
+        <el-tab-pane label="全部单词" name="allWords">
+          <div class="subtitle-preview-toolbar">
+            <span>当前视频字幕中的所有单词（共 {{ allSubtitleWords.length }} 个），勾选后点击"更新高亮"即可添加为重点单词</span>
+          </div>
+          <el-table
+            ref="allWordsTableRef"
+            :data="allSubtitleWords"
+            row-key="word"
+            border
+            max-height="420"
+            @selection-change="handleAllWordsSelectionChange"
+          >
+            <el-table-column type="selection" width="50" />
+            <el-table-column prop="word" label="单词" width="180" />
+            <el-table-column label="已在词库" width="100">
+              <template #default="scope">
+                <el-tag v-if="scope.row.matched" type="success" size="small">是(ID:{{ scope.row.wordId }})</el-tag>
+                <el-tag v-else type="info" size="small">否</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="count" label="出现次数" width="100" sortable />
+          </el-table>
+          <div style="margin-top: 12px">
+            <el-button size="small" @click="selectAllAllWords(true)">全选已匹配</el-button>
+            <el-button size="small" @click="selectAllAllWords(false)">取消全选</el-button>
+            <el-button
+              type="warning"
+              size="small"
+              style="margin-left: 16px"
+              :loading="allWordsRehighlighting"
+              :disabled="allWordsSelectedIds.length === 0"
+              @click="handleRehighlightAllWords"
+            >
+              更新高亮（已选 {{ allWordsSelectedIds.length }} 个词）
+            </el-button>
+          </div>
+        </el-tab-pane>
       </el-tabs>
 
       <template #footer>
@@ -660,6 +698,8 @@
     deleteVideoSeries,
     getEntitlementList,
     getEpisodeKeywords,
+    getEpisodeSubtitles,
+    batchCreateWords,
     getVideoCategoryList,
     getVideoEpisodeList,
     getVideoSentenceList,
@@ -882,6 +922,11 @@
   const previewRehighlighting = ref(false)
   const previewKeywordTableRef = ref(null)
 
+  // 全部单词 tab - 选择管理
+  const allWordsTableRef = ref(null)
+  const allWordsSelectedIds = ref([])
+  const allWordsRehighlighting = ref(false)
+
   const normalizeSentenceSnapshot = (item) => {
     const normalizeTranslateObj = (raw) => {
       const source = parseI18nObject(raw)
@@ -925,6 +970,39 @@
 
   const pendingSentenceChanges = computed(() => {
     return sentencePreviewTable.value.filter((row) => isSentenceRowChanged(row))
+  })
+
+  // 全部单词：从当前字幕句子中提取所有单词并统计词频（用于"查看字幕-全部单词"tab）
+  const allSubtitleWords = computed(() => {
+    const wordCounter = new Map()
+    const wordRegex = /[a-zA-Z]+/g
+    // 收集已高亮的关键词信息用于匹配
+    const highlightedWordMap = new Map()
+    for (const kw of episodeKeywordList.value) {
+      if (kw.matched) {
+        highlightedWordMap.set(kw.word.toLowerCase(), kw.wordId)
+      }
+    }
+
+    for (const row of sentencePreviewTable.value) {
+      const text = String(row?.english || '').replace(/<[^>]+>/g, '') // 去除HTML标签
+      const matches = text.matchAll(wordRegex)
+      for (const m of matches) {
+        const word = m[0].toLowerCase()
+        wordCounter.set(word, (wordCounter.get(word) || 0) + 1)
+      }
+    }
+
+    const entries = Array.from(wordCounter.entries())
+      .map(([word, count]) => ({ word, count }))
+      .sort((a, b) => b.count - a.count)
+
+    return entries.map(({ word, count }) => ({
+      word,
+      count,
+      matched: highlightedWordMap.has(word),
+      wordId: highlightedWordMap.get(word) || 0
+    }))
   })
 
   const entitlementDialogVisible = ref(false)
@@ -1460,14 +1538,57 @@
     })
   }
 
-  const openSubtitleParser = (row) => {
+  const openSubtitleParser = async (row) => {
     const episodeId = Number(row?.ID || row?.id || 0)
+
+    // 先重置表单
     subtitleForm.value = {
       episodeId,
       englishSubtitleUrl: '',
       translationSubtitleMap: {}
     }
     activeTab.value = 'episode'
+
+    // 自动回填已上传的字幕文件路径（从 VideoSubtitle 表查询）
+    try {
+      const subtitleRes = await getEpisodeSubtitles({ episodeId })
+      if (subtitleRes.code === 0 && Array.isArray(subtitleRes.data) && subtitleRes.data.length > 0) {
+        const subtitleList = subtitleRes.data
+        const newMap = {}
+        let englishUrl = ''
+        for (const sub of subtitleList) {
+          const lang = String(sub.language || '').trim()
+          const url = String(sub.subtitleUrl || '').trim()
+          if (!lang || !url) continue
+          if (lang === 'en') {
+            englishUrl = url
+          } else {
+            newMap[lang] = url
+          }
+        }
+        // 整体替换以触发 Vue 响应式更新
+        subtitleForm.value = {
+          episodeId,
+          englishSubtitleUrl: englishUrl,
+          translationSubtitleMap: newMap
+        }
+        const filledCount = (englishUrl ? 1 : 0) + Object.keys(newMap).length
+        ElMessage.success(`已自动回填 ${filledCount} 个字幕文件路径`)
+      }
+    } catch (e) {
+      console.error('回填字幕文件路径失败:', e)
+    }
+
+    // 预检该单集是否已解析过字幕句子
+    try {
+      const res = await getVideoSentenceList({ episodeId })
+      if (res.code === 0 && Array.isArray(res.data) && res.data.length > 0) {
+        ElMessage.info('该单集已存在解析后的字幕句子，可直接点击"查看字幕"进行预览或编辑')
+      }
+    } catch (e) {
+      // ignore 预检失败不影响后续解析操作
+    }
+
     if (subtitleSectionRef.value?.scrollIntoView) {
       setTimeout(() => {
         subtitleSectionRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -1605,6 +1726,35 @@
       refreshSentenceTranslateByLang()
     }
   )
+
+  // 切换到"全部单词"tab 时自动选中已在词库的单词
+  watch(
+    () => sentencePreviewTab.value,
+    (newTab) => {
+      if (newTab !== 'allWords') return
+      autoSelectAllMatchedWords()
+    }
+  )
+  // 全部单词列表变化时（如关键词数据加载完成）也触发自动选中
+  watch(
+    () => episodeKeywordList.value,
+    () => {
+      if (sentencePreviewTab.value !== 'allWords') return
+      autoSelectAllMatchedWords()
+    }
+  )
+
+  const autoSelectAllMatchedWords = () => {
+    if (!allWordsTableRef.value) return
+    setTimeout(() => {
+      if (!allWordsTableRef.value) return
+      allWordsTableRef.value.clearSelection()
+      const matchedRows = allSubtitleWords.value.filter(k => k.matched)
+      matchedRows.forEach(row => {
+        allWordsTableRef.value.toggleRowSelection(row, true)
+      })
+    }, 60)
+  }
 
   // 关键词扫描与解析（两步流程）
   const handleScanKeywords = async () => {
@@ -1779,6 +1929,84 @@
 
     // 刷新关键词列表
     await loadEpisodeKeywords()
+  }
+
+  // 全部单词 tab - 选择管理
+  const handleAllWordsSelectionChange = (rows) => {
+    allWordsSelectedIds.value = rows.map(r => r.wordId).filter(id => id > 0)
+  }
+
+  const selectAllAllWords = (selectAll) => {
+    if (!allWordsTableRef.value) return
+    if (selectAll) {
+      const matchedRows = allSubtitleWords.value.filter(k => k.matched)
+      matchedRows.forEach(row => allWordsTableRef.value.toggleRowSelection(row, true))
+    } else {
+      allWordsTableRef.value.clearSelection()
+    }
+  }
+
+  const handleRehighlightAllWords = async () => {
+    if (!sentencePreviewEpisodeId.value) {
+      ElMessage.warning('单集ID无效')
+      return
+    }
+    if (allWordsSelectedIds.value.length === 0) {
+      ElMessage.warning('请至少选择一个已入库的单词')
+      return
+    }
+
+    allWordsRehighlighting.value = true
+
+    // 收集所有选中行（包括未入库的），找出未入库的单词
+    const selectedRows = allWordsTableRef.value?.getSelectionRows?.() || []
+    const unmatchedWords = selectedRows
+      .filter(r => !r.matched)
+      .map(r => r.word)
+
+    let newIds = []
+    if (unmatchedWords.length > 0) {
+      // 先批量入库未匹配的单词
+      const batchRes = await batchCreateWords({ words: unmatchedWords })
+      if (batchRes.code === 0 && Array.isArray(batchRes.data)) {
+        newIds = batchRes.data.map(item => item.wordId)
+        ElMessage.success(`已自动入库 ${newIds.length} 个新单词`)
+      }
+    }
+
+    // 合并已有 wordId + 新入库的 wordId
+    const allIds = [...new Set([...allWordsSelectedIds.value, ...newIds])]
+    const res = await rehighlightSentences({
+      episodeId: sentencePreviewEpisodeId.value,
+      keywordIds: allIds
+    })
+    allWordsRehighlighting.value = false
+
+    if (res.code !== 0) return
+    ElMessage.success(`字幕重新高亮成功，已应用 ${allIds.length} 个重点单词`)
+
+    // 重新加载句子列表以显示新的高亮结果
+    const sentenceRes = await getVideoSentenceList({ episodeId: sentencePreviewEpisodeId.value })
+    if (sentenceRes.code === 0) {
+      const lang = String(sentencePreviewLang.value || 'zh')
+      sentencePreviewTable.value = (Array.isArray(sentenceRes.data) ? sentenceRes.data : []).map((item) => {
+        const translateObj = parseI18nObject(item?.translate)
+        return {
+          ...item,
+          translateObj,
+          translateText: translateObj[lang] || translateObj.zh || translateObj.en || translateObj.mn || ''
+        }
+      })
+      sentencePreviewOriginalMap.value = buildSentencePreviewSnapshotMap(sentencePreviewTable.value)
+    }
+
+    // 刷新关键词列表
+    await loadEpisodeKeywords()
+    // 清空全部单词选择
+    allWordsSelectedIds.value = []
+    if (allWordsTableRef.value) {
+      allWordsTableRef.value.clearSelection()
+    }
   }
 
   const openEntitlementDialog = () => {

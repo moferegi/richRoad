@@ -38,9 +38,11 @@ type CollectionVideoDetail struct {
 
 type CollectionDetailItem struct {
 	model.UserCollection
-	Word     *model.EnglishWord     `json:"word,omitempty"`
-	Sentence *model.VideoSentence   `json:"sentence,omitempty"`
-	Video    *CollectionVideoDetail `json:"video,omitempty"`
+	Word          *model.EnglishWord     `json:"word,omitempty"`
+	Sentence      *model.VideoSentence   `json:"sentence,omitempty"`
+	Video         *CollectionVideoDetail `json:"video,omitempty"`
+	Diary         *model.Diary           `json:"diary,omitempty"`
+	DiarySentence *model.DiarySentence   `json:"diarySentence,omitempty"`
 }
 
 func (s *UserDataService) SaveWordProgress(userID uint, req request.SaveWordProgressReq) error {
@@ -133,6 +135,8 @@ func (s *UserDataService) GetCollectionList(userID uint, info request.Collection
 	db := global.GVA_DB.Model(&model.UserCollection{}).Where("user_id = ?", userID)
 	if info.TargetType > 0 {
 		db = db.Where("target_type = ?", info.TargetType)
+	} else if len(info.TargetTypes) > 0 {
+		db = db.Where("target_type IN ?", info.TargetTypes)
 	}
 	err = db.Count(&total).Error
 	if err != nil {
@@ -163,6 +167,8 @@ func (s *UserDataService) GetCollectionDetailList(userID uint, info request.Coll
 	db := global.GVA_DB.Model(&model.UserCollection{}).Where("user_id = ?", userID)
 	if info.TargetType > 0 {
 		db = db.Where("target_type = ?", info.TargetType)
+	} else if len(info.TargetTypes) > 0 {
+		db = db.Where("target_type IN ?", info.TargetTypes)
 	}
 
 	err = db.Count(&total).Error
@@ -179,6 +185,8 @@ func (s *UserDataService) GetCollectionDetailList(userID uint, info request.Coll
 	wordIDs := make([]uint, 0)
 	sentenceIDs := make([]uint, 0)
 	videoIDs := make([]uint, 0)
+	diaryIDs := make([]uint, 0)
+	diarySentenceIDs := make([]uint, 0)
 	for _, row := range rows {
 		switch row.TargetType {
 		case 1:
@@ -187,6 +195,10 @@ func (s *UserDataService) GetCollectionDetailList(userID uint, info request.Coll
 			sentenceIDs = append(sentenceIDs, row.TargetID)
 		case 3:
 			videoIDs = append(videoIDs, row.TargetID)
+		case 4:
+			diaryIDs = append(diaryIDs, row.TargetID)
+		case 5:
+			diarySentenceIDs = append(diarySentenceIDs, row.TargetID)
 		}
 	}
 
@@ -253,6 +265,56 @@ func (s *UserDataService) GetCollectionDetailList(userID uint, info request.Coll
 		}
 	}
 
+	diaryMap := make(map[uint]model.Diary)
+	if len(diaryIDs) > 0 {
+		diaryIDs = uniqueUint(diaryIDs)
+		var diaries []model.Diary
+		err = global.GVA_DB.Where("id IN ?", diaryIDs).Find(&diaries).Error
+		if err != nil {
+			return
+		}
+		for _, diary := range diaries {
+			diaryMap[diary.ID] = diary
+		}
+	}
+
+	// 日记句子收藏(type 5)：查 DiarySentence 表，再关联查 Diary 表
+	diarySentenceMap := make(map[uint]model.DiarySentence)
+	if len(diarySentenceIDs) > 0 {
+		diarySentenceIDs = uniqueUint(diarySentenceIDs)
+		var diarySentences []model.DiarySentence
+		err = global.GVA_DB.Where("id IN ?", diarySentenceIDs).Find(&diarySentences).Error
+		if err != nil {
+			return
+		}
+		// 关联的 diary IDs
+		dsDiaryIDs := make([]uint, 0)
+		for _, ds := range diarySentences {
+			diarySentenceMap[ds.ID] = ds
+			if ds.DiaryID > 0 {
+				dsDiaryIDs = append(dsDiaryIDs, ds.DiaryID)
+			}
+		}
+		// 补充查询关联的 Diary 信息（若尚未查过）
+		dsDiaryIDs = uniqueUint(dsDiaryIDs)
+		missingDiaryIDs := make([]uint, 0)
+		for _, id := range dsDiaryIDs {
+			if _, ok := diaryMap[id]; !ok {
+				missingDiaryIDs = append(missingDiaryIDs, id)
+			}
+		}
+		if len(missingDiaryIDs) > 0 {
+			var missingDiaries []model.Diary
+			err = global.GVA_DB.Where("id IN ?", missingDiaryIDs).Find(&missingDiaries).Error
+			if err != nil {
+				return
+			}
+			for _, diary := range missingDiaries {
+				diaryMap[diary.ID] = diary
+			}
+		}
+	}
+
 	list = make([]CollectionDetailItem, 0, len(rows))
 	for _, row := range rows {
 		item := CollectionDetailItem{UserCollection: row}
@@ -287,6 +349,23 @@ func (s *UserDataService) GetCollectionDetailList(userID uint, info request.Coll
 					CoverURL:   series.CoverUrl,
 				}
 				item.Video = seriesDetail
+			}
+		case 4:
+			if diary, ok := diaryMap[row.TargetID]; ok {
+				diaryCopy := diary
+				item.Diary = &diaryCopy
+			}
+		case 5:
+			if ds, ok := diarySentenceMap[row.TargetID]; ok {
+				dsCopy := ds
+				item.DiarySentence = &dsCopy
+				// 同时关联填充 Diary 信息
+				if ds.DiaryID > 0 {
+					if diary, ok := diaryMap[ds.DiaryID]; ok {
+						diaryCopy := diary
+						item.Diary = &diaryCopy
+					}
+				}
 			}
 		}
 		list = append(list, item)

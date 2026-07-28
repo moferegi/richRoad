@@ -66,34 +66,42 @@
     >
       <view class="subtitle-padding-top"></view>
       
-      <view 
-        v-for="(item, index) in subtitleList" 
+      <view
+        v-for="(item, index) in subtitleList"
         :key="index"
         :id="'sentence_' + index"
         class="sentence-row"
         :class="{ 'is-active': activeSentenceIndex === index, 'is-focused': focusedSentenceId === Number(item.id) }"
-        @click="jumpBySubtitle(item, index)"
+        @click="!item.locked && jumpBySubtitle(item, index)"
       >
         <view class="sentence-meta">
           <text class="time-badge">{{ formatSeconds(item.startTime) }} - {{ formatSeconds(item.endTime) }}</text>
           <text class="collect-btn" @click.stop="collectSentence(item.id)">⭐ {{ sentenceCollectedMap[Number(item.id)] ? t('typing.uncollect') : t('player.collect') }}</text>
         </view>
-        
-        <!-- 英文句子 (带高亮重点词可点击分析) -->
-        <view class="english-text">
-          <text 
-            v-for="(seg, sIdx) in parseHighlight(item.english)" 
-            :key="sIdx"
-            :class="{ 'highlight-word': seg.isHighlight }"
-            @click="handleSegClick(seg, $event)"
-          >
-            {{ seg.text }}
-          </text>
-        </view>
 
-        <!-- 对应多语翻译 -->
-        <view class="translated-text" v-if="controls.showBilingual">
-          {{ localText(item.translate) }}
+        <!-- 试看锁定：超出试看范围的句子显示时间区间和锁图标 -->
+        <view v-if="item.locked" class="sentence-locked">
+          <text class="lock-time">{{ formatSeconds(item.startTime) }} - {{ formatSeconds(item.endTime) }}</text>
+          <text class="lock-icon">🔒</text>
+        </view>
+        <!-- 正常句子内容 -->
+        <view v-else class="sentence-text-wrap">
+          <!-- 英文句子 (带高亮重点词可点击分析) -->
+          <view class="english-text">
+            <text
+              v-for="(seg, sIdx) in parseHighlight(item.english)"
+              :key="sIdx"
+              :class="{ 'highlight-word': seg.isHighlight }"
+              @click="handleSegClick(seg, $event)"
+            >
+              {{ seg.text }}
+            </text>
+          </view>
+
+          <!-- 对应多语翻译 -->
+          <view class="translated-text" v-if="controls.showBilingual">
+            {{ localText(item.translate) }}
+          </view>
         </view>
       </view>
       
@@ -143,14 +151,17 @@
         <view class="popup-handle"></view>
         <view class="w-header">
           <text class="w-title">{{ currentWord.word }}</text>
-          <view class="w-audio-circle" @click="playWordAudio(currentWord.audioUs)">
-            <text class="w-audio-icon">🔊</text>
+          <view class="w-audio-circle" :class="{ playing: isWordAudioPlaying }" @click="playWordAudio">
+            <text class="w-audio-icon">{{ isWordAudioPlaying ? '◉' : '♪' }}</text>
           </view>
         </view>
         <text class="w-phonetic">{{ currentWord.phoneticUs }}</text>
         <view class="w-divider"></view>
         <view class="w-exp">{{ localText(currentWord.explanation) }}</view>
-        <button class="w-collect" @click="collectWord(currentWord.id)">⭐ {{ t('typing.collect') }}</button>
+        <view class="w-actions">
+          <button class="w-cancel-btn" @click="closeWordPopup">{{ t('common.cancel') || '取消' }}</button>
+          <button class="w-collect" @click="collectWord(currentWord.id)">{{ isWordCollected ? '★ ' + t('typing.uncollect') : '☆ ' + t('typing.collect') }}</button>
+        </view>
       </view>
     </uni-popup>
 
@@ -161,6 +172,8 @@
           <text class="more-sheet-title">{{ tt('player.more_settings', 'player.more') }}</text>
           <text class="more-sheet-subtitle">{{ tt('player.more_settings_desc', 'player.loop_desc') }}</text>
         </view>
+
+        <view class="speed-hint">点击字幕空白处可跳到该处播放</view>
 
         <view class="more-card" @click="toggleLoop">
           <view class="more-card-main">
@@ -207,6 +220,7 @@ import { t as i18nT, localText as i18nLocalText } from '@/utils/i18n.js'
 import { getExternalUrl } from '@/utils/url.js'
 import { collect, findVideoEpisode, findWord, getCollectionList, getSentenceList, getWatchProgress, heartbeat, uncollect } from '@/api/learning.js'
 import { baseUrl } from '@/utils/request.js'
+import { playWordAudio as playWordTTS, stopLocalTTS, destroyTTS } from '@/utils/learning-tts'
 // #ifdef H5
 import Hls from 'hls.js'
 // #endif
@@ -364,6 +378,7 @@ onUnmounted(() => {
 
 onUnload(() => {
   flushHeartbeat(lastHeartbeatTime, true)
+  destroyTTS()
 })
 
 // #ifdef H5
@@ -569,7 +584,8 @@ const maxTrialAllowedTime = () => {
     return Number.POSITIVE_INFINITY
   }
   const safePercent = Math.max(1, Number(authData.value.trialPercent || 8))
-  return Math.max(0, Math.floor((duration * safePercent) / 100) - 1)
+  // 与后端字幕过滤逻辑一致：使用 startTime >= maxTrialTime 判断
+  return (duration * safePercent) / 100
 }
 
 const ensureTrialLimit = (currentTime) => {
@@ -578,7 +594,8 @@ const ensureTrialLimit = (currentTime) => {
   }
 
   const limitTime = maxTrialAllowedTime()
-  if (currentTime <= limitTime) {
+  // 与后端字幕过滤一致：currentTime >= limitTime 时触发限制
+  if (currentTime < limitTime) {
     if (isTrialLocked.value) {
       isTrialLocked.value = false
     }
@@ -588,7 +605,7 @@ const ensureTrialLimit = (currentTime) => {
   if (videoCtx) {
     videoCtx.pause()
   }
-  seekVideo(limitTime)
+  seekVideo(Math.max(0, limitTime - 0.5))
   isTrialLocked.value = true
 
   const now = Date.now()
@@ -1096,6 +1113,8 @@ const handleSegClick = (seg, event) => {
 // 查词查词交互
 const wordPopup = ref(null)
 const currentWord = ref(null)
+const isWordAudioPlaying = ref(false)
+const isWordCollected = ref(false)
 const showWordDetail = async (wordId) => {
   // 暂停时点击重点单词只弹出单词窗，不改变播放状态
   if (isPlaying.value && videoCtx) {
@@ -1109,6 +1128,7 @@ const showWordDetail = async (wordId) => {
     ...res.data,
     id: getEntityId(res.data)
   }
+  isWordCollected.value = false
   wordPopup.value.open()
 }
 
@@ -1237,21 +1257,37 @@ const collectSentence = async (id) => {
 }
 
 const collectWord = async (id) => {
-  const res = await collect(1, Number(id || 0))
+  const wordId = Number(id || 0)
+  if (!wordId) return
+  const collected = isWordCollected.value
+  const res = collected ? await uncollect(1, wordId) : await collect(1, wordId)
   if (res.code === 0) {
-    uni.showToast({ title: t('player.collect_success'), icon: 'success' })
+    isWordCollected.value = !collected
+    uni.showToast({ title: !collected ? t('player.collect_success') : t('typing.uncollect_success'), icon: 'success' })
   }
 }
 
-const playWordAudio = (src) => {
-  if (!src) {
+const playWordAudio = () => {
+  if (!currentWord.value) return
+  if (isWordAudioPlaying.value) {
+    stopLocalTTS()
+    isWordAudioPlaying.value = false
     return
   }
-  if (!audioCtx) {
-    audioCtx = uni.createInnerAudioContext()
-  }
-  audioCtx.src = getExternalUrl(src)
-  audioCtx.play()
+  const wordText = currentWord.value.word
+  const audioUs = currentWord.value.audioUs || ''
+  const audioUk = currentWord.value.audioUk || ''
+  playWordTTS(wordText, audioUs, audioUk, 'US', {
+    onStart: () => { isWordAudioPlaying.value = true },
+    onEnd: () => { isWordAudioPlaying.value = false },
+    onError: () => { isWordAudioPlaying.value = false }
+  })
+}
+
+const closeWordPopup = () => {
+  stopLocalTTS()
+  isWordAudioPlaying.value = false
+  wordPopup.value?.close()
 }
 </script>
 
@@ -1323,6 +1359,26 @@ const playWordAudio = (src) => {
 .english-text { font-size: 34rpx; font-weight: 500; margin-bottom: 0; line-height: 1.5; color: #ececec; }
 .highlight-word { color: #9B8FFF; font-weight: bold; border-bottom: 1px dashed #9B8FFF; display: inline-block; padding: 0 4rpx; margin: 0 4rpx; }
 .translated-text { font-size: 28rpx; color: #bbb; line-height: 1.5; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid rgba(108, 91, 255, 0.1); }
+
+/* 试看锁定句子 */
+.sentence-locked {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  padding: 20rpx 16rpx;
+}
+
+.lock-time {
+  font-size: 20rpx;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+.lock-icon {
+  font-size: 40rpx;
+  opacity: 0.4;
+}
 
 /* 底部操作区 */
 .bottom-controls {
@@ -1404,7 +1460,7 @@ const playWordAudio = (src) => {
 
 /* 弹窗内容 */
 .word-detail-box {
-  padding: 24rpx 40rpx 40rpx 40rpx;
+  padding: 24rpx 40rpx calc(40rpx + env(safe-area-inset-bottom)) 40rpx;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -1415,21 +1471,53 @@ const playWordAudio = (src) => {
 .w-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8rpx; }
 .w-title { font-size: 48rpx; font-weight: 800; color: #1A1B3A; }
 .w-audio-circle {
-  width: 72rpx;
-  height: 72rpx;
+  width: 64rpx;
+  height: 64rpx;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(108, 91, 255, 0.12);
-  border: 1rpx solid rgba(108, 91, 255, 0.2);
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  border: none;
 }
-.w-audio-icon { font-size: 36rpx; }
+
+.w-audio-icon {
+  font-size: 32rpx;
+  color: #fff;
+}
+
+.w-audio-circle.playing {
+  pointer-events: none;
+  animation: pulse 0.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.12); opacity: 0.75; }
+}
 .w-phonetic { font-size: 28rpx; color: #6B6F8D; margin: 4rpx 0 20rpx 0; }
 .w-divider { height: 1rpx; background: rgba(108, 91, 255, 0.16); margin-bottom: 24rpx; }
 .w-exp { font-size: 32rpx; color: #1A1B3A; line-height: 1.6; margin-bottom: 36rpx; }
+.w-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.w-cancel-btn {
+  flex: 1;
+  height: 88rpx;
+  line-height: 88rpx;
+  margin: 0;
+  border-radius: 999rpx;
+  border: 2rpx solid rgba(108, 91, 255, 0.32);
+  background: #fff;
+  color: #6D5BFF;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
 .w-collect {
-  width: 100%;
+  flex: 1;
   height: 88rpx;
   line-height: 88rpx;
   margin: 0;
@@ -1467,6 +1555,13 @@ const playWordAudio = (src) => {
   margin-top: 6rpx;
   font-size: 22rpx;
   color: #6B6F8D;
+}
+
+.speed-hint {
+  padding: 16rpx 0 8rpx;
+  font-size: 24rpx;
+  color: #6D5BFF;
+  font-weight: 600;
 }
 
 .more-card {

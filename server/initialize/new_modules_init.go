@@ -233,13 +233,15 @@ func initNewModulesMenus(db *gorm.DB) {
 		menus = append(menus,
 			menuDef{"englishLearningWord", "englishLearningWord", "plugin/english_learning/view/word.vue", "英语单词管理", "reading", englishAppParent.ID, 1},
 			menuDef{"englishLearningVideo", "englishLearningVideo", "plugin/english_learning/view/video.vue", "英语视频字幕", "video-play", englishAppParent.ID, 2},
-			menuDef{"englishCheckinRecord", "englishCheckinRecord", "view/client/englishCheckinRecord/englishCheckinRecord.vue", "签到记录", "calendar", englishAppParent.ID, 3},
-			menuDef{"englishCollections", "englishCollections", "view/client/englishCollections/englishCollections.vue", "英语收藏", "star-on", englishAppParent.ID, 4},
-			menuDef{"englishErrorLog", "englishErrorLog", "view/client/englishErrorLog/englishErrorLog.vue", "错词本", "document-copy", englishAppParent.ID, 5},
-			menuDef{"englishWatchHistory", "englishWatchHistory", "view/client/englishWatchHistory/englishWatchHistory.vue", "观看历史", "time", englishAppParent.ID, 6},
-			menuDef{"englishPointHistory", "englishPointHistory", "view/client/englishPointHistory/englishPointHistory.vue", "英语积分", "coin", englishAppParent.ID, 7},
-			menuDef{"englishFreeTimeHistory", "englishFreeTimeHistory", "view/client/englishFreeTimeHistory/englishFreeTimeHistory.vue", "时长明细", "timer", englishAppParent.ID, 8},
-			menuDef{"englishVideoTags", "englishVideoTags", "view/client/videoTag/videoTag.vue", "视频标签", "price-tag", englishAppParent.ID, 9},
+			menuDef{"englishLearningDiary", "englishLearningDiary", "plugin/english_learning/view/diary.vue", "英语日记管理", "document", englishAppParent.ID, 3},
+			menuDef{"englishCheckinRecord", "englishCheckinRecord", "view/client/englishCheckinRecord/englishCheckinRecord.vue", "签到记录", "calendar", englishAppParent.ID, 4},
+			menuDef{"englishCollections", "englishCollections", "view/client/englishCollections/englishCollections.vue", "英语收藏", "star-on", englishAppParent.ID, 5},
+			menuDef{"englishErrorLog", "englishErrorLog", "view/client/englishErrorLog/englishErrorLog.vue", "错词本", "document-copy", englishAppParent.ID, 6},
+			menuDef{"englishWatchHistory", "englishWatchHistory", "view/client/englishWatchHistory/englishWatchHistory.vue", "观看历史", "time", englishAppParent.ID, 7},
+			menuDef{"englishPointHistory", "englishPointHistory", "view/client/englishPointHistory/englishPointHistory.vue", "英语积分", "coin", englishAppParent.ID, 8},
+			menuDef{"englishFreeTimeHistory", "englishFreeTimeHistory", "view/client/englishFreeTimeHistory/englishFreeTimeHistory.vue", "时长明细", "timer", englishAppParent.ID, 9},
+			menuDef{"englishVideoTags", "englishVideoTags", "view/client/videoTag/videoTag.vue", "视频标签", "price-tag", englishAppParent.ID, 10},
+			menuDef{"englishDiaryTags", "englishDiaryTags", "view/client/diaryTag/diaryTag.vue", "日记标签", "price-tag", englishAppParent.ID, 11},
 		)
 	}
 
@@ -447,6 +449,13 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/videoTag/deleteVideoTag", "DELETE"},
 		{"/videoTag/deleteVideoTagByIds", "DELETE"},
 		{"/videoTag/updateVideoTag", "PUT"},
+		// 日记标签管理
+		{"/diaryTag/getDiaryTagList", "GET"},
+		{"/diaryTag/findDiaryTag", "GET"},
+		{"/diaryTag/createDiaryTag", "POST"},
+		{"/diaryTag/deleteDiaryTag", "DELETE"},
+		{"/diaryTag/deleteDiaryTagByIds", "DELETE"},
+		{"/diaryTag/updateDiaryTag", "PUT"},
 		// 英语学习管理端
 		{"/englishLearning/admin/getCheckinRecordList", "GET"},
 		{"/englishLearning/admin/getPointRecordList", "GET"},
@@ -456,6 +465,23 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/englishLearning/admin/getWordErrorLogList", "GET"},
 		{"/englishLearning/admin/getUserList", "GET"},
 		{"/englishLearning/content/getVideoEpisodeListByTag", "GET"},
+		// 日记管理
+		{"/englishLearning/diary/createDiaryCategory", "POST"},
+		{"/englishLearning/diary/updateDiaryCategory", "PUT"},
+		{"/englishLearning/diary/deleteDiaryCategory", "DELETE"},
+		{"/englishLearning/diary/findDiaryCategory", "GET"},
+		{"/englishLearning/diary/getDiaryCategoryList", "GET"},
+		{"/englishLearning/diary/createDiary", "POST"},
+		{"/englishLearning/diary/updateDiary", "PUT"},
+		{"/englishLearning/diary/deleteDiary", "DELETE"},
+		{"/englishLearning/diary/findDiary", "GET"},
+		{"/englishLearning/diary/getDiaryList", "GET"},
+		{"/englishLearning/diary/getDiaryListByTag", "GET"},
+		{"/englishLearning/diary/getSentenceList", "GET"},
+		{"/englishLearning/diary/getSentenceListAll", "GET"},
+		{"/englishLearning/diary/parseDiarySubtitle", "POST"},
+		{"/englishLearning/diary/scanKeywords", "POST"},
+		{"/englishLearning/diary/parseDiarySubtitleFiles", "POST"},
 	}
 
 	for _, auth := range seedAuthorities {
@@ -529,6 +555,21 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/tryonRechargeOrder/findTryonRechargeOrder", "GET"},
 		{"/tryonRechargeOrder/getTryonRechargeOrderList", "GET"},
 		{"/visitor/getKefuGuideStats", "GET"},
+		// 日记管理（仅管理员）
+		{"/englishLearning/diary/createDiaryCategory", "POST"},
+		{"/englishLearning/diary/updateDiaryCategory", "PUT"},
+		{"/englishLearning/diary/deleteDiaryCategory", "DELETE"},
+		{"/englishLearning/diary/createDiary", "POST"},
+		{"/englishLearning/diary/updateDiary", "PUT"},
+		{"/englishLearning/diary/deleteDiary", "DELETE"},
+		{"/englishLearning/diary/parseDiarySubtitle", "POST"},
+		{"/englishLearning/diary/scanKeywords", "POST"},
+		{"/englishLearning/diary/parseDiarySubtitleFiles", "POST"},
+		// 日记标签管理（仅管理员）
+		{"/diaryTag/createDiaryTag", "POST"},
+		{"/diaryTag/deleteDiaryTag", "DELETE"},
+		{"/diaryTag/deleteDiaryTagByIds", "DELETE"},
+		{"/diaryTag/updateDiaryTag", "PUT"},
 	}
 	for _, p := range adminOnlyPaths {
 		db.Exec(

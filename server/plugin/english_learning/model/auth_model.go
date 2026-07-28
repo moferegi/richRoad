@@ -10,6 +10,7 @@ const (
 	ResourceTypeEnglishCategory = "english_category"
 	ResourceTypeVideoSeries     = "video_series"
 	ResourceTypeVideoEpisode    = "video_episode"
+	ResourceTypeDiary           = "diary"
 )
 
 // UserLearningEntitlement 用户学习资源授权表（支持分类/剧集/单集粒度）

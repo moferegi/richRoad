@@ -16,6 +16,7 @@ func (s *VideoSubtitleRouter) InitVideoSubtitleRouter(Router *gin.RouterGroup) {
 		videoRouter.POST("parseSubtitleFiles", videoSubtitleApi.ParseSubtitleFiles) // 上传字幕文件解析（支持keywordIDs）
 		videoRouter.GET("getSentenceList", videoSubtitleApi.GetSentenceList)
 		videoRouter.GET("getEpisodeKeywords", videoSubtitleApi.GetEpisodeKeywords)  // 获取单集已高亮重点单词
+		videoRouter.GET("getEpisodeSubtitles", videoSubtitleApi.GetEpisodeSubtitles) // 获取单集已上传的字幕文件记录
 		videoRouter.PUT("rehighlightSentences", videoSubtitleApi.RehighlightSentences) // 重新高亮已有字幕
 		videoRouter.PUT("updateSentenceList", videoSubtitleApi.UpdateSentenceList)
 	}

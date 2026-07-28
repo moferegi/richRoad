@@ -372,6 +372,32 @@ func (a *EnglishWordApi) UpsertWordFromSQL(c *gin.Context) {
 	response.OkWithDetailed(data, "处理成功", c)
 }
 
+// BatchCreateWords
+// @Tags     EnglishWord
+// @Summary  批量创建单词（仅入库单词本体，用于字幕全部单词一键入库）
+// @Security ApiKeyAuth
+// @accept   application/json
+// @Produce  application/json
+// @Param    data body request.BatchCreateWordsReq true "单词列表"
+// @Success  200  {object} response.Response{data=[]request.BatchCreateWordsItem,msg=string} "创建成功"
+// @Router   /englishLearning/word/batchCreate [post]
+func (a *EnglishWordApi) BatchCreateWords(c *gin.Context) {
+	var req request.BatchCreateWordsReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage("参数错误", c)
+		return
+	}
+
+	data, err := englishWordService.BatchCreateWords(req)
+	if err != nil {
+		global.GVA_LOG.Error("批量创建单词失败", zap.Error(err))
+		response.FailWithMessage("处理失败: "+err.Error(), c)
+		return
+	}
+
+	response.OkWithDetailed(data, "处理成功", c)
+}
+
 // BatchFillWordFromDictionary 按分类批量补全词典信息
 // @Tags     EnglishWord
 // @Summary  按分类批量补全音标/词性/释义/例句，并可选翻译释义与例句
