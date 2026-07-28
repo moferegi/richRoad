@@ -69,7 +69,7 @@
           <button size="mini" class="remove-btn" @click.stop="removeCollection(item)">
             {{ t('collection.remove') }}
           </button>
-          <button v-if="item.targetType !== 5 && item.targetType !== 2" size="mini" class="view-btn" @click.stop="openDetail(item)">查看</button>
+          <button v-if="item.targetType !== 5 && item.targetType !== 2" size="mini" class="view-btn" @click.stop="openDetail(item)">{{ t('collection.view') }}</button>
           <!-- For type 2 (sentence), the view button IS the play button -->
           <button v-if="item.targetType === 2" size="mini" class="play-btn"
             :class="{ 'playing-active': playingSentenceId === item.targetId }"
@@ -159,7 +159,7 @@ const getTypeLabel = (type) => {
   if (type === 1) return t('collection.word')
   if (type === 2) return t('collection.sentence')
   if (type === 3) return t('collection.video')
-  if (type === 4 || type === 5) return t('collection.tab_diary') || '日记'
+  if (type === 4 || type === 5) return t('collection.tab_diary')
   return '-'
 }
 
@@ -207,8 +207,9 @@ const getDesc = (item) => {
     return localText(item.diary?.name || '') || ''
   }
   if (item.targetType === 5) {
-    if (item.diary) {
-      return localText(item.diary.name)
+    const ds = item.diarySentence
+    if (ds) {
+      return localText(ds.translate || '')
     }
     return ''
   }
@@ -380,7 +381,7 @@ const playSentenceAudio = (item) => {
 
   const sentence = item.sentence
   if (!sentence) {
-    uni.showToast({ title: '无法获取句子信息', icon: 'none' })
+    uni.showToast({ title: t('collection.sentence_info_unavailable'), icon: 'none' })
     return
   }
 
@@ -408,7 +409,7 @@ const playDiarySentenceAudio = (item) => {
   const ds = item.diarySentence
   const diary = item.diary
   if (!ds || !diary) {
-    uni.showToast({ title: '无法获取句子信息', icon: 'none' })
+    uni.showToast({ title: t('collection.sentence_info_unavailable'), icon: 'none' })
     return
   }
 

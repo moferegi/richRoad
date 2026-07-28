@@ -31,7 +31,7 @@
 
       <view v-for="item in diaryList" :key="item.ID" class="diary-card">
         <!-- 轮播区域 -->
-        <swiper class="diary-swiper" :indicator-dots="true" indicator-color="rgba(255,255,255,0.4)" indicator-active-color="#6D5BFF" :current="0">
+        <swiper class="diary-swiper" :indicator-dots="true" indicator-color="rgba(255,255,255,0.4)" indicator-active-color="#6D5BFF" :current="0" :autoplay="true" :interval="4000" circular>
           <!-- 第一张：字幕文本预览 -->
           <swiper-item>
             <view class="swiper-content text-preview">
@@ -103,7 +103,7 @@
             <text v-if="selectedCategoryId === cat.ID" class="sheet-item-check">✓</text>
           </view>
         </scroll-view>
-        <button class="sheet-cancel" @click="closeCategoryPicker">{{ t('common.cancel') || '取消' }}</button>
+        <button class="sheet-cancel" @click="closeCategoryPicker">{{ t('common.cancel') }}</button>
       </view>
     </uni-popup>
 
@@ -147,12 +147,12 @@
             <text class="tag-option-add">+</text>
           </view>
           <view v-if="unselectedTags.length === 0" class="tag-empty">
-            <text class="tag-empty-text">已全部选择</text>
+            <text class="tag-empty-text">{{ t('common.all_selected') }}</text>
           </view>
         </scroll-view>
 
         <view class="tag-sheet-actions">
-          <button class="tag-btn-cancel" @click="closeTagPicker">{{ t('common.cancel') || '取消' }}</button>
+          <button class="tag-btn-cancel" @click="closeTagPicker">{{ t('common.cancel') }}</button>
           <button class="tag-btn-confirm" @click="confirmTags">{{ t('diary.confirm') }}</button>
         </view>
       </view>

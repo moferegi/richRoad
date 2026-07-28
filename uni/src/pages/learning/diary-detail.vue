@@ -16,7 +16,7 @@
         <view class="top-actions">
           <view class="accent-switch" @click="toggleAccent">
             <template v-if="isAccentSwitching">
-              <text class="accent-switching-text">切换中</text>
+              <text class="accent-switching-text">{{ t('diary.accent_switching') }}</text>
             </template>
             <template v-else>
               <text class="accent-text" :class="{ active: accent === 'US' }">US</text>
@@ -142,7 +142,7 @@
         <view class="w-divider"></view>
         <view class="w-exp">{{ localText(currentWord.explanation) }}</view>
         <view class="w-actions">
-          <button class="w-cancel-btn" @click="closeWordPopup">{{ t('common.cancel') || '取消' }}</button>
+          <button class="w-cancel-btn" @click="closeWordPopup">{{ t('common.cancel') }}</button>
           <button class="w-collect" @click="collectWord(currentWord.id)">{{ isWordCollected ? '★ ' + t('diary.uncollect') : '☆ ' + t('diary.collect') }}</button>
         </view>
       </view>
@@ -157,11 +157,11 @@
         </view>
 
         <!-- 播放速率选择 -->
-        <view class="speed-hint">点击字幕空白处可跳到该处播放</view>
+        <view class="speed-hint">{{ t('player.tap_subtitle_hint') }}</view>
         <view class="more-card speed-card">
           <view class="more-card-main">
-            <text class="more-card-title speed-disabled-title">{{ t('player.speed') || '倍速' }}</text>
-            <text class="speed-unavailable-text">暂不可用</text>
+            <text class="more-card-title speed-disabled-title">{{ t('player.speed') }}</text>
+            <text class="speed-unavailable-text">{{ t('diary.speed_unavailable') }}</text>
           </view>
         </view>
         <view class="speed-pills">
@@ -185,7 +185,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
-import { t as i18nT, localText as i18nLocalText } from '@/utils/i18n.js'
+import { t as i18nT, localText as i18nLocalText, resolveApiMessage } from '@/utils/i18n.js'
 import { getExternalUrl, initExternalDomain } from '@/utils/url.js'
 import { findDiary, getDiarySentenceList, collect, getCollectionList, uncollect, findWord } from '@/api/learning.js'
 import { playWordAudio as playWordTTS, stopLocalTTS, destroyTTS } from '@/utils/learning-tts'
@@ -198,6 +198,8 @@ const t = (key) => {
   if (text && text !== key) return text
   return key
 }
+
+const rm = (val, fallbackKey) => resolveApiMessage(val, fallbackKey, langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const localText = (value) => {
   const locale = langStore.locale || uni.getStorageSync('app-lang') || 'zh'
@@ -458,9 +460,9 @@ const ensureTrialLimit = (time) => {
   }
   lastTrialModalAt.value = now
   uni.showModal({
-    title: '试看结束',
-    content: '试看时间已结束，开通会员可完整收听',
-    confirmText: '去开通',
+    title: t('diary.trial_end_title'),
+    content: t('diary.trial_end_desc'),
+    confirmText: t('diary.btn_vip'),
     success: (res) => {
       if (res.confirm) {
         uni.navigateTo({ url: '/pages/learning/profile' })
@@ -576,6 +578,8 @@ const collectWord = async (wordId) => {
   if (res.code === 0) {
     isWordCollected.value = !collected
     uni.showToast({ title: !collected ? t('diary.collect_success') : t('diary.uncollect_success'), icon: 'success' })
+  } else {
+    uni.showToast({ title: rm(res.msg, 'operationFailed'), icon: 'none' })
   }
 }
 
@@ -591,6 +595,8 @@ const collectSentence = async (item, index) => {
       [sentenceId]: !collected
     }
     uni.showToast({ title: !collected ? t('diary.collect_success') : t('diary.uncollect_success'), icon: 'success' })
+  } else {
+    uni.showToast({ title: rm(res.msg, 'operationFailed'), icon: 'none' })
   }
 }
 
@@ -676,12 +682,16 @@ const collectDiary = async () => {
     if (res.code === 0) {
       isCollected.value = false
       uni.showToast({ title: t('diary.uncollect_success'), icon: 'success' })
+    } else {
+      uni.showToast({ title: rm(res.msg, 'operationFailed'), icon: 'none' })
     }
   } else {
     const res = await collect(4, diaryId.value)
     if (res.code === 0) {
       isCollected.value = true
       uni.showToast({ title: t('diary.collect_success'), icon: 'success' })
+    } else {
+      uni.showToast({ title: rm(res.msg, 'operationFailed'), icon: 'none' })
     }
   }
 }
@@ -1216,7 +1226,7 @@ onUnload(() => {
 
 /* === 重点单词弹窗 === */
 .word-detail-box {
-  padding: 24rpx 40rpx calc(140rpx + env(safe-area-inset-bottom)) 40rpx;
+  padding: 24rpx 40rpx calc(180rpx + env(safe-area-inset-bottom)) 40rpx;
   display: flex;
   flex-direction: column;
   align-items: stretch;

@@ -93,7 +93,7 @@
             <text class="tag-option-add">+</text>
           </view>
           <view v-if="unselectedTags.length === 0" class="tag-empty">
-            <text class="tag-empty-text">{{ t('common.all_selected') || '已全部选择' }}</text>
+            <text class="tag-empty-text">{{ t('common.all_selected') }}</text>
           </view>
         </scroll-view>
 
@@ -167,9 +167,9 @@ const currentCategoryId = ref(0)
 const showCatPicker = ref(false)
 
 const currentCategoryLabel = computed(() => {
-  if (currentCategoryId.value === 0) return t('home.all_category')
+  if (currentCategoryId.value === 0) return t('tag.all_category')
   const cat = categories.value.find(c => c.id === currentCategoryId.value)
-  return cat ? localText(cat.name) : t('home.all_category')
+  return cat ? localText(cat.name) : t('tag.all_category')
 })
 
 // 标签
@@ -179,7 +179,7 @@ const pendingTagIds = ref([])
 const showTagPicker = ref(false)
 
 const tagTriggerLabel = computed(() => {
-  if (selectedTagIds.value.length === 0) return t('home.all_category')
+  if (selectedTagIds.value.length === 0) return t('tag.all_tags')
   const lang = locale.value
   const selectedTags = tags.value.filter(t => selectedTagIds.value.includes(t.id))
   if (selectedTags.length === 1) {

@@ -160,7 +160,7 @@
         <view class="w-divider"></view>
         <view class="w-exp">{{ localText(currentWord.explanation) }}</view>
         <view class="w-actions">
-          <button class="w-cancel-btn" @click="closeWordPopup">{{ t('common.cancel') || '取消' }}</button>
+          <button class="w-cancel-btn" @click="closeWordPopup">{{ t('common.cancel') }}</button>
           <button class="w-collect" @click="collectWord(currentWord.id)">{{ isWordCollected ? '★ ' + t('typing.uncollect') : '☆ ' + t('typing.collect') }}</button>
         </view>
       </view>
@@ -174,7 +174,7 @@
           <text class="more-sheet-subtitle">{{ tt('player.more_settings_desc', 'player.loop_desc') }}</text>
         </view>
 
-        <view class="speed-hint">点击字幕空白处可跳到该处播放</view>
+        <view class="speed-hint">{{ t('player.tap_subtitle_hint') }}</view>
 
         <view class="more-card" @click="toggleLoop">
           <view class="more-card-main">
@@ -217,7 +217,7 @@ import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { useAppConfigStore } from '@/pinia/modules/appConfig.js'
-import { t as i18nT, localText as i18nLocalText } from '@/utils/i18n.js'
+import { t as i18nT, localText as i18nLocalText, resolveApiMessage } from '@/utils/i18n.js'
 import { getExternalUrl } from '@/utils/url.js'
 import { collect, findVideoEpisode, findWord, getCollectionList, getSentenceList, getWatchProgress, heartbeat, uncollect } from '@/api/learning.js'
 import { baseUrl } from '@/utils/request.js'
@@ -235,6 +235,8 @@ const t = (k) => {
   if (text && text !== k) return text
   return k
 }
+
+const rm = (val, fallbackKey) => resolveApiMessage(val, fallbackKey, langStore.locale || uni.getStorageSync('app-lang') || 'zh')
 
 const tt = (...keys) => {
   for (const key of keys) {
@@ -1254,6 +1256,8 @@ const collectSentence = async (id) => {
       [sentenceIdNum]: !collected,
     }
     uni.showToast({ title: !collected ? t('player.collect_success') : t('typing.uncollect_success'), icon: 'success' })
+  } else {
+    uni.showToast({ title: rm(res.msg, 'operationFailed'), icon: 'none' })
   }
 }
 
@@ -1265,6 +1269,8 @@ const collectWord = async (id) => {
   if (res.code === 0) {
     isWordCollected.value = !collected
     uni.showToast({ title: !collected ? t('player.collect_success') : t('typing.uncollect_success'), icon: 'success' })
+  } else {
+    uni.showToast({ title: rm(res.msg, 'operationFailed'), icon: 'none' })
   }
 }
 

@@ -87,6 +87,7 @@ const switchTab = (index) => {
 }
 
 onShow(() => {
+  updateIndex()
   setTimeout(() => {
     updateIndex()
   }, 200)
@@ -96,6 +97,7 @@ onShow(() => {
 })
 
 onMounted(() => {
+  updateIndex()
   setTimeout(() => {
     updateIndex()
   }, 300)

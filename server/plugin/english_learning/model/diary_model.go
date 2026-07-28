@@ -28,7 +28,7 @@ type Diary struct {
 	NeedVip              *bool   `json:"needVip" gorm:"default:false;comment:是否需要开通VIP才可完整观看"`
 	EnglishSubtitleUrl   string  `json:"englishSubtitleUrl" gorm:"type:text;comment:美式英文字幕文件URL"`
 	EnglishSubtitleUrlUk string  `json:"englishSubtitleUrlUk" gorm:"type:text;comment:英式英文字幕文件URL(仅时间轴不同)"`
-	TranslationSubtitleUrls string `json:"translationSubtitleUrls" gorm:"type:json;comment:多语言翻译字幕文件URL映射JSON"`
+	TranslationSubtitleUrls string `json:"translationSubtitleUrls" gorm:"type:json;default:'{}';comment:多语言翻译字幕文件URL映射JSON"`
 	HasFullAuth          bool    `json:"hasFullAuth" gorm:"-"`
 	Sort                 int     `json:"sort" gorm:"default:0;comment:排序索引"`
 }
