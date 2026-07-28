@@ -62,9 +62,9 @@
       <view class="video-grid">
         <view class="video-card" v-for="item in videoList" :key="item.id" @tap="goDetail(item.id)">
           <image class="video-cover" :src="getExternalUrl(item.coverUrl || '')" mode="aspectFill" />
-          <view class="video-play-badge">
-            <text class="play-icon">▶</text>
-          </view>
+          <!-- <view class="video-play-badge">
+            <image class="play-icon" src="/static/images/learning/icon-play.svg" mode="aspectFit" />
+          </view> -->
           <view class="video-overlay">
             <text class="video-title">{{ localText(item.name) }}</text>
             <view class="video-stats">
@@ -544,21 +544,21 @@ onReachBottom(async () => {
   position: absolute;
   top: 16rpx;
   right: 16rpx;
-  width: 48rpx;
-  height: 48rpx;
+  width: 52rpx;
+  height: 52rpx;
   border-radius: 50%;
-  background: rgba(108, 91, 255, 0.92);
+  background: rgba(255, 255, 255, 0.92);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 3;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.18);
 }
 
 .play-icon {
-  font-size: 20rpx;
-  color: #fff;
-  margin-left: 4rpx;
+  width: 26rpx;
+  height: 26rpx;
+  margin-left: 2rpx;
 }
 
 .video-overlay {

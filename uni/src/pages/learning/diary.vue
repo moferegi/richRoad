@@ -632,7 +632,7 @@ onShow(() => {
   background: #fff;
   border-radius: 32rpx 32rpx 0 0;
   box-shadow: 0 -12rpx 36rpx rgba(108, 91, 255, 0.14);
-  max-height: 75vh;
+  max-height: 72vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -650,7 +650,7 @@ onShow(() => {
 .sheet-title {
   text-align: center;
   font-size: 32rpx;
-  font-weight: 800;
+  font-weight: 700;
   color: #1A1B3A;
   margin: 20rpx 0;
   padding: 0 32rpx;
@@ -661,7 +661,7 @@ onShow(() => {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0 32rpx;
+  padding: 0 24rpx;
   box-sizing: border-box;
   width: 100%;
 }
@@ -670,24 +670,28 @@ onShow(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 92rpx;
-  padding: 0 24rpx;
-  border-radius: 16rpx;
-  margin-bottom: 8rpx;
+  height: 96rpx;
+  padding: 0 28rpx;
+  border-radius: 20rpx;
+  margin-bottom: 10rpx;
   font-size: 28rpx;
   color: #1A1B3A;
-  background: rgba(108, 91, 255, 0.06);
+  background: #F7F5FF;
   box-sizing: border-box;
+  transition: all 0.2s ease;
 }
 
-.sheet-item:active { background: rgba(108, 91, 255, 0.14); }
+.sheet-item:active {
+  background: rgba(108, 91, 255, 0.14);
+  transform: scale(0.98);
+}
 
 .sheet-item.active {
-  background: rgba(108, 91, 255, 0.16);
-  border: 1rpx solid rgba(108, 91, 255, 0.32);
+  background: linear-gradient(135deg, rgba(109, 91, 255, 0.12) 0%, rgba(155, 143, 255, 0.12) 100%);
+  border: 1.5rpx solid rgba(108, 91, 255, 0.4);
 }
 
-.sheet-item-label { font-weight: 600; }
+.sheet-item-label { font-weight: 500; }
 
 .sheet-item.active .sheet-item-label {
   color: #6D5BFF;
@@ -696,22 +700,34 @@ onShow(() => {
 
 .sheet-item-check {
   color: #6D5BFF;
-  font-size: 30rpx;
+  font-size: 32rpx;
   font-weight: 700;
+  width: 36rpx;
+  height: 36rpx;
+  line-height: 36rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: rgba(108, 91, 255, 0.12);
 }
 
 .sheet-cancel {
   flex-shrink: 0;
-  margin: 16rpx 32rpx;
-  margin-bottom: calc(16rpx + 100rpx + env(safe-area-inset-bottom));
+  margin: 20rpx 32rpx;
+  margin-bottom: calc(24rpx + 140rpx + env(safe-area-inset-bottom));
   border-radius: 999rpx;
-  border: 1rpx solid rgba(108, 91, 255, 0.32);
-  background: #fff;
-  color: #6D5BFF;
-  font-size: 30rpx;
+  border: none;
+  background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  color: #fff;
+  font-size: 28rpx;
   font-weight: 600;
-  height: 84rpx;
-  line-height: 84rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  box-shadow: 0 6rpx 18rpx rgba(108, 91, 255, 0.32);
+}
+
+.sheet-cancel:active {
+  transform: scale(0.97);
+  opacity: 0.92;
 }
 
 /* === 标签弹窗 === */

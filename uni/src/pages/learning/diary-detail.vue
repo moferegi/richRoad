@@ -25,7 +25,7 @@
             </template>
           </view>
           <view class="image-btn" @click="viewImage">
-            <text class="image-btn-icon">🖼</text>
+            <image class="image-btn-icon" src="/static/images/learning/icon-image-white.svg" mode="aspectFit" />
           </view>
         </view>
       </view>
@@ -94,34 +94,35 @@
     <view class="bottom-controls">
       <view class="control-item" @click="toggleSentences">
         <view class="c-icon-circle" :class="{ 'c-circle-on': controls.showSentences }">
-          <text class="c-icon">📝</text>
+          <image class="c-icon-img" :src="controls.showSentences ? '/static/images/learning/icon-sentence-active.svg' : '/static/images/learning/icon-sentence.svg'" mode="aspectFit" />
         </view>
         <text class="c-text" :class="{ 'c-text-active': controls.showSentences }">{{ t('diary.sentence') }}</text>
       </view>
       
       <view class="control-item" @click="toggleTranslate">
         <view class="c-icon-circle" :class="{ 'c-circle-on': controls.showTranslate }">
-          <text class="c-icon">🌐</text>
+          <image class="c-icon-img" :src="controls.showTranslate ? '/static/images/learning/icon-translate-active.svg' : '/static/images/learning/icon-translate.svg'" mode="aspectFit" />
         </view>
         <text class="c-text" :class="{ 'c-text-active': controls.showTranslate }">{{ t('diary.translate') }}</text>
       </view>
       
       <view class="control-item play-btn" @click="togglePlay">
         <view class="c-play-circle">
-          <text class="c-icon c-play-icon">{{ isAudioLoading ? '⏳' : (isAudioPlaying ? '⏸' : '▶') }}</text>
+          <image v-if="isAudioLoading" class="c-play-img" src="/static/images/learning/icon-play-white.svg" mode="aspectFit" />
+          <image v-else class="c-play-img" :src="isAudioPlaying ? '/static/images/learning/icon-pause-white.svg' : '/static/images/learning/icon-play-white.svg'" mode="aspectFit" />
         </view>
       </view>
       
       <view class="control-item" @click="collectDiary">
         <view class="c-icon-circle" :class="{ 'c-circle-on': isCollected }">
-          <text class="c-icon">{{ isCollected ? '★' : '☆' }}</text>
+          <image class="c-icon-img" :src="isCollected ? '/static/images/learning/icon-collect-active.svg' : '/static/images/learning/icon-collect.svg'" mode="aspectFit" />
         </view>
         <text class="c-text" :class="{ 'c-text-active': isCollected }">{{ isCollected ? t('diary.uncollect') : t('diary.collect') }}</text>
       </view>
 
       <view class="control-item" @click="openMoreSheet">
         <view class="c-icon-circle">
-          <text class="c-icon">⚙</text>
+          <image class="c-icon-img" src="/static/images/learning/icon-more.svg" mode="aspectFit" />
         </view>
         <text class="c-text">{{ t('diary.more') }}</text>
       </view>
@@ -905,10 +906,10 @@ onUnload(() => {
 }
 
 .image-btn {
-  width: 56rpx;
-  height: 56rpx;
+  width: 60rpx;
+  height: 60rpx;
   border-radius: 50%;
-  background: rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.22);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -916,15 +917,17 @@ onUnload(() => {
 
 .image-btn:active {
   transform: scale(0.92);
+  background: rgba(255,255,255,0.3);
 }
 
 .image-btn-icon {
-  font-size: 28rpx;
+  width: 32rpx;
+  height: 32rpx;
 }
 
 /* === 字幕滚动区 === */
 .subtitle-section {
-  height: calc(100vh - var(--status-bar-height, 0px) - 110rpx - 120rpx - env(safe-area-inset-bottom));
+  height: calc(100vh - var(--status-bar-height, 0px) - 110rpx - 150rpx - env(safe-area-inset-bottom));
   margin-top: 16rpx;
   padding: 0 24rpx;
   box-sizing: border-box;
@@ -935,7 +938,7 @@ onUnload(() => {
 }
 
 .subtitle-padding-bottom {
-  height: 16rpx;
+  height: 40rpx;
 }
 
 .sentence-row {
@@ -1018,10 +1021,11 @@ onUnload(() => {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  padding: 16rpx 24rpx;
-  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+  padding: 18rpx 24rpx 14rpx;
+  padding-bottom: calc(14rpx + env(safe-area-inset-bottom));
   background: #FFFFFF;
   border-top: 1rpx solid #F0EEFF;
+  box-shadow: 0 -4rpx 16rpx rgba(108, 91, 255, 0.04);
 }
 
 .control-item {
@@ -1032,8 +1036,8 @@ onUnload(() => {
 }
 
 .c-icon-circle {
-  width: 64rpx;
-  height: 64rpx;
+  width: 76rpx;
+  height: 76rpx;
   border-radius: 50%;
   background: #F5F3FF;
   display: flex;
@@ -1048,14 +1052,16 @@ onUnload(() => {
 
 .c-circle-on {
   background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
+  box-shadow: 0 4rpx 14rpx rgba(108, 91, 255, 0.35);
 }
 
-.c-icon {
-  font-size: 28rpx;
+.c-icon-img {
+  width: 36rpx;
+  height: 36rpx;
 }
 
 .c-text {
-  font-size: 20rpx;
+  font-size: 22rpx;
   color: #A9AECB;
   font-weight: 500;
 }
@@ -1066,29 +1072,30 @@ onUnload(() => {
 }
 
 .play-btn .c-play-circle {
-  width: 88rpx;
-  height: 88rpx;
+  width: 96rpx;
+  height: 96rpx;
   border-radius: 50%;
   background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4rpx 16rpx rgba(108, 91, 255, 0.36);
+  box-shadow: 0 6rpx 20rpx rgba(108, 91, 255, 0.4);
 }
 
 .play-btn .c-play-circle:active {
   transform: scale(0.92);
 }
 
-.c-play-icon {
-  font-size: 36rpx;
-  color: #fff;
+.c-play-img {
+  width: 44rpx;
+  height: 44rpx;
+  margin-left: 4rpx;
 }
 
 /* === 更多设置弹窗 === */
 .more-sheet {
   border-radius: 32rpx 32rpx 0 0;
-  padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(180rpx + env(safe-area-inset-bottom));
 }
 
 .popup-handle {
@@ -1156,28 +1163,35 @@ onUnload(() => {
 .more-actions {
   display: flex;
   gap: 16rpx;
-  padding: 24rpx 32rpx;
+  padding: 24rpx 32rpx 28rpx;
+  margin-top: 12rpx;
 }
 
 .more-action-btn {
   flex: 1;
-  padding: 20rpx 0;
-  border-radius: 16rpx;
+  height: 76rpx;
+  line-height: 76rpx;
+  padding: 0;
+  border-radius: 999rpx;
   background: linear-gradient(135deg, #6D5BFF 0%, #9B8FFF 100%);
   color: #fff;
-  font-size: 28rpx;
+  font-size: 26rpx;
   font-weight: 600;
   border: none;
   text-align: center;
+  box-shadow: 0 4rpx 14rpx rgba(108, 91, 255, 0.32);
 }
 
 .more-action-btn.ghost {
   background: #F5F3FF;
   color: #6D5BFF;
+  border: 1.5rpx solid rgba(108, 91, 255, 0.2);
+  box-shadow: none;
 }
 
 .more-action-btn:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
+  opacity: 0.92;
 }
 
 /* === 句子收藏按钮 === */

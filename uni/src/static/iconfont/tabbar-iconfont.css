@@ -41,3 +41,44 @@
   mask-image: url('../images/tabBar/luxe-my-active.svg');
   -webkit-mask-image: url('../images/tabBar/luxe-my-active.svg');
 }
+
+/* 学习模块 tabBar 图标 */
+.icon-learn-home {
+  mask-image: url('../images/tabBar/learn-home.svg');
+  -webkit-mask-image: url('../images/tabBar/learn-home.svg');
+}
+
+.icon-learn-home-active {
+  mask-image: url('../images/tabBar/learn-home-active.svg');
+  -webkit-mask-image: url('../images/tabBar/learn-home-active.svg');
+}
+
+.icon-learn-diary {
+  mask-image: url('../images/tabBar/learn-diary.svg');
+  -webkit-mask-image: url('../images/tabBar/learn-diary.svg');
+}
+
+.icon-learn-diary-active {
+  mask-image: url('../images/tabBar/learn-diary-active.svg');
+  -webkit-mask-image: url('../images/tabBar/learn-diary-active.svg');
+}
+
+.icon-learn-word {
+  mask-image: url('../images/tabBar/learn-word.svg');
+  -webkit-mask-image: url('../images/tabBar/learn-word.svg');
+}
+
+.icon-learn-word-active {
+  mask-image: url('../images/tabBar/learn-word-active.svg');
+  -webkit-mask-image: url('../images/tabBar/learn-word-active.svg');
+}
+
+.icon-learn-my {
+  mask-image: url('../images/tabBar/learn-my.svg');
+  -webkit-mask-image: url('../images/tabBar/learn-my.svg');
+}
+
+.icon-learn-my-active {
+  mask-image: url('../images/tabBar/learn-my-active.svg');
+  -webkit-mask-image: url('../images/tabBar/learn-my-active.svg');
+}

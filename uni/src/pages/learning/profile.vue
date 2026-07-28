@@ -40,32 +40,31 @@
 
     <!-- 列表菜单分组 -->
     <view class="menu-group">
-      <view class="menu-group-title">{{ t('profile.watch_history') }}</view>
       <view class="menu-list">
         <view class="menu-item" @click="goTo('watch_history')">
           <view class="menu-icon-wrap icon-video">
-            <text class="menu-icon">▶</text>
+            <image class="menu-icon-img" src="/static/images/learning/icon-play-purple.svg" mode="aspectFit" />
           </view>
           <text class="menu-label">{{ t('profile.watch_history') }}</text>
           <text class="arrow">›</text>
         </view>
         <view class="menu-item" @click="goTo('checkin_calendar')">
           <view class="menu-icon-wrap icon-calendar">
-            <text class="menu-icon">◷</text>
+            <image class="menu-icon-img" src="/static/images/learning/icon-calendar.svg" mode="aspectFit" />
           </view>
           <text class="menu-label">{{ t('profile.checkin_record') }}</text>
           <text class="arrow">›</text>
         </view>
         <view class="menu-item" @click="goTo('collections')">
           <view class="menu-icon-wrap icon-star">
-            <text class="menu-icon">★</text>
+            <image class="menu-icon-img" src="/static/images/learning/icon-bookmark-gold.svg" mode="aspectFit" />
           </view>
           <text class="menu-label">{{ t('profile.my_collections') }}</text>
           <text class="arrow">›</text>
         </view>
         <view class="menu-item" @click="goTo('error_words')">
           <view class="menu-icon-wrap icon-book">
-            <text class="menu-icon">✎</text>
+            <image class="menu-icon-img" src="/static/images/learning/icon-book.svg" mode="aspectFit" />
           </view>
           <text class="menu-label">{{ t('profile.error_book') }}</text>
           <text class="arrow">›</text>
@@ -74,18 +73,17 @@
     </view>
 
     <view class="menu-group">
-      <view class="menu-group-title">{{ t('profile.contact_service') }}</view>
       <view class="menu-list">
         <view class="menu-item" @click="contactService">
           <view class="menu-icon-wrap icon-service">
-            <text class="menu-icon">♪</text>
+            <image class="menu-icon-img" src="/static/images/learning/icon-headset.svg" mode="aspectFit" />
           </view>
           <text class="menu-label">{{ t('profile.contact_service') }}</text>
           <text class="arrow">›</text>
         </view>
         <view class="menu-item" @click="showLanguageSwitcher">
           <view class="menu-icon-wrap icon-lang">
-            <text class="menu-icon">文</text>
+            <image class="menu-icon-img" src="/static/images/learning/icon-language.svg" mode="aspectFit" />
           </view>
           <text class="menu-label">{{ t('profile.switch_language') }}</text>
           <text class="arrow">›</text>

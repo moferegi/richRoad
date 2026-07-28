@@ -15,7 +15,7 @@
           </view>
         </view>
         <view class="bar-action" @click="showSettingsSheet">
-          <text class="action-icon">⚙</text>
+          <image class="action-icon" src="/static/images/learning/icon-settings-white.svg" mode="aspectFit" />
         </view>
       </view>
     </view>
@@ -39,7 +39,7 @@
       <view class="word-meta">
         <text class="word-phonetic" v-if="settings.showPhonetic">{{ settings.accent === 'US' ? currentWord.phoneticUs : currentWord.phoneticUk }}</text>
         <view class="audio-trigger" :class="{ playing: isAudioPlaying }" @click.stop="playWordAudio">
-          <text class="audio-icon">{{ isAudioPlaying ? '◉' : '♪' }}</text>
+          <image class="audio-icon-img" src="/static/images/learning/icon-volume-white.svg" mode="aspectFit" />
         </view>
       </view>
 
@@ -47,7 +47,7 @@
 
       <view class="word-footer">
         <view class="collect-btn" @click.stop="collectWord">
-          <text class="collect-icon">{{ isCollected ? '★' : '☆' }}</text>
+          <image class="collect-icon" :src="isCollected ? '/static/images/learning/icon-bookmark-gold.svg' : '/static/images/learning/icon-bookmark.svg'" mode="aspectFit" />
           <text class="collect-text">{{ isCollected ? t('typing.uncollect') : t('typing.collect') }}</text>
         </view>
       </view>
@@ -64,7 +64,7 @@
       <template v-else>
         <view class="tools-row">
           <view class="tool-btn" @click="openWordDrawer">
-            <text class="tool-icon">☰</text>
+            <image class="tool-icon" src="/static/images/learning/icon-list.svg" mode="aspectFit" />
             <text>{{ t('typing.word_list') }}</text>
           </view>
           <view class="search-field">
@@ -126,7 +126,7 @@
         <view class="sentence-top">
           <text class="sentence-en">{{ sentence.source }}</text>
           <view class="sentence-audio" :class="{ playing: isSentenceAudioPlaying && playingSentenceIndex === index }" @click="playSentenceAudio(sentence, index)">
-            <text class="sentence-audio-icon">{{ isSentenceAudioPlaying && playingSentenceIndex === index ? '◉' : '♪' }}</text>
+            <image class="sentence-audio-icon" :src="(isSentenceAudioPlaying && playingSentenceIndex === index) ? '/static/images/learning/icon-volume-white.svg' : '/static/images/learning/icon-volume-purple.svg'" mode="aspectFit" />
           </view>
         </view>
         <text class="sentence-zh" v-if="settings.showExplanation">{{ localText(sentence.translate) }}</text>
@@ -1283,8 +1283,8 @@ const selectPickerItem = async (item) => {
 }
 
 .action-icon {
-  font-size: 32rpx;
-  color: #fff;
+  width: 32rpx;
+  height: 32rpx;
 }
 
 /* === 单词主卡片 === */
@@ -1338,9 +1338,9 @@ const selectPickerItem = async (item) => {
   transition: transform 0.15s;
 }
 
-.audio-icon {
-  font-size: 30rpx;
-  color: #fff;
+.audio-icon-img {
+  width: 30rpx;
+  height: 30rpx;
 }
 
 .audio-trigger:active {
@@ -1385,8 +1385,8 @@ const selectPickerItem = async (item) => {
 }
 
 .collect-icon {
-  font-size: 26rpx;
-  color: #F59E0B;
+  width: 26rpx;
+  height: 26rpx;
 }
 
 .collect-text {
@@ -1432,7 +1432,8 @@ const selectPickerItem = async (item) => {
 }
 
 .tool-icon {
-  font-size: 26rpx;
+  width: 26rpx;
+  height: 26rpx;
 }
 
 .tool-btn:active {
@@ -1621,8 +1622,8 @@ const selectPickerItem = async (item) => {
 }
 
 .sentence-audio-icon {
-  font-size: 26rpx;
-  color: #6D5BFF;
+  width: 26rpx;
+  height: 26rpx;
 }
 
 .sentence-audio:active {
