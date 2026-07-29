@@ -11,7 +11,7 @@
         </view>
         <view class="hero-text">
           <text class="hero-title">{{ appTitle || 'RichRoad' }}</text>
-          <text class="hero-subtitle">{{ t('home.video_zone') }}</text>
+          <text class="hero-subtitle">{{ t('wardrobeSlogan') }}</text>
         </view>
       </view>
     </view>

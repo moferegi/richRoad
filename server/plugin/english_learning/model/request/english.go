@@ -59,9 +59,10 @@ type TTSPreflightReq struct {
 }
 
 type WordListSearch struct {
-	CategoryID uint   `json:"categoryId" form:"categoryId"`
-	ChapterID  uint   `json:"chapterId" form:"chapterId"`
-	Keyword    string `json:"keyword" form:"keyword"`
+	CategoryID  uint   `json:"categoryId" form:"categoryId"`
+	ChapterID   uint   `json:"chapterId" form:"chapterId"`
+	Keyword     string `json:"keyword" form:"keyword"`
+	FuzzySearch *bool  `json:"fuzzySearch" form:"fuzzySearch"` // true=模糊 LIKE, false/未传=默认模糊, 显式传false=精准
 	request.PageInfo
 }
 
@@ -117,4 +118,16 @@ type BatchCreateWordsItem struct {
 	Word   string `json:"word"`
 	WordID uint   `json:"wordId"`
 	Newly  bool   `json:"newly"` // 是否本次新创建
+}
+
+// BatchCheckWordsReq 批量检查单词是否存在于词库
+type BatchCheckWordsReq struct {
+	Words []string `json:"words" binding:"required"`
+}
+
+// BatchCheckWordsItem 批量检查单词的返回项
+type BatchCheckWordsItem struct {
+	Word   string `json:"word"`
+	WordID uint   `json:"wordId"` // 0 表示不存在
+	Exists bool   `json:"exists"`
 }

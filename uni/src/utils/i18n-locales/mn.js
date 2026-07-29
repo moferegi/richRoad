@@ -166,7 +166,7 @@ export default {
   account: 'Бүртгэл',
   navLogin: 'Нэвтрэх',
   navRegister: 'Бүртгүүлэх',
-  wardrobeSlogan: 'Танд зориулсан хувцасны шүүгээ',
+  wardrobeSlogan: 'Жинхэнэ англи хэлийг эзэмших',
   password: 'Нууц үг',
   captcha: 'Баталгаажуулах',
   repeatPassword: 'Давтах',

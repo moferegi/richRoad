@@ -187,7 +187,7 @@ export default {
   discountDefault: '折扣',
   navLogin: '用户登录',
   navRegister: '用户注册',
-  wardrobeSlogan: '一个属于您的衣橱',
+  wardrobeSlogan: '掌握地道英语',
   account: '账号',
   password: '密码',
   captcha: '验证码',

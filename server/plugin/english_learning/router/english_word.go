@@ -24,5 +24,6 @@ func (s *EnglishWordRouter) InitEnglishWordRouter(Router *gin.RouterGroup) {
 		wordRouter.POST("upsertSqlWord", wordApi.UpsertWordFromSQL)
 		wordRouter.POST("batchFillFromDictionary", wordApi.BatchFillWordFromDictionary)
 		wordRouter.POST("batchCreate", wordApi.BatchCreateWords) // 批量创建单词（字幕全部单词一键入库）
+		wordRouter.POST("batchCheck", wordApi.BatchCheckWords)   // 批量检查单词是否存在于词库
 	}
 }

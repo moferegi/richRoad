@@ -423,3 +423,29 @@ func (a *EnglishWordApi) BatchFillWordFromDictionary(c *gin.Context) {
 
 	response.OkWithDetailed(data, "处理成功", c)
 }
+
+// BatchCheckWords 批量检查单词是否存在于词库
+// @Tags     EnglishWord
+// @Summary  批量检查单词是否存在于词库（不创建，仅查询）
+// @Security ApiKeyAuth
+// @accept   application/json
+// @Produce  application/json
+// @Param    data body request.BatchCheckWordsReq true "单词列表"
+// @Success  200  {object} response.Response{data=[]request.BatchCheckWordsItem,msg=string} "查询成功"
+// @Router   /englishLearning/word/batchCheck [post]
+func (a *EnglishWordApi) BatchCheckWords(c *gin.Context) {
+	var req request.BatchCheckWordsReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage("参数错误", c)
+		return
+	}
+
+	data, err := englishWordService.BatchCheckWords(req)
+	if err != nil {
+		global.GVA_LOG.Error("批量检查单词失败", zap.Error(err))
+		response.FailWithMessage("处理失败: "+err.Error(), c)
+		return
+	}
+
+	response.OkWithDetailed(data, "查询成功", c)
+}

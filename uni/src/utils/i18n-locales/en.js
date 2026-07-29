@@ -188,7 +188,7 @@ export default {
   account: 'Account',
   navLogin: 'Sign In',
   navRegister: 'Sign Up',
-  wardrobeSlogan: 'A wardrobe just for you',
+  wardrobeSlogan: 'Master authentic English',
   password: 'Password',
   captcha: 'Captcha',
   repeatPassword: 'Confirm',

@@ -81,6 +81,15 @@ export const batchCreateWords = (data) => {
   })
 }
 
+// 批量检查单词是否存在于词库
+export const batchCheckWords = (data) => {
+  return service({
+    url: '/englishLearning/word/batchCheck',
+    method: 'post',
+    data
+  })
+}
+
 // 按分类批量词典补全
 export const batchFillWordFromDictionary = (data) => {
   return service({

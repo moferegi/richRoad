@@ -457,6 +457,7 @@
       v-model="diarySentencePreviewVisible"
       :title="`字幕预览 - ${diaryPreviewDiaryName || ''}`"
       width="1100px"
+      :fullscreen="diarySentencePreviewFullscreen"
       :before-close="handleDiarySentencePreviewBeforeClose"
     >
       <el-tabs v-model="diarySentencePreviewTab">
@@ -473,7 +474,7 @@
             </el-select>
             <el-tag type="warning" effect="light">已改动 {{ diaryPendingSentenceChanges.length }} 条</el-tag>
           </div>
-          <el-table :data="diarySentencePreviewTable" border max-height="500">
+          <el-table :data="diarySentencePreviewTable" border :max-height="diarySentencePreviewFullscreen ? 900 : 500">
             <el-table-column prop="id" label="ID" width="80" />
             <el-table-column label="开始(s)" width="120">
               <template #default="scope">
@@ -498,45 +499,6 @@
           </el-table>
         </el-tab-pane>
 
-        <el-tab-pane label="重点单词" name="keywords">
-          <div class="subtitle-preview-toolbar">
-            <span>字幕单词（共 {{ diaryPreviewKeywordList.length }} 个，已匹配词库 {{ diaryPreviewKeywordList.filter(k => k.matched).length }} 个）</span>
-            <el-button size="small" type="primary" @click="loadDiaryPreviewKeywords">刷新列表</el-button>
-          </div>
-          <el-table
-            ref="diaryPreviewKeywordTableRef"
-            :data="diaryPreviewKeywordList"
-            row-key="word"
-            border
-            max-height="420"
-            @selection-change="handleDiaryPreviewKeywordSelectionChange"
-          >
-            <el-table-column type="selection" width="50" :selectable="(row) => row.matched" />
-            <el-table-column prop="word" label="单词" width="180" />
-            <el-table-column label="状态" width="140">
-              <template #default="scope">
-                <el-tag v-if="scope.row.matched" type="success" size="small">已匹配(ID:{{ scope.row.wordId }})</el-tag>
-                <el-tag v-else type="info" size="small">未入库</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="count" label="出现次数" width="100" sortable />
-          </el-table>
-          <div style="margin-top: 12px">
-            <el-button size="small" @click="diarySelectAllPreviewKeywords(true)">全选已匹配</el-button>
-            <el-button size="small" @click="diarySelectAllPreviewKeywords(false)">取消全选</el-button>
-            <el-button
-              type="warning"
-              size="small"
-              style="margin-left: 16px"
-              :loading="diaryPreviewRehighlighting"
-              :disabled="diaryPreviewSelectedKeywordIds.length === 0"
-              @click="handleDiaryRehighlightPreview"
-            >
-              更新高亮（已选 {{ diaryPreviewSelectedKeywordIds.length }} 个词）
-            </el-button>
-          </div>
-        </el-tab-pane>
-
         <el-tab-pane label="全部单词" name="allWords">
           <div class="subtitle-preview-toolbar">
             <span>当前字幕中的所有单词（共 {{ allDiarySubtitleWords.length }} 个），勾选后点击"更新高亮"即可添加为重点单词</span>
@@ -546,7 +508,7 @@
             :data="allDiarySubtitleWords"
             row-key="word"
             border
-            max-height="420"
+            :max-height="diarySentencePreviewFullscreen ? 800 : 420"
             @selection-change="handleDiaryAllWordsSelectionChange"
           >
             <el-table-column type="selection" width="50" />
@@ -558,6 +520,11 @@
               </template>
             </el-table-column>
             <el-table-column prop="count" label="出现次数" width="100" sortable />
+            <el-table-column label="操作" width="80">
+              <template #default="scope">
+                <el-button v-if="!scope.row.matched" type="primary" link size="small" @click="openDiaryAddWordDialog(scope.row.word)">增加</el-button>
+              </template>
+            </el-table-column>
           </el-table>
           <div style="margin-top: 12px">
             <el-button size="small" @click="diarySelectAllAllWords(true)">全选已匹配</el-button>
@@ -577,9 +544,46 @@
       </el-tabs>
 
       <template #footer>
+        <el-button @click="diarySentencePreviewFullscreen = !diarySentencePreviewFullscreen" :icon="diarySentencePreviewFullscreen ? 'Minus' : 'FullScreen'">{{ diarySentencePreviewFullscreen ? '还原' : '放大' }}</el-button>
         <el-button :disabled="diaryPendingSentenceChanges.length === 0" @click="diaryResetSentencePreviewChanges">重置改动</el-button>
         <el-button type="primary" :loading="diarySentenceSaving" :disabled="diaryPendingSentenceChanges.length === 0" @click="diarySaveSentencePreview">保存修改</el-button>
         <el-button @click="diaryCloseSentencePreview">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="diaryAddWordDialogVisible" title="新增单词" width="860px" :close-on-click-modal="false" :close-on-press-escape="false">
+      <el-form :model="diaryAddWordForm" label-width="130px">
+        <el-form-item label="单词本体">
+          <el-input v-model="diaryAddWordForm.word" disabled />
+        </el-form-item>
+        <el-form-item label="美式音标">
+          <el-input v-model="diaryAddWordForm.phoneticUs" placeholder="例如: /ˈdestəni/" />
+        </el-form-item>
+        <el-form-item label="英式音标">
+          <el-input v-model="diaryAddWordForm.phoneticUk" placeholder="例如: /ˈdestəni/" />
+        </el-form-item>
+        <el-form-item label="词性">
+          <el-input v-model="diaryAddWordForm.partOfSpeech" placeholder="例如: noun, verb" />
+        </el-form-item>
+        <el-form-item label="释义">
+          <MultiLangEditor
+            :model="diaryAddWordForm.explanationI18n"
+            title="单词释义多语言"
+            input-type="textarea"
+            :rows="4"
+            :use-tabs="true"
+          />
+        </el-form-item>
+        <el-form-item label="美式发音URL">
+          <FileUploadWithDir v-model="diaryAddWordForm.audioUs" default-folder="english-learn/word/audio/us" accept="audio/*" />
+        </el-form-item>
+        <el-form-item label="英式发音URL">
+          <FileUploadWithDir v-model="diaryAddWordForm.audioUk" default-folder="english-learn/word/audio/uk" accept="audio/*" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="diaryAddWordDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="diaryAddWordSubmitting" @click="diarySubmitAddWord">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -614,7 +618,9 @@ import {
   rehighlightDiarySentences,
   updateDiarySentenceList,
   getDiaryKeywords,
-  batchCreateWords
+  batchCreateWords,
+  createEnglishWord,
+  batchCheckWords
 } from '../api/english'
 
 defineOptions({
@@ -963,6 +969,7 @@ const removeDiary = (row) => {
 
 // 字幕预览
 const diarySentencePreviewVisible = ref(false)
+const diarySentencePreviewFullscreen = ref(false)
 const diarySentencePreviewTab = ref('sentences')
 const diarySentencePreviewLang = ref('zh')
 const diarySentencePreviewTable = ref([])
@@ -981,19 +988,95 @@ const diaryAllWordsTableRef = ref(null)
 const diaryAllWordsSelectedIds = ref([])
 const diaryAllWordsRehighlighting = ref(false)
 const diarySkipAutoSelectAllWords = ref(false)
+const diaryAllDbWords = ref(new Map()) // 数据库中的所有单词 word -> wordId
+
+const loadDiaryAllDbWords = async () => {
+  // 从字幕句子中提取所有唯一单词
+  const wordRegex = /[a-zA-Z]+/g
+  const wordSet = new Set()
+  for (const row of diarySentencePreviewTable.value) {
+    const text = String(row?.english || '').replace(/<[^>]+>/g, '')
+    const matches = text.matchAll(wordRegex)
+    for (const m of matches) {
+      const word = m[0].toLowerCase()
+      if (word) wordSet.add(word)
+    }
+  }
+  if (wordSet.size === 0) return
+
+  try {
+    const res = await batchCheckWords({ words: Array.from(wordSet) })
+    if (res.code !== 0) return
+    const items = res.data || []
+    const map = new Map()
+    for (const item of items) {
+      if (item.exists) {
+        map.set(item.word.toLowerCase(), Number(item.wordId || 0))
+      }
+    }
+    diaryAllDbWords.value = map
+  } catch (e) {
+    // ignore
+  }
+}
+
+// 新增单词弹窗
+const diaryAddWordDialogVisible = ref(false)
+const diaryAddWordSubmitting = ref(false)
+const diaryAddWordForm = ref({
+  word: '',
+  phoneticUs: '',
+  phoneticUk: '',
+  partOfSpeech: '',
+  explanationI18n: { zh: '' },
+  audioUs: '',
+  audioUk: ''
+})
+
+const openDiaryAddWordDialog = (word) => {
+  diaryAddWordForm.value = {
+    word: word || '',
+    phoneticUs: '',
+    phoneticUk: '',
+    partOfSpeech: '',
+    explanationI18n: { zh: '' },
+    audioUs: '',
+    audioUk: ''
+  }
+  diaryAddWordDialogVisible.value = true
+}
+
+const diarySubmitAddWord = async () => {
+  if (!String(diaryAddWordForm.value.word || '').trim()) {
+    ElMessage.warning('单词不能为空')
+    return
+  }
+  diaryAddWordSubmitting.value = true
+  const res = await createEnglishWord({
+    word: String(diaryAddWordForm.value.word).trim(),
+    phoneticUs: String(diaryAddWordForm.value.phoneticUs || '').trim(),
+    phoneticUk: String(diaryAddWordForm.value.phoneticUk || '').trim(),
+    partOfSpeech: String(diaryAddWordForm.value.partOfSpeech || '').trim(),
+    audioUs: String(diaryAddWordForm.value.audioUs || '').trim(),
+    audioUk: String(diaryAddWordForm.value.audioUk || '').trim(),
+    explanation: stringifyI18nObject(diaryAddWordForm.value.explanationI18n)
+  })
+  diaryAddWordSubmitting.value = false
+  if (res.code !== 0) return
+  ElMessage.success('单词创建成功')
+  diaryAddWordDialogVisible.value = false
+  // 刷新关键词列表和数据库单词，更新全部单词的匹配状态
+  await loadDiaryPreviewKeywords()
+  await loadDiaryAllDbWords()
+}
 
 // 全部单词：从当前字幕句子中提取所有单词并统计词频
 const allDiarySubtitleWords = computed(() => {
   const wordCounter = new Map()
   const wordRegex = /[a-zA-Z]+/g
-  const highlightedWordMap = new Map() // 在词库中的词 -> wordId
+  const dbWordMap = diaryAllDbWords.value
   const wTagRegex = /<w id="(\d+)">([^<]+)<\/w>/g
   const sentenceHighlighted = new Set() // 句子中实际被 <w> 标签高亮的词
-  for (const kw of diaryPreviewKeywordList.value) {
-    if (kw.matched) {
-      highlightedWordMap.set(kw.word.toLowerCase(), kw.wordId)
-    }
-  }
   for (const row of diarySentencePreviewTable.value) {
     const rawText = String(row?.english || '')
     // 提取 <w> 标签中的词，记录为实际高亮
@@ -1013,13 +1096,16 @@ const allDiarySubtitleWords = computed(() => {
   const entries = Array.from(wordCounter.entries())
     .map(([word, count]) => ({ word, count }))
     .sort((a, b) => b.count - a.count)
-  return entries.map(({ word, count }) => ({
-    word,
-    count,
-    matched: highlightedWordMap.has(word),
-    wordId: highlightedWordMap.get(word) || 0,
-    isHighlighted: sentenceHighlighted.has(word)
-  }))
+  return entries.map(({ word, count }) => {
+    const wordId = dbWordMap.get(word) || 0
+    return {
+      word,
+      count,
+      matched: wordId > 0,
+      wordId,
+      isHighlighted: sentenceHighlighted.has(word)
+    }
+  })
 })
 
 const parseI18nObject = (value) => {
@@ -1229,9 +1315,10 @@ const handleDiaryRehighlightAllWords = async () => {
 
   diarySkipAutoSelectAllWords.value = true
   await loadDiaryPreviewKeywords()
-  diarySkipAutoSelectAllWords.value = false
+  await loadDiaryAllDbWords()
 
-  // 只保留本次实际更新高亮的单词的勾选状态
+  // 只保留本次实际更新高亮的单词的勾选状态（延迟确保 allDiarySubtitleWords 已重算）
+  await new Promise(resolve => setTimeout(resolve, 80))
   if (diaryAllWordsTableRef.value) {
     diaryAllWordsTableRef.value.clearSelection()
     const idSet = new Set(allIds)
@@ -1241,12 +1328,14 @@ const handleDiaryRehighlightAllWords = async () => {
     })
   }
   diaryAllWordsSelectedIds.value = [...allIds]
+  diarySkipAutoSelectAllWords.value = false
 }
 
 // 切换到"全部单词"tab 时自动选中已在词库的单词
 const autoSelectDiaryAllMatchedWords = () => {
   if (diarySkipAutoSelectAllWords.value) return
-  if (!diaryAllWordsTableRef.value) return
+  // 不在此处检查 ref，因为 watcher (flush:pre) 在 DOM 更新前触发，ref 可能为 null
+  // 统一用 setTimeout 延迟到 DOM 更新后执行
   setTimeout(() => {
     if (!diaryAllWordsTableRef.value) return
     diaryAllWordsTableRef.value.clearSelection()
@@ -1254,7 +1343,7 @@ const autoSelectDiaryAllMatchedWords = () => {
     rows.forEach(row => {
       diaryAllWordsTableRef.value.toggleRowSelection(row, true)
     })
-  }, 60)
+  }, 80)
 }
 
 watch(
@@ -1265,7 +1354,7 @@ watch(
   }
 )
 watch(
-  () => diaryPreviewKeywordList.value,
+  () => diaryAllDbWords.value,
   () => {
     if (diarySentencePreviewTab.value !== 'allWords') return
     autoSelectDiaryAllMatchedWords()
@@ -1387,12 +1476,14 @@ const previewDiarySubtitles = async (row) => {
   })
   diarySentencePreviewOriginalMap.value = buildDiarySentencePreviewSnapshotMap(diarySentencePreviewTable.value)
   diarySentencePreviewTab.value = 'sentences'
-  diarySentencePreviewVisible.value = true
 
-  // 预加载关键词列表
+  // 先加载关键词列表和数据库全部单词，完成后再显示弹窗（避免数据未就绪时的渲染竞态）
   diaryPreviewKeywordList.value = []
   diaryPreviewSelectedKeywordIds.value = []
-  loadDiaryPreviewKeywords()
+  diaryAllDbWords.value = new Map()
+  await Promise.all([loadDiaryPreviewKeywords(), loadDiaryAllDbWords()])
+
+  diarySentencePreviewVisible.value = true
 }
 
 // 字幕解析

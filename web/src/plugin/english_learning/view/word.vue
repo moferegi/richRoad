@@ -158,7 +158,13 @@
                 </el-select>
               </el-form-item>
               <el-form-item label="单词关键词">
-                <el-input v-model="wordQuery.keyword" clearable placeholder="支持模糊查询" style="width: 220px" />
+                <el-input v-model="wordQuery.keyword" clearable :placeholder="wordQuery.fuzzySearch ? '模糊查询' : '精准查询'" style="width: 220px" />
+                <el-switch
+                  v-model="wordQuery.fuzzySearch"
+                  active-text="模糊"
+                  inactive-text="精准"
+                  style="margin-left: 8px"
+                />
               </el-form-item>
               <el-form-item>
                 <el-button type="primary" icon="search" @click="handleWordSearch">查询</el-button>
@@ -592,7 +598,8 @@
     pageSize: 10,
     categoryId: undefined,
     chapterId: undefined,
-    keyword: ''
+    keyword: '',
+    fuzzySearch: true
   })
   const wordTable = ref([])
   const wordTotal = ref(0)
@@ -1093,6 +1100,7 @@
     }
     if (String(wordQuery.value.keyword || '').trim()) {
       params.keyword = String(wordQuery.value.keyword || '').trim()
+      params.fuzzySearch = wordQuery.value.fuzzySearch !== false
     }
 
     const res = await getEnglishWordList(params)
@@ -1187,7 +1195,7 @@
   }
 
   const resetWordSearch = () => {
-    wordQuery.value = { page: 1, pageSize: 10, categoryId: undefined, chapterId: undefined, keyword: '' }
+    wordQuery.value = { page: 1, pageSize: 10, categoryId: undefined, chapterId: undefined, keyword: '', fuzzySearch: true }
     loadWordList()
   }
 

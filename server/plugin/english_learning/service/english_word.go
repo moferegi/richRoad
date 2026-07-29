@@ -1005,7 +1005,12 @@ func buildWordListBaseQuery(db *gorm.DB, info request.WordListSearch) *gorm.DB {
 		query = query.Where("cw.chapter_id = ?", info.ChapterID)
 	}
 	if keyword != "" {
-		query = query.Where("LOWER(TRIM(w.word)) LIKE ?", "%"+keyword+"%")
+		// FuzzySearch: nil 或 true → 模糊 LIKE; 显式 false → 精准 =
+		if info.FuzzySearch != nil && !*info.FuzzySearch {
+			query = query.Where("LOWER(TRIM(w.word)) = ?", keyword)
+		} else {
+			query = query.Where("LOWER(TRIM(w.word)) LIKE ?", "%"+keyword+"%")
+		}
 	}
 	return query
 }
@@ -1336,6 +1341,54 @@ func (s *EnglishWordService) UpsertWordFromSQL(req request.UpsertWordFromSQLReq)
 	})
 
 	return result, err
+}
+
+// BatchCheckWords 批量检查单词是否存在于词库（不创建，仅查询）
+func (s *EnglishWordService) BatchCheckWords(req request.BatchCheckWordsReq) ([]request.BatchCheckWordsItem, error) {
+	if len(req.Words) == 0 {
+		return nil, errors.New("单词列表不能为空")
+	}
+
+	// 去重并规范化
+	wordSet := make(map[string]bool, len(req.Words))
+	normalizedWords := make([]string, 0, len(req.Words))
+	for _, rawWord := range req.Words {
+		word := strings.TrimSpace(strings.ToLower(rawWord))
+		if word == "" || wordSet[word] {
+			continue
+		}
+		wordSet[word] = true
+		normalizedWords = append(normalizedWords, word)
+	}
+
+	if len(normalizedWords) == 0 {
+		return nil, errors.New("无可检查的有效单词")
+	}
+
+	// 批量查询存在的单词
+	var existingWords []model.EnglishWord
+	err := global.GVA_DB.Where("LOWER(TRIM(word)) IN ?", normalizedWords).Find(&existingWords).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// 构建已存在单词的 map
+	existingMap := make(map[string]uint, len(existingWords))
+	for _, ew := range existingWords {
+		existingMap[strings.ToLower(strings.TrimSpace(ew.Word))] = ew.ID
+	}
+
+	// 构建结果
+	result := make([]request.BatchCheckWordsItem, 0, len(normalizedWords))
+	for _, word := range normalizedWords {
+		wordID, exists := existingMap[word]
+		result = append(result, request.BatchCheckWordsItem{
+			Word:   word,
+			WordID: wordID,
+			Exists: exists,
+		})
+	}
+	return result, nil
 }
 
 func normalizeLangCodes(input []string) []string {
@@ -1808,58 +1861,58 @@ func (s *EnglishWordService) BatchFillWordFromDictionary(req request.BatchFillWo
 			result.Success++
 		}
 		result.Items = append(result.Items, item)
-        }
+	}
 
-        return result, nil
+	return result, nil
 }
 
 // BatchCreateWords 批量创建单词（仅入库单词本体，不生成TTS/关联等，用于字幕全部单词一键入库）
 // 已存在的单词跳过，返回所有单词的 ID 列表
 func (s *EnglishWordService) BatchCreateWords(req request.BatchCreateWordsReq) ([]request.BatchCreateWordsItem, error) {
-    if len(req.Words) == 0 {
-        return nil, errors.New("单词列表不能为空")
-    }
+	if len(req.Words) == 0 {
+		return nil, errors.New("单词列表不能为空")
+	}
 
-    result := make([]request.BatchCreateWordsItem, 0, len(req.Words))
+	result := make([]request.BatchCreateWordsItem, 0, len(req.Words))
 
-    err := global.GVA_DB.Transaction(func(tx *gorm.DB) error {
-        for _, rawWord := range req.Words {
-            word := strings.TrimSpace(strings.ToLower(rawWord))
-            if word == "" {
-                continue
-            }
+	err := global.GVA_DB.Transaction(func(tx *gorm.DB) error {
+		for _, rawWord := range req.Words {
+			word := strings.TrimSpace(strings.ToLower(rawWord))
+			if word == "" {
+				continue
+			}
 
-            var existing model.EnglishWord
-            findErr := tx.Where("LOWER(TRIM(word)) = ?", word).First(&existing).Error
-            if findErr == nil {
-                // 已存在
-                result = append(result, request.BatchCreateWordsItem{
-                    Word:   word,
-                    WordID: existing.ID,
-                    Newly:  false,
-                })
-                continue
-            }
-            if !errors.Is(findErr, gorm.ErrRecordNotFound) {
-                return findErr
-            }
+			var existing model.EnglishWord
+			findErr := tx.Where("LOWER(TRIM(word)) = ?", word).First(&existing).Error
+			if findErr == nil {
+				// 已存在
+				result = append(result, request.BatchCreateWordsItem{
+					Word:   word,
+					WordID: existing.ID,
+					Newly:  false,
+				})
+				continue
+			}
+			if !errors.Is(findErr, gorm.ErrRecordNotFound) {
+				return findErr
+			}
 
-            // 不存在，创建
-            newWord := model.EnglishWord{
-                Word:        word,
-                Explanation: "{}",
-            }
-            if createErr := tx.Create(&newWord).Error; createErr != nil {
-                return createErr
-            }
-            result = append(result, request.BatchCreateWordsItem{
-                Word:   word,
-                WordID: newWord.ID,
-                Newly:  true,
-            })
-        }
-        return nil
-    })
+			// 不存在，创建
+			newWord := model.EnglishWord{
+				Word:        word,
+				Explanation: "{}",
+			}
+			if createErr := tx.Create(&newWord).Error; createErr != nil {
+				return createErr
+			}
+			result = append(result, request.BatchCreateWordsItem{
+				Word:   word,
+				WordID: newWord.ID,
+				Newly:  true,
+			})
+		}
+		return nil
+	})
 
-    return result, err
+	return result, err
 }
