@@ -402,6 +402,7 @@
 			return
 		}
 
+		uni.showLoading({ title: $t.value('loading') || 'Loading...', mask: true })
 		let flag = false
 		if (loginMode.value === 'username') {
 			flag = await userStore.loginIn(form)
@@ -414,6 +415,7 @@
 				captchaId: form.captchaId
 			})
 		}
+		uni.hideLoading()
 
 		if(flag){
       uni.removeStorageSync('pendingInviteCode')

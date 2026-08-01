@@ -1,5 +1,7 @@
 /web/node_modules
 /web/dist
+/winWeb/dist
+/winWeb/node_modules
 
 .DS_Store
 

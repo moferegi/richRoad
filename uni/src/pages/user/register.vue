@@ -421,6 +421,7 @@
 				uni.showToast({ title: $t.value('enterCaptcha'), icon: 'none' })
 				return
 			}
+			uni.showLoading({ title: $t.value('loading') || 'Loading...', mask: true })
 			const res = await register({
 				username: form.username,
 				password: form.password,
@@ -429,6 +430,7 @@
 				captchaId: form.captchaId,
 				inviteCode: form.inviteCode
 			})
+			uni.hideLoading()
 			if (res.code === 0) {
         uni.removeStorageSync('pendingInviteCode')
 				uni.showToast({ title: $t.value('registerSuccess'), icon: 'none' })
@@ -483,6 +485,7 @@
 				uni.showToast({ title: $t.value('enterCaptcha'), icon: 'none' })
 				return
 			}
+			uni.showLoading({ title: $t.value('loading') || 'Loading...', mask: true })
 			const res = await phoneRegister({
 				areaCode: form.areaCode,
 				phone: form.phone,
@@ -491,6 +494,7 @@
 				captchaId: form.captchaId,
 				inviteCode: form.inviteCode
 			})
+			uni.hideLoading()
 			if (res.code === 0) {
         uni.removeStorageSync('pendingInviteCode')
 				uni.showToast({ title: $t.value('registerSuccess'), icon: 'none' })
