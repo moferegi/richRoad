@@ -1,6 +1,13 @@
 {
 	"pages": [
 		{
+			"path": "pages/game/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": ""
+			}
+		},
+		{
 			"path": "pages/learning/home",
 			"style": {
 				"navigationBarTitleText": "",
@@ -483,6 +490,20 @@
 				"navigationStyle": "custom",
 				"navigationBarTitleText": "",
 				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/game/category",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": ""
+			}
+		},
+		{
+			"path": "pages/game/play",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": ""
 			}
 		}
 	],

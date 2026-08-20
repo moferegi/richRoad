@@ -19,6 +19,7 @@ type ApiGroup struct {
 	ExternalLinkDomainApi
 	VideoTagApi
 	DiaryTagApi
+	GameApi
 }
 
 var (

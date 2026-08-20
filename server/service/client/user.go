@@ -50,6 +50,31 @@ func (clientUserService *ClientUserService) CreateClientUser(clientUser *client.
 	return err
 }
 
+// AutoRegister 自动注册（免验证码，生成随机7位数字用户名）
+func (clientUserService *ClientUserService) AutoRegister() (clientUser client.ClientUser, err error) {
+	// 生成随机7位数字用户名，确保不重复
+	for i := 0; i < 10; i++ {
+		username := generateRandomUsername()
+		// 取前7位
+		if len(username) > 7 {
+			username = username[:7]
+		}
+		var count int64
+		global.GVA_DB.Model(&client.ClientUser{}).Where("username = ?", username).Count(&count)
+		if count == 0 {
+			clientUser.Username = username
+			clientUser.Nickname = username
+			clientUser.Password = utils.BcryptHash("123456")
+			clientUser.UUID, _ = uuid.NewUUID()
+			clientUser.InviteCode = generateInviteCode()
+			clientUser.Avatar = "https://qmplusimg.henrongyi.top/gva_header.jpg"
+			err = global.GVA_DB.Create(&clientUser).Error
+			return
+		}
+	}
+	return clientUser, errors.New("autoRegisterFailed")
+}
+
 // generateInviteCode 生成8位随机邀请码
 func generateInviteCode() string {
 	b := make([]byte, 4)

@@ -260,7 +260,7 @@ const i18nNormalizeEndpoints = [
     '/englishLearning/userData/getCollectionDetailList',
     '/englishLearning/checkin/getCheckinRecordList',
     '/englishLearning/checkin/getPointRecordList',
-    '/englishLearning/asset/getFreeTimeRecordList'
+    '/englishLearning/asset/getFreeTimeRecordList',
 ]
 const i18nFieldKeys = new Set([
     'name', 'title', 'content', 'countryName',

@@ -46,6 +46,7 @@
         @sort-change="sortChange"
         >
         <el-table-column type="selection" width="55" />
+        <el-table-column align="left" label="用户ID" prop="ID" width="80" />
 
         <el-table-column align="left" label="日期" width="180" sortable="custom" prop="created_at">
             <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>

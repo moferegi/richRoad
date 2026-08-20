@@ -37,6 +37,7 @@ func (s *ClientUserRouter) InitClientUserRouter(Router *gin.RouterGroup, PublicR
 		clientUserRouterWithoutAuth.GET("getOpenID", clientUserApi.GetOpenID)                  // 获取小程序openid
 		clientUserRouterWithoutAuth.POST("login", clientUserApi.Login)                         // 客户端登录
 		clientUserRouterWithoutAuth.POST("register", clientUserApi.Register)                   // 客户端注册
+		clientUserRouterWithoutAuth.POST("autoRegister", clientUserApi.AutoRegister)           // 客户端自动注册（免验证码）
 		clientUserRouterWithoutAuth.POST("phoneLogin", clientUserApi.PhoneLogin)               // 手机号登录
 		clientUserRouterWithoutAuth.POST("phoneRegister", clientUserApi.PhoneRegister)         // 手机号注册
 		clientUserRouterWithoutAuth.POST("setClientUserInfo", clientUserApi.SetClientUserInfo) // 客户端设置个人信息

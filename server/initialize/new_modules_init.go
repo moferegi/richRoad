@@ -24,6 +24,7 @@ func InitNewModulesData() {
 	initNewModulesMenuBtns(db)
 	initNewModulesCasbin(db)
 	initLanguageSeedData(db)
+	initGameSeedData(db)
 }
 
 func initNewModulesApis(db *gorm.DB) {
@@ -126,6 +127,30 @@ func initNewModulesApis(db *gorm.DB) {
 		{ApiGroup: "数据库巡检", Method: "GET", Path: "/dbInspector/getOverview", Description: "获取数据库巡检总览"},
 		{ApiGroup: "数据库巡检", Method: "POST", Path: "/dbInspector/autoFix", Description: "自动修复数据库或Redis连接"},
 		{ApiGroup: "数据库巡检", Method: "POST", Path: "/dbInspector/deleteRecordsByRange", Description: "按日期范围真删除记录并联动清理文件"},
+		// 游戏管理
+		{ApiGroup: "游戏管理", Method: "POST", Path: "/game/admin/createCategory", Description: "创建游戏大分类"},
+		{ApiGroup: "游戏管理", Method: "PUT", Path: "/game/admin/updateCategory", Description: "更新游戏大分类"},
+		{ApiGroup: "游戏管理", Method: "DELETE", Path: "/game/admin/deleteCategory", Description: "删除游戏大分类"},
+		{ApiGroup: "游戏管理", Method: "GET", Path: "/game/admin/getCategoryList", Description: "获取游戏大分类列表"},
+		{ApiGroup: "游戏管理", Method: "POST", Path: "/game/admin/createDifficultyCategory", Description: "创建难度分类"},
+		{ApiGroup: "游戏管理", Method: "PUT", Path: "/game/admin/updateDifficultyCategory", Description: "更新难度分类"},
+		{ApiGroup: "游戏管理", Method: "DELETE", Path: "/game/admin/deleteDifficultyCategory", Description: "删除难度分类"},
+		{ApiGroup: "游戏管理", Method: "GET", Path: "/game/admin/getDifficultyCategoryList", Description: "获取难度分类列表"},
+		{ApiGroup: "游戏管理", Method: "POST", Path: "/game/admin/createLevel", Description: "创建关卡"},
+		{ApiGroup: "游戏管理", Method: "PUT", Path: "/game/admin/updateLevel", Description: "更新关卡"},
+		{ApiGroup: "游戏管理", Method: "DELETE", Path: "/game/admin/deleteLevel", Description: "删除关卡"},
+		{ApiGroup: "游戏管理", Method: "GET", Path: "/game/admin/getLevelList", Description: "获取关卡列表"},
+		{ApiGroup: "游戏管理", Method: "GET", Path: "/game/admin/getLeaderboard", Description: "管理端排行榜"},
+		{ApiGroup: "游戏管理", Method: "GET", Path: "/game/admin/getUserProgress", Description: "管理端查看用户进度"},
+		{ApiGroup: "游戏管理", Method: "POST", Path: "/game/admin/setUserProgress", Description: "管理端设置用户进度"},
+		// 游戏（Uni端）
+		{ApiGroup: "游戏(Uni)", Method: "GET", Path: "/game/getGameList", Description: "获取游戏列表"},
+		{ApiGroup: "游戏(Uni)", Method: "GET", Path: "/game/getDifficultyCategories", Description: "获取难度分类"},
+		{ApiGroup: "游戏(Uni)", Method: "GET", Path: "/game/getLevelDetail", Description: "获取关卡详情"},
+		{ApiGroup: "游戏(Uni)", Method: "GET", Path: "/game/getLevelList", Description: "获取关卡列表"},
+		{ApiGroup: "游戏(Uni)", Method: "POST", Path: "/game/submitLevelResult", Description: "提交闯关结果"},
+		{ApiGroup: "游戏(Uni)", Method: "GET", Path: "/game/getUserProgress", Description: "获取用户闯关进度"},
+		{ApiGroup: "游戏(Uni)", Method: "GET", Path: "/game/getLeaderboard", Description: "获取排行榜"},
 	}
 	for _, api := range apis {
 		var count int64
@@ -242,6 +267,13 @@ func initNewModulesMenus(db *gorm.DB) {
 			menuDef{"englishFreeTimeHistory", "englishFreeTimeHistory", "view/client/englishFreeTimeHistory/englishFreeTimeHistory.vue", "时长明细", "timer", englishAppParent.ID, 9},
 			menuDef{"englishVideoTags", "englishVideoTags", "view/client/videoTag/videoTag.vue", "视频标签", "price-tag", englishAppParent.ID, 10},
 			menuDef{"englishDiaryTags", "englishDiaryTags", "view/client/diaryTag/diaryTag.vue", "日记标签", "price-tag", englishAppParent.ID, 11},
+			// 游戏设置
+			menuDef{"gameCategory", "gameCategory", "view/client/game/category.vue", "游戏分类", "grid", englishAppParent.ID, 12},
+			menuDef{"gameDifficulty", "gameDifficulty", "view/client/game/difficulty.vue", "难度分类", "s-grid", englishAppParent.ID, 13},
+			menuDef{"gameLevel", "gameLevel", "view/client/game/level.vue", "关卡管理", "list", englishAppParent.ID, 14},
+			menuDef{"gameLeaderboardAll", "gameLeaderboardAll", "view/client/game/leaderboard.vue", "累计闯关榜", "medal", englishAppParent.ID, 15},
+			menuDef{"gameLeaderboardDaily", "gameLeaderboardDaily", "view/client/game/leaderboard.vue", "每日闯关榜", "trophy", englishAppParent.ID, 16},
+			menuDef{"gameUserProgress", "gameUserProgress", "view/client/game/userProgress.vue", "用户进度查询", "user", englishAppParent.ID, 17},
 		)
 	}
 
@@ -482,6 +514,30 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/englishLearning/diary/parseDiarySubtitle", "POST"},
 		{"/englishLearning/diary/scanKeywords", "POST"},
 		{"/englishLearning/diary/parseDiarySubtitleFiles", "POST"},
+		// 游戏（Uni端）
+		{"/game/getGameList", "GET"},
+		{"/game/getDifficultyCategories", "GET"},
+		{"/game/getLevelDetail", "GET"},
+		{"/game/getLevelList", "GET"},
+		{"/game/submitLevelResult", "POST"},
+		{"/game/getUserProgress", "GET"},
+		{"/game/getLeaderboard", "GET"},
+		// 游戏管理端
+		{"/game/admin/createCategory", "POST"},
+		{"/game/admin/updateCategory", "PUT"},
+		{"/game/admin/deleteCategory", "DELETE"},
+		{"/game/admin/getCategoryList", "GET"},
+		{"/game/admin/createDifficultyCategory", "POST"},
+		{"/game/admin/updateDifficultyCategory", "PUT"},
+		{"/game/admin/deleteDifficultyCategory", "DELETE"},
+		{"/game/admin/getDifficultyCategoryList", "GET"},
+		{"/game/admin/createLevel", "POST"},
+		{"/game/admin/updateLevel", "PUT"},
+		{"/game/admin/deleteLevel", "DELETE"},
+		{"/game/admin/getLevelList", "GET"},
+		{"/game/admin/getLeaderboard", "GET"},
+		{"/game/admin/getUserProgress", "GET"},
+		{"/game/admin/setUserProgress", "POST"},
 	}
 
 	for _, auth := range seedAuthorities {
@@ -570,6 +626,22 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/diaryTag/deleteDiaryTag", "DELETE"},
 		{"/diaryTag/deleteDiaryTagByIds", "DELETE"},
 		{"/diaryTag/updateDiaryTag", "PUT"},
+		// 游戏管理（仅管理员）
+		{"/game/admin/createCategory", "POST"},
+		{"/game/admin/updateCategory", "PUT"},
+		{"/game/admin/deleteCategory", "DELETE"},
+		{"/game/admin/getCategoryList", "GET"},
+		{"/game/admin/createDifficultyCategory", "POST"},
+		{"/game/admin/updateDifficultyCategory", "PUT"},
+		{"/game/admin/deleteDifficultyCategory", "DELETE"},
+		{"/game/admin/getDifficultyCategoryList", "GET"},
+		{"/game/admin/createLevel", "POST"},
+		{"/game/admin/updateLevel", "PUT"},
+		{"/game/admin/deleteLevel", "DELETE"},
+		{"/game/admin/getLevelList", "GET"},
+		{"/game/admin/getLeaderboard", "GET"},
+		{"/game/admin/getUserProgress", "GET"},
+		{"/game/admin/setUserProgress", "POST"},
 	}
 	for _, p := range adminOnlyPaths {
 		db.Exec(
@@ -773,5 +845,38 @@ func initLanguageSeedData(db *gorm.DB) {
 		global.GVA_LOG.Info(fmt.Sprintf("语言数据初始化完成，新增 %d 种语言", insertedCount))
 	} else {
 		global.GVA_LOG.Info("语言数据初始化完成，未发现缺失语言")
+	}
+}
+
+// initGameSeedData 初始化默认游戏大分类（幂等）
+func initGameSeedData(db *gorm.DB) {
+	type seedCat struct {
+		GameKey string
+		Name    string
+		Sort    int
+		Status  int
+	}
+	cats := []seedCat{
+		{GameKey: "24point", Name: `{"zh":"24闯关模式","en":"24 Game","mn":"24 тоглоом","th":"เกม 24","hi":"24 खेल","id":"Game 24","vi":"Trò chơi 24","ar":"لعبة 24","ja":"24ゲーム","ko":"24 게임","ms":"Permainan 24"}`, Sort: 1, Status: 1},
+		{GameKey: "36point", Name: `{"zh":"36闯关36点","en":"36 Game","mn":"36 тоглоом","th":"เกม 36","hi":"36 खेल","id":"Game 36","vi":"Trò chơi 36","ar":"لعبة 36","ja":"36ゲーム","ko":"36 게임","ms":"Permainan 36"}`, Sort: 2, Status: 0},
+		{GameKey: "password_crack", Name: `{"zh":"密码破解","en":"Password Crack","mn":"Нууц үг тайлах","th":"ถอดรหัส","hi":"पासवर्ड क्रैक","id":"Pecah Sandi","vi":"Phá mật khẩu","ar":"كسر كلمة المرور","ja":"パスワードクラック","ko":"비밀번호 해독","ms":"Pecah Kata Laluan"}`, Sort: 3, Status: 0},
+	}
+
+	for _, cat := range cats {
+		var count int64
+		db.Model(&clientModel.GameCategory{}).Where("game_key = ?", cat.GameKey).Count(&count)
+		if count == 0 {
+			entry := clientModel.GameCategory{
+				GameKey: cat.GameKey,
+				Name:    cat.Name,
+				Sort:    cat.Sort,
+				Status:  cat.Status,
+			}
+			if err := db.Create(&entry).Error; err != nil {
+				global.GVA_LOG.Error("初始化游戏分类失败: "+cat.GameKey, zap.Error(err))
+			} else {
+				global.GVA_LOG.Info("游戏分类初始化成功: " + cat.GameKey)
+			}
+		}
 	}
 }

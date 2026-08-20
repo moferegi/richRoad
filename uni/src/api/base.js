@@ -15,6 +15,14 @@ export const register  = (data) => {
     })
 }
 
+// 自动注册（免验证码，游戏首页使用）
+export const autoRegister = () => {
+    return request({
+        url: '/clientUser/autoRegister',
+        method: 'post'
+    })
+}
+
 export const login  = (data) => {
     return request({
 		url:'/clientUser/login',

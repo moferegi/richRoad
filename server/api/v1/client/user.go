@@ -195,6 +195,23 @@ func (clientUserApi *ClientUserApi) Register(c *gin.Context) {
 	response.OkWithMessage(i18n.T(c, "createSuccess"), c)
 }
 
+// AutoRegister 自动注册（免验证码，生成随机7位数字用户名，直接返回token）
+// @Tags ClientUser
+// @Summary 自动注册
+// @accept application/json
+// @Produce application/json
+// @Success 200 {object} response.Response{data=systemRes.LoginResponse,msg=string} "自动注册成功"
+// @Router /clientUser/autoRegister [post]
+func (clientUserApi *ClientUserApi) AutoRegister(c *gin.Context) {
+	user, err := clientUserService.AutoRegister()
+	if err != nil {
+		global.GVA_LOG.Error("自动注册失败!", zap.Error(err))
+		response.FailWithMessage(i18n.T(c, "operationFailed"), c)
+		return
+	}
+	clientUserApi.TokenNext(c, user)
+}
+
 // AdjustClientUserTryonPoint 后台调整客户端用户试衣币
 // @Tags ClientUser
 // @Summary 后台增加或减少客户端用户试衣币

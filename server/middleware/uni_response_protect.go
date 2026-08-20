@@ -43,7 +43,7 @@ func (w *uniProtectWriter) Write(data []byte) (int, error) {
 
 func UniResponseProtect() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !shouldProtectForUni(c) {
+		if !isUniPlatformRequest(c) {
 			c.Next()
 			return
 		}
@@ -73,18 +73,15 @@ func UniResponseProtect() gin.HandlerFunc {
 			return
 		}
 
+		// i18n 裁剪：只要 Uni 平台请求就执行，不受加密开关影响
 		envelope["data"] = utils.LocalizeI18nPayloadByContext(c, envelope["data"])
 
-		code, ok := envelope["code"].(float64)
-		if !ok || int(code) != 0 {
-			output, _ := json.Marshal(envelope)
-			ew.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
-			ew.ResponseWriter.WriteHeader(ew.statusCode)
-			_, _ = ew.ResponseWriter.Write(output)
-			return
-		}
+		// 加密：由 learning_api_encrypt_enabled 控制
+		encryptEnabled := isUniEncryptEnabled()
+		encryptRequested := strings.TrimSpace(c.GetHeader(uniProtectHeaderEncrypt)) == "1"
 
-		if !isUniEncryptEnabled() {
+		code, ok := envelope["code"].(float64)
+		if !ok || int(code) != 0 || !encryptEnabled || !encryptRequested {
 			output, _ := json.Marshal(envelope)
 			ew.ResponseWriter.Header().Set("Content-Type", "application/json; charset=utf-8")
 			ew.ResponseWriter.WriteHeader(ew.statusCode)
@@ -123,20 +120,16 @@ func UniResponseProtect() gin.HandlerFunc {
 	}
 }
 
-func shouldProtectForUni(c *gin.Context) bool {
+// isUniPlatformRequest 判断是否为 Uni 平台请求（仅检查平台头，不检查加密开关）
+func isUniPlatformRequest(c *gin.Context) bool {
 	if c == nil || c.Request == nil {
-		return false
-	}
-	if strings.TrimSpace(c.GetHeader(uniProtectHeaderEncrypt)) != "1" {
 		return false
 	}
 	platform := strings.ToLower(strings.TrimSpace(c.GetHeader(uniProtectHeaderPlatform)))
 	if platform != "uni" && platform != "uniapp" && platform != "uni-app" {
 		return false
 	}
-	// 前缀匹配：所有 /api/ 开头的 Uni 请求自动纳入加密保护，无需维护白名单
-	path := strings.ToLower(strings.TrimSpace(c.Request.URL.Path))
-	return strings.HasPrefix(path, "/api/")
+	return true
 }
 
 func isUniEncryptEnabled() bool {

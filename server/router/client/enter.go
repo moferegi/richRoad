@@ -19,6 +19,7 @@ type RouterGroup struct {
 	ExternalLinkDomainRouter
 	VideoTagRouter
 	DiaryTagRouter
+	GameRouter
 }
 
 var cprApi = api.ApiGroupApp.ClientApiGroup.PointRecordApi
