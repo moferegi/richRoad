@@ -157,3 +157,45 @@ export const setUserProgress = (data) => {
     data
   })
 }
+
+// ==================== 密码推理关卡 ====================
+
+// @Tags GameAdmin
+// @Summary 创建密码关卡
+export const createPwdLevel = (data) => {
+  return service({
+    url: '/game/admin/createPwdLevel',
+    method: 'post',
+    data
+  })
+}
+
+// @Tags GameAdmin
+// @Summary 更新密码关卡
+export const updatePwdLevel = (data) => {
+  return service({
+    url: '/game/admin/updatePwdLevel',
+    method: 'put',
+    data
+  })
+}
+
+// @Tags GameAdmin
+// @Summary 删除密码关卡
+export const deletePwdLevel = (params) => {
+  return service({
+    url: '/game/admin/deletePwdLevel',
+    method: 'delete',
+    params
+  })
+}
+
+// @Tags GameAdmin
+// @Summary 获取密码关卡列表
+export const getPwdLevelList = (params) => {
+  return service({
+    url: '/game/admin/getPwdLevelList',
+    method: 'get',
+    params
+  })
+}

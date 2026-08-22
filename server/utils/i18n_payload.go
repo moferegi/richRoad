@@ -25,6 +25,7 @@ var i18nPayloadFieldKeys = map[string]struct{}{
 	"description":         {},
 	"explanation":         {},
 	"translate":           {},
+	"hintTexts":           {},
 	"announcementContent": {},
 	"popupTitle":          {},
 	"popupContent":        {},
@@ -98,6 +99,17 @@ func localizeI18nAny(value interface{}, lang string) interface{} {
 		}
 		return out
 	default:
+		// Handle string values that may be JSON (e.g., hintTexts: "[{\"zh\":\"...\"}]")
+		if s, ok := value.(string); ok {
+			trimmed := strings.TrimSpace(s)
+			if strings.HasPrefix(trimmed, "[") || strings.HasPrefix(trimmed, "{") {
+				var parsed interface{}
+				if err := json.Unmarshal([]byte(trimmed), &parsed); err == nil {
+					return localizeI18nAny(parsed, lang)
+				}
+			}
+			return s
+		}
 		raw, err := json.Marshal(value)
 		if err != nil {
 			return value

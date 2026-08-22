@@ -143,6 +143,11 @@ func initNewModulesApis(db *gorm.DB) {
 		{ApiGroup: "游戏管理", Method: "GET", Path: "/game/admin/getLeaderboard", Description: "管理端排行榜"},
 		{ApiGroup: "游戏管理", Method: "GET", Path: "/game/admin/getUserProgress", Description: "管理端查看用户进度"},
 		{ApiGroup: "游戏管理", Method: "POST", Path: "/game/admin/setUserProgress", Description: "管理端设置用户进度"},
+		// 密码推理管理端
+		{ApiGroup: "游戏管理", Method: "POST", Path: "/game/admin/createPwdLevel", Description: "创建密码通关关卡"},
+		{ApiGroup: "游戏管理", Method: "PUT", Path: "/game/admin/updatePwdLevel", Description: "更新密码通关关卡"},
+		{ApiGroup: "游戏管理", Method: "DELETE", Path: "/game/admin/deletePwdLevel", Description: "删除密码通关关卡"},
+		{ApiGroup: "游戏管理", Method: "GET", Path: "/game/admin/getPwdLevelList", Description: "获取密码通关关卡列表"},
 		// 游戏（Uni端）
 		{ApiGroup: "游戏(Uni)", Method: "GET", Path: "/game/getGameList", Description: "获取游戏列表"},
 		{ApiGroup: "游戏(Uni)", Method: "GET", Path: "/game/getDifficultyCategories", Description: "获取难度分类"},
@@ -151,6 +156,10 @@ func initNewModulesApis(db *gorm.DB) {
 		{ApiGroup: "游戏(Uni)", Method: "POST", Path: "/game/submitLevelResult", Description: "提交闯关结果"},
 		{ApiGroup: "游戏(Uni)", Method: "GET", Path: "/game/getUserProgress", Description: "获取用户闯关进度"},
 		{ApiGroup: "游戏(Uni)", Method: "GET", Path: "/game/getLeaderboard", Description: "获取排行榜"},
+		// 密码推理（Uni端）
+		{ApiGroup: "游戏(Uni)", Method: "GET", Path: "/game/getPwdLevelDetail", Description: "获取密码通关关卡详情"},
+		{ApiGroup: "游戏(Uni)", Method: "GET", Path: "/game/getPwdLevelList", Description: "获取密码通关关卡列表"},
+		{ApiGroup: "游戏(Uni)", Method: "POST", Path: "/game/submitPwdLevelResult", Description: "提交密码推理闯关结果"},
 	}
 	for _, api := range apis {
 		var count int64
@@ -274,6 +283,7 @@ func initNewModulesMenus(db *gorm.DB) {
 			menuDef{"gameLeaderboardAll", "gameLeaderboardAll", "view/client/game/leaderboard.vue", "累计闯关榜", "medal", englishAppParent.ID, 15},
 			menuDef{"gameLeaderboardDaily", "gameLeaderboardDaily", "view/client/game/leaderboard.vue", "每日闯关榜", "trophy", englishAppParent.ID, 16},
 			menuDef{"gameUserProgress", "gameUserProgress", "view/client/game/userProgress.vue", "用户进度查询", "user", englishAppParent.ID, 17},
+			menuDef{"gamePwdLevel", "gamePwdLevel", "view/client/game/pwdLevel.vue", "密码关卡管理", "lock", englishAppParent.ID, 18},
 		)
 	}
 
@@ -538,6 +548,14 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/game/admin/getLeaderboard", "GET"},
 		{"/game/admin/getUserProgress", "GET"},
 		{"/game/admin/setUserProgress", "POST"},
+		// 密码推理
+		{"/game/getPwdLevelDetail", "GET"},
+		{"/game/getPwdLevelList", "GET"},
+		{"/game/submitPwdLevelResult", "POST"},
+		{"/game/admin/createPwdLevel", "POST"},
+		{"/game/admin/updatePwdLevel", "PUT"},
+		{"/game/admin/deletePwdLevel", "DELETE"},
+		{"/game/admin/getPwdLevelList", "GET"},
 	}
 
 	for _, auth := range seedAuthorities {
@@ -642,6 +660,11 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/game/admin/getLeaderboard", "GET"},
 		{"/game/admin/getUserProgress", "GET"},
 		{"/game/admin/setUserProgress", "POST"},
+		// 密码推理管理（仅管理员）
+		{"/game/admin/createPwdLevel", "POST"},
+		{"/game/admin/updatePwdLevel", "PUT"},
+		{"/game/admin/deletePwdLevel", "DELETE"},
+		{"/game/admin/getPwdLevelList", "GET"},
 	}
 	for _, p := range adminOnlyPaths {
 		db.Exec(
@@ -851,15 +874,16 @@ func initLanguageSeedData(db *gorm.DB) {
 // initGameSeedData 初始化默认游戏大分类（幂等）
 func initGameSeedData(db *gorm.DB) {
 	type seedCat struct {
-		GameKey string
-		Name    string
-		Sort    int
-		Status  int
+		GameKey  string
+		Name     string
+		Sort     int
+		Status   int
+		PlayPage string
 	}
 	cats := []seedCat{
-		{GameKey: "24point", Name: `{"zh":"24闯关模式","en":"24 Game","mn":"24 тоглоом","th":"เกม 24","hi":"24 खेल","id":"Game 24","vi":"Trò chơi 24","ar":"لعبة 24","ja":"24ゲーム","ko":"24 게임","ms":"Permainan 24"}`, Sort: 1, Status: 1},
-		{GameKey: "36point", Name: `{"zh":"36闯关36点","en":"36 Game","mn":"36 тоглоом","th":"เกม 36","hi":"36 खेल","id":"Game 36","vi":"Trò chơi 36","ar":"لعبة 36","ja":"36ゲーム","ko":"36 게임","ms":"Permainan 36"}`, Sort: 2, Status: 0},
-		{GameKey: "password_crack", Name: `{"zh":"密码破解","en":"Password Crack","mn":"Нууц үг тайлах","th":"ถอดรหัส","hi":"पासवर्ड क्रैक","id":"Pecah Sandi","vi":"Phá mật khẩu","ar":"كسر كلمة المرور","ja":"パスワードクラック","ko":"비밀번호 해독","ms":"Pecah Kata Laluan"}`, Sort: 3, Status: 0},
+		{GameKey: "24point", Name: `{"zh":"24闯关模式","en":"24 Game","mn":"24 тоглоом","th":"เกม 24","hi":"24 खेल","id":"Game 24","vi":"Trò chơi 24","ar":"لعبة 24","ja":"24ゲーム","ko":"24 게임","ms":"Permainan 24"}`, Sort: 1, Status: 1, PlayPage: "play"},
+		{GameKey: "36point", Name: `{"zh":"36闯关36点","en":"36 Game","mn":"36 тоглоом","th":"เกม 36","hi":"36 खेल","id":"Game 36","vi":"Trò chơi 36","ar":"لعبة 36","ja":"36ゲーム","ko":"36 게임","ms":"Permainan 36"}`, Sort: 2, Status: 0, PlayPage: "play"},
+		{GameKey: "pwd-guess", Name: `{"zh":"密码推理","en":"Password Guess","mn":"Нууц үг таах","th":"เดารหัส","hi":"पासवर्ड अनुमान","id":"Tebak Sandi","vi":"Đoán mật khẩu","ar":"تخمين كلمة المرور","ja":"パスワード推測","ko":"비밀번호 추론","ms":"Teka Kata Laluan"}`, Sort: 3, Status: 1, PlayPage: "pwd-play"},
 	}
 
 	for _, cat := range cats {
@@ -867,16 +891,20 @@ func initGameSeedData(db *gorm.DB) {
 		db.Model(&clientModel.GameCategory{}).Where("game_key = ?", cat.GameKey).Count(&count)
 		if count == 0 {
 			entry := clientModel.GameCategory{
-				GameKey: cat.GameKey,
-				Name:    cat.Name,
-				Sort:    cat.Sort,
-				Status:  cat.Status,
+				GameKey:  cat.GameKey,
+				Name:     cat.Name,
+				Sort:     cat.Sort,
+				Status:   cat.Status,
+				PlayPage: cat.PlayPage,
 			}
 			if err := db.Create(&entry).Error; err != nil {
 				global.GVA_LOG.Error("初始化游戏分类失败: "+cat.GameKey, zap.Error(err))
 			} else {
 				global.GVA_LOG.Info("游戏分类初始化成功: " + cat.GameKey)
 			}
+		} else {
+			// 幂等更新已有记录的 playPage 字段
+			db.Model(&clientModel.GameCategory{}).Where("game_key = ? AND play_page = ''", cat.GameKey).Update("play_page", cat.PlayPage)
 		}
 	}
 }

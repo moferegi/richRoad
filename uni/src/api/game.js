@@ -70,3 +70,28 @@ export const getLeaderboard = (type = 'all', limit = 50) => {
     params: { type, limit }
   })
 }
+
+// 密码推理
+export const getPwdLevelDetail = (levelID) => {
+  return request({
+    url: '/game/getPwdLevelDetail',
+    method: 'GET',
+    params: { levelID }
+  })
+}
+
+export const getPwdLevelList = (categoryID) => {
+  return request({
+    url: '/game/getPwdLevelList',
+    method: 'GET',
+    params: { categoryID }
+  })
+}
+
+export const submitPwdLevelResult = (levelID) => {
+  return request({
+    url: '/game/submitPwdLevelResult',
+    method: 'POST',
+    params: { levelID }
+  })
+}

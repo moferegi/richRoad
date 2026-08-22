@@ -1253,4 +1253,17 @@ export default {
   'game.notInteger': '除法结果必须是整数',
   'game.history': '计算历史',
   'game.noHistory': '暂无计算记录',
+  'game.level': '关卡',
+  // 密码推理
+  'pwdGame.title': '密码推理',
+  'pwdGame.hints': '提示',
+  'pwdGame.inputAnswer': '输入答案',
+  'pwdGame.confirm': '确认',
+  'pwdGame.clear': '清除',
+  'pwdGame.delete': '删除',
+  'pwdGame.colorHint': '点击颜色标记提示数字',
+  'pwdGame.correct': '回答正确！',
+  'pwdGame.wrong': '回答错误，再试一次！',
+  'pwdGame.answer': '正确答案',
+  'pwdGame.reset': '重置',
 }

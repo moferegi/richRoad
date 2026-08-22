@@ -1253,4 +1253,17 @@ export default {
   'game.notInteger': 'Division result must be an integer',
   'game.history': 'Calculation History',
   'game.noHistory': 'No calculation records yet',
+  'game.level': 'Level',
+  // Password Guess
+  'pwdGame.title': 'Password Guess',
+  'pwdGame.hints': 'Hints',
+  'pwdGame.inputAnswer': 'Enter Answer',
+  'pwdGame.confirm': 'Confirm',
+  'pwdGame.clear': 'Clear',
+  'pwdGame.delete': 'Delete',
+  'pwdGame.colorHint': 'Tap color then tap hint digit',
+  'pwdGame.correct': 'Correct!',
+  'pwdGame.wrong': 'Wrong, try again!',
+  'pwdGame.answer': 'Answer',
+  'pwdGame.reset': 'Reset',
 }

@@ -16,6 +16,7 @@
   "/src/view/client/game/difficulty.vue": "GameDifficulty",
   "/src/view/client/game/leaderboard.vue": "GameLeaderboard",
   "/src/view/client/game/level.vue": "GameLevel",
+  "/src/view/client/game/pwdLevel.vue": "GamePwdLevel",
   "/src/view/client/game/userProgress.vue": "GameUserProgress",
   "/src/view/client/language/language.vue": "Language",
   "/src/view/client/maintenance/maintenance.vue": "MaintenanceSetting",

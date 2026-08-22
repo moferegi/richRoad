@@ -34,17 +34,12 @@
           :class="{ disabled: game.status !== 1 }"
           @click="game.status === 1 ? (playClick(), goToCategory(game)) : null"
         >
-          <view class="game-card-bg"></view>
-          <view class="game-card-content">
-            <view class="game-icon-wrap">
-              <text class="game-icon">{{ game.gameKey === '24point' ? '24' : game.gameKey === '36point' ? '36' : '🔐' }}</text>
-            </view>
-            <text class="game-name">{{ localText(game.name) }}</text>
-            <text v-if="game.status !== 1" class="game-badge">{{ t('game.comingSoon') }}</text>
-            <view v-else class="game-arrow">
-              <text class="arrow-icon">→</text>
-            </view>
+          <view class="game-card-icon">
+            <text class="game-icon-text">{{ game.gameKey === '24point' ? '24' : game.gameKey === '36point' ? '36' : '🔐' }}</text>
           </view>
+          <text class="game-card-name">{{ localText(game.name) }}</text>
+          <text v-if="game.status !== 1" class="game-card-badge">{{ t('game.comingSoon') }}</text>
+          <text v-else class="game-card-enter">进入 →</text>
         </view>
       </view>
     </view>
@@ -416,42 +411,27 @@ onMounted(() => {
 }
 .game-grid {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 20rpx;
 }
 .game-card {
-  width: calc(50% - 10rpx);
-  height: 220rpx;
   position: relative;
-  border-radius: 28rpx;
-  overflow: hidden;
-}
-.game-card-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
-  border: 1rpx solid rgba(255,255,255,0.12);
+  border-radius: 24rpx;
+  padding: 32rpx;
+  background: linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.03));
+  border: 1rpx solid rgba(255,255,255,0.1);
   backdrop-filter: blur(20px);
-  border-radius: 28rpx;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
 }
 .game-card.disabled {
   opacity: 0.4;
 }
-.game-card-content {
-  position: relative;
-  z-index: 1;
-  height: 100%;
-  padding: 28rpx;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-.game-icon-wrap {
-  width: 72rpx;
-  height: 72rpx;
+.game-card-icon {
+  width: 96rpx;
+  height: 96rpx;
+  min-width: 96rpx;
   background: linear-gradient(135deg, #e94560, #ff6b6b);
   border-radius: 24rpx;
   display: flex;
@@ -459,48 +439,37 @@ onMounted(() => {
   justify-content: center;
   box-shadow: 0 8rpx 24rpx rgba(233, 69, 96, 0.4);
 }
-.game-icon {
-  font-size: 32rpx;
+.game-icon-text {
+  font-size: 40rpx;
   font-weight: 900;
   color: #fff;
   font-style: italic;
 }
-.game-name {
-  font-size: 26rpx;
+.game-card-name {
+  flex: 1;
+  font-size: 30rpx;
   font-weight: 700;
   color: #fff;
-  margin-top: 12rpx;
-  line-height: 1.3;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  overflow: hidden;
+  word-break: break-all;
 }
-.game-badge {
+.game-card-badge {
   font-size: 22rpx;
   color: rgba(255,255,255,0.5);
   background: rgba(255,255,255,0.1);
-  padding: 6rpx 16rpx;
+  padding: 8rpx 20rpx;
   border-radius: 20rpx;
-  align-self: flex-start;
-  margin-top: 8rpx;
+  flex-shrink: 0;
 }
-.game-arrow {
-  position: absolute;
-  bottom: 28rpx;
-  right: 28rpx;
-  width: 56rpx;
-  height: 56rpx;
-  background: rgba(255,255,255,0.15);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.arrow-icon {
-  color: #fff;
-  font-size: 28rpx;
-  font-weight: bold;
+.game-card-enter {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.6);
+  flex-shrink: 0;
 }
 
 /* 排行榜 */

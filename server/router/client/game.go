@@ -24,6 +24,10 @@ func (g *GameRouter) InitGameRouter(Router *gin.RouterGroup, PublicRouter *gin.R
 		gameRouter.POST("submitLevelResult", gameApi.SubmitLevelResult)
 		gameRouter.GET("getUserProgress", gameApi.GetUserProgress)
 		gameRouter.GET("getLeaderboard", gameApi.GetLeaderboard)
+		// 密码推理 Uni 端
+		gameRouter.GET("getPwdLevelDetail", gameApi.GetPwdLevelDetail)
+		gameRouter.GET("getPwdLevelList", gameApi.GetPwdLevelListByCategory)
+		gameRouter.POST("submitPwdLevelResult", gameApi.SubmitPwdLevelResult)
 
 		// Web 管理端接口
 		gameAdminRouter.POST("createCategory", gameApi.CreateCategory)
@@ -41,5 +45,10 @@ func (g *GameRouter) InitGameRouter(Router *gin.RouterGroup, PublicRouter *gin.R
 		gameAdminRouter.GET("getLeaderboard", gameApi.GetLeaderboardAdmin)
 		gameAdminRouter.GET("getUserProgress", gameApi.GetUserProgressAdmin)
 		gameAdminRouter.POST("setUserProgress", gameApi.SetUserProgress)
+		// 密码推理管理端
+		gameAdminRouter.POST("createPwdLevel", gameApi.CreatePwdLevel)
+		gameAdminRouter.PUT("updatePwdLevel", gameApi.UpdatePwdLevel)
+		gameAdminRouter.DELETE("deletePwdLevel", gameApi.DeletePwdLevel)
+		gameAdminRouter.GET("getPwdLevelList", gameApi.GetPwdLevelList)
 	}
 }

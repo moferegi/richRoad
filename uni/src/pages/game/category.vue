@@ -86,6 +86,8 @@ const t = (key) => {
 const localText = (value) => i18nLocalText(value, locale.value)
 
 const gameID = ref(0)
+const gameKey = ref('')
+const playPage = ref('play')
 const gameName = ref('')
 const loading = ref(true)
 const difficultyList = ref([])
@@ -154,7 +156,7 @@ const isLevelUnlocked = (catID, level) => {
 
 const onLevelClick = (cat, level) => {
   if (!isLevelUnlocked(cat.ID, level)) return
-  uni.navigateTo({ url: `/pages/game/play?levelID=${level.ID}&catID=${cat.ID}` })
+  uni.navigateTo({ url: `/pages/game/${playPage.value}?levelID=${level.ID}&catID=${cat.ID}` })
 }
 
 const loadGameName = async () => {
@@ -162,6 +164,7 @@ const loadGameName = async () => {
     const res = await getGameCategory(gameID.value)
     if (res.code === 0 && res.data) {
       gameName.value = localText(res.data.name)
+      playPage.value = res.data.playPage || (gameKey.value === 'pwd-guess' ? 'pwd-play' : 'play')
     }
   } catch (e) { /* ignore */ }
 }
@@ -206,6 +209,7 @@ onMounted(() => {
   if (current.$page) {
     const opts = current.$page.options || {}
     gameID.value = parseInt(opts.gameID) || 0
+    gameKey.value = opts.gameKey || ''
   }
   loadGameName()
   loadData()

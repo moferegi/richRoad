@@ -30,12 +30,39 @@
     </div>
 
     <div class="gva-table-box">
-      <el-table :data="levelList" row-key="ID" border v-loading="loading">
+      <!-- 24点 关卡表 -->
+      <el-table v-if="!isPwdGame" :data="levelList" row-key="ID" border v-loading="loading">
         <el-table-column align="left" label="关卡号" prop="levelNumber" width="100" />
         <el-table-column align="left" label="数字" prop="numbers" min-width="200" />
         <el-table-column align="left" label="目标结果" prop="targetResult" width="120">
           <template #default="scope">
             <el-tag type="warning">{{ scope.row.targetResult }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column align="left" label="状态" width="140">
+          <template #default="scope">
+            <el-switch 
+              :model-value="isCleared(scope.row.ID)" 
+              :active-text="isCleared(scope.row.ID) ? '已通关' : '未通关'"
+              @change="(val) => onToggleProgress(scope.row.ID, val)"
+              :loading="scope.row._toggling"
+            />
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- 密码推理 关卡表 -->
+      <el-table v-else :data="levelList" row-key="ID" border v-loading="loading">
+        <el-table-column align="left" label="关卡号" prop="levelNumber" width="100" />
+        <el-table-column align="left" label="答案" prop="answer" width="120">
+          <template #default="scope">
+            <el-tag type="danger">{{ scope.row.answer }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column align="left" label="提示数字" prop="hintDigits" min-width="150" />
+        <el-table-column align="left" label="提示文本" min-width="200">
+          <template #default="scope">
+            <span style="font-size:12px;color:#909399">{{ getHintTextsPreview(scope.row.hintTexts) }}</span>
           </template>
         </el-table-column>
         <el-table-column align="left" label="状态" width="140">
@@ -55,7 +82,7 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { getCategoryList, getDifficultyCategoryList, getLevelList, getUserProgress, setUserProgress } from '@/api/client/game'
+import { getCategoryList, getDifficultyCategoryList, getLevelList, getPwdLevelList, getUserProgress, setUserProgress } from '@/api/client/game'
 import { getUserList } from '@/api/user'
 
 defineOptions({ name: 'GameUserProgress' })
@@ -67,6 +94,7 @@ const levelList = ref([])
 const progressMap = ref({})
 const userInfo = ref(null)
 const clearedCount = ref(0)
+const isPwdGame = ref(false)
 
 const searchInfo = reactive({
   userID: '',
@@ -92,6 +120,16 @@ const getDifficultyLabel = (c) => {
   }
 }
 
+const getHintTextsPreview = (raw) => {
+  try {
+    const arr = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (!Array.isArray(arr)) return raw || '-'
+    return arr.map(h => (typeof h === 'string' ? h : (h?.zh || h?.en || ''))).join('；')
+  } catch {
+    return raw || '-'
+  }
+}
+
 const isCleared = (levelID) => {
   return progressMap.value[levelID]
 }
@@ -110,7 +148,10 @@ const onGameChange = async (val) => {
   progressMap.value = {}
   userInfo.value = null
   clearedCount.value = 0
+  isPwdGame.value = false
   if (!val) return
+  const game = gameList.value.find(g => g.ID === val)
+  isPwdGame.value = game?.gameKey === 'pwd-guess'
   const res = await getDifficultyCategoryList({ page: 1, pageSize: 100, gameID: val })
   if (res.code === 0) {
     difficultyList.value = res.data?.list || []
@@ -140,8 +181,9 @@ const onSearch = async () => {
   loading.value = true
   try {
     await loadUserInfo()
+    const levelApi = isPwdGame.value ? getPwdLevelList : getLevelList
     const [levelRes, progressRes] = await Promise.all([
-      getLevelList({ page: 1, pageSize: 200, categoryID: searchInfo.categoryID }),
+      levelApi({ page: 1, pageSize: 200, categoryID: searchInfo.categoryID }),
       getUserProgress({ userID: searchInfo.userID, categoryID: searchInfo.categoryID })
     ])
     if (levelRes.code === 0) {
@@ -171,6 +213,7 @@ const onToggleProgress = async (levelID, val) => {
     await setUserProgress({
       userID: Number(searchInfo.userID),
       levelID: levelID,
+      gameKey: isPwdGame.value ? 'pwd-guess' : '24point',
       status: val ? 1 : 0
     })
     if (val) {

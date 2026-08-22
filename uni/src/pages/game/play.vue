@@ -324,9 +324,20 @@ const loadLevel = async () => {
   try {
     const res = await getLevelDetail(levelID.value)
     if (res.code === 0 && res.data) {
-      const numsStr = res.data.numbers || ''
+      let numsStr = res.data.numbers || ''
+      let target = res.data.targetResult || 24
+
+      // 兼容 gameData 统一字段：从 gameData JSON 中解析
+      if (!numsStr && res.data.gameData) {
+        try {
+          const gd = typeof res.data.gameData === 'string' ? JSON.parse(res.data.gameData) : res.data.gameData
+          if (gd.numbers) numsStr = gd.numbers
+          if (gd.targetResult) target = gd.targetResult
+        } catch (e) { /* ignore */ }
+      }
+
       const nums = numsStr.split(',').map(Number)
-      targetResult.value = res.data.targetResult || 24
+      targetResult.value = target
       currentLevelNumber.value = res.data.levelNumber || 0
       numbers.length = 0
       nums.forEach((n, i) => {

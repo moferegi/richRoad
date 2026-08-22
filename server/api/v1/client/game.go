@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/json"
 	"strconv"
 
 	"github.com/flipped-aurora/gin-vue-admin/server/global"
@@ -102,7 +103,7 @@ func (api *GameApi) SetUserProgress(c *gin.Context) {
 		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
-	if err := gameService.SetUserProgress(req.UserID, req.LevelID, req.Status); err != nil {
+	if err := gameService.SetUserProgress(req.UserID, req.LevelID, req.GameKey, req.Status); err != nil {
 		global.GVA_LOG.Error("设置用户进度失败!", zap.Error(err))
 		response.FailWithMessage(i18n.T(c, "updateFail"), c)
 		return
@@ -135,7 +136,7 @@ func (api *GameApi) GetDifficultyCategories(c *gin.Context) {
 	response.OkWithDetailed(list, i18n.T(c, "getSuccess"), c)
 }
 
-// GetLevelDetail 获取关卡详情（含数字，用于开始游戏）
+// GetLevelDetail 获取关卡详情（统一接口，支持 game_levels 和 pwd_game_levels）
 // @Tags Game
 // @Summary 获取关卡详情
 // @Security ApiKeyAuth
@@ -153,14 +154,34 @@ func (api *GameApi) GetLevelDetail(c *gin.Context) {
 	}
 	level, err := gameService.GetLevelByID(uint(levelID))
 	if err != nil {
-		global.GVA_LOG.Error("获取关卡详情失败!", zap.Error(err))
-		response.FailWithMessage(i18n.T(c, "getFail"), c)
-		return
+		// 兼容旧密码关卡：从 pwd_game_levels 查找并转为 GameLevel 返回
+		pwdLevel, err2 := gameService.GetPwdLevelByID(uint(levelID))
+		if err2 != nil {
+			global.GVA_LOG.Error("获取关卡详情失败!", zap.Error(err))
+			response.FailWithMessage(i18n.T(c, "getFail"), c)
+			return
+		}
+		gameData := map[string]interface{}{
+			"type":       "pwd",
+			"answer":     pwdLevel.Answer,
+			"hintDigits": pwdLevel.HintDigits,
+			"hintTexts":  pwdLevel.HintTexts,
+		}
+		gameDataBytes, _ := json.Marshal(gameData)
+		level = clientModel.GameLevel{
+			CategoryID:  pwdLevel.CategoryID,
+			LevelNumber: pwdLevel.LevelNumber,
+			Sort:        pwdLevel.Sort,
+			GameData:    string(gameDataBytes),
+		}
+		level.ID = pwdLevel.ID
+		level.CreatedAt = pwdLevel.CreatedAt
+		level.UpdatedAt = pwdLevel.UpdatedAt
 	}
 	response.OkWithDetailed(level, i18n.T(c, "getSuccess"), c)
 }
 
-// GetLevelListByCategory 获取关卡列表（Uni端）
+// GetLevelListByCategory 获取关卡列表（Uni端，统一返回 game_levels + pwd_game_levels）
 // @Tags Game
 // @Summary 获取关卡列表
 // @Security ApiKeyAuth
@@ -181,6 +202,27 @@ func (api *GameApi) GetLevelListByCategory(c *gin.Context) {
 		global.GVA_LOG.Error("获取关卡列表失败!", zap.Error(err))
 		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
+	}
+	// 兼容旧密码关卡：同时查询 pwd_game_levels 并转为 GameLevel 返回
+	pwdList, _ := gameService.GetPwdLevelList(uint(categoryID))
+	for _, pl := range pwdList {
+		gameData := map[string]interface{}{
+			"type":       "pwd",
+			"answer":     pl.Answer,
+			"hintDigits": pl.HintDigits,
+			"hintTexts":  pl.HintTexts,
+		}
+		gameDataBytes, _ := json.Marshal(gameData)
+		gl := clientModel.GameLevel{
+			CategoryID:  pl.CategoryID,
+			LevelNumber: pl.LevelNumber,
+			Sort:        pl.Sort,
+			GameData:    string(gameDataBytes),
+		}
+		gl.ID = pl.ID
+		gl.CreatedAt = pl.CreatedAt
+		gl.UpdatedAt = pl.UpdatedAt
+		list = append(list, gl)
 	}
 	response.OkWithDetailed(list, i18n.T(c, "getSuccess"), c)
 }
@@ -210,7 +252,7 @@ func (api *GameApi) SubmitLevelResult(c *gin.Context) {
 	response.OkWithMessage(i18n.T(c, "operationSuccess"), c)
 }
 
-// GetUserProgress 获取用户闯关进度
+// GetUserProgress 获取用户闯关进度（按游戏类型自动选择关卡表）
 // @Tags Game
 // @Summary 获取用户闯关进度
 // @Security ApiKeyAuth
@@ -227,7 +269,7 @@ func (api *GameApi) GetUserProgress(c *gin.Context) {
 		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
-	list, err := gameService.GetUserProgress(userID, uint(categoryID))
+	list, err := gameService.GetUserProgressByCategory(userID, uint(categoryID))
 	if err != nil {
 		global.GVA_LOG.Error("获取用户进度失败!", zap.Error(err))
 		response.FailWithMessage(i18n.T(c, "getFail"), c)
@@ -617,11 +659,222 @@ func (api *GameApi) GetUserProgressAdmin(c *gin.Context) {
 		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
 		return
 	}
-	list, err := gameService.GetUserProgress(uint(userID), uint(categoryID))
+	list, err := gameService.GetUserProgressByCategory(uint(userID), uint(categoryID))
 	if err != nil {
 		global.GVA_LOG.Error("获取用户进度失败!", zap.Error(err))
 		response.FailWithMessage(i18n.T(c, "getFail"), c)
 		return
 	}
 	response.OkWithDetailed(list, i18n.T(c, "getSuccess"), c)
+}
+
+// ==================== 密码推理 Uni 端接口 ====================
+
+// GetPwdLevelDetail 获取密码关卡详情（兼容新旧数据）
+// @Tags Game
+// @Summary 获取密码关卡详情
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param levelID query int true "关卡ID"
+// @Success 200 {object} response.Response{data=client.PwdGameLevel,msg=string} "获取成功"
+// @Router /game/getPwdLevelDetail [get]
+func (api *GameApi) GetPwdLevelDetail(c *gin.Context) {
+	levelIDStr := c.Query("levelID")
+	levelID, err := strconv.ParseUint(levelIDStr, 10, 64)
+	if err != nil || levelID == 0 {
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		return
+	}
+	level, err := gameService.GetPwdLevelByID(uint(levelID))
+	if err != nil {
+		// 兼容新数据：从 game_levels 的 gameData 中解析
+		gl, err2 := gameService.GetLevelByID(uint(levelID))
+		if err2 != nil || gl.GameData == "" {
+			global.GVA_LOG.Error("获取密码关卡详情失败!", zap.Error(err))
+			response.FailWithMessage(i18n.T(c, "getFail"), c)
+			return
+		}
+		var gd map[string]interface{}
+		if json.Unmarshal([]byte(gl.GameData), &gd) != nil || gd["type"] != "pwd" {
+			response.FailWithMessage(i18n.T(c, "getFail"), c)
+			return
+		}
+		level = clientModel.PwdGameLevel{
+			CategoryID:  gl.CategoryID,
+			LevelNumber: gl.LevelNumber,
+			Sort:        gl.Sort,
+			Answer:      toStringFromMap(gd, "answer"),
+			HintDigits:  toStringFromMap(gd, "hintDigits"),
+			HintTexts:   toStringFromMap(gd, "hintTexts"),
+		}
+		level.ID = gl.ID
+		level.CreatedAt = gl.CreatedAt
+		level.UpdatedAt = gl.UpdatedAt
+	}
+	response.OkWithDetailed(level, i18n.T(c, "getSuccess"), c)
+}
+
+func toStringFromMap(m map[string]interface{}, key string) string {
+	if v, ok := m[key]; ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+		b, _ := json.Marshal(v)
+		return string(b)
+	}
+	return ""
+}
+
+// GetPwdLevelListByCategory 获取密码关卡列表（Uni端）
+// @Tags Game
+// @Summary 获取密码关卡列表
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param categoryID query int true "难度分类ID"
+// @Success 200 {object} response.Response{data=[]client.PwdGameLevel,msg=string} "获取成功"
+// @Router /game/getPwdLevelList [get]
+func (api *GameApi) GetPwdLevelListByCategory(c *gin.Context) {
+	categoryIDStr := c.Query("categoryID")
+	categoryID, err := strconv.ParseUint(categoryIDStr, 10, 64)
+	if err != nil || categoryID == 0 {
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		return
+	}
+	list, err := gameService.GetPwdLevelList(uint(categoryID))
+	if err != nil {
+		global.GVA_LOG.Error("获取密码关卡列表失败!", zap.Error(err))
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		return
+	}
+	response.OkWithDetailed(list, i18n.T(c, "getSuccess"), c)
+}
+
+// SubmitPwdLevelResult 提交密码推理闯关结果
+// @Tags Game
+// @Summary 提交密码推理闯关结果
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param levelID query int true "关卡ID"
+// @Success 200 {object} response.Response{msg=string} "闯关成功"
+// @Router /game/submitPwdLevelResult [post]
+func (api *GameApi) SubmitPwdLevelResult(c *gin.Context) {
+	userID := utils.GetUserID(c)
+	levelIDStr := c.Query("levelID")
+	levelID, err := strconv.ParseUint(levelIDStr, 10, 64)
+	if err != nil || levelID == 0 {
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		return
+	}
+	if err := gameService.SubmitPwdLevelResult(userID, uint(levelID)); err != nil {
+		global.GVA_LOG.Error("提交密码推理结果失败!", zap.Error(err))
+		response.FailWithMessage(i18n.T(c, "operationFailed"), c)
+		return
+	}
+	response.OkWithMessage(i18n.T(c, "operationSuccess"), c)
+}
+
+// ==================== 密码推理 Web 管理端接口 ====================
+
+// CreatePwdLevel 创建密码关卡
+// @Tags GameAdmin
+// @Summary 创建密码关卡
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data body client.PwdGameLevel true "密码关卡"
+// @Success 200 {object} response.Response{msg=string} "创建成功"
+// @Router /game/admin/createPwdLevel [post]
+func (api *GameApi) CreatePwdLevel(c *gin.Context) {
+	var level clientModel.PwdGameLevel
+	if err := c.ShouldBindJSON(&level); err != nil {
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		return
+	}
+	if err := gameService.CreatePwdLevel(&level); err != nil {
+		global.GVA_LOG.Error("创建密码关卡失败!", zap.Error(err))
+		response.FailWithMessage(i18n.T(c, "createFail"), c)
+		return
+	}
+	response.OkWithMessage(i18n.T(c, "createSuccess"), c)
+}
+
+// UpdatePwdLevel 更新密码关卡
+// @Tags GameAdmin
+// @Summary 更新密码关卡
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param data body client.PwdGameLevel true "密码关卡"
+// @Success 200 {object} response.Response{msg=string} "更新成功"
+// @Router /game/admin/updatePwdLevel [put]
+func (api *GameApi) UpdatePwdLevel(c *gin.Context) {
+	var level clientModel.PwdGameLevel
+	if err := c.ShouldBindJSON(&level); err != nil {
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		return
+	}
+	if err := gameService.UpdatePwdLevel(&level); err != nil {
+		global.GVA_LOG.Error("更新密码关卡失败!", zap.Error(err))
+		response.FailWithMessage(i18n.T(c, "updateFail"), c)
+		return
+	}
+	response.OkWithMessage(i18n.T(c, "updateSuccess"), c)
+}
+
+// DeletePwdLevel 删除密码关卡
+// @Tags GameAdmin
+// @Summary 删除密码关卡
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param ID query int true "关卡ID"
+// @Success 200 {object} response.Response{msg=string} "删除成功"
+// @Router /game/admin/deletePwdLevel [delete]
+func (api *GameApi) DeletePwdLevel(c *gin.Context) {
+	idStr := c.Query("ID")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id == 0 {
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		return
+	}
+	if err := gameService.DeletePwdLevel(uint(id)); err != nil {
+		global.GVA_LOG.Error("删除密码关卡失败!", zap.Error(err))
+		response.FailWithMessage(i18n.T(c, "deleteFail"), c)
+		return
+	}
+	response.OkWithMessage(i18n.T(c, "deleteSuccess"), c)
+}
+
+// GetPwdLevelList 获取密码关卡列表（管理端）
+// @Tags GameAdmin
+// @Summary 获取密码关卡列表
+// @Security ApiKeyAuth
+// @accept application/json
+// @Produce application/json
+// @Param categoryID query int true "难度分类ID"
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
+// @Success 200 {object} response.Response{data=response.PageResult,msg=string} "获取成功"
+// @Router /game/admin/getPwdLevelList [get]
+func (api *GameApi) GetPwdLevelList(c *gin.Context) {
+	categoryIDStr := c.Query("categoryID")
+	categoryID, err := strconv.ParseUint(categoryIDStr, 10, 64)
+	if err != nil || categoryID == 0 {
+		response.FailWithMessage(i18n.T(c, "invalidParams"), c)
+		return
+	}
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	list, total, err := gameService.GetPwdLevelListAdmin(uint(categoryID), page, pageSize)
+	if err != nil {
+		global.GVA_LOG.Error("获取密码关卡列表失败!", zap.Error(err))
+		response.FailWithMessage(i18n.T(c, "getFail"), c)
+		return
+	}
+	response.OkWithDetailed(response.PageResult{
+		List: list, Total: total, Page: page, PageSize: pageSize,
+	}, i18n.T(c, "getSuccess"), c)
 }

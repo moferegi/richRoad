@@ -23,6 +23,7 @@ func (s *GameService) UpdateGameCategory(cat *client.GameCategory) error {
 		"description": cat.Description,
 		"sort":        cat.Sort,
 		"status":      cat.Status,
+		"play_page":   cat.PlayPage,
 	}).Error
 }
 
@@ -119,6 +120,7 @@ func (s *GameService) UpdateLevel(level *client.GameLevel) error {
 		"level_number":  level.LevelNumber,
 		"numbers":       level.Numbers,
 		"target_result": level.TargetResult,
+		"game_data":     level.GameData,
 		"sort":          level.Sort,
 	}).Error
 }
@@ -152,41 +154,50 @@ func (s *GameService) GetLevelByID(id uint) (level client.GameLevel, err error) 
 
 // ==================== 用户闯关进度 ====================
 
-// GetUserProgress 获取用户在某个难度分类下的闯关进度
+// GetUserProgress 获取用户在某个难度分类下的闯关进度（仅 game_levels）
 func (s *GameService) GetUserProgress(userID uint, categoryID uint) (list []client.GameUserProgress, err error) {
-	err = global.GVA_DB.Where("user_id = ? AND level_id IN (SELECT id FROM game_levels WHERE category_id = ?)", userID, categoryID).Find(&list).Error
+	err = global.GVA_DB.Table("game_user_progress").
+		Select("game_user_progress.*").
+		Joins("INNER JOIN game_levels ON game_levels.id = game_user_progress.level_id AND game_levels.category_id = ?", categoryID).
+		Where("game_user_progress.user_id = ? AND game_user_progress.game_key = ?", userID, "24point").
+		Find(&list).Error
 	return
 }
 
-// SubmitLevelResult 提交闯关结果
-func (s *GameService) SubmitLevelResult(userID uint, levelID uint) error {
-	// 检查关卡是否存在
-	var level client.GameLevel
-	if err := global.GVA_DB.First(&level, levelID).Error; err != nil {
-		return err
-	}
+// GetPwdUserProgress 获取用户在某个难度分类下的密码推理闯关进度（仅 pwd_game_levels）
+func (s *GameService) GetPwdUserProgress(userID uint, categoryID uint) (list []client.GameUserProgress, err error) {
+	err = global.GVA_DB.Table("game_user_progress").
+		Select("game_user_progress.*").
+		Joins("INNER JOIN pwd_game_levels ON pwd_game_levels.id = game_user_progress.level_id AND pwd_game_levels.category_id = ?", categoryID).
+		Where("game_user_progress.user_id = ? AND game_user_progress.game_key = ?", userID, "pwd-guess").
+		Find(&list).Error
+	return
+}
 
-	// 检查前置关卡是否已通过
-	var prevLevels []client.GameLevel
-	if err := global.GVA_DB.Where("category_id = ? AND level_number < ?", level.CategoryID, level.LevelNumber).Find(&prevLevels).Error; err != nil {
-		return err
+// GetUserProgressByCategory 根据难度分类自动选择关卡表查询进度（避免跨表ID冲突）
+func (s *GameService) GetUserProgressByCategory(userID uint, categoryID uint) (list []client.GameUserProgress, err error) {
+	var cat client.GameDifficultyCategory
+	if err = global.GVA_DB.First(&cat, categoryID).Error; err != nil {
+		return
 	}
-	for _, pl := range prevLevels {
-		var count int64
-		global.GVA_DB.Model(&client.GameUserProgress{}).Where("user_id = ? AND level_id = ? AND status = 1", userID, pl.ID).Count(&count)
-		if count == 0 {
-			return gorm.ErrRecordNotFound // 前置关卡未通过
-		}
+	var game client.GameCategory
+	if err = global.GVA_DB.First(&game, cat.GameID).Error; err != nil {
+		return
 	}
+	if game.GameKey == "pwd-guess" {
+		return s.GetPwdUserProgress(userID, categoryID)
+	}
+	return s.GetUserProgress(userID, categoryID)
+}
 
-	// 检查是否已通过
+// saveLevelProgress 统一保存闯关进度（提取重复逻辑）
+func (s *GameService) saveLevelProgress(userID uint, levelID uint, gameKey string) error {
 	var existing client.GameUserProgress
-	err := global.GVA_DB.Where("user_id = ? AND level_id = ?", userID, levelID).First(&existing).Error
+	err := global.GVA_DB.Where("user_id = ? AND level_id = ? AND game_key = ?", userID, levelID, gameKey).First(&existing).Error
 	if err == nil {
 		if existing.Status == 1 {
 			return nil // 已通过，幂等
 		}
-		// 更新为已通过
 		now := time.Now()
 		return global.GVA_DB.Model(&existing).Updates(map[string]interface{}{
 			"status":        1,
@@ -194,17 +205,56 @@ func (s *GameService) SubmitLevelResult(userID uint, levelID uint) error {
 			"attempt_count": existing.AttemptCount + 1,
 		}).Error
 	}
-
-	// 新建记录
 	now := time.Now()
 	progress := client.GameUserProgress{
 		UserID:       userID,
 		LevelID:      levelID,
+		GameKey:      gameKey,
 		Status:       1,
 		PassedAt:     &now,
 		AttemptCount: 1,
 	}
 	return global.GVA_DB.Create(&progress).Error
+}
+
+// SubmitLevelResult 提交闯关结果（统一方法，支持 game_levels 和 pwd_game_levels）
+func (s *GameService) SubmitLevelResult(userID uint, levelID uint) error {
+	// 检查关卡是否存在（优先查 game_levels，再查 pwd_game_levels）
+	var level client.GameLevel
+	if err := global.GVA_DB.First(&level, levelID).Error; err != nil {
+		// 尝试从 pwd_game_levels 查找
+		var pwdLevel client.PwdGameLevel
+		if err2 := global.GVA_DB.First(&pwdLevel, levelID).Error; err2 != nil {
+			return err2
+		}
+		// 检查前置关卡
+		var prevPwdLevels []client.PwdGameLevel
+		if err := global.GVA_DB.Where("category_id = ? AND level_number < ?", pwdLevel.CategoryID, pwdLevel.LevelNumber).Find(&prevPwdLevels).Error; err != nil {
+			return err
+		}
+		for _, pl := range prevPwdLevels {
+			var count int64
+			global.GVA_DB.Model(&client.GameUserProgress{}).Where("user_id = ? AND level_id = ? AND game_key = ? AND status = 1", userID, pl.ID, "pwd-guess").Count(&count)
+			if count == 0 {
+				return gorm.ErrRecordNotFound
+			}
+		}
+		return s.saveLevelProgress(userID, levelID, "pwd-guess")
+	}
+
+	// 检查前置关卡
+	var prevLevels []client.GameLevel
+	if err := global.GVA_DB.Where("category_id = ? AND level_number < ?", level.CategoryID, level.LevelNumber).Find(&prevLevels).Error; err != nil {
+		return err
+	}
+	for _, pl := range prevLevels {
+		var count int64
+		global.GVA_DB.Model(&client.GameUserProgress{}).Where("user_id = ? AND level_id = ? AND game_key = ? AND status = 1", userID, pl.ID, "24point").Count(&count)
+		if count == 0 {
+			return gorm.ErrRecordNotFound
+		}
+	}
+	return s.saveLevelProgress(userID, levelID, "24point")
 }
 
 // ==================== 排行榜 ====================
@@ -256,11 +306,11 @@ func (s *GameService) GetUserPassedTotal(userID uint) (total int64, err error) {
 }
 
 // SetUserProgress 管理端手动设置用户进度（通关/未通关）
-func (s *GameService) SetUserProgress(userID uint, levelID uint, status int) error {
+func (s *GameService) SetUserProgress(userID uint, levelID uint, gameKey string, status int) error {
 	if status == 1 {
 		// 设置为通关：upsert
 		now := time.Now()
-		return global.GVA_DB.Where("user_id = ? AND level_id = ?", userID, levelID).
+		return global.GVA_DB.Where("user_id = ? AND level_id = ? AND game_key = ?", userID, levelID, gameKey).
 			Assign(map[string]interface{}{
 				"status":        1,
 				"passed_at":     &now,
@@ -269,11 +319,62 @@ func (s *GameService) SetUserProgress(userID uint, levelID uint, status int) err
 			FirstOrCreate(&client.GameUserProgress{
 				UserID:       userID,
 				LevelID:      levelID,
+				GameKey:      gameKey,
 				Status:       1,
 				PassedAt:     &now,
 				AttemptCount: 1,
 			}).Error
 	}
 	// 设置为未通关：删除记录
-	return global.GVA_DB.Where("user_id = ? AND level_id = ?", userID, levelID).Delete(&client.GameUserProgress{}).Error
+	return global.GVA_DB.Where("user_id = ? AND level_id = ? AND game_key = ?", userID, levelID, gameKey).Delete(&client.GameUserProgress{}).Error
+}
+
+// ==================== 密码推理关卡 ====================
+
+func (s *GameService) CreatePwdLevel(level *client.PwdGameLevel) error {
+	return global.GVA_DB.Create(level).Error
+}
+
+func (s *GameService) UpdatePwdLevel(level *client.PwdGameLevel) error {
+	return global.GVA_DB.Model(&client.PwdGameLevel{}).Where("id = ?", level.ID).Updates(map[string]interface{}{
+		"category_id":  level.CategoryID,
+		"level_number": level.LevelNumber,
+		"answer":       level.Answer,
+		"hint_digits":  level.HintDigits,
+		"hint_texts":   level.HintTexts,
+		"sort":         level.Sort,
+	}).Error
+}
+
+func (s *GameService) DeletePwdLevel(id uint) error {
+	return global.GVA_DB.Delete(&client.PwdGameLevel{}, id).Error
+}
+
+func (s *GameService) GetPwdLevelList(categoryID uint) (list []client.PwdGameLevel, err error) {
+	err = global.GVA_DB.Where("category_id = ?", categoryID).Order("sort ASC, level_number ASC").Find(&list).Error
+	return
+}
+
+func (s *GameService) GetPwdLevelListAdmin(categoryID uint, page, pageSize int) (list []client.PwdGameLevel, total int64, err error) {
+	db := global.GVA_DB.Model(&client.PwdGameLevel{}).Where("category_id = ?", categoryID)
+	err = db.Count(&total).Error
+	if err != nil {
+		return
+	}
+	if pageSize > 0 {
+		db = db.Limit(pageSize).Offset(pageSize * (page - 1))
+	}
+	err = db.Order("sort ASC, level_number ASC").Find(&list).Error
+	return
+}
+
+func (s *GameService) GetPwdLevelByID(id uint) (level client.PwdGameLevel, err error) {
+	err = global.GVA_DB.First(&level, id).Error
+	return
+}
+
+// SubmitPwdLevelResult 提交密码推理闯关结果（已统一，委托给 SubmitLevelResult）
+// Deprecated: 请使用 SubmitLevelResult，该方法保留仅为向后兼容
+func (s *GameService) SubmitPwdLevelResult(userID uint, levelID uint) error {
+	return s.SubmitLevelResult(userID, levelID)
 }
