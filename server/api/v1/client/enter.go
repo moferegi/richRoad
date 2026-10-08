@@ -19,6 +19,7 @@ type ApiGroup struct {
 	ExternalLinkDomainApi
 	VideoTagApi
 	DiaryTagApi
+	AdApi
 	GameApi
 }
 
@@ -31,4 +32,6 @@ var (
 	videoTagService        = service.ServiceGroupApp.ClientServiceGroup.VideoTagService
 	diaryTagService        = service.ServiceGroupApp.ClientServiceGroup.DiaryTagService
 	cloudStorageService    = service.ServiceGroupApp.ClientServiceGroup.CloudStorageService
+	adService             = service.ServiceGroupApp.ClientServiceGroup.AdService
+	adSliceService        = service.ServiceGroupApp.ClientServiceGroup.AdSliceService
 )

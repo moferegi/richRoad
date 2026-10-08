@@ -10,8 +10,13 @@
         <text class="back-icon">‹</text>
       </view>
       <text class="title">{{ gameName }}</text>
-      <view class="placeholder" />
+      <view class="top-right">
+        <AdButton position-key="pages/game/category" @open="onAdOpen" />
+      </view>
     </view>
+
+    <!-- 广告播放器 -->
+    <AdPlayer v-model:visible="adVisible" :ads="adList" :position-id="adPositionId" @close="onAdClose" />
 
     <view v-if="loading" class="loading-wrap">
       <text class="loading-text">{{ t('game.loading') }}</text>
@@ -75,6 +80,8 @@ import { onShow } from '@dcloudio/uni-app'
 import { useLangStore } from '@/pinia/modules/lang.js'
 import { t as i18nT, localText as i18nLocalText } from '@/utils/i18n.js'
 import { getGameCategory, getDifficultyCategories, getUserProgress, getLevelList } from '@/api/game.js'
+import AdButton from '@/components/ad-watch/AdButton.vue'
+import AdPlayer from '@/components/ad-watch/AdPlayer.vue'
 
 const langStore = useLangStore()
 const locale = computed(() => langStore.locale || uni.getStorageSync('app-lang') || 'zh')
@@ -94,6 +101,20 @@ const difficultyList = ref([])
 const currentIndex = ref(0)
 const clickAudio = ref(null)
 const levelCache = reactive({})
+const adVisible = ref(false)
+const adList = ref([])
+const adPositionId = ref(0)
+
+const onAdOpen = (ads) => {
+  adList.value = ads
+  adPositionId.value = ads[0]?.positionId || 0
+  adVisible.value = true
+}
+
+const onAdClose = () => {
+  adList.value = []
+  adVisible.value = false
+}
 
 const initAudio = () => {
   const soundEnabled = uni.getStorageSync('game-sound-enabled') !== '0'
@@ -288,6 +309,7 @@ onShow(() => {
   letter-spacing: 1rpx;
 }
 .placeholder { width: 72rpx; }
+.top-right { display: flex; align-items: center; }
 
 /* 分类 Tab */
 .cat-tabs {

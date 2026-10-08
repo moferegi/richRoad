@@ -19,6 +19,7 @@ type RouterGroup struct {
 	ExternalLinkDomainRouter
 	VideoTagRouter
 	DiaryTagRouter
+	AdRouter
 	GameRouter
 }
 

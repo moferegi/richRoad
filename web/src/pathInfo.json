@@ -1,5 +1,6 @@
 {
   "/src/view/about/index.vue": "About",
+  "/src/view/client/ad/adManage.vue": "AdManage",
   "/src/view/client/address/address.vue": "Address",
   "/src/view/client/address/addressForm.vue": "AddressForm",
   "/src/view/client/collect/collect.vue": "Collect",

@@ -383,3 +383,22 @@ fmt.Println(decodeBytes, err)
 
 请严格遵守Apache 2.0协议并保留作品声明，去除版权信息请务必[获取授权](https://plugin.gin-vue-admin.com/license)  
 未授权去除版权信息将依法追究法律责任
+
+
+
+### Uni 端广告位置使用方式
+category.vue 中的集成：
+<!-- 顶部栏右侧 -->
+<AdButton position-key="pages/game/category" @open="onAdOpen" />
+
+<!-- 广告播放弹窗 -->
+<AdPlayer v-model:visible="adVisible" :ads="adList" :position-id="adPositionId" />
+流程 ：
+
+1. AdButton 挂载时调用 GET /ad/getAdByPosition?positionKey=pages/game/category
+2. 服务端查 ad_positions 表找 position_key = "pages/game/category" 且 is_enabled = true 的位置
+3. 再查该位置下 is_enabled = true 的 ad_videos ，按 sort 排序
+4. 拼接默认域名后返回完整 URL 列表
+5. 如果有广告则显示按钮，点击后弹出 AdPlayer
+6. AdPlayer 按 min_watch_seconds 控制不可关闭，看完后上报 /ad/reportWatch
+所以你在管理后台创建广告位置时， positionKey 填 pages/game/category 即可匹配到这个页面。如果要在其他页面加广告，创建新位置后，在那个页面用同样的 <AdButton position-key="xxx" /> 即可。

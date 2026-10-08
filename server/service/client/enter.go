@@ -19,5 +19,7 @@ type ServiceGroup struct {
 	VideoTagService
 	DiaryTagService
 	CloudStorageService
+	AdService
+	AdSliceService
 	GameService
 }

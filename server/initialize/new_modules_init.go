@@ -160,6 +160,22 @@ func initNewModulesApis(db *gorm.DB) {
 		{ApiGroup: "游戏(Uni)", Method: "GET", Path: "/game/getPwdLevelDetail", Description: "获取密码通关关卡详情"},
 		{ApiGroup: "游戏(Uni)", Method: "GET", Path: "/game/getPwdLevelList", Description: "获取密码通关关卡列表"},
 		{ApiGroup: "游戏(Uni)", Method: "POST", Path: "/game/submitPwdLevelResult", Description: "提交密码推理闯关结果"},
+		// 广告管理
+		{ApiGroup: "广告管理", Method: "POST", Path: "/ad/createAdPosition", Description: "创建广告位置"},
+		{ApiGroup: "广告管理", Method: "DELETE", Path: "/ad/deleteAdPosition", Description: "删除广告位置"},
+		{ApiGroup: "广告管理", Method: "PUT", Path: "/ad/updateAdPosition", Description: "更新广告位置"},
+		{ApiGroup: "广告管理", Method: "GET", Path: "/ad/getAdPositionList", Description: "获取广告位置列表"},
+		{ApiGroup: "广告管理", Method: "POST", Path: "/ad/createAdVideo", Description: "创建广告视频"},
+		{ApiGroup: "广告管理", Method: "DELETE", Path: "/ad/deleteAdVideo", Description: "删除广告视频"},
+		{ApiGroup: "广告管理", Method: "PUT", Path: "/ad/updateAdVideo", Description: "更新广告视频"},
+		{ApiGroup: "广告管理", Method: "GET", Path: "/ad/getAdVideoList", Description: "获取广告视频列表"},
+		{ApiGroup: "广告管理", Method: "POST", Path: "/ad/sliceAdVideo", Description: "广告视频切片上传"},
+		{ApiGroup: "广告管理", Method: "GET", Path: "/ad/checkFfmpeg", Description: "检查FFmpeg"},
+		{ApiGroup: "广告管理", Method: "GET", Path: "/ad/getWatchRecordList", Description: "获取观看记录"},
+		{ApiGroup: "广告管理", Method: "GET", Path: "/ad/getWatchStats", Description: "获取观看统计"},
+		// 广告（Uni端）
+		{ApiGroup: "广告(Uni)", Method: "GET", Path: "/ad/getAdByPosition", Description: "根据位置获取广告"},
+		{ApiGroup: "广告(Uni)", Method: "POST", Path: "/ad/reportWatch", Description: "上报观看记录"},
 	}
 	for _, api := range apis {
 		var count int64
@@ -259,6 +275,7 @@ func initNewModulesMenus(db *gorm.DB) {
 			menuDef{"tryonClothManage", "tryonClothManage", "view/client/tryonCloth/tryonCloth.vue", "我的衣橱管理", "goods", clientParent.ID, 19},
 			menuDef{"tryonPointRecord", "tryonPointRecord", "view/client/tryonPointRecord/tryonPointRecord.vue", "试衣币记录", "coin", clientParent.ID, 20},
 			menuDef{"tryonRechargeOrder", "tryonRechargeOrder", "view/client/tryonRechargeOrder/tryonRechargeOrder.vue", "试衣币充值订单", "wallet", clientParent.ID, 21},
+			menuDef{"adManage", "adManage", "view/client/ad/adManage.vue", "广告管理", "advertising", clientParent.ID, 22},
 		)
 		// 英语学习相关菜单已移至 englishApp 父菜单下，此处移除不再重复创建
 	}
@@ -556,6 +573,22 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/game/admin/updatePwdLevel", "PUT"},
 		{"/game/admin/deletePwdLevel", "DELETE"},
 		{"/game/admin/getPwdLevelList", "GET"},
+		// 广告管理
+		{"/ad/createAdPosition", "POST"},
+		{"/ad/deleteAdPosition", "DELETE"},
+		{"/ad/updateAdPosition", "PUT"},
+		{"/ad/getAdPositionList", "GET"},
+		{"/ad/createAdVideo", "POST"},
+		{"/ad/deleteAdVideo", "DELETE"},
+		{"/ad/updateAdVideo", "PUT"},
+		{"/ad/getAdVideoList", "GET"},
+		{"/ad/sliceAdVideo", "POST"},
+		{"/ad/checkFfmpeg", "GET"},
+		{"/ad/getWatchRecordList", "GET"},
+		{"/ad/getWatchStats", "GET"},
+		// 广告（Uni端）
+		{"/ad/getAdByPosition", "GET"},
+		{"/ad/reportWatch", "POST"},
 	}
 
 	for _, auth := range seedAuthorities {
@@ -665,6 +698,19 @@ func initNewModulesCasbin(db *gorm.DB) {
 		{"/game/admin/updatePwdLevel", "PUT"},
 		{"/game/admin/deletePwdLevel", "DELETE"},
 		{"/game/admin/getPwdLevelList", "GET"},
+		// 广告管理（仅管理员）
+		{"/ad/createAdPosition", "POST"},
+		{"/ad/deleteAdPosition", "DELETE"},
+		{"/ad/updateAdPosition", "PUT"},
+		{"/ad/getAdPositionList", "GET"},
+		{"/ad/createAdVideo", "POST"},
+		{"/ad/deleteAdVideo", "DELETE"},
+		{"/ad/updateAdVideo", "PUT"},
+		{"/ad/getAdVideoList", "GET"},
+		{"/ad/sliceAdVideo", "POST"},
+		{"/ad/checkFfmpeg", "GET"},
+		{"/ad/getWatchRecordList", "GET"},
+		{"/ad/getWatchStats", "GET"},
 	}
 	for _, p := range adminOnlyPaths {
 		db.Exec(
